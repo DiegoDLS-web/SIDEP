@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/api/status', (req, res) => {
-  res.json({ mensaje: '¡El Backend de SIDEP está 100% operativo, hermaneke!' });
+  res.json({ mensaje: 'Backend de SIDEP 100% operativo' });
 });
 
 app.listen(PORT, () => {
