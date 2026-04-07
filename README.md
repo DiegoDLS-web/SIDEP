@@ -13,8 +13,10 @@ Prisma ORM
 Sigue estos pasos para dejar el entorno operativo en tu máquina local.
 
 1️⃣ Clonar el repositorio
+
 git clone https://github.com/DiegoDLS-web/SIDEP.git
 cd SIDEP
+
 2️⃣ Configuración del Backend
 
 Entra a la carpeta del servidor e instala las dependencias:
@@ -32,12 +34,14 @@ Genera el cliente de Prisma y sincroniza las tablas:
 
 npx prisma generate
 npx prisma migrate dev
+
 3️⃣ Configuración del Frontend
 
 Abre una nueva terminal en la raíz del proyecto e instala las dependencias de Angular:
 
 cd frontend
 npm install
+
 4️⃣ 🚀 Ejecución del Proyecto
 
 Para trabajar, debes tener ambos servidores corriendo en paralelo:
