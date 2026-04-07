@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// MÓDULO DE USUARIOS Y ROLES
+model Usuario {
+  id               Int                @id @default(autoincrement())
+  rut              String             @unique
+  nombre           String
+  rol              String             // Ej: CAPITAN, TENIENTE, CUARTELERO
+  password         String
+  partesObac       ParteEmergencia[]  @relation("ObacRelation")
+  checklists       ChecklistCarro[]
+}
+
+// MÓDULO DE EMERGENCIAS (PARTES)
+model ParteEmergencia {
+  id               Int                  @id @default(autoincrement())
+  correlativo      String               @unique // Ej: "2026-001"
+  claveEmergencia  String               // Ej: "10-0"
+  direccion        String
+  fecha            DateTime             @default(now())
+  estado           String               @default("PENDIENTE")
+  obacId           Int
+  obac             Usuario              @relation("ObacRelation", fields: [obacId], references: [id])
+  unidades         UnidadEnEmergencia[]
+  pacientes        PacienteEmergencia[]
+}
+
+model UnidadEnEmergencia {
+  id               Int              @id @default(autoincrement())
+  parteId          Int
+  carroId          Int
+  horaSalida       String
+  horaLlegada      String
+  kmSalida         Int
+  kmLlegada        Int
+  parte            ParteEmergencia  @relation(fields: [parteId], references: [id])
+  carro            Carro            @relation(fields: [carroId], references: [id])
+}
+
+model PacienteEmergencia {
+  id               Int              @id @default(autoincrement())
+  parteId          Int
+  nombre           String
+  triage           String           // ROJO, AMARILLO, VERDE, NEGRO
+  parte            ParteEmergencia  @relation(fields: [parteId], references: [id])
+}
+
+// MÓDULO LOGÍSTICO (CARROS)
+model Carro {
+  id               Int                  @id @default(autoincrement())
+  nomenclatura     String               @unique // Ej: "B-1"
+  patente          String               @unique
+  estadoOperativo  Boolean              @default(true)
+  checklists       ChecklistCarro[]
+  emergencias      UnidadEnEmergencia[]
+}
+
+model ChecklistCarro {
+  id               Int                @id @default(autoincrement())
+  carroId          Int
+  cuarteleroId     Int
+  fecha            DateTime           @default(now())
+  carro            Carro              @relation(fields: [carroId], references: [id])
+  cuartelero       Usuario            @relation(fields: [cuarteleroId], references: [id])
+}
