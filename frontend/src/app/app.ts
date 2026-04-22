@@ -1,23 +1,20 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { Component, inject } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
+import { AuthService } from './services/auth.service';
+import { ToastContainerComponent } from './shared/toast-container.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule],
+  imports: [RouterOutlet, ToastContainerComponent],
   templateUrl: './app.html',
-  styleUrl: './app.scss'
+  styleUrl: './app.scss',
 })
-export class AppComponent implements OnInit {
-  private http = inject(HttpClient);
-  carros: any[] = [];
+export class AppComponent {
+  private readonly auth = inject(AuthService);
 
-  ngOnInit() {
-    // Usamos /api gracias al proxy que configuramos en angular.json
-    this.http.get<any[]>('/api/carros').subscribe({
-      next: (data) => this.carros = data,
-      error: (err) => console.error('Error conectando al backend:', err)
-    });
+  constructor() {
+    // Refresca usuario con el servidor si había token guardado (F5 / vuelta a la pestaña).
+    this.auth.cargarSesion().subscribe();
   }
 }

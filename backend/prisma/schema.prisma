@@ -10,11 +10,52 @@ datasource db {
 model Usuario {
   id               Int                @id @default(autoincrement())
   rut              String             @unique
+  /// Nombre completo para compatibilidad (se sincroniza con nombres + apellidos).
   nombre           String
+  nombres                  String?
+  apellidoPaterno          String?
+  apellidoMaterno          String?
+  nacionalidad             String?
+  grupoSanguineo           String?
+  direccion                String?  @db.Text
+  region                   String?
+  comuna                   String?
+  actividad                String?
+  fechaNacimiento          DateTime?
+  fechaIngreso             DateTime?
+  /// ACTIVO, HONORARIO, CUARTELERO, CANJE, CONFEDERADO, INSIGNE
+  tipoVoluntario           String?
+  cuerpoBombero            String?
+  compania                 String?
+  /// VIGENTE | INACTIVO (sincronizado con `activo` al guardar)
+  estadoVoluntario         String?  @default("VIGENTE")
+  /// Cargo institucional (código: DIRECTOR_COMPANIA, etc.)
+  cargoOficialidad         String?
+  observacionesRegistro    String?  @db.Text
+  /// Firma PNG/JPEG en base64 (data URL) para PDFs
+  firmaImagen              String?  @db.Text
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
   rol              String             // Ej: CAPITAN, TENIENTE, CUARTELERO
+  email            String?            @unique
+  telefono         String?
+  activo           Boolean            @default(true)
+  /// Tras alta con contraseña provisional, el usuario debe cambiarla en el primer acceso.
+  requiereCambioPassword Boolean      @default(false)
   password         String
   partesObac       ParteEmergencia[]  @relation("ObacRelation")
   checklists       ChecklistCarro[]
+  actividades      ActividadUsuario[]
+  passwordResets   PasswordResetToken[]
+}
+
+model RolUsuario {
+  id               Int      @id @default(autoincrement())
+  nombre           String   @unique
+  activo           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 // MÓDULO DE EMERGENCIAS (PARTES)
@@ -25,6 +66,8 @@ model ParteEmergencia {
   direccion        String
   fecha            DateTime             @default(now())
   estado           String               @default("PENDIENTE")
+  /// JSON: descripción, trabajo realizado, vehículos civiles, apoyo externo, observaciones, conductores por unidad, etc.
+  metadata         Json?
   obacId           Int
   obac             Usuario              @relation("ObacRelation", fields: [obacId], references: [id])
   unidades         UnidadEnEmergencia[]
@@ -35,8 +78,14 @@ model UnidadEnEmergencia {
   id               Int              @id @default(autoincrement())
   parteId          Int
   carroId          Int
+  /// Compatibilidad: primera/última hora de línea; preferir hora6_0 / hora6_10.
   horaSalida       String
   horaLlegada      String
+  /// Horarios código 6-x por unidad (reloj HH:mm).
+  hora6_0          String           @default("00:00")
+  hora6_3          String           @default("00:00")
+  hora6_9          String           @default("00:00")
+  hora6_10         String           @default("00:00")
   kmSalida         Int
   kmLlegada        Int
   parte            ParteEmergencia  @relation(fields: [parteId], references: [id])
@@ -48,17 +97,61 @@ model PacienteEmergencia {
   parteId          Int
   nombre           String
   triage           String           // ROJO, AMARILLO, VERDE, NEGRO
+  edad             Int?
+  rut              String?
   parte            ParteEmergencia  @relation(fields: [parteId], references: [id])
 }
 
 // MÓDULO LOGÍSTICO (CARROS)
 model Carro {
-  id               Int                  @id @default(autoincrement())
-  nomenclatura     String               @unique // Ej: "B-1"
-  patente          String               @unique
-  estadoOperativo  Boolean              @default(true)
-  checklists       ChecklistCarro[]
-  emergencias      UnidadEnEmergencia[]
+  id                             Int                       @id @default(autoincrement())
+  nomenclatura                   String                    @unique // Ej: "B-1"
+  patente                        String                    @unique
+  estadoOperativo                Boolean                   @default(true)
+  nombre                         String?
+  tipo                           String?
+  marca                          String?
+  anioFabricacion                Int?
+  capacidadAgua                  String?
+  imagenUrl                      String?
+  kilometraje                    Int?
+  ultimoMantenimiento            DateTime?
+  proximoMantenimiento           DateTime?
+  descripcionUltimoMantenimiento String?                   @db.Text
+  proximaRevisionTecnica         DateTime?
+  ultimaRevisionBombaAgua        DateTime?
+  ultimoInspector                String?
+  firmaUltimoInspector           String?                   @db.Text
+  fechaUltimaInspeccion          DateTime?
+  ultimoConductor                String?
+  conductorAsignado              String?
+  motor                          String?
+  transmision                    String?
+  combustible                    String?
+  presionBomba                   String?
+  capacidadTanqueCombustible     String?
+  checklists                     ChecklistCarro[]
+  emergencias                    UnidadEnEmergencia[]
+  historialRegistros             CarroRegistroHistorial[]
+}
+
+/// Snapshot al guardar el registro de mantención / inspección (auditoría).
+model CarroRegistroHistorial {
+  id                             Int      @id @default(autoincrement())
+  carroId                        Int
+  creadoEn                       DateTime @default(now())
+  ultimoMantenimiento            DateTime?
+  proximoMantenimiento           DateTime?
+  proximaRevisionTecnica         DateTime?
+  ultimaRevisionBombaAgua        DateTime?
+  descripcionUltimoMantenimiento String?  @db.Text
+  ultimoInspector                String?
+  firmaUltimoInspector           String?  @db.Text
+  fechaUltimaInspeccion          DateTime?
+  ultimoConductor                String?
+  carro                          Carro    @relation(fields: [carroId], references: [id], onDelete: Cascade)
+
+  @@index([carroId])
 }
 
 model ChecklistCarro {
@@ -66,6 +159,42 @@ model ChecklistCarro {
   carroId          Int
   cuarteleroId     Int
   fecha            DateTime           @default(now())
+  tipo             String             @default("UNIDAD") // UNIDAD | ERA
+  inspector        String?
+  grupoGuardia     String?
+  firmaOficial     String?
+  observaciones    String?
+  totalItems       Int?
+  itemsOk          Int?
+  detalle          Json?
   carro            Carro              @relation(fields: [carroId], references: [id])
   cuartelero       Usuario            @relation(fields: [cuarteleroId], references: [id])
+}
+
+model ConfiguracionSistema {
+  id               Int       @id @default(autoincrement())
+  clave            String    @unique
+  valor            Json
+  updatedAt        DateTime  @updatedAt
+}
+
+model ActividadUsuario {
+  id               Int      @id @default(autoincrement())
+  usuarioId        Int?
+  accion           String
+  modulo           String
+  referencia       String?
+  detalle          Json?
+  fecha            DateTime @default(now())
+  usuario          Usuario? @relation(fields: [usuarioId], references: [id])
+}
+
+model PasswordResetToken {
+  id               Int      @id @default(autoincrement())
+  usuarioId        Int
+  token            String   @unique
+  expiresAt        DateTime
+  usedAt           DateTime?
+  createdAt        DateTime @default(now())
+  usuario          Usuario  @relation(fields: [usuarioId], references: [id])
 }

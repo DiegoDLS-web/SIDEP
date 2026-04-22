@@ -1,0 +1,351 @@
+<div class="w-full min-w-0 px-4 py-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 md:py-8">
+  @if (loading) {
+    <p class="text-gray-400">Cargando unidades…</p>
+  } @else if (error) {
+    <p class="text-red-400">{{ error }}</p>
+  } @else {
+    <div class="mb-5 sm:mb-8">
+      <h1 class="mb-2 text-2xl font-bold sm:text-3xl">Checklist de Unidades</h1>
+      <p class="text-sm text-gray-400 sm:text-base">Seleccione la unidad para realizar el checklist de verificación</p>
+    </div>
+
+    @let s = stats();
+    <div class="mb-5 grid grid-cols-2 gap-3 sm:mb-8 sm:gap-4 lg:grid-cols-4">
+      <div class="rounded-xl border border-gray-800 bg-[#121212] p-4 sm:p-6">
+        <p class="mb-0.5 text-2xl font-bold sm:text-3xl">{{ s.total }}</p>
+        <p class="text-xs text-gray-400 sm:text-sm">Unidades</p>
+      </div>
+      <div class="rounded-xl border border-green-600 bg-[#121212] p-4 sm:p-6">
+        <p class="mb-0.5 text-2xl font-bold text-green-500 sm:text-3xl">{{ s.completas }}</p>
+        <p class="text-xs text-gray-400 sm:text-sm">Completas</p>
+      </div>
+      <div class="rounded-xl border border-yellow-600 bg-[#121212] p-4 sm:p-6">
+        <p class="mb-0.5 text-2xl font-bold text-yellow-500 sm:text-3xl">{{ s.incompletas }}</p>
+        <p class="text-xs text-gray-400 sm:text-sm">Incompletas</p>
+      </div>
+      <div class="col-span-2 rounded-xl border border-red-900/50 bg-[#121212] p-4 sm:p-6 lg:col-span-1">
+        <p class="mb-0.5 text-2xl font-bold text-red-300 sm:text-3xl">{{ s.faltantes }}</p>
+        <p class="text-xs text-gray-400 sm:text-sm">Materiales faltantes</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
+      @for (u of unidades; track u.unidad) {
+        <div class="group min-w-0 overflow-hidden rounded-xl border border-gray-800 bg-[#121212] transition-colors hover:border-gray-700">
+          <div class="bg-gradient-to-r from-red-600 to-red-700 p-4 sm:p-6">
+            <div class="mb-4 flex min-w-0 items-start justify-between gap-3">
+              <div class="relative z-10 min-w-0 flex-1">
+                <h3 class="break-words text-2xl font-bold text-white">{{ tituloUnidad(u) }}</h3>
+                <p class="break-words text-sm text-red-100">{{ subtituloUnidad(u) }}</p>
+              </div>
+              <lucide-icon name="truck" class="h-6 w-6 shrink-0 text-white" [size]="24" color="currentColor"></lucide-icon>
+            </div>
+            <div class="space-y-2">
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-red-100">Completitud</span>
+                <span class="font-bold">{{ completitud(u) }}%</span>
+              </div>
+              <div class="h-1.5 w-full rounded-full bg-red-800 sm:h-2">
+                <div class="h-1.5 rounded-full bg-white transition-all sm:h-2" [style.width.%]="completitud(u)"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="border-b border-gray-800 p-4 sm:p-6">
+            <h4 class="mb-3 text-sm font-semibold text-gray-200">Última revisión</h4>
+            @if (u.ultimaRevision) {
+              <div class="grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
+                <div class="min-w-0">
+                  <p class="text-xs text-gray-400">Fecha</p>
+                  <p class="font-medium text-gray-100">{{ fechaHora(u.ultimaRevision.fecha).fecha }}</p>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs text-gray-400">Hora</p>
+                  <p class="font-medium text-gray-100">{{ fechaHora(u.ultimaRevision.fecha).hora }}</p>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs text-gray-400">Inspector</p>
+                  <p class="break-words font-medium text-gray-100">{{ u.ultimaRevision.inspector || '—' }}</p>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs text-gray-400">OBAC</p>
+                  <p class="break-words font-medium text-gray-100">{{ u.ultimaRevision.obac || '—' }}</p>
+                </div>
+              </div>
+            } @else {
+              <p class="text-sm text-gray-500">Sin checklist registrado aún.</p>
+            }
+          </div>
+
+          <div class="p-4 sm:p-6">
+            <div class="mb-4 flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <p class="mb-1 text-xs text-gray-400">Ítems verificados</p>
+                <p class="text-2xl font-bold text-white">{{ itemsVerificadosTexto(u) }}</p>
+              </div>
+              @if (estadoItemsEtiqueta(u) === 'Completo') {
+                <span class="shrink-0 text-sm font-medium text-green-500">Completo</span>
+              } @else if (estadoItemsEtiqueta(u) === 'Incompleto') {
+                <span class="shrink-0 text-sm font-medium text-yellow-500">Incompleto</span>
+              } @else {
+                <span class="shrink-0 text-sm font-medium text-gray-500">Sin checklist</span>
+              }
+            </div>
+            <div class="flex flex-wrap gap-3">
+              <button
+                type="button"
+                (click)="abrirChecklistUnidad(u, $event)"
+                class="relative z-10 flex min-h-[44px] flex-1 cursor-pointer items-center justify-between rounded-lg border border-gray-800 bg-[#0a0a0a] p-3 text-left transition-colors hover:border-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600/60"
+              >
+                <span class="text-sm font-medium text-white">Realizar Checklist</span>
+                <lucide-icon name="chevron-right" class="h-5 w-5 shrink-0 text-gray-500" [size]="20" color="currentColor"></lucide-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <section class="mt-6 rounded-xl border border-gray-800 bg-[#121212] p-4 sm:p-6 md:mt-8">
+      @let filasHistorial = historialPaginado();
+      <div class="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h2 class="text-xl font-bold">Historial General</h2>
+          <p class="text-sm text-gray-400">Revisa todos los checklists de unidades en un solo lugar y filtra los resultados.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            (click)="actualizarHistorial()"
+            class="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-[#0a0a0a] px-4 py-2 text-sm font-medium text-white hover:bg-[#161616]"
+          >
+            <lucide-icon name="refresh-cw" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            Actualizar
+          </button>
+          <button
+            type="button"
+            (click)="exportarHistorialPdf()"
+            [disabled]="filasHistorial.length === 0"
+            class="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            Descargar PDF
+          </button>
+        </div>
+      </div>
+
+      <div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+        <select
+          [(ngModel)]="filtroUnidadHistorial"
+          class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+        >
+          <option value="TODAS">Todas las unidades</option>
+          @for (u of unidades; track u.unidad) {
+            <option [value]="u.unidad">{{ u.unidad }} · {{ u.nombre }}</option>
+          }
+        </select>
+
+        <select
+          [(ngModel)]="filtroEstadoHistorial"
+          class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+        >
+          <option value="TODOS">Todos los estados</option>
+          <option value="COMPLETOS">Completos</option>
+          <option value="OBSERVADOS">Con observaciones</option>
+        </select>
+
+        <input
+          [(ngModel)]="filtroTextoHistorial"
+          placeholder="Buscar por unidad, inspector, OBAC u observación"
+          class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+        />
+      </div>
+
+      @if (historialLoading) {
+        <p class="text-sm text-gray-400">Cargando historial general…</p>
+      } @else if (filasHistorial.length === 0) {
+        <div
+          class="flex min-h-[120px] items-center justify-center rounded-lg border border-dashed border-gray-700 bg-[#0a0a0a] px-4 py-8"
+        >
+          <p class="text-center text-sm text-gray-400">
+            No hay registros que coincidan con los filtros actuales, o aún no hay checklists guardados.
+          </p>
+        </div>
+      } @else {
+        <div class="space-y-3 lg:hidden">
+          @for (h of filasHistorial; track trackHistorialFila(h)) {
+            <div class="rounded-xl border border-gray-800 bg-[#0a0a0a] p-4 text-sm">
+              <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+                <span class="font-semibold text-white">{{ h.unidad }}</span>
+                <span class="text-xs text-gray-500">{{ h.fecha | date : 'short' : '' : 'es-CL' }}</span>
+              </div>
+              <dl class="grid grid-cols-1 gap-1 text-xs text-gray-400 sm:grid-cols-2">
+                <div class="min-w-0">
+                  <dt class="text-gray-500">Estado</dt>
+                  <dd>
+                    @if (estadoHistorialFila(h) === 'Completo') {
+                      <span class="text-green-500">Completo</span>
+                    } @else {
+                      <span class="text-yellow-500">Observado</span>
+                    }
+                  </dd>
+                </div>
+                <div class="min-w-0">
+                  <dt class="text-gray-500">Inspector</dt>
+                  <dd class="text-gray-200">{{ h.inspector || '—' }}</dd>
+                </div>
+                <div class="min-w-0">
+                  <dt class="text-gray-500">Guardia</dt>
+                  <dd class="text-gray-200">{{ h.grupoGuardia || '—' }}</dd>
+                </div>
+                <div class="min-w-0 sm:col-span-2">
+                  <dt class="text-gray-500">Responsable (OBAC)</dt>
+                  <dd class="text-gray-200">{{ h.cuartelero ? h.cuartelero.nombre : '—' }}</dd>
+                </div>
+                <div class="sm:col-span-2">
+                  <dt class="text-gray-500">Cumplimiento</dt>
+                  <dd class="text-gray-200">{{ h.itemsOk ?? 0 }}/{{ h.totalItems ?? 0 }}</dd>
+                </div>
+              </dl>
+              <div class="mt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  (click)="verRegistroHistorial(h)"
+                  class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                  title="Ver detalle"
+                >
+                  <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                </button>
+                <button
+                  type="button"
+                  (click)="editarRegistroHistorial(h)"
+                  class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
+                  title="Editar"
+                >
+                  <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                </button>
+                <button
+                  type="button"
+                  (click)="descargarRegistroHistorialPdf(h)"
+                  class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
+                  title="Descargar PDF"
+                >
+                  <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+        <div class="hidden overflow-x-auto rounded-lg border border-gray-800 [-webkit-overflow-scrolling:touch] lg:block">
+          <table class="min-w-[900px] text-left text-sm xl:min-w-full">
+            <thead class="border-b border-gray-800 bg-black/40 text-xs uppercase text-gray-500">
+              <tr>
+                <th class="px-3 py-2">Fecha</th>
+                <th class="px-3 py-2">Unidad</th>
+                <th class="px-3 py-2">Estado</th>
+                <th class="px-3 py-2">Inspector</th>
+                <th class="px-3 py-2">Responsable</th>
+                <th class="px-3 py-2">Guardia</th>
+                <th class="px-3 py-2">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (h of filasHistorial; track trackHistorialFila(h)) {
+                <tr class="border-b border-gray-900 text-gray-300">
+                  <td class="whitespace-nowrap px-3 py-2">{{ h.fecha | date : 'short' : '' : 'es-CL' }}</td>
+                  <td class="px-3 py-2 font-medium text-white">{{ h.unidad }}</td>
+                  <td class="px-3 py-2">
+                    @if (estadoHistorialFila(h) === 'Completo') {
+                      <span class="text-green-500">Completo</span>
+                    } @else {
+                      <span class="text-yellow-500">Observado</span>
+                    }
+                  </td>
+                  <td class="px-3 py-2">{{ h.inspector || '—' }}</td>
+                  <td class="px-3 py-2">{{ h.cuartelero ? h.cuartelero.nombre : '—' }}</td>
+                  <td class="px-3 py-2">{{ h.grupoGuardia || '—' }}</td>
+                  <td class="px-3 py-2">
+                    <div class="flex items-center gap-2">
+                      <button
+                        type="button"
+                        (click)="verRegistroHistorial(h)"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                        title="Ver detalle"
+                      >
+                        <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                      </button>
+                      <button
+                        type="button"
+                        (click)="editarRegistroHistorial(h)"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
+                        title="Editar"
+                      >
+                        <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                      </button>
+                      <button
+                        type="button"
+                        (click)="descargarRegistroHistorialPdf(h)"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
+                        title="Descargar PDF"
+                      >
+                        <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-4 flex items-center justify-between text-sm text-gray-400">
+          <span>Página {{ paginaHistorial }} de {{ totalPaginasHistorial() }}</span>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              (click)="cambiarPaginaHistorial(-1)"
+              [disabled]="paginaHistorial <= 1"
+              class="rounded-lg border border-gray-700 px-3 py-1.5 text-white disabled:opacity-40"
+            >
+              Anterior
+            </button>
+            <button
+              type="button"
+              (click)="cambiarPaginaHistorial(1)"
+              [disabled]="paginaHistorial >= totalPaginasHistorial()"
+              class="rounded-lg border border-gray-700 px-3 py-1.5 text-white disabled:opacity-40"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      }
+    </section>
+  }
+</div>
+
+@if (historialDetalle) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+    <div class="w-full max-w-2xl rounded-xl border border-gray-700 bg-[#121212] p-5">
+      <div class="mb-3 flex items-center justify-between">
+        <h3 class="text-lg font-bold text-white">Detalle del registro</h3>
+        <button
+          type="button"
+          (click)="cerrarDetalleHistorial()"
+          class="rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800"
+        >
+          Cerrar
+        </button>
+      </div>
+      <div class="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+        <p><span class="text-gray-500">Unidad:</span> {{ historialDetalle.unidad }}</p>
+        <p><span class="text-gray-500">Fecha:</span> {{ historialDetalle.fecha | date : 'short' : '' : 'es-CL' }}</p>
+        <p><span class="text-gray-500">Inspector:</span> {{ historialDetalle.inspector || '—' }}</p>
+        <p><span class="text-gray-500">Guardia:</span> {{ historialDetalle.grupoGuardia || '—' }}</p>
+        <p class="sm:col-span-2"><span class="text-gray-500">OBAC:</span> {{ historialDetalle.cuartelero.nombre || '—' }}</p>
+        <p class="sm:col-span-2">
+          <span class="text-gray-500">Observaciones:</span> {{ historialDetalle.observaciones || '—' }}
+        </p>
+      </div>
+    </div>
+  </div>
+}

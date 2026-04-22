@@ -1,0 +1,426 @@
+<div class="w-full min-w-0 px-4 py-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 sm:py-6 lg:py-8">
+  <div class="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="mb-2 text-2xl font-bold sm:text-3xl">Gestión de usuarios</h1>
+      <p class="text-gray-400">Registro de voluntarios y datos institucionales</p>
+    </div>
+    <button
+      type="button"
+      class="flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-3 font-medium transition-colors hover:bg-red-700 sm:w-auto sm:px-6"
+      (click)="abrirNuevo()"
+    >
+      <lucide-icon name="plus" class="h-5 w-5" />
+      Nuevo usuario
+    </button>
+  </div>
+
+  <div class="mb-6 grid grid-cols-1 gap-4 sm:mb-8 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
+    <div class="rounded-xl border border-gray-800 bg-[#121212] p-6">
+      <div class="mb-2 flex items-center gap-3">
+        <lucide-icon name="users" class="h-8 w-8 text-blue-500" />
+      </div>
+      <p class="mb-1 text-3xl font-bold">{{ usuarios.length }}</p>
+      <p class="text-sm text-gray-400">Total usuarios</p>
+    </div>
+    <div class="rounded-xl border border-green-600 bg-[#121212] p-6">
+      <div class="mb-2 flex items-center gap-3">
+        <lucide-icon name="users" class="h-8 w-8 text-green-500" />
+      </div>
+      <p class="mb-1 text-3xl font-bold">{{ totalActivos() }}</p>
+      <p class="text-sm text-gray-400">Vigentes / activos</p>
+    </div>
+    <div class="rounded-xl border border-gray-800 bg-[#121212] p-6">
+      <div class="mb-2 flex items-center gap-3">
+        <lucide-icon name="badge-alert" class="h-8 w-8 text-yellow-500" />
+      </div>
+      <p class="mb-1 text-3xl font-bold">{{ totalConLicencia() }}</p>
+      <p class="text-sm text-gray-400">Voluntarios con licencia</p>
+    </div>
+    <div class="rounded-xl border border-gray-800 bg-[#121212] p-6">
+      <div class="mb-2 flex items-center gap-3">
+        <lucide-icon name="ban" class="h-8 w-8 text-red-500" />
+      </div>
+      <p class="mb-1 text-3xl font-bold">{{ totalConSuspension() }}</p>
+      <p class="text-sm text-gray-400">Voluntarios con suspensión</p>
+    </div>
+  </div>
+
+  <div class="mb-6 rounded-xl border border-gray-800 bg-[#121212] p-6">
+    <div class="relative">
+      <lucide-icon
+        name="search"
+        class="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+      />
+      <input
+        type="text"
+        [(ngModel)]="busqueda"
+        placeholder="Buscar por nombre, RUT, email, compañía u oficialidad..."
+        class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] py-3 pl-10 pr-4 text-white placeholder-gray-500 focus:border-red-500 focus:outline-none"
+      />
+    </div>
+  </div>
+
+  @if (error) {
+    <div class="mb-6 rounded-lg border border-red-700 bg-red-900/20 px-4 py-3 text-sm text-red-300">
+      {{ error }}
+    </div>
+  }
+  @if (exito) {
+    <div class="mb-6 rounded-lg border border-green-700 bg-green-900/20 px-4 py-3 text-sm text-green-300">
+      {{ exito }}
+    </div>
+  }
+
+  @if (mostrandoFormulario) {
+    <div class="mb-6 rounded-xl border border-gray-800 bg-[#121212] p-6">
+      <h2 class="mb-2 text-xl font-bold">{{ editandoId ? 'Editar usuario' : 'Nuevo usuario' }}</h2>
+      <p class="mb-6 text-sm text-gray-500"><span class="text-red-400">*</span> Campos obligatorios</p>
+
+      <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-red-400">Identidad</h3>
+      <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300">Nombres <span class="text-red-400">*</span></label>
+          <input
+            [(ngModel)]="form.nombres"
+            type="text"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300">Apellido paterno <span class="text-red-400">*</span></label>
+          <input
+            [(ngModel)]="form.apellidoPaterno"
+            type="text"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300">Apellido materno <span class="text-red-400">*</span></label>
+          <input
+            [(ngModel)]="form.apellidoMaterno"
+            type="text"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300">RUT <span class="text-red-400">*</span></label>
+          <input
+            [(ngModel)]="form.rut"
+            type="text"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300">Nacionalidad <span class="text-red-400">*</span></label>
+          <input
+            [(ngModel)]="form.nacionalidad"
+            type="text"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300">Grupo sanguíneo (opcional)</label>
+          <select
+            [(ngModel)]="form.grupoSanguineo"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          >
+            <option [ngValue]="''">—</option>
+            @for (g of gruposSanguineos; track g) {
+              <option [ngValue]="g">{{ g }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-red-400">Domicilio</h3>
+      <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div class="md:col-span-2">
+          <label class="mb-2 block text-sm font-medium text-gray-300">Dirección <span class="text-red-400">*</span></label>
+          <input
+            [(ngModel)]="form.direccion"
+            type="text"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300">Región <span class="text-red-400">*</span></label>
+          <input
+            [(ngModel)]="form.region"
+            type="text"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300">Comuna <span class="text-red-400">*</span></label>
+          <input
+            [(ngModel)]="form.comuna"
+            type="text"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          />
+        </div>
+      </div>
+
+      <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-red-400">Actividad y contacto</h3>
+      <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div class="md:col-span-2">
+          <label class="mb-2 block text-sm font-medium text-gray-300">Actividad (trabajo o estudios, opcional)</label>
+          <input
+            [(ngModel)]="form.actividad"
+            type="text"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300">Fecha de nacimiento <span class="text-red-400">*</span></label>
+          <input
+            [(ngModel)]="form.fechaNacimiento"
+            type="date"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300">Fecha de ingreso <span class="text-red-400">*</span></label>
+          <input
+            [(ngModel)]="form.fechaIngreso"
+            type="date"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300">Email <span class="text-red-400">*</span></label>
+          <input
+            [(ngModel)]="form.email"
+            type="email"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300">Teléfono <span class="text-red-400">*</span></label>
+          <input
+            [(ngModel)]="form.telefono"
+            type="text"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          />
+        </div>
+      </div>
+
+      <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-red-400">Institucional</h3>
+      @if (!editandoId) {
+        <p class="mb-4 rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-gray-400">
+          La contraseña de acceso se asigna automáticamente; el voluntario debe cambiarla al iniciar sesión por primera vez.
+        </p>
+      }
+      <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300">Tipo de voluntario <span class="text-red-400">*</span></label>
+          <select
+            [(ngModel)]="form.tipoVoluntario"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          >
+            @for (t of tiposVoluntario; track t) {
+              <option [ngValue]="t">{{ etiquetasTipoVoluntario[t] || t }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300">Cuerpo de bombero <span class="text-red-400">*</span></label>
+          <input
+            [(ngModel)]="form.cuerpoBombero"
+            type="text"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300">Compañía <span class="text-red-400">*</span></label>
+          <input
+            [(ngModel)]="form.compania"
+            type="text"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300">Estado <span class="text-red-400">*</span></label>
+          <select
+            [(ngModel)]="form.estadoVoluntario"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          >
+            <option ngValue="VIGENTE">Vigente</option>
+            <option ngValue="INACTIVO">Inactivo</option>
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="mb-2 block text-sm font-medium text-gray-300">Oficialidad (cargo) <span class="text-red-400">*</span></label>
+          <select
+            [(ngModel)]="form.cargoOficialidad"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none"
+          >
+            @for (c of cargosOrden; track c) {
+              <option [ngValue]="c">{{ etiquetasCargo[c] || c }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300">Rol en el sistema <span class="text-red-400">*</span></label>
+          <select
+            [(ngModel)]="form.rol"
+            [disabled]="!!editandoId && !puedeEditarRol"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white focus:border-red-500 focus:outline-none disabled:opacity-60"
+          >
+            @for (rol of roles; track rol.id) {
+              <option [ngValue]="rol.nombre">{{ rol.nombre }}</option>
+            }
+          </select>
+          @if (editandoId && !puedeEditarRol) {
+            <p class="mt-1 text-xs text-gray-500">Solo administración o mando puede cambiar el rol.</p>
+          }
+        </div>
+      </div>
+
+      <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-red-400">Firma para documentos (PNG/JPEG)</h3>
+      <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start">
+        <div class="flex flex-col gap-2">
+          <input
+            type="file"
+            accept="image/jpeg,image/jpg,image/png"
+            class="text-sm text-gray-300 file:mr-3 file:rounded file:border-0 file:bg-gray-700 file:px-3 file:py-1.5 file:text-white"
+            (change)="onFirmaArchivo($event)"
+          />
+          @if (form.firmaImagen) {
+            <button type="button" class="text-left text-sm text-red-400 hover:underline" (click)="quitarFirma()">
+              Quitar firma cargada
+            </button>
+          }
+        </div>
+        @if (form.firmaImagen) {
+          <div class="rounded border border-gray-700 bg-[#0a0a0a] p-2">
+            <img [src]="form.firmaImagen" alt="Vista previa firma" class="max-h-28 max-w-full object-contain" />
+          </div>
+        }
+      </div>
+
+      @if (editandoId) {
+        <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-red-400">Observaciones del registro</h3>
+        <div class="mb-6">
+          <label class="mb-2 block text-sm font-medium text-gray-300"
+            >Motivo de cambio o baja (ej. renuncia, traslado)</label
+          >
+          <textarea
+            [(ngModel)]="form.observacionesRegistro"
+            rows="3"
+            placeholder="Se registrará al guardar junto con la fecha de actualización del usuario."
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white placeholder-gray-500 focus:border-red-500 focus:outline-none"
+          ></textarea>
+        </div>
+      }
+
+      <div class="mt-4 flex flex-col gap-2 sm:flex-row">
+        <button
+          type="button"
+          class="rounded-lg bg-red-600 px-5 py-2 font-medium transition-colors hover:bg-red-700 disabled:opacity-50"
+          (click)="guardar()"
+          [disabled]="guardando"
+        >
+          {{ guardando ? 'Guardando...' : 'Guardar' }}
+        </button>
+        <button
+          type="button"
+          class="rounded-lg bg-gray-800 px-5 py-2 font-medium transition-colors hover:bg-gray-700"
+          (click)="cancelarForm()"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (loading) {
+    <div class="rounded-xl border border-gray-800 bg-[#121212] p-8 text-center text-gray-400">
+      Cargando usuarios...
+    </div>
+  } @else {
+    <div class="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
+      @for (usuario of filtrados; track usuario.id) {
+        <div class="rounded-xl border border-gray-800 bg-[#121212] p-6 transition-colors hover:border-gray-700">
+          <div class="mb-4 flex items-start justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div
+                class="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-red-600 to-red-700 text-lg font-bold"
+              >
+                {{ iniciales(usuario.nombre) }}
+              </div>
+              <div>
+                <h3 class="font-bold">{{ usuario.nombre }}</h3>
+                <p class="text-sm text-gray-400">{{ usuario.rut }}</p>
+                <p class="mt-1 text-xs text-gray-500">{{ etiquetaCargo(usuario.cargoOficialidad) }}</p>
+              </div>
+            </div>
+            <span
+              class="shrink-0 rounded-full px-3 py-1 text-xs font-medium"
+              [class]="
+                usuario.estadoVoluntario === 'VIGENTE' || usuario.activo
+                  ? 'bg-green-600/20 text-green-500'
+                  : 'bg-gray-600/20 text-gray-400'
+              "
+            >
+              {{ usuario.estadoVoluntario === 'INACTIVO' ? 'Inactivo' : 'Vigente' }}
+            </span>
+          </div>
+          <div class="mb-4 border-b border-gray-800 pb-4">
+            <div class="flex items-center gap-2">
+              <lucide-icon name="shield" class="h-4 w-4 text-yellow-500" />
+              <span class="text-sm font-medium text-yellow-500">{{ usuario.rol }}</span>
+            </div>
+            <p class="mt-1 text-xs text-gray-500">Compañía: {{ usuario.compania || '—' }}</p>
+          </div>
+          <div class="space-y-2">
+            <div class="flex items-center gap-2">
+              <lucide-icon name="mail" class="h-4 w-4 text-gray-400" />
+              <span class="truncate text-sm text-gray-300">{{ usuario.email || 'Sin email' }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <lucide-icon name="phone" class="h-4 w-4 text-gray-400" />
+              <span class="text-sm text-gray-300">{{ usuario.telefono || 'Sin teléfono' }}</span>
+            </div>
+          </div>
+          <div class="mt-4 flex flex-col gap-2 border-t border-gray-800 pt-4 sm:flex-row">
+            <button
+              type="button"
+              class="flex-1 rounded-lg bg-gray-800 px-3 py-2 text-sm font-medium transition-colors hover:bg-gray-700"
+              (click)="editar(usuario)"
+            >
+              Editar
+            </button>
+            <button
+              type="button"
+              class="flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+              [class]="
+                usuario.estadoVoluntario === 'INACTIVO' || !usuario.activo
+                  ? 'bg-green-600 hover:bg-green-700'
+                  : 'bg-yellow-600 hover:bg-yellow-700'
+              "
+              (click)="cambiarEstado(usuario)"
+            >
+              {{ usuario.estadoVoluntario === 'INACTIVO' || !usuario.activo ? 'Activar' : 'Dar de baja' }}
+            </button>
+            @if (esAdmin) {
+              <button
+                type="button"
+                class="flex-1 rounded-lg bg-red-700 px-3 py-2 text-sm font-medium transition-colors hover:bg-red-800"
+                (click)="eliminar(usuario)"
+              >
+                Eliminar
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (!loading && filtrados.length === 0) {
+    <div class="mt-6 rounded-xl border border-gray-800 bg-[#121212] p-12 text-center">
+      <lucide-icon name="users" class="mx-auto mb-3 h-12 w-12 text-gray-600" />
+      <p class="text-gray-400">No se encontraron usuarios</p>
+    </div>
+  }
+</div>
