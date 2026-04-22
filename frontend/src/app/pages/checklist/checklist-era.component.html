@@ -1,0 +1,703 @@
+<div class="min-h-0 w-full min-w-0 px-4 py-3 sm:px-6 md:py-6 md:px-8 lg:px-10 xl:px-12">
+  @if (loading) {
+    <p class="text-gray-400">Cargando checklist ERA…</p>
+  } @else {
+    <div class="mb-4 flex flex-col gap-2 sm:mb-6 md:flex-row md:items-start md:justify-between">
+      <div>
+        <h1 class="mb-1 text-2xl font-bold text-white sm:text-3xl">Control de Checklist ERA</h1>
+        <p class="text-sm text-gray-400 sm:text-base">Seleccione la unidad para realizar el registro del equipo ERA</p>
+      </div>
+    </div>
+
+    @if (error) {
+      <p class="mb-4 rounded-lg border border-red-800/60 bg-red-950/30 px-3 py-2 text-sm text-red-300">{{ error }}</p>
+    }
+    @if (mensajeFlash) {
+      <div
+        class="mb-4 rounded-xl border border-amber-600/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100"
+        role="status"
+      >
+        {{ mensajeFlash }}
+      </div>
+    }
+
+    @if (!mostrarRegistro) {
+      <div class="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        @for (c of carrosOrdenados(); track c.id) {
+          @let r = resumenUnidadEra(c);
+          <div
+            class="flex min-h-[240px] flex-col overflow-hidden rounded-xl border border-gray-800 bg-[#121212] shadow-sm transition-colors hover:border-red-900/50"
+          >
+            <div class="bg-gradient-to-r from-red-600 to-red-700 p-3 sm:p-4">
+              <div class="mb-1.5 flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <h3 class="text-xl font-bold text-white sm:text-2xl">{{ r.unidad }}</h3>
+                  <p class="truncate text-xs text-red-100 sm:text-sm">{{ r.nombre }}</p>
+                </div>
+              </div>
+              <div class="space-y-1">
+                <div class="flex items-center justify-between text-[11px] sm:text-xs">
+                  <span class="text-red-100">Completitud</span>
+                  <span class="font-semibold text-white">{{ r.completitud }}%</span>
+                </div>
+                <div class="h-1.5 w-full rounded-full bg-red-900/70 sm:h-2">
+                  <div class="h-1.5 rounded-full bg-white sm:h-2" [style.width.%]="r.completitud"></div>
+                </div>
+              </div>
+            </div>
+            <div class="flex flex-1 flex-col gap-2 p-3 sm:p-4">
+              <p class="flex-1 text-xs leading-relaxed text-gray-400">
+                Última revisión:
+                {{ r.ultimaFecha ? fechaHoraHist(r.ultimaFecha) : 'Sin registro' }}
+              </p>
+              @if (r.faltantes > 0) {
+                <div class="rounded-lg bg-yellow-600/20 px-3 py-2 text-xs text-yellow-300">{{ r.faltantes }} ítems faltantes</div>
+              }
+              <button
+                type="button"
+                (click)="seleccionarUnidad(r.unidad)"
+                class="mt-auto w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-left text-sm font-semibold text-white hover:border-red-600"
+              >
+                Realizar Checklist
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="mb-6 flex justify-end">
+        <button
+          type="button"
+          (click)="volverSeleccionUnidad()"
+          class="rounded-lg border border-gray-600 bg-[#0a0a0a] px-4 py-2 text-sm font-medium text-white hover:bg-[#141414]"
+        >
+          Cambiar unidad
+        </button>
+      </div>
+
+      <div class="space-y-6">
+      <!-- Tarjeta principal: datos generales -->
+      <div class="rounded-2xl border border-gray-700/80 bg-[#121212] p-4 sm:p-6">
+        <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div class="flex min-w-0 items-start gap-3">
+            <div
+              class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-600/90 text-white shadow-lg"
+            >
+              <lucide-icon name="shield" class="h-7 w-7" [size]="28" color="currentColor"></lucide-icon>
+            </div>
+            <div class="min-w-0">
+              <h2 class="text-lg font-bold text-white sm:text-xl">Unidad {{ unidad }}</h2>
+              <p class="text-sm text-gray-400">{{ nombreCarroActual() }}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            (click)="descargarPdf()"
+            [disabled]="!eraListoParaPdf()"
+            [title]="
+              eraListoParaPdf()
+                ? 'Generar PDF del checklist ERA'
+                : 'Completa datos, firma OBAC y equipos ERA para generar el PDF'
+            "
+            class="inline-flex min-h-[44px] w-full shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors sm:w-auto"
+            [ngClass]="
+              eraListoParaPdf()
+                ? 'border border-red-500 bg-red-600 text-white hover:bg-red-700'
+                : 'cursor-not-allowed border border-red-900/60 bg-red-950/40 text-red-200/40'
+            "
+          >
+            <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            Generar PDF
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label class="mb-1.5 block text-xs font-medium text-gray-400"
+              >Nombre del inspector / clave <span class="text-red-400">*</span></label
+            >
+            <input
+              [(ngModel)]="inspector"
+              name="inspector"
+              placeholder="Ej: Juan Pérez · clave 1234"
+              class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white placeholder:text-gray-600"
+            />
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-medium text-gray-400"
+              >Grupo de guardia <span class="text-red-400">*</span></label
+            >
+            <select
+              [(ngModel)]="grupoGuardia"
+              name="grupoGuardia"
+              class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+            >
+              <option value="">Seleccionar</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-medium text-gray-400"
+              >Nombre oficial / OBAC a cargo <span class="text-red-400">*</span></label
+            >
+            <select
+              [(ngModel)]="cuarteleroId"
+              name="cuarteleroId"
+              class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+            >
+              @for (u of usuarios; track u.id) {
+                <option [ngValue]="u.id">{{ u.nombre }} ({{ u.rol }})</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-medium text-gray-400"
+              >Fecha de inspección <span class="text-red-400">*</span></label
+            >
+            <input
+              type="date"
+              [(ngModel)]="fechaInspeccion"
+              name="fechaInspeccion"
+              class="dark-date-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+            />
+          </div>
+          <div class="md:col-span-2">
+            <label class="mb-1.5 block text-xs font-medium text-gray-400"
+              >Fecha de cierre / firma <span class="text-red-400">*</span></label
+            >
+            <div
+              class="flex min-h-[42px] items-center rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-gray-200"
+            >
+              {{ fechasFormateadaCierreFirma() }}
+            </div>
+            <p class="mt-1.5 text-xs leading-relaxed text-gray-500">
+              Al firmar abajo como OBAC, aquí se muestra la fecha y hora del cierre (no se usa texto para la firma).
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Equipos ERA -->
+      <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
+        <h3 class="text-lg font-bold text-white">Equipos ERA</h3>
+        <button
+          type="button"
+          (click)="agregarEquipo()"
+          class="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+        >
+          + Agregar equipo
+        </button>
+      </div>
+
+      @for (e of equipos; track $index; let i = $index) {
+        <div class="overflow-hidden rounded-2xl border border-gray-800 bg-[#121212]">
+          <div class="border-b border-gray-800 px-4 py-3 sm:px-6">
+            <h4 class="text-base font-bold text-white sm:text-lg">ERA {{ e.numero }}</h4>
+          </div>
+
+          <div class="space-y-5 p-4 sm:p-6">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <label class="mb-1 block text-xs text-gray-500">Marca</label>
+                <input
+                  [(ngModel)]="e.marca"
+                  [name]="'marca' + i"
+                  class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+                />
+              </div>
+              <div>
+                <label class="mb-1 block text-xs text-gray-500">Tipo</label>
+                <input
+                  [(ngModel)]="e.tipo"
+                  [name]="'tipo' + i"
+                  class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+                />
+              </div>
+              <div>
+                <label class="mb-1 block text-xs text-gray-500">Ubicación</label>
+                <select
+                  [(ngModel)]="e.ubicacion"
+                  [name]="'ubicacion' + i"
+                  class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+                >
+                  <option value="Cabina">Cabina</option>
+                  <option value="Cortina">Cortina</option>
+                  <option value="Cajón">Cajón</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- MÁSCARA -->
+            <div class="rounded-xl border border-red-900/40 bg-[#0d0d0d] p-4">
+              <p class="mb-3 text-xs font-bold uppercase tracking-wide text-red-400">Máscara</p>
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Limpia</label>
+                  <select
+                    [(ngModel)]="e.mascaraLimpia"
+                    [name]="'ml' + i"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optSiNo; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Bolsa de género</label>
+                  <select
+                    [(ngModel)]="e.mascaraBolsaGenero"
+                    [name]="'mb' + i"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optSiNo; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Condición general</label>
+                  <select
+                    [(ngModel)]="e.mascaraCondicion"
+                    [name]="'mc' + i"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optOperativo; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- CILINDRO -->
+            <div class="rounded-xl border border-blue-900/40 bg-[#0d0d0d] p-4">
+              <p class="mb-3 text-xs font-bold uppercase tracking-wide text-blue-400">Cilindro</p>
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Presión de aire (cantidad / rango)</label>
+                  <input
+                    [(ngModel)]="e.presion"
+                    [name]="'pres' + i"
+                    placeholder="0 - 5000"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  />
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Presión mayor a 2000</label>
+                  <select
+                    [(ngModel)]="e.presionMayor2000"
+                    [name]="'pm' + i"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optSiNo; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Condición general</label>
+                  <select
+                    [(ngModel)]="e.cilindroCondicion"
+                    [name]="'cc' + i"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optOperativo; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Código cilindro</label>
+                  <input
+                    [(ngModel)]="e.codigoCilindro"
+                    [name]="'cod' + i"
+                    placeholder="Ingrese código"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- ARNÉS -->
+            <div class="rounded-xl border border-amber-900/40 bg-[#0d0d0d] p-4">
+              <p class="mb-3 text-xs font-bold uppercase tracking-wide text-amber-400">Arnés</p>
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Limpio</label>
+                  <select
+                    [(ngModel)]="e.arnesLimpio"
+                    [name]="'al' + i"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optSiNo; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Correas sueltas</label>
+                  <select
+                    [(ngModel)]="e.arnesCorreasSueltas"
+                    [name]="'acs' + i"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optSiNo; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Fuga</label>
+                  <select
+                    [(ngModel)]="e.arnesFuga"
+                    [name]="'af' + i"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optSiNo; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Módulo control digital</label>
+                  <select
+                    [(ngModel)]="e.arnesModuloDigital"
+                    [name]="'amd' + i"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optBueno; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Módulo control análogo</label>
+                  <select
+                    [(ngModel)]="e.arnesModuloAnalogo"
+                    [name]="'ama' + i"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optBueno; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Alarma baja presión (campana)</label>
+                  <select
+                    [(ngModel)]="e.arnesAlarma"
+                    [name]="'aa' + i"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optBueno; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="sm:col-span-3">
+                  <label class="mb-1 block text-xs text-gray-500">Condición general</label>
+                  <select
+                    [(ngModel)]="e.arnesCondicion"
+                    (ngModelChange)="e.estado = $event"
+                    [name]="'acg' + i"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optOperativo; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Cilindros de recambio -->
+      <div class="rounded-2xl border border-gray-800 bg-[#121212] p-4 sm:p-6">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-lg font-bold text-white">Cilindros de recambio</h3>
+          <button
+            type="button"
+            (click)="agregarRecambio()"
+            class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
+          >
+            <lucide-icon name="plus" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            Agregar cilindro
+          </button>
+        </div>
+        <div class="space-y-4">
+          @for (c of recambios; track $index; let ri = $index) {
+            <div class="rounded-xl border border-gray-800 bg-[#0a0a0a] p-4">
+              <p class="mb-3 text-sm font-semibold text-white">Cilindro {{ c.numero }} ({{ c.tipo || '—' }})</p>
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Presión de aire (cantidad)</label>
+                  <input
+                    [(ngModel)]="c.presionAire"
+                    [name]="'cpa' + ri"
+                    placeholder="0 - 5000"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  />
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Presión mayor a 2000</label>
+                  <select
+                    [(ngModel)]="c.presionMayor2000"
+                    [name]="'cpm' + ri"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optSiNo; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Condición general</label>
+                  <select
+                    [(ngModel)]="c.condicionGeneral"
+                    (ngModelChange)="c.estado = $event"
+                    [name]="'ccg' + ri"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optOperativo; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Código cilindro</label>
+                  <input
+                    [(ngModel)]="c.codigoCilindro"
+                    [name]="'ccod' + ri"
+                    placeholder="Ingrese código"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  />
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="mb-1 block text-xs text-gray-500">Tipo / referencia</label>
+                  <input
+                    [(ngModel)]="c.tipo"
+                    [name]="'ct' + ri"
+                    placeholder="Ej: G1"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  />
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-gray-700 bg-[#121212] p-5 md:p-6">
+        <label class="mb-3 block text-sm font-bold text-gray-200">Observaciones (opcional)</label>
+        <textarea
+          [(ngModel)]="observaciones"
+          name="observaciones"
+          rows="5"
+          placeholder="Observaciones adicionales para reparación o reposición…"
+          class="min-h-[100px] w-full resize-y rounded-lg border border-gray-700 bg-[#0a0a0a] px-4 py-3 text-sm text-white placeholder:text-gray-600 sm:min-h-[160px]"
+        ></textarea>
+      </div>
+
+      <div class="rounded-xl border border-gray-700 bg-[#121212] p-5 md:p-6">
+        <h2 class="mb-2 text-lg font-bold tracking-tight text-white">
+          Firma oficial a cargo (OBAC) <span class="text-red-400">*</span>
+        </h2>
+        <p class="mb-5 text-sm leading-relaxed text-gray-400">
+          Firma con el dedo o el mouse sobre el área oscura. La fecha del cierre se muestra arriba en
+          <span class="font-medium text-gray-200">“Fecha de cierre / firma”</span>.
+        </p>
+        <div class="overflow-hidden rounded-xl border border-gray-700 bg-[#0a0a0a]">
+          <canvas
+            #firmaCanvas
+            width="560"
+            height="180"
+            class="mx-auto block h-[180px] w-full max-w-full touch-none cursor-crosshair"
+          ></canvas>
+        </div>
+        <div class="mt-4 flex justify-start">
+          <button
+            type="button"
+            (click)="limpiarFirma()"
+            class="rounded-lg border border-gray-600 bg-[#0a0a0a] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#141414]"
+          >
+            Limpiar firma
+          </button>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-3 sm:flex-row sm:gap-4">
+        <button
+          type="button"
+          [disabled]="saving || savingBorrador"
+          (click)="guardarBorrador()"
+          class="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-xl border border-gray-600 bg-[#1a1a1a] px-4 py-3 text-sm font-semibold text-gray-200 hover:border-gray-500 hover:bg-gray-900 disabled:opacity-50"
+        >
+          <lucide-icon name="save" class="h-5 w-5 opacity-80" [size]="20" color="currentColor"></lucide-icon>
+          Guardar como borrador
+        </button>
+        <button
+          type="button"
+          [disabled]="saving || savingBorrador"
+          (click)="guardar()"
+          class="flex min-h-[52px] flex-[2] items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
+        >
+          <lucide-icon name="save" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
+          {{ saving ? 'Guardando…' : 'Guardar checklist ERA' }}
+        </button>
+      </div>
+
+    </div>
+    }
+
+    <section class="mt-6 w-full rounded-xl border border-gray-800 bg-[#121212] p-4 md:p-5">
+      <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h2 class="text-lg font-bold md:text-xl">Historial General ERA</h2>
+        <button
+          type="button"
+          (click)="cargarHistorialGeneral()"
+          class="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+        >
+          <lucide-icon name="refresh-cw" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+          Actualizar
+        </button>
+      </div>
+
+      <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+        <div>
+          <label class="mb-1 block text-xs text-gray-400">Unidad</label>
+          <select
+            [(ngModel)]="filtroUnidad"
+            (ngModelChange)="aplicarFiltrosHistorialEra()"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+          >
+            <option value="">Todas</option>
+            @for (c of carrosOrdenados(); track c.id) {
+              <option [value]="c.nomenclatura">{{ c.nomenclatura }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="mb-1 block text-xs text-gray-400">Desde</label>
+          <input
+            type="date"
+            [(ngModel)]="filtroDesde"
+            (ngModelChange)="aplicarFiltrosHistorialEra()"
+            class="dark-date-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+          />
+        </div>
+        <div>
+          <label class="mb-1 block text-xs text-gray-400">Hasta</label>
+          <input
+            type="date"
+            [(ngModel)]="filtroHasta"
+            (ngModelChange)="aplicarFiltrosHistorialEra()"
+            class="dark-date-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+          />
+        </div>
+        <div>
+          <button
+            type="button"
+            (click)="aplicarFiltrosHistorialEra()"
+            class="w-full rounded-lg bg-red-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-red-700"
+          >
+            Aplicar filtros
+          </button>
+        </div>
+      </div>
+
+      @if (historialGeneralLoading) {
+        <p class="text-gray-400">Cargando historial…</p>
+      } @else if (historialGeneralError) {
+        <p class="text-red-400">{{ historialGeneralError }}</p>
+      } @else {
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-gray-800">
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Fecha</th>
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Unidad</th>
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Estado</th>
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Inspector</th>
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Responsable</th>
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Guardia</th>
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Cumplimiento</th>
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Obs.</th>
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (h of historialGeneralPaginado(); track h.id) {
+                <tr class="border-b border-gray-800 hover:bg-[#0a0a0a]">
+                  <td class="px-3 py-3 text-sm">{{ fechaHoraHist(h.fecha) }}</td>
+                  <td class="px-3 py-3 text-sm font-mono">{{ h.carro.nomenclatura || '—' }}</td>
+                  <td class="px-3 py-3 text-sm">
+                    <span class="rounded px-2 py-0.5 text-xs font-medium bg-emerald-950 text-emerald-200">
+                      {{ etiquetaEstadoEra(h) }}
+                    </span>
+                  </td>
+                  <td class="px-3 py-3 text-sm">{{ h.inspector || '—' }}</td>
+                  <td class="px-3 py-3 text-sm">{{ h.cuartelero.nombre || '—' }}</td>
+                  <td class="px-3 py-3 text-sm">{{ h.grupoGuardia || '—' }}</td>
+                  <td class="px-3 py-3 text-sm">{{ porcentajeCumplimiento(h) }}</td>
+                  <td class="max-w-[200px] truncate px-3 py-3 text-sm text-gray-300">{{ h.observaciones || '—' }}</td>
+                  <td class="px-3 py-3 text-sm">
+                    <div class="flex items-center gap-2">
+                      <button
+                        type="button"
+                        (click)="editarRegistroEra(h)"
+                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
+                        title="Editar registro"
+                      >
+                        <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                      </button>
+                      <button
+                        type="button"
+                        (click)="descargarRegistroEraPdf(h)"
+                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
+                        title="Descargar PDF"
+                      >
+                        <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="9" class="px-3 py-8 text-center text-sm text-gray-500">Sin registros.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-4 flex items-center justify-between text-sm text-gray-400">
+          <span>Página {{ paginaHistorial }} de {{ totalPaginasHistorial() }}</span>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              (click)="cambiarPaginaHistorial(-1)"
+              [disabled]="paginaHistorial <= 1"
+              class="rounded-lg border border-gray-700 px-3 py-1.5 text-white disabled:opacity-40"
+            >
+              Anterior
+            </button>
+            <button
+              type="button"
+              (click)="cambiarPaginaHistorial(1)"
+              [disabled]="paginaHistorial >= totalPaginasHistorial()"
+              class="rounded-lg border border-gray-700 px-3 py-1.5 text-white disabled:opacity-40"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      }
+    </section>
+  }
+</div>

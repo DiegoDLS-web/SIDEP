@@ -1,1 +1,41 @@
-/* You can add global styles to this file, and also import other style files */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body {
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+}
+
+/* Mantiene look oscuro también en listas nativas de <select>. */
+select,
+option,
+optgroup {
+  background-color: #0a0a0a;
+  color: #f3f4f6;
+}
+
+/* Calendario nativo coherente con tema oscuro (Chrome/Edge/Safari). */
+.dark-date-input,
+input[type='date'],
+input[type='datetime-local'] {
+  color-scheme: dark;
+}
+
+.dark-date-input::-webkit-calendar-picker-indicator,
+input[type='date']::-webkit-calendar-picker-indicator,
+input[type='datetime-local']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(1) brightness(0.88);
+  opacity: 0.95;
+}

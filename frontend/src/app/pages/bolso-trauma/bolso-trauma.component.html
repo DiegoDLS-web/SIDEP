@@ -1,0 +1,416 @@
+<div class="w-full min-w-0 px-4 py-6 md:px-8 lg:px-10 xl:px-12">
+  @if (loading) {
+    <p class="text-gray-400">Cargando bolsos de trauma…</p>
+  } @else if (error) {
+    <p class="text-red-400">{{ error }}</p>
+  } @else {
+    <div class="mb-8">
+      <h1 class="mb-2 text-3xl font-bold">Control de Bolsos de Trauma</h1>
+      <p class="text-gray-400">Seleccione la unidad para realizar el registro del bolso de trauma</p>
+    </div>
+
+    @let s = stats();
+    <div class="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div class="rounded-xl border border-gray-800 bg-[#121212] p-4">
+        <p class="mb-0.5 text-2xl font-bold tabular-nums">{{ s.totalBolsos }}</p>
+        <p class="text-xs text-gray-400 sm:text-sm">Total bolsos</p>
+      </div>
+      <div class="rounded-xl border border-green-600/60 bg-[#121212] p-4">
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-green-500">{{ s.completos }}</p>
+        <p class="text-xs text-gray-400 sm:text-sm">Completos</p>
+      </div>
+      <div class="rounded-xl border border-yellow-600/50 bg-[#121212] p-4">
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-yellow-500">{{ s.incompletos }}</p>
+        <p class="text-xs text-gray-400 sm:text-sm">Incompletos</p>
+      </div>
+      <div class="col-span-2 rounded-xl border border-gray-800 bg-[#121212] p-4 lg:col-span-1">
+        <p class="mb-0.5 text-sm font-semibold text-white">Por unidad</p>
+        <p class="text-xs text-gray-400">Revise cada tarjeta y el historial</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5">
+      @for (unidad of unidades; track unidad.unidad) {
+        <div class="overflow-hidden rounded-xl border border-gray-800 bg-[#121212] transition-colors hover:border-gray-700">
+          <div class="bg-gradient-to-r from-red-600 to-red-700 p-4 sm:p-5">
+            <div class="mb-3 flex items-center justify-between">
+              <div class="relative z-10 min-w-0">
+                <h3 class="text-2xl font-bold text-white">{{ unidad.unidad }}</h3>
+                <p class="text-sm text-red-100">{{ unidad.nombre }}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-3xl font-bold">{{ unidad.cantidadBolsos }}</p>
+                <p class="text-xs text-red-100">Bolsos</p>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-red-100">Completitud General</span>
+                <span class="font-bold">{{ promedioCompletitud(unidad) }}%</span>
+              </div>
+              <div class="h-2 w-full rounded-full bg-red-800">
+                <div class="h-2 rounded-full bg-white" [style.width.%]="promedioCompletitud(unidad)"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="border-b border-gray-800 p-4 sm:p-5">
+            <h4 class="mb-3 text-sm font-semibold">Última Revisión</h4>
+            @if (unidad.ultimaRevision) {
+              <div class="grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
+                <div class="min-w-0">
+                  <p class="text-xs text-gray-400">Fecha</p>
+                  <p class="font-medium text-gray-100">{{ fechaHora(unidad.ultimaRevision.fecha).fecha }}</p>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs text-gray-400">Hora</p>
+                  <p class="font-medium text-gray-100">{{ fechaHora(unidad.ultimaRevision.fecha).hora }}</p>
+                </div>
+                <div class="col-span-2 min-w-0">
+                  <p class="text-xs text-gray-400">Responsable</p>
+                  <p class="break-words font-medium text-gray-100">{{ unidad.ultimaRevision.responsable }}</p>
+                </div>
+              </div>
+            } @else {
+              <p class="text-sm text-gray-500">Sin revisión registrada.</p>
+            }
+          </div>
+
+          <div class="p-4 sm:p-5">
+            <h4 class="mb-4 text-sm font-semibold">Seleccione el Bolso a Revisar</h4>
+            <div class="space-y-3">
+              @for (bolso of unidad.bolsos; track bolso.numero) {
+                <button
+                  type="button"
+                  [routerLink]="['/bolso-trauma', unidad.unidad]"
+                  [queryParams]="{ bolso: bolso.numero }"
+                  class="group flex w-full cursor-pointer items-center justify-between rounded-lg border border-gray-800 bg-[#0a0a0a] p-3 text-left text-white transition-colors hover:border-red-600 focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                >
+                  <div class="flex min-w-0 flex-1 items-center gap-3">
+                    <div class="shrink-0 rounded-lg bg-gray-800 p-2 transition-colors group-hover:bg-red-600">
+                      <lucide-icon name="briefcase" class="h-5 w-5 shrink-0" [size]="20" color="currentColor"></lucide-icon>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <p class="text-sm font-medium text-white">Bolso {{ bolso.numero }}</p>
+                      <div class="mt-1 flex items-center gap-2">
+                        <div class="h-1.5 min-w-0 flex-1 rounded-full bg-gray-800">
+                          <div
+                            class="h-1.5 rounded-full"
+                            [class.bg-green-500]="bolso.completitud === 100"
+                            [class.bg-yellow-500]="bolso.completitud < 100"
+                            [style.width.%]="bolso.completitud"
+                          ></div>
+                        </div>
+                        <span class="shrink-0 text-xs font-medium text-gray-300">{{ bolso.completitud }}%</span>
+                      </div>
+                    </div>
+                    <div class="shrink-0 text-xs text-yellow-500">
+                      @if (bolso.itemsFaltantes > 0) {
+                        {{ bolso.itemsFaltantes }} faltantes
+                      } @else {
+                        <span class="text-gray-600">—</span>
+                      }
+                    </div>
+                  </div>
+                </button>
+              } @empty {
+                <p class="text-sm text-gray-500">No hay bolsos configurados.</p>
+              }
+            </div>
+          </div>
+
+          @if (totalItemsFaltantes(unidad) > 0) {
+            <div class="p-4 pt-0 sm:p-5 sm:pt-0">
+              <div class="rounded-lg border border-yellow-600 bg-yellow-600/10 p-4">
+                <p class="text-sm font-medium text-yellow-500">
+                  {{ totalItemsFaltantes(unidad) }} ítems faltantes en total
+                </p>
+                <p class="text-xs text-gray-300">Se requiere reposición de insumos.</p>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="mt-8 rounded-xl border border-blue-600 bg-blue-600/10 p-6">
+      <h3 class="mb-2 font-bold text-blue-400">Nota Importante</h3>
+      <p class="text-sm text-gray-300">
+        En caso de falta de insumos en el bolso de trauma informar a la brevedad al oficial a cargo o al
+        encargado de la unidad.
+      </p>
+    </div>
+
+    <div class="mt-6 rounded-xl border border-gray-800 bg-[#121212] p-4 md:p-6">
+      <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 class="text-xl font-bold">Historial de Registros</h2>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            (click)="cargarHistorial()"
+            class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-700 bg-[#0a0a0a] px-4 py-2 text-sm font-medium text-white hover:bg-[#161616]"
+          >
+            <lucide-icon name="refresh-cw" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            Actualizar
+          </button>
+          <button
+            type="button"
+            (click)="exportarHistorialPdf()"
+            [disabled]="historialFiltrado().length === 0"
+            class="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            Descargar PDF
+          </button>
+        </div>
+      </div>
+
+      <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 xl:items-end">
+        <div>
+          <label class="mb-1 block text-xs text-gray-400">Unidad</label>
+          <select
+            [(ngModel)]="filtroUnidad"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+          >
+            <option value="">Todas</option>
+            @for (u of unidades; track u.id) {
+              <option [value]="u.unidad">{{ u.unidad }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="mb-1 block text-xs text-gray-400">Estado</label>
+          <select
+            [(ngModel)]="filtroEstado"
+            (ngModelChange)="aplicarFiltrosLocalesHistorial()"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+          >
+            <option [ngValue]="'TODOS'">Todos</option>
+            <option [ngValue]="'BORRADOR'">Borrador</option>
+            <option [ngValue]="'CERRADO'">Cerrado</option>
+          </select>
+        </div>
+        <div class="sm:col-span-2 xl:col-span-2">
+          <label class="mb-1 block text-xs text-gray-400">Inspector u OBAC (responsable)</label>
+          <input
+            type="search"
+            [(ngModel)]="filtroInspectorObac"
+            (ngModelChange)="aplicarFiltrosLocalesHistorial()"
+            placeholder="Nombre parcial…"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white placeholder:text-gray-600"
+          />
+        </div>
+        <div>
+          <label class="mb-1 block text-xs text-gray-400">Desde</label>
+          <input
+            type="date"
+            [(ngModel)]="filtroDesde"
+            class="dark-date-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+          />
+        </div>
+        <div>
+          <label class="mb-1 block text-xs text-gray-400">Hasta</label>
+          <input
+            type="date"
+            [(ngModel)]="filtroHasta"
+            class="dark-date-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+          />
+        </div>
+        <div class="flex sm:col-span-2 xl:col-span-1">
+          <button
+            type="button"
+            (click)="cargarHistorial()"
+            class="w-full rounded-lg bg-red-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-red-700"
+          >
+            Cargar del servidor
+          </button>
+        </div>
+      </div>
+
+      @if (loadingHistorial) {
+        <p class="text-gray-400">Cargando historial…</p>
+      } @else if (historialError) {
+        <p class="text-red-400">{{ historialError }}</p>
+      } @else {
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-gray-800">
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Fecha</th>
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Unidad</th>
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Bolso</th>
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Estado</th>
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Inspector</th>
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Responsable</th>
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Guardia</th>
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Cumplimiento</th>
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Obs.</th>
+                <th class="px-3 py-2 text-left text-sm text-gray-400">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (h of historialPaginado(); track h.id) {
+                <tr class="border-b border-gray-800 hover:bg-[#0a0a0a]">
+                  <td class="px-3 py-3 text-sm">{{ fechaHoraHist(h.fecha) }}</td>
+                  <td class="px-3 py-3 text-sm font-mono">{{ h.unidad }}</td>
+                  <td class="px-3 py-3 text-sm">{{ h.bolsoNumero ?? '—' }}</td>
+                  <td class="px-3 py-3 text-sm">
+                    <span
+                      class="rounded px-2 py-0.5 text-xs font-medium"
+                      [class.bg-amber-950]="h.borrador === true"
+                      [class.text-amber-200]="h.borrador === true"
+                      [class.bg-emerald-950]="h.borrador !== true"
+                      [class.text-emerald-200]="h.borrador !== true"
+                    >
+                      {{ etiquetaEstado(h) }}
+                    </span>
+                  </td>
+                  <td class="px-3 py-3 text-sm">{{ h.inspector || '—' }}</td>
+                  <td class="px-3 py-3 text-sm">{{ h.responsable }}</td>
+                  <td class="px-3 py-3 text-sm">{{ h.grupoGuardia || '—' }}</td>
+                  <td class="px-3 py-3 text-sm">
+                    @if (h.porcentaje !== null) {
+                      {{ h.itemsOk ?? 0 }}/{{ h.totalItems ?? 0 }} ({{ h.porcentaje }}%)
+                    } @else {
+                      —
+                    }
+                  </td>
+                  <td class="max-w-[200px] truncate px-3 py-3 text-sm text-gray-300">
+                    {{ h.observaciones || '—' }}
+                  </td>
+                  <td class="px-3 py-3 text-sm">
+                    <div class="flex items-center gap-2">
+                      <button
+                        type="button"
+                        (click)="abrirDetalle(h)"
+                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                        title="Ver detalle"
+                      >
+                        <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                      </button>
+                      <button
+                        type="button"
+                        (click)="editarRegistro(h)"
+                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
+                        title="Editar registro"
+                      >
+                        <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                      </button>
+                      <button
+                        type="button"
+                        (click)="descargarRegistroPdf(h)"
+                        [disabled]="descargandoRegistroId === h.id"
+                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        title="Descargar PDF"
+                      >
+                        <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="10" class="px-3 py-8 text-center text-sm text-gray-500">Sin registros.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-4 flex flex-col gap-2 text-sm text-gray-400 sm:flex-row sm:items-center sm:justify-between">
+          <span
+            >Página {{ paginaHistorial }} de {{ totalPaginasHistorial() }} ·
+            {{ historialFiltrado().length }} registro(s) con filtros</span
+          >
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              (click)="cambiarPaginaHistorial(-1)"
+              [disabled]="paginaHistorial <= 1"
+              class="rounded-lg border border-gray-700 px-3 py-1.5 text-white disabled:opacity-40"
+            >
+              Anterior
+            </button>
+            <button
+              type="button"
+              (click)="cambiarPaginaHistorial(1)"
+              [disabled]="paginaHistorial >= totalPaginasHistorial()"
+              class="rounded-lg border border-gray-700 px-3 py-1.5 text-white disabled:opacity-40"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (detalleRegistro || loadingDetalle) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="detalle-bolso-titulo"
+    >
+      <div class="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-gray-700 bg-[#121212] p-6 shadow-xl">
+        <div class="mb-4 flex items-start justify-between gap-4">
+          <h3 id="detalle-bolso-titulo" class="text-lg font-bold text-white">Detalle del registro</h3>
+          <button
+            type="button"
+            (click)="cerrarDetalle()"
+            class="rounded-lg border border-gray-600 px-3 py-1 text-sm text-gray-300 hover:bg-gray-800"
+          >
+            Cerrar
+          </button>
+        </div>
+        @if (loadingDetalle) {
+          <p class="text-gray-400">Cargando…</p>
+        } @else if (detalleRegistro) {
+          @let r = detalleRegistro;
+          <div class="mb-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+            <p><span class="text-gray-500">Unidad:</span> {{ r.carro.nomenclatura }}</p>
+            <p><span class="text-gray-500">Fecha:</span> {{ fechaHoraHist(r.fecha) }}</p>
+            <p><span class="text-gray-500">Inspector:</span> {{ r.inspector || '—' }}</p>
+            <p><span class="text-gray-500">OBAC:</span> {{ r.cuartelero.nombre }} ({{ r.cuartelero.rol }})</p>
+            <p class="sm:col-span-2"><span class="text-gray-500">Observaciones:</span> {{ r.observaciones || '—' }}</p>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-gray-800 text-left text-gray-400">
+                  <th class="py-2 pr-2">Bolso</th>
+                  <th class="py-2 pr-2">Ubicación</th>
+                  <th class="py-2 pr-2">Material</th>
+                  <th class="py-2 pr-2">Mín</th>
+                  <th class="py-2 pr-2">Ópt</th>
+                  <th class="py-2 pr-2">Actual</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of filasDetalleMateriales(r); track $index) {
+                  <tr class="border-b border-gray-800/80">
+                    <td class="py-2 pr-2 font-mono">{{ row.bolso }}</td>
+                    <td class="py-2 pr-2">{{ row.ubicacion }}</td>
+                    <td class="py-2 pr-2">{{ row.nombre }}</td>
+                    <td class="py-2 pr-2">{{ row.min }}</td>
+                    <td class="py-2 pr-2">{{ row.opt }}</td>
+                    <td class="py-2 pr-2">{{ row.act }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="6" class="py-4 text-gray-500">Sin ítems en el detalle.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (r.firmaOficial?.startsWith('data:image')) {
+            <div class="mt-4">
+              <p class="mb-2 text-sm text-gray-400">Firma OBAC</p>
+              <img [src]="r.firmaOficial!" alt="Firma OBAC" class="max-h-40 rounded border border-gray-700 bg-[#0a0a0a] p-2" />
+            </div>
+          }
+        }
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,756 @@
+import { CommonModule } from '@angular/common';
+import { Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import type { ChecklistRegistroDto } from '../../models/checklist.dto';
+import type { CarroDto } from '../../models/carro.dto';
+import type { UsuarioListaDto } from '../../models/usuario.dto';
+import { CarrosService } from '../../services/carros.service';
+import { ChecklistsService } from '../../services/checklists.service';
+import { PdfExportService } from '../../services/pdf-export.service';
+import { ToastService } from '../../services/toast.service';
+import { UsuariosService } from '../../services/usuarios.service';
+import { SidepIconsModule } from '../../shared/sidep-icons.module';
+import { firmaEfectiva } from '../../utils/firma-resolver';
+
+export type EraEquipo = {
+  numero: number;
+  marca: string;
+  tipo: string;
+  ubicacion: string;
+  mascaraLimpia: string;
+  mascaraBolsaGenero: string;
+  mascaraCondicion: string;
+  presion: string;
+  presionMayor2000: string;
+  cilindroCondicion: string;
+  codigoCilindro: string;
+  arnesLimpio: string;
+  arnesCorreasSueltas: string;
+  arnesFuga: string;
+  arnesModuloDigital: string;
+  arnesModuloAnalogo: string;
+  arnesAlarma: string;
+  arnesCondicion: string;
+  /** Compatibilidad PDF / resumen */
+  estado: string;
+};
+
+export type CilindroRecambio = {
+  numero: number;
+  tipo: string;
+  presionAire: string;
+  presionMayor2000: string;
+  condicionGeneral: string;
+  codigoCilindro: string;
+  estado: string;
+};
+
+function cilindroRecambioVacio(num: number, tipo = 'G1'): CilindroRecambio {
+  return {
+    numero: num,
+    tipo,
+    presionAire: '0 - 5000',
+    presionMayor2000: 'Si',
+    condicionGeneral: 'Operativo',
+    codigoCilindro: '',
+    estado: 'Operativo',
+  };
+}
+
+function eraEquipoVacio(num: number): EraEquipo {
+  return {
+    numero: num,
+    marca: 'MSA',
+    tipo: 'M7',
+    ubicacion: 'Cabina',
+    mascaraLimpia: 'Si',
+    mascaraBolsaGenero: 'Si',
+    mascaraCondicion: 'Operativo',
+    presion: '0 - 5000',
+    presionMayor2000: 'Si',
+    cilindroCondicion: 'Operativo',
+    codigoCilindro: '',
+    arnesLimpio: 'Si',
+    arnesCorreasSueltas: 'No',
+    arnesFuga: 'No',
+    arnesModuloDigital: 'Bueno',
+    arnesModuloAnalogo: 'Bueno',
+    arnesAlarma: 'Bueno',
+    arnesCondicion: 'Operativo',
+    estado: 'Operativo',
+  };
+}
+
+@Component({
+  selector: 'app-checklist-era',
+  standalone: true,
+  imports: [CommonModule, FormsModule, SidepIconsModule],
+  templateUrl: './checklist-era.component.html',
+})
+export class ChecklistEraComponent implements OnInit {
+  @ViewChild('firmaCanvas') firmaCanvas?: ElementRef<HTMLCanvasElement>;
+
+  private readonly carrosApi = inject(CarrosService);
+  private readonly usuariosApi = inject(UsuariosService);
+  private readonly checklistsApi = inject(ChecklistsService);
+  private readonly pdfExport = inject(PdfExportService);
+  private readonly toast = inject(ToastService);
+  readonly optSiNo = ['Si', 'No'];
+  readonly optOperativo = ['Operativo', 'No Operativo'];
+  readonly optBueno = ['Bueno', 'Regular', 'Malo'];
+
+  carros: CarroDto[] = [];
+  usuarios: UsuarioListaDto[] = [];
+  loading = true;
+  error: string | null = null;
+  saving = false;
+  savingBorrador = false;
+  mensajeFlash: string | null = null;
+  private flashTimer: ReturnType<typeof setTimeout> | null = null;
+
+  historialEra: ChecklistRegistroDto[] = [];
+  historialLoading = false;
+  historialGeneral: ChecklistRegistroDto[] = [];
+  historialGeneralLoading = false;
+  historialGeneralError: string | null = null;
+  filtroUnidad = '';
+  filtroDesde = '';
+  filtroHasta = '';
+  mostrarRegistro = false;
+  paginaHistorial = 1;
+  readonly tamanioPaginaHistorial = 10;
+
+  unidad = 'R-1';
+  cuarteleroId: number | '' = '';
+  inspector = '';
+  grupoGuardia = '';
+  /** Fecha planificada de inspección (YYYY-MM-DD). */
+  fechaInspeccion = '';
+  observaciones = '';
+
+  /** ISO fecha/hora en “Fecha de cierre / firma” (al trazar la firma OBAC). */
+  fechaCierreChecklist: string | null = null;
+  private firmaInicialServidor: string | null = null;
+
+  private ctx: CanvasRenderingContext2D | null = null;
+  private dibujandoFirma = false;
+  private ultimoX = 0;
+  private ultimoY = 0;
+  private firmaCanvasInicializado = false;
+
+  equipos: EraEquipo[] = [eraEquipoVacio(1)];
+  recambios: CilindroRecambio[] = [cilindroRecambioVacio(1, 'G1')];
+
+  ngOnInit(): void {
+    Promise.all([this.carrosApi.listar().toPromise(), this.usuariosApi.listar().toPromise()])
+      .then(([carros, usuarios]) => {
+        this.carros = carros ?? [];
+        this.usuarios = usuarios ?? [];
+        if (this.carros.length > 0) {
+          const pref = this.carros.find((c) => c.nomenclatura === 'R-1') ?? this.carros[0];
+          this.unidad = pref.nomenclatura;
+        }
+        if (this.usuarios.length > 0) this.cuarteleroId = this.usuarios[0].id;
+        const hoy = new Date();
+        this.fechaInspeccion = hoy.toISOString().slice(0, 10);
+        this.loading = false;
+        this.refrescarHistorialEra();
+        this.cargarHistorialGeneral();
+        setTimeout(() => {
+          this.inicializarCanvasFirma();
+          this.restaurarFirmaDesdeServidor(this.firmaInicialServidor);
+        }, 0);
+      })
+      .catch(() => {
+        this.error = 'No se pudieron cargar carros/usuarios para checklist ERA.';
+        this.loading = false;
+        setTimeout(() => this.inicializarCanvasFirma(), 0);
+      });
+  }
+
+  carrosOrdenados(): CarroDto[] {
+    const order = ['R-1', 'BX-1', 'B-1'];
+    return [...this.carros].sort((a, b) => {
+      const ia = order.indexOf(a.nomenclatura);
+      const ib = order.indexOf(b.nomenclatura);
+      if (ia === -1 && ib === -1) return a.nomenclatura.localeCompare(b.nomenclatura);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+  }
+
+  seleccionarUnidad(nomenclatura: string): void {
+    this.unidad = nomenclatura;
+    this.mostrarRegistro = true;
+    this.firmaInicialServidor = null;
+    this.limpiarFirma();
+    this.refrescarHistorialEra();
+  }
+
+  volverSeleccionUnidad(): void {
+    this.mostrarRegistro = false;
+  }
+
+  nombreCarroActual(): string {
+    const c = this.carros.find((x) => x.nomenclatura === this.unidad);
+    return (c?.nombre ?? '').trim() || c?.patente || '—';
+  }
+
+  statsEra(): {
+    unidades: number;
+    operativos: number;
+    noOperativos: number;
+    equiposPorUnidad: number;
+    registros: number;
+  } {
+    const ultimaPorUnidad = new Map<string, ChecklistRegistroDto>();
+    for (const row of [...this.historialGeneral].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())) {
+      const key = row.carro?.nomenclatura ?? '';
+      if (!key || ultimaPorUnidad.has(key)) continue;
+      ultimaPorUnidad.set(key, row);
+    }
+    let operativos = 0;
+    let noOperativos = 0;
+    let totalEquipos = 0;
+    for (const row of ultimaPorUnidad.values()) {
+      const total = Number(row.totalItems) || 0;
+      const ok = Number(row.itemsOk) || 0;
+      if (total > 0 && ok >= total) operativos += 1;
+      else noOperativos += 1;
+      const det = (row.detalle ?? {}) as { equipos?: unknown[] };
+      totalEquipos += Array.isArray(det.equipos) ? det.equipos.length : 0;
+    }
+    const unidadesConRegistro = ultimaPorUnidad.size;
+    const equiposPorUnidad = unidadesConRegistro > 0 ? Number((totalEquipos / unidadesConRegistro).toFixed(1)) : 0;
+    return {
+      unidades: this.carros.length,
+      operativos,
+      noOperativos,
+      equiposPorUnidad,
+      registros: this.historialGeneral.length,
+    };
+  }
+
+  resumenUnidadEra(carro: CarroDto): {
+    unidad: string;
+    nombre: string;
+    completitud: number;
+    estado: 'Completo' | 'Incompleto' | 'Sin checklist';
+    ultimaFecha: string | null;
+    ultimaInspector: string;
+    faltantes: number;
+  } {
+    const rows = this.historialGeneral
+      .filter((h) => h.carro?.nomenclatura === carro.nomenclatura)
+      .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+    const ultimo = rows[0];
+    const total = Number(ultimo?.totalItems) || 0;
+    const ok = Number(ultimo?.itemsOk) || 0;
+    const faltantes = Math.max(total - ok, 0);
+    const completitud = total > 0 ? Math.round((ok / total) * 100) : 0;
+    const estado: 'Completo' | 'Incompleto' | 'Sin checklist' =
+      total <= 0 ? 'Sin checklist' : ok >= total ? 'Completo' : 'Incompleto';
+    return {
+      unidad: carro.nomenclatura,
+      nombre: (carro.nombre ?? '').trim() || carro.patente || 'Sin nombre',
+      completitud,
+      estado,
+      ultimaFecha: ultimo?.fecha ?? null,
+      ultimaInspector: ultimo?.inspector ?? '—',
+      faltantes,
+    };
+  }
+
+  fechasFormateadaCierreFirma(): string {
+    if (!this.fechaCierreChecklist) return '—';
+    const d = new Date(this.fechaCierreChecklist);
+    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('es-CL');
+  }
+
+  private inicializarCanvasFirma(): void {
+    if (this.firmaCanvasInicializado) return;
+    const canvas = this.firmaCanvas?.nativeElement;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    this.ctx = ctx;
+    this.pintarFondoFirma();
+    canvas.addEventListener('mousedown', (e) => {
+      const [x, y] = this.mapPointer(e.clientX, e.clientY);
+      this.inicioTrazo(x, y);
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      if (e.buttons !== 1) return;
+      const [x, y] = this.mapPointer(e.clientX, e.clientY);
+      this.moverTrazo(x, y);
+    });
+    canvas.addEventListener('mouseup', () => this.finTrazo());
+    canvas.addEventListener('mouseleave', () => this.finTrazo());
+    canvas.addEventListener(
+      'touchstart',
+      (ev) => {
+        ev.preventDefault();
+        const t = ev.changedTouches[0];
+        const [x, y] = this.mapPointer(t.clientX, t.clientY);
+        this.inicioTrazo(x, y);
+      },
+      { passive: false },
+    );
+    canvas.addEventListener(
+      'touchmove',
+      (ev) => {
+        ev.preventDefault();
+        if (!this.dibujandoFirma) return;
+        const t = ev.changedTouches[0];
+        const [x, y] = this.mapPointer(t.clientX, t.clientY);
+        this.moverTrazo(x, y);
+      },
+      { passive: false },
+    );
+    canvas.addEventListener('touchend', () => this.finTrazo());
+    this.firmaCanvasInicializado = true;
+  }
+
+  private mapPointer(clientX: number, clientY: number): [number, number] {
+    const canvas = this.firmaCanvas?.nativeElement;
+    if (!canvas) return [0, 0];
+    const r = canvas.getBoundingClientRect();
+    const sx = canvas.width / r.width;
+    const sy = canvas.height / r.height;
+    return [(clientX - r.left) * sx, (clientY - r.top) * sy];
+  }
+
+  private pintarFondoFirma(): void {
+    const canvas = this.firmaCanvas?.nativeElement;
+    if (!canvas || !this.ctx) return;
+    this.ctx.fillStyle = '#0a0a0a';
+    this.ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  private inicioTrazo(x: number, y: number): void {
+    if (!this.ctx) return;
+    this.dibujandoFirma = true;
+    this.ultimoX = x;
+    this.ultimoY = y;
+  }
+
+  private moverTrazo(x: number, y: number): void {
+    if (!this.dibujandoFirma || !this.ctx) return;
+    this.ctx.strokeStyle = '#ffffff';
+    this.ctx.lineWidth = 2;
+    this.ctx.lineCap = 'round';
+    this.ctx.lineJoin = 'round';
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.ultimoX, this.ultimoY);
+    this.ctx.lineTo(x, y);
+    this.ctx.stroke();
+    this.ultimoX = x;
+    this.ultimoY = y;
+  }
+
+  private finTrazo(): void {
+    if (!this.dibujandoFirma) return;
+    this.dibujandoFirma = false;
+    const canvas = this.firmaCanvas?.nativeElement;
+    if (!canvas || !this.ctx) return;
+    if (!this.canvasEstaVacio()) {
+      this.fechaCierreChecklist = new Date().toISOString();
+    }
+  }
+
+  limpiarFirma(): void {
+    this.pintarFondoFirma();
+    this.firmaInicialServidor = null;
+    this.fechaCierreChecklist = null;
+  }
+
+  private restaurarFirmaDesdeServidor(dataUrl: string | null): void {
+    const canvas = this.firmaCanvas?.nativeElement;
+    const ctx = this.ctx;
+    if (!canvas || !ctx || !dataUrl?.startsWith('data:image')) return;
+    const img = new Image();
+    img.onload = () => {
+      this.pintarFondoFirma();
+      try {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      } catch {
+        /* ignore */
+      }
+    };
+    img.src = dataUrl;
+  }
+
+  private canvasEstaVacio(): boolean {
+    const canvas = this.firmaCanvas?.nativeElement;
+    if (!canvas) return true;
+    const ctx = this.ctx ?? canvas.getContext('2d');
+    if (!ctx) return true;
+    const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const dark = [10, 10, 10];
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i] !== dark[0] || data[i + 1] !== dark[1] || data[i + 2] !== dark[2]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  obtenerDataUrlFirma(): string {
+    const canvas = this.firmaCanvas?.nativeElement;
+    if (!canvas || this.canvasEstaVacio()) return '';
+    return canvas.toDataURL('image/png');
+  }
+
+  private firmaPerfilCuartelero(): string {
+    if (this.cuarteleroId === '') {
+      return '';
+    }
+    const u = this.usuarios.find((x) => x.id === this.cuarteleroId);
+    return u?.firmaImagen?.trim() ?? '';
+  }
+
+  firmaResueltaObac(): string {
+    return firmaEfectiva(this.obtenerDataUrlFirma(), this.firmaPerfilCuartelero());
+  }
+
+  private refrescarHistorialEra(): void {
+    if (!this.unidad.trim()) return;
+    this.historialLoading = true;
+    this.checklistsApi.historialEraUnidad(this.unidad).subscribe({
+      next: (rows) => {
+        this.historialEra = rows ?? [];
+        this.historialLoading = false;
+      },
+      error: () => {
+        this.historialEra = [];
+        this.historialLoading = false;
+      },
+    });
+  }
+
+  cargarHistorialGeneral(): void {
+    this.historialGeneralLoading = true;
+    this.historialGeneralError = null;
+    this.checklistsApi.listarChecklistEra().subscribe({
+      next: (rows) => {
+        this.historialGeneral = rows ?? [];
+        this.paginaHistorial = 1;
+        this.historialGeneralLoading = false;
+      },
+      error: () => {
+        this.historialGeneral = [];
+        this.historialGeneralLoading = false;
+        this.historialGeneralError = 'No se pudo cargar el historial ERA.';
+      },
+    });
+  }
+
+  historialGeneralFiltrado(): ChecklistRegistroDto[] {
+    return this.historialGeneral.filter((h) => {
+      const unidad = h.carro?.nomenclatura ?? '';
+      if (this.filtroUnidad && unidad !== this.filtroUnidad) {
+        return false;
+      }
+      const ts = new Date(h.fecha).getTime();
+      if (Number.isNaN(ts)) {
+        return false;
+      }
+      if (this.filtroDesde) {
+        const desdeTs = new Date(`${this.filtroDesde}T00:00:00`).getTime();
+        if (!Number.isNaN(desdeTs) && ts < desdeTs) return false;
+      }
+      if (this.filtroHasta) {
+        const hastaTs = new Date(`${this.filtroHasta}T23:59:59`).getTime();
+        if (!Number.isNaN(hastaTs) && ts > hastaTs) return false;
+      }
+      return true;
+    });
+  }
+
+  totalPaginasHistorial(): number {
+    return Math.max(1, Math.ceil(this.historialGeneralFiltrado().length / this.tamanioPaginaHistorial));
+  }
+
+  historialGeneralPaginado(): ChecklistRegistroDto[] {
+    const inicio = (this.paginaHistorial - 1) * this.tamanioPaginaHistorial;
+    return this.historialGeneralFiltrado().slice(inicio, inicio + this.tamanioPaginaHistorial);
+  }
+
+  cambiarPaginaHistorial(delta: number): void {
+    const next = this.paginaHistorial + delta;
+    const total = this.totalPaginasHistorial();
+    this.paginaHistorial = Math.min(Math.max(next, 1), total);
+  }
+
+  aplicarFiltrosHistorialEra(): void {
+    this.paginaHistorial = 1;
+  }
+
+  fechaHoraHist(iso: string): string {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    return `${d.toLocaleDateString('es-CL')} ${d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`;
+  }
+
+  etiquetaEstadoEra(h: ChecklistRegistroDto): string {
+    const det = (h.detalle ?? {}) as { borrador?: boolean };
+    return det.borrador ? 'BORRADOR' : 'CERRADO';
+  }
+
+  porcentajeCumplimiento(h: ChecklistRegistroDto): string {
+    const total = Number(h.totalItems) || 0;
+    const ok = Number(h.itemsOk) || 0;
+    if (total <= 0) return '—';
+    return `${ok}/${total} (${Math.round((ok / total) * 100)}%)`;
+  }
+
+  ultimaRevisionGeneralTexto(): string {
+    if (this.historialGeneral.length === 0) return '—';
+    const ultima = [...this.historialGeneral].sort(
+      (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
+    )[0];
+    if (!ultima?.fecha) return '—';
+    const d = new Date(ultima.fecha);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('es-CL');
+  }
+
+  editarRegistroEra(h: ChecklistRegistroDto): void {
+    this.unidad = h.carro.nomenclatura || this.unidad;
+    this.inspector = h.inspector ?? '';
+    this.grupoGuardia = h.grupoGuardia ?? '';
+    this.observaciones = h.observaciones ?? '';
+    const det = (h.detalle ?? {}) as {
+      fechaInspeccion?: string;
+      equipos?: EraEquipo[];
+      cilindrosRecambio?: CilindroRecambio[];
+    };
+    if (det.fechaInspeccion) {
+      this.fechaInspeccion = String(det.fechaInspeccion).slice(0, 10);
+    }
+    if (Array.isArray(det.equipos) && det.equipos.length > 0) {
+      this.equipos = det.equipos;
+    }
+    if (Array.isArray(det.cilindrosRecambio) && det.cilindrosRecambio.length > 0) {
+      this.recambios = det.cilindrosRecambio;
+    }
+    if (h.firmaOficial?.startsWith('data:image')) {
+      this.firmaInicialServidor = h.firmaOficial;
+      setTimeout(() => this.restaurarFirmaDesdeServidor(this.firmaInicialServidor), 0);
+    }
+    this.flash(`Registro ${h.id} cargado para edición.`);
+  }
+
+  descargarRegistroEraPdf(h: ChecklistRegistroDto): void {
+    const det = (h.detalle ?? {}) as {
+      fechaInspeccion?: string;
+      equipos?: EraEquipo[];
+      cilindrosRecambio?: CilindroRecambio[];
+    };
+    this.pdfExport.exportarChecklistEra({
+      unidad: h.carro.nomenclatura || this.unidad,
+      nombreCarro: h.carro.nombre || this.nombreCarroActual(),
+      fechaInspeccion: det.fechaInspeccion || h.fecha.slice(0, 10),
+      inspector: h.inspector ?? '',
+      grupoGuardia: h.grupoGuardia ?? '',
+      responsable: h.cuartelero.nombre ?? '',
+      firmaOficial: h.firmaOficial ?? '',
+      observaciones: h.observaciones ?? '',
+      equipos: Array.isArray(det.equipos) ? det.equipos : this.equipos,
+      recambios: Array.isArray(det.cilindrosRecambio) ? det.cilindrosRecambio : this.recambios,
+    });
+  }
+
+  agregarEquipo(): void {
+    this.equipos.push(eraEquipoVacio(this.equipos.length + 1));
+  }
+
+  agregarRecambio(): void {
+    this.recambios.push(cilindroRecambioVacio(this.recambios.length + 1, 'G1'));
+  }
+
+  validarEraCompleto(): string | null {
+    if (this.cuarteleroId === '') {
+      return 'Selecciona un oficial responsable (OBAC).';
+    }
+    if (!this.inspector.trim()) {
+      return 'Indica el nombre del inspector o clave.';
+    }
+    if (!this.grupoGuardia.trim()) {
+      return 'Selecciona el grupo de guardia.';
+    }
+    if (!this.fechaInspeccion) {
+      return 'Indica la fecha de inspección.';
+    }
+    if (!this.firmaResueltaObac()) {
+      return 'La firma del OBAC es obligatoria (dibújala o usa la firma del perfil del responsable).';
+    }
+    if (this.equipos.length === 0) {
+      return 'Debe existir al menos un equipo ERA.';
+    }
+    for (const e of this.equipos) {
+      if (
+        !e.marca.trim() ||
+        !e.tipo.trim() ||
+        !e.presion.trim() ||
+        !e.codigoCilindro.trim()
+      ) {
+        return `Completa todos los campos del ERA ${e.numero} (marca, tipo, presión y código de cilindro).`;
+      }
+    }
+    if (this.recambios.length === 0) {
+      return 'Debe existir al menos un cilindro de recambio.';
+    }
+    for (const c of this.recambios) {
+      if (!c.presionAire.trim() || !c.codigoCilindro.trim() || !c.tipo.trim()) {
+        return `Completa cilindro de recambio ${c.numero}: tipo, presión y código son obligatorios.`;
+      }
+    }
+    return null;
+  }
+
+  /** PDF solo con checklist listo (datos mínimos + firma). */
+  eraListoParaPdf(): boolean {
+    return this.validarEraCompleto() === null;
+  }
+
+  private flash(msg: string): void {
+    this.mensajeFlash = msg;
+    if (this.flashTimer) clearTimeout(this.flashTimer);
+    this.flashTimer = setTimeout(() => {
+      this.mensajeFlash = null;
+      this.flashTimer = null;
+    }, 3800);
+  }
+
+  guardar(): void {
+    const v = this.validarEraCompleto();
+    if (v) {
+      this.error = v;
+      if (v.includes('firma')) {
+        this.flash('Debes firmar en el área OBAC o tener firma en el perfil del responsable.');
+      }
+      return;
+    }
+    const firma = this.firmaResueltaObac();
+    if (!firma) {
+      this.error = 'La firma del OBAC es obligatoria.';
+      return;
+    }
+    const obacId = this.cuarteleroId;
+    if (obacId === '') {
+      return;
+    }
+    const total = this.equipos.length + this.recambios.length;
+    const ok =
+      this.equipos.filter((e) => e.arnesCondicion === 'Operativo').length +
+      this.recambios.filter((r) => r.condicionGeneral === 'Operativo').length;
+    this.error = null;
+    this.saving = true;
+    this.checklistsApi
+      .guardarChecklistEra({
+        unidad: this.unidad,
+        cuarteleroId: obacId,
+        inspector: this.inspector,
+        grupoGuardia: this.grupoGuardia,
+        firmaOficial: firma,
+        observaciones: this.observaciones,
+        totalItems: total,
+        itemsOk: ok,
+        detalle: {
+          fechaInspeccion: this.fechaInspeccion,
+          equipos: this.equipos,
+          cilindrosRecambio: this.recambios,
+          borrador: false,
+        },
+      })
+      .subscribe({
+        next: (reg) => {
+          this.saving = false;
+          this.error = null;
+          if (reg?.fecha) {
+            this.fechaCierreChecklist = reg.fecha;
+          }
+          this.refrescarHistorialEra();
+          this.cargarHistorialGeneral();
+          this.toast.exito('Checklist ERA guardado.');
+        },
+        error: () => {
+          this.error = 'No se pudo guardar checklist ERA.';
+          this.toast.error('No se pudo guardar el checklist ERA.');
+          this.saving = false;
+        },
+      });
+  }
+
+  guardarBorrador(): void {
+    if (this.cuarteleroId === '') {
+      this.error = 'Selecciona oficial responsable (OBAC) para el borrador.';
+      return;
+    }
+    const obacBorrador = this.cuarteleroId;
+    this.error = null;
+    this.savingBorrador = true;
+    const total = this.equipos.length + this.recambios.length;
+    const ok =
+      this.equipos.filter((e) => e.arnesCondicion === 'Operativo').length +
+      this.recambios.filter((r) => r.condicionGeneral === 'Operativo').length;
+    const firma = this.firmaResueltaObac();
+    this.checklistsApi
+      .guardarChecklistEra({
+        unidad: this.unidad,
+        cuarteleroId: obacBorrador,
+        inspector: this.inspector,
+        grupoGuardia: this.grupoGuardia,
+        firmaOficial: firma || null,
+        observaciones: this.observaciones,
+        totalItems: total,
+        itemsOk: ok,
+        detalle: {
+          fechaInspeccion: this.fechaInspeccion,
+          equipos: this.equipos,
+          cilindrosRecambio: this.recambios,
+          borrador: true,
+        },
+      })
+      .subscribe({
+        next: (reg) => {
+          this.savingBorrador = false;
+          this.error = null;
+          if (reg?.fecha) {
+            this.fechaCierreChecklist = reg.fecha;
+          }
+          this.refrescarHistorialEra();
+          this.cargarHistorialGeneral();
+          this.flash('Borrador guardado.');
+          this.toast.exito('Borrador ERA guardado.');
+        },
+        error: () => {
+          this.error = 'No se pudo guardar el borrador.';
+          this.toast.error('No se pudo guardar el borrador.');
+          this.savingBorrador = false;
+        },
+      });
+  }
+
+  descargarPdf(): void {
+    if (!this.eraListoParaPdf()) {
+      this.flash('Completa inspector, fecha, firma OBAC y equipos ERA para generar el PDF.');
+      return;
+    }
+    const responsable = this.usuarios.find((u) => u.id === this.cuarteleroId)?.nombre ?? '';
+    this.pdfExport.exportarChecklistEra({
+      unidad: this.unidad,
+      nombreCarro: this.nombreCarroActual(),
+      fechaInspeccion: this.fechaInspeccion,
+      inspector: this.inspector,
+      grupoGuardia: this.grupoGuardia,
+      responsable,
+      firmaOficial: this.firmaResueltaObac(),
+      observaciones: this.observaciones,
+      equipos: this.equipos,
+      recambios: this.recambios,
+    });
+  }
+}

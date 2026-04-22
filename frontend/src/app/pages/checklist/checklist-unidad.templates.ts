@@ -1,0 +1,188 @@
+export type ChecklistTemplateMaterial = {
+  nombre: string;
+  cantidadRequerida: number;
+};
+
+export type ChecklistTemplateUbicacion = {
+  nombre: string;
+  materiales: ChecklistTemplateMaterial[];
+};
+
+const cloneTemplate = (template: ChecklistTemplateUbicacion[]): ChecklistTemplateUbicacion[] =>
+  template.map((ubicacion) => ({
+    nombre: ubicacion.nombre,
+    materiales: ubicacion.materiales.map((material) => ({ ...material })),
+  }));
+
+export const CHECKLIST_UNIDAD_TEMPLATES: Record<string, ChecklistTemplateUbicacion[]> = {
+  'R-1': [
+    {
+      nombre: 'Cabina Parte Delantera',
+      materiales: [
+        { nombre: 'Guía de Respuesta a emergencias con Materiales Peligrosos', cantidadRequerida: 1 },
+        { nombre: 'Bitácora de la Unidad', cantidadRequerida: 1 },
+        { nombre: 'Base de carga Radio Motorola DP4801e', cantidadRequerida: 2 },
+        { nombre: 'Radio Portátil Motorola DP4801e', cantidadRequerida: 1 },
+        { nombre: 'Bitácora de equipos motores', cantidadRequerida: 1 },
+        { nombre: 'Foco frontal copiloto', cantidadRequerida: 1 },
+        { nombre: 'Toma datos de la unidad', cantidadRequerida: 1 },
+        { nombre: 'Desfibrilador Externo Automático (DEA) Zoll AED Plus', cantidadRequerida: 1 },
+        { nombre: 'Bastón Eléctrico TAC-STICK Leader Volt', cantidadRequerida: 1 },
+        { nombre: 'Radio Base Motorola DM4600e', cantidadRequerida: 1 },
+        { nombre: 'Carpeta con documentos de la unidad', cantidadRequerida: 1 },
+        { nombre: 'Carpeta con documentación ante accidentes de voluntarios', cantidadRequerida: 1 },
+        { nombre: 'Carpeta con check list de la unidad', cantidadRequerida: 1 },
+      ],
+    },
+    {
+      nombre: 'Cabina Parte Trasera',
+      materiales: [
+        { nombre: 'Anemómetro', cantidadRequerida: 1 },
+        { nombre: 'Binoculares Basmar 20 x 50', cantidadRequerida: 1 },
+        { nombre: 'Estuche con tarjetas de Triage', cantidadRequerida: 1 },
+        { nombre: 'Detector de gases Scott Leak Alert', cantidadRequerida: 1 },
+        { nombre: 'Luz emergencia de la unidad', cantidadRequerida: 1 },
+        { nombre: 'Botiquín de la unidad', cantidadRequerida: 1 },
+        { nombre: 'Chaleco reflectante de seguridad', cantidadRequerida: 1 },
+        { nombre: 'Cinta de seguridad', cantidadRequerida: 1 },
+        { nombre: 'Cascos de Rescate', cantidadRequerida: 2 },
+        { nombre: 'Equipos de respiración 2.2 MSA FireHawk M7', cantidadRequerida: 4 },
+        { nombre: 'Máscaras para equipos de respiración MSA FireHawk M7', cantidadRequerida: 4 },
+        { nombre: 'Estacas de fierro', cantidadRequerida: 4 },
+        { nombre: 'Cilindros de cambio 2.2 MSA FireHawk M7', cantidadRequerida: 3 },
+        { nombre: 'Frazadas', cantidadRequerida: 2 },
+        { nombre: 'Parka reflectante conductor', cantidadRequerida: 1 },
+      ],
+    },
+    {
+      nombre: 'Cortina N°1',
+      materiales: [
+        { nombre: 'Tabla Espinal', cantidadRequerida: 6 },
+        { nombre: 'Bolso de Trauma', cantidadRequerida: 2 },
+        { nombre: 'Cilindro de Oxígeno 1000lt', cantidadRequerida: 1 },
+        { nombre: 'Chalecos de Extricación', cantidadRequerida: 5 },
+        { nombre: 'PediPack', cantidadRequerida: 1 },
+        { nombre: 'Laterales', cantidadRequerida: 6 },
+        { nombre: 'Cinta velcro XXL', cantidadRequerida: 1 },
+        { nombre: 'Pulpos', cantidadRequerida: 6 },
+        { nombre: 'Maletín RCP', cantidadRequerida: 1 },
+        { nombre: 'Chocos cuartones', cantidadRequerida: 20 },
+        { nombre: 'Cuñas planas', cantidadRequerida: 12 },
+        { nombre: 'Cuñas escalonadas chicas', cantidadRequerida: 8 },
+        { nombre: 'Cuñas biseladas cortas', cantidadRequerida: 7 },
+        { nombre: 'Cuñas biseladas', cantidadRequerida: 16 },
+      ],
+    },
+    {
+      nombre: 'Cajonera N°1',
+      materiales: [
+        { nombre: 'Bolso de Trauma', cantidadRequerida: 1 },
+        { nombre: 'Mochila de Trauma + Bolso de collares cervicales', cantidadRequerida: 1 },
+        { nombre: 'Bolso de Férulas Adulto', cantidadRequerida: 2 },
+        { nombre: 'Bolso de Férulas Pediátrico', cantidadRequerida: 1 },
+        { nombre: 'Kit de estabilización', cantidadRequerida: 1 },
+        { nombre: 'Cuñas escalonadas chicas', cantidadRequerida: 4 },
+        { nombre: 'Cuñas biseladas grandes', cantidadRequerida: 2 },
+        { nombre: 'Cuñas escalonadas grandes', cantidadRequerida: 3 },
+      ],
+    },
+    {
+      nombre: 'Cortina N°2',
+      materiales: [
+        { nombre: 'Sierra Sable Milwaukee Sawzall', cantidadRequerida: 1 },
+        { nombre: 'Maleta Milwaukee con Taladro percutor y Atornillador de impacto', cantidadRequerida: 1 },
+        { nombre: 'Bolso Kit de Triage', cantidadRequerida: 1 },
+        { nombre: 'Maletín Comando de Incidentes', cantidadRequerida: 1 },
+        { nombre: 'Escala telescópica', cantidadRequerida: 1 },
+        { nombre: 'Bolso con kit para manejo de vidrios', cantidadRequerida: 1 },
+        { nombre: 'Bolso con mantas cubre cortes', cantidadRequerida: 1 },
+        { nombre: 'Motor equipo electrógeno', cantidadRequerida: 1 },
+        { nombre: 'Control Torreta', cantidadRequerida: 1 },
+        { nombre: 'Butaquera', cantidadRequerida: 2 },
+        { nombre: 'Alcachofa', cantidadRequerida: 1 },
+        { nombre: 'Malla filtro para alcachofa', cantidadRequerida: 1 },
+        { nombre: 'Flotador metálico', cantidadRequerida: 1 },
+        { nombre: 'Basurero desechos biológicos', cantidadRequerida: 1 },
+        { nombre: 'Cuña metálica de la unidad', cantidadRequerida: 1 },
+        { nombre: 'Reducción 150mm a 110mm', cantidadRequerida: 1 },
+      ],
+    },
+    {
+      nombre: 'Cortina N°3',
+      materiales: [
+        { nombre: 'Kit cojines de elevación Vetter', cantidadRequerida: 1 },
+        { nombre: 'Motor equipo Holmatro', cantidadRequerida: 1 },
+        { nombre: 'L metálica', cantidadRequerida: 1 },
+        { nombre: 'RAM Holmatro', cantidadRequerida: 1 },
+        { nombre: 'Juego de muelas y cadenas Holmatro', cantidadRequerida: 1 },
+        { nombre: 'Mangueras hidráulicas equipo Holmatro', cantidadRequerida: 2 },
+        { nombre: 'Expansor Holmatro', cantidadRequerida: 1 },
+        { nombre: 'Cizalla Holmatro', cantidadRequerida: 1 },
+        { nombre: 'Hacha de Bombero', cantidadRequerida: 1 },
+        { nombre: 'Hacha de Leñador', cantidadRequerida: 1 },
+        { nombre: 'Halligan', cantidadRequerida: 1 },
+        { nombre: 'Maceta 8 lb', cantidadRequerida: 1 },
+        { nombre: 'Armada americana 50mm', cantidadRequerida: 1 },
+        { nombre: 'Bolso de cuerdas', cantidadRequerida: 1 },
+        { nombre: 'Camilla SKED', cantidadRequerida: 1 },
+        { nombre: 'Arnés de Seguridad', cantidadRequerida: 1 },
+        { nombre: 'Eslingas', cantidadRequerida: 3 },
+      ],
+    },
+    {
+      nombre: 'Cortina N°4',
+      materiales: [
+        { nombre: 'Tira 70mm (alimentación)', cantidadRequerida: 1 },
+        { nombre: 'Bidón de combustible 20lt', cantidadRequerida: 1 },
+        { nombre: 'Llave de grifo', cantidadRequerida: 1 },
+        { nombre: 'Llave Storz', cantidadRequerida: 2 },
+        { nombre: 'Cuña metálica de la unidad', cantidadRequerida: 1 },
+        { nombre: 'Unión Grifo', cantidadRequerida: 1 },
+        { nombre: 'Motor Equipo Lukas', cantidadRequerida: 1 },
+        { nombre: 'Expansor Lukas', cantidadRequerida: 1 },
+        { nombre: 'Cizalla Lukas', cantidadRequerida: 1 },
+        { nombre: 'RAM Lukas', cantidadRequerida: 1 },
+        { nombre: 'L metálica Lukas', cantidadRequerida: 1 },
+        { nombre: 'Juego de Cadenas LUKAS', cantidadRequerida: 1 },
+        { nombre: 'Estabilizadores Laterales Holmatro', cantidadRequerida: 3 },
+        { nombre: 'Trípode para focos electrógeno', cantidadRequerida: 2 },
+        { nombre: 'Focos Led electrógeno', cantidadRequerida: 2 },
+        { nombre: 'Maletín Anti AirBag', cantidadRequerida: 1 },
+        { nombre: 'Caja de herramientas', cantidadRequerida: 1 },
+        { nombre: 'Lona Azul', cantidadRequerida: 1 },
+        { nombre: 'Camilla Scoop', cantidadRequerida: 1 },
+        { nombre: 'Bidón combustible Lukas', cantidadRequerida: 1 },
+        { nombre: 'Carrete de Extensión 25mts', cantidadRequerida: 2 },
+        { nombre: 'Placa para desplazamiento de panel frontal', cantidadRequerida: 1 },
+      ],
+    },
+    {
+      nombre: 'Cajonera N°4 / Techo',
+      materiales: [
+        { nombre: 'Gata hidráulica de 20 ton', cantidadRequerida: 1 },
+        { nombre: 'Extintor PQS 4Kg', cantidadRequerida: 1 },
+        { nombre: 'Bolso llave de ruedas y levante de cabina', cantidadRequerida: 1 },
+        { nombre: 'Triángulo de Seguridad', cantidadRequerida: 1 },
+        { nombre: 'Manguera neumática', cantidadRequerida: 1 },
+        { nombre: 'Escala Simple', cantidadRequerida: 1 },
+        { nombre: 'Conos de seguridad', cantidadRequerida: 10 },
+        { nombre: 'Neumático de repuesto', cantidadRequerida: 1 },
+        { nombre: 'Cuña Metálica', cantidadRequerida: 1 },
+        { nombre: 'Motosierra', cantidadRequerida: 1 },
+        { nombre: 'Casco para Motosierra', cantidadRequerida: 1 },
+        { nombre: 'Bidón Motosierra', cantidadRequerida: 1 },
+        { nombre: 'Bichero 1,8 mt', cantidadRequerida: 1 },
+        { nombre: 'Escobillones', cantidadRequerida: 2 },
+        { nombre: 'Pala antichispa', cantidadRequerida: 2 },
+        { nombre: 'Pala', cantidadRequerida: 1 },
+        { nombre: 'Techo Gabeta N°2 Chorizos', cantidadRequerida: 4 },
+        { nombre: 'Techo Gabeta N°3 Sacos de Aserrín', cantidadRequerida: 2 },
+      ],
+    },
+  ],
+  'BX-1': [],
+  'B-1': [],
+};
+
+CHECKLIST_UNIDAD_TEMPLATES['BX-1'] = cloneTemplate(CHECKLIST_UNIDAD_TEMPLATES['R-1']);
+CHECKLIST_UNIDAD_TEMPLATES['B-1'] = cloneTemplate(CHECKLIST_UNIDAD_TEMPLATES['R-1']);

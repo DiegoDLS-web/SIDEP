@@ -1,0 +1,88 @@
+<div class="relative flex min-h-[100dvh] bg-[#0a0a0a] text-white">
+  <button
+    type="button"
+    class="fixed left-3 top-3 z-50 rounded-lg border border-gray-700 bg-[#121212] p-2 lg:hidden"
+    (click)="toggleSidebar()"
+  >
+    <lucide-icon [name]="sidebarAbierto ? 'x' : 'menu'" class="h-5 w-5" />
+  </button>
+
+  @if (sidebarAbierto) {
+    <button class="fixed inset-0 z-30 bg-black/60 lg:hidden" (click)="cerrarSidebar()"></button>
+  }
+
+  <aside
+    class="fixed inset-y-0 left-0 z-40 flex w-72 max-w-[85vw] -translate-x-full flex-col border-r border-gray-800 bg-[#121212] transition-transform lg:static lg:w-64 lg:max-w-none lg:translate-x-0"
+    [class.translate-x-0]="sidebarAbierto"
+  >
+    <div class="border-b border-gray-800 p-6">
+      <div class="flex items-center gap-3">
+        <div
+          class="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-red-600 to-red-700"
+        >
+          <lucide-icon name="flame" class="h-6 w-6 text-white" [size]="24" color="currentColor"></lucide-icon>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight">SIDEP</h1>
+          <p class="text-xs text-gray-400">1ª Cía. Santa Juana</p>
+        </div>
+      </div>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto p-4">
+      @for (section of sections; track section.title; let si = $index) {
+        <div [class.mt-6]="si > 0">
+          <p class="mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            {{ section.title }}
+          </p>
+          <div class="space-y-1">
+            @for (item of section.items; track item.routerLink) {
+              <a
+                [routerLink]="item.routerLink"
+                class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all"
+                [ngClass]="navClasses(navActive(item))"
+                (click)="cerrarSidebar()"
+              >
+                <lucide-icon
+                  [name]="item.icon"
+                  class="h-5 w-5 shrink-0"
+                  [size]="20"
+                  color="currentColor"
+                ></lucide-icon>
+                <span>{{ item.label }}</span>
+              </a>
+            }
+          </div>
+        </div>
+      }
+    </nav>
+
+    <div class="border-t border-gray-800 p-4">
+      <div class="flex items-center gap-3 rounded-lg bg-gray-800 p-3">
+        <div
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-600 text-sm font-bold"
+        >
+          {{ inicialesUsuario }}
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm font-medium">{{ nombreUsuario }}</p>
+          <p class="truncate text-xs text-gray-400">{{ rolUsuario }}</p>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium transition-colors hover:bg-red-700"
+        (click)="logout()"
+      >
+        <lucide-icon name="log-in" class="h-4 w-4 rotate-180"></lucide-icon>
+        Cerrar sesión
+      </button>
+    </div>
+  </aside>
+
+  <main
+    class="min-h-0 w-full min-w-0 flex-1 overflow-x-hidden overflow-y-auto pt-14 pb-[env(safe-area-inset-bottom)] lg:pt-0"
+  >
+    <router-outlet />
+  </main>
+</div>

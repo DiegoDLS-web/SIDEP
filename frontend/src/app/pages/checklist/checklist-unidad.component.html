@@ -1,0 +1,433 @@
+<div class="w-full min-w-0 px-4 pb-6 pt-2 sm:px-6 sm:pb-8 md:px-8 md:pt-4 lg:px-10 xl:px-12 lg:pb-10">
+  @if (loading) {
+    <p class="text-gray-400">Cargando checklist…</p>
+    <a routerLink="/checklist" class="mb-4 inline-flex items-center gap-2 text-gray-400 hover:text-white">
+      <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+      Volver a Checklist
+    </a>
+  } @else {
+  @if (error && !saving) {
+    <p class="text-red-400">{{ error }}</p>
+  }
+
+  <a routerLink="/checklist" class="mb-3 inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white sm:mb-4 sm:text-base">
+    <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+    Volver a Checklist
+  </a>
+
+  <!-- Barra compacta solo en pantallas menores a lg -->
+  <div
+    class="sticky top-0 z-20 -mx-3 mb-4 border-b border-gray-800/90 bg-[#0a0a0a]/95 px-3 py-3 shadow-sm shadow-black/20 backdrop-blur-md sm:-mx-4 lg:hidden"
+  >
+    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Checklist en curso</p>
+    <p class="truncate text-base font-bold text-white sm:text-lg">{{ tituloChecklist() }}</p>
+    <div class="mt-2 grid grid-cols-1 gap-1 text-xs text-gray-300 sm:grid-cols-2 sm:text-sm">
+      <p class="min-w-0 truncate">
+        <span class="text-gray-500">Fecha / firma:</span>
+        {{ fechasFormateadaCabecera() }}
+      </p>
+      <p class="min-w-0 truncate">
+        <span class="text-gray-500">OBAC:</span>
+        {{ nombreObacSeleccionado() }}
+      </p>
+    </div>
+  </div>
+
+  @if (mensajeFlash) {
+    <div
+      class="mb-4 rounded-xl border border-amber-600/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100"
+      role="status"
+    >
+      {{ mensajeFlash }}
+    </div>
+  }
+
+    <div class="mb-6 flex flex-col gap-4 md:mb-8 md:flex-row md:items-start md:justify-between">
+    <div class="hidden min-w-0 lg:block">
+      <h1 class="mb-2 break-words text-2xl font-bold md:text-3xl">
+        Checklist · {{ tituloChecklist() }}
+      </h1>
+      <p class="text-gray-400">Control de materiales por ubicación</p>
+    </div>
+    <div class="flex flex-col items-stretch gap-2 sm:items-end">
+      <button
+        type="button"
+        (click)="descargarPdf()"
+        [disabled]="!checklistCompletoParaPdf()"
+        [title]="
+          checklistCompletoParaPdf()
+            ? 'Generar PDF del checklist'
+            : 'Termina el checklist (materiales y firma OBAC) para generar el PDF'
+        "
+        class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors"
+        [ngClass]="
+          checklistCompletoParaPdf()
+            ? 'border border-red-500 bg-red-600 text-white hover:bg-red-700'
+            : 'cursor-not-allowed border border-red-900/60 bg-red-950/40 text-red-200/40'
+        "
+      >
+        <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+        Generar PDF
+      </button>
+      @if (!checklistCompletoParaPdf()) {
+        <p class="text-center text-xs text-gray-500 sm:max-w-xs lg:text-right">
+          Completa todos los materiales y la firma del OBAC para descargar el PDF.
+        </p>
+      }
+    </div>
+  </div>
+
+    <div class="mb-6 grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-3 md:gap-6">
+    <div class="rounded-xl border border-gray-800 bg-[#121212] p-3 sm:p-4 md:p-6">
+      <p class="mb-0.5 text-xs text-gray-400 sm:text-sm">Total</p>
+      <p class="text-xl font-bold sm:text-2xl md:text-3xl">{{ totalItems() }}</p>
+    </div>
+    <div class="rounded-xl border border-green-600 bg-[#121212] p-3 sm:p-4 md:p-6">
+      <p class="mb-0.5 text-xs text-gray-400 sm:text-sm">OK</p>
+      <p class="text-xl font-bold text-green-500 sm:text-2xl md:text-3xl">{{ itemsOk() }}</p>
+    </div>
+    <div class="rounded-xl border border-red-600 bg-[#121212] p-3 sm:p-4 md:p-6">
+      <p class="mb-0.5 text-xs text-gray-400 sm:text-sm">Faltan</p>
+      <p class="text-xl font-bold text-red-500 sm:text-2xl md:text-3xl">{{ totalItems() - itemsOk() }}</p>
+    </div>
+  </div>
+
+  <div class="space-y-4 md:space-y-6">
+    <div class="rounded-xl border border-gray-800 bg-[#121212] p-4 md:p-6">
+      <h2 class="mb-4 text-lg font-bold text-white md:text-xl">Datos del Inspector</h2>
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300"
+            >Nombre del inspector / clave <span class="text-red-400">*</span></label
+          >
+          <input
+            [(ngModel)]="nombreInspector"
+            name="nombreInspector"
+            placeholder="Ej: Juan Pérez · clave 1234"
+            autocomplete="name"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white placeholder:text-gray-600"
+          />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300"
+            >Grupo de Guardia <span class="text-red-400">*</span></label
+          >
+          <select
+            [(ngModel)]="grupoGuardia"
+            name="grupoGuardia"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+          >
+            <option value="">Selecciona grupo</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300"
+            >Oficial Responsable (OBAC) <span class="text-red-400">*</span></label
+          >
+          <select
+            [(ngModel)]="cuarteleroId"
+            name="cuarteleroId"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+          >
+            @for (u of usuarios; track u.id) {
+              <option [ngValue]="u.id">{{ u.nombre }} ({{ u.rol }})</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300"
+            >Fecha de cierre / firma <span class="text-red-400">*</span></label
+          >
+          <div
+            class="flex min-h-[42px] items-center rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-gray-200"
+          >
+            {{ fechasFormateadaCabecera() }}
+          </div>
+          <p class="mt-2 text-xs leading-relaxed text-gray-500">
+            Al firmar abajo como OBAC, aquí se muestra la fecha (ya no se usa un campo de texto para la firma).
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="rounded-xl border border-gray-800 bg-[#121212] p-4 md:p-6">
+      <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 class="text-lg font-bold md:text-xl">Inventario operativo</h2>
+          <p class="text-sm text-gray-400">Filtra por nombre o muestra solo los materiales pendientes.</p>
+        </div>
+        <div class="flex flex-col gap-3 md:w-auto md:flex-row md:items-center">
+          <input
+            [(ngModel)]="filtroMateriales"
+            placeholder="Buscar material o ubicación"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white md:w-72"
+          />
+          <label class="inline-flex cursor-pointer select-none items-center gap-2 text-sm text-gray-300">
+            <input [(ngModel)]="soloFaltantes" type="checkbox" class="peer sr-only" />
+            <span
+              class="flex h-4 w-4 shrink-0 items-center justify-center rounded border border-gray-700 bg-[#141414] text-red-400 shadow-inner shadow-black/40 peer-checked:border-red-500 peer-checked:bg-[#1a0a0a] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red-600/50"
+              aria-hidden="true"
+            >
+              @if (soloFaltantes) {
+                <span class="text-[10px] font-bold leading-none">✓</span>
+              }
+            </span>
+            Solo faltantes
+          </label>
+        </div>
+      </div>
+    </div>
+
+    @for (ubicacion of ubicaciones; track $index; let ui = $index) {
+      <div class="overflow-hidden rounded-2xl border border-gray-800 bg-[#121212]">
+        <div
+          (click)="toggleUbicacion(ubicacion.nombre)"
+          class="flex flex-col gap-3 border-b border-gray-900 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 md:p-6"
+        >
+          <div class="flex min-w-0 items-center gap-3">
+            <div
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-600 text-white shadow-md sm:h-11 sm:w-11 sm:rounded-xl"
+            >
+              <lucide-icon name="truck" class="h-5 w-5 sm:h-6 sm:w-6" [size]="24" color="currentColor"></lucide-icon>
+            </div>
+            <div class="min-w-0 flex-1">
+              <h2 class="text-left text-base font-bold text-white sm:text-lg md:text-xl">{{ ubicacion.nombre }}</h2>
+              <p class="text-left text-xs text-gray-400">
+                {{ materialesVisibles(ubicacion).length }} visibles · {{ faltantesPorUbicacion(ubicacion) }} faltantes
+              </p>
+            </div>
+          </div>
+          <div class="flex w-full shrink-0 items-center gap-2 sm:w-auto sm:justify-end">
+            <button
+              type="button"
+              (click)="$event.stopPropagation(); agregarMaterial(ui)"
+              class="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-md transition-colors hover:bg-red-700 sm:flex-none sm:px-4 sm:py-2.5"
+            >
+              + Material
+            </button>
+            <lucide-icon
+              name="chevron-down"
+              class="h-5 w-5 shrink-0 text-gray-400 transition-transform duration-200"
+              [class.rotate-180]="ubicacionAbierta(ubicacion.nombre)"
+            ></lucide-icon>
+          </div>
+        </div>
+
+        @if (ubicacionAbierta(ubicacion.nombre)) {
+        <!-- Móvil: filas en tarjeta (sin scroll horizontal) -->
+        <div class="space-y-3 border-b border-gray-900/50 p-3 sm:p-4 md:hidden">
+          @for (material of materialesVisibles(ubicacion); track material.id; let mi = $index) {
+            <div class="rounded-xl border border-gray-800 bg-[#0a0a0a] p-3">
+              <label class="mb-1 block text-xs font-medium text-gray-500">Material</label>
+              <input
+                [(ngModel)]="material.nombre"
+                placeholder="Nombre material"
+                class="mb-3 w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 text-sm text-white placeholder:text-gray-600"
+              />
+              <div class="mb-3 grid grid-cols-2 gap-3">
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">C. requerida</label>
+                  <input
+                    type="number"
+                    [(ngModel)]="material.cantidadRequerida"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-2 py-2 text-center text-sm text-white"
+                  />
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">C. actual</label>
+                  <input
+                    type="number"
+                    [(ngModel)]="material.cantidadActual"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-2 py-2 text-center text-sm text-white"
+                  />
+                </div>
+              </div>
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-gray-500">Estado</span>
+                  @if (materialOk(material)) {
+                    <span
+                      class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-green-600 text-white"
+                      title="Completo"
+                    >
+                      <lucide-icon name="circle-check" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
+                    </span>
+                  } @else {
+                    <span
+                      class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gray-800 text-gray-500"
+                      title="Pendiente"
+                    >
+                      <lucide-icon name="triangle-alert" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
+                    </span>
+                  }
+                </div>
+                <button
+                  type="button"
+                  (click)="eliminarMaterial(ui, mi)"
+                  class="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg bg-red-600 text-white"
+                  title="Quitar material"
+                >
+                  <lucide-icon name="x" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
+                </button>
+              </div>
+            </div>
+          }
+          @if (materialesVisibles(ubicacion).length === 0) {
+            <p class="py-2 text-center text-sm text-gray-500">No hay materiales que coincidan con el filtro actual.</p>
+          }
+        </div>
+
+        <div class="hidden overflow-x-auto md:block [-webkit-overflow-scrolling:touch]">
+          <table class="min-w-full text-left text-sm">
+            <thead>
+              <tr class="border-b border-gray-900 text-xs font-medium uppercase tracking-wide text-gray-500">
+                <th class="px-3 py-3 pl-4 sm:px-4 sm:pl-5">Material</th>
+                <th class="px-3 py-3 text-center">Cant. requerida</th>
+                <th class="px-3 py-3 text-center">Cant. actual</th>
+                <th class="px-3 py-3 text-center">Estado</th>
+                <th class="px-3 py-3 pr-4 text-right sm:pr-5">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (material of materialesVisibles(ubicacion); track material.id; let mi = $index) {
+                <tr class="border-b border-gray-900/80">
+                  <td class="px-3 py-3 pl-4 align-middle sm:px-4 sm:pl-5">
+                    <input
+                      [(ngModel)]="material.nombre"
+                      placeholder="Nombre material"
+                      class="w-full min-w-0 rounded-xl border border-gray-800 bg-[#0a0a0a] px-3 py-2 text-sm text-white placeholder:text-gray-600 sm:min-w-[12rem]"
+                    />
+                  </td>
+                  <td class="px-3 py-3 align-middle">
+                    <div class="flex justify-center">
+                      <input
+                        type="number"
+                        [(ngModel)]="material.cantidadRequerida"
+                        class="w-16 rounded-xl border border-gray-800 bg-[#0a0a0a] px-2 py-2 text-center text-sm text-white"
+                      />
+                    </div>
+                  </td>
+                  <td class="px-3 py-3 align-middle">
+                    <div class="flex justify-center">
+                      <input
+                        type="number"
+                        [(ngModel)]="material.cantidadActual"
+                        class="w-16 rounded-xl border border-gray-800 bg-[#0a0a0a] px-2 py-2 text-center text-sm text-white"
+                      />
+                    </div>
+                  </td>
+                  <td class="px-3 py-3 align-middle">
+                    <div class="flex justify-center">
+                      @if (materialOk(material)) {
+                        <span
+                          class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-green-600 text-white shadow-inner"
+                          title="Completo"
+                        >
+                          <lucide-icon name="circle-check" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
+                        </span>
+                      } @else {
+                        <span
+                          class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gray-800 text-gray-500"
+                          title="Pendiente"
+                        >
+                          <lucide-icon
+                            name="triangle-alert"
+                            class="h-5 w-5"
+                            [size]="20"
+                            color="currentColor"
+                          ></lucide-icon>
+                        </span>
+                      }
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 pr-5 align-middle text-right">
+                    <button
+                      type="button"
+                      (click)="eliminarMaterial(ui, mi)"
+                      class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-red-600 text-white transition-colors hover:bg-red-700"
+                      title="Quitar material"
+                    >
+                      <lucide-icon name="x" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
+                    </button>
+                  </td>
+                </tr>
+              }
+              @if (materialesVisibles(ubicacion).length === 0) {
+                <tr>
+                  <td colspan="5" class="px-5 py-4 text-sm text-gray-500">
+                    No hay materiales que coincidan con el filtro actual.
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        }
+      </div>
+    }
+
+    <div class="rounded-xl border border-gray-700 bg-[#121212] p-5 md:p-6">
+      <label class="mb-3 block text-sm text-gray-400">Observaciones (opcional)</label>
+      <textarea
+        rows="5"
+        [(ngModel)]="observaciones"
+        name="observaciones"
+        class="min-h-[140px] w-full resize-y rounded-lg border border-gray-700 bg-[#0a0a0a] px-4 py-3 text-sm text-white placeholder:text-gray-600"
+        placeholder=""
+      ></textarea>
+    </div>
+
+    <div class="rounded-xl border border-gray-700 bg-[#121212] p-5 md:p-6">
+      <h2 class="mb-2 text-lg font-bold tracking-tight text-white">
+        Firma oficial a cargo (OBAC) <span class="text-red-400">*</span>
+      </h2>
+      <p class="mb-5 text-sm leading-relaxed text-gray-400">
+        Firma con el dedo o el mouse sobre el área oscura. La fecha del cierre se muestra arriba en
+        <span class="font-medium text-gray-200">“Fecha de cierre / firma”</span>.
+      </p>
+      <div class="overflow-hidden rounded-xl border border-gray-700 bg-[#0a0a0a]">
+        <canvas
+          #firmaCanvas
+          width="560"
+          height="180"
+          class="mx-auto block h-[180px] w-full max-w-full touch-none cursor-crosshair"
+        ></canvas>
+      </div>
+      <div class="mt-4 flex justify-start">
+        <button
+          type="button"
+          (click)="limpiarFirma()"
+          class="rounded-lg border border-gray-600 bg-[#0a0a0a] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#141414]"
+        >
+          Limpiar firma
+        </button>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-3 sm:flex-row sm:gap-4">
+      <button
+        type="button"
+        [disabled]="saving || savingBorrador"
+        (click)="guardarBorrador()"
+        class="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-xl border border-gray-600 bg-[#1a1a1a] px-4 py-3 text-sm font-semibold text-gray-200 transition-colors hover:border-gray-500 hover:bg-gray-900 disabled:opacity-50"
+      >
+        <lucide-icon name="save" class="h-5 w-5 opacity-80" [size]="20" color="currentColor"></lucide-icon>
+        Guardar como borrador
+      </button>
+      <button
+        type="button"
+        [disabled]="saving || savingBorrador"
+        (click)="guardar()"
+        class="flex min-h-[52px] flex-[2] items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-red-700 disabled:opacity-50"
+      >
+        <lucide-icon name="save" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
+        {{ saving ? 'Guardando…' : 'Guardar checklist' }}
+      </button>
+    </div>
+  </div>
+  }
+</div>
