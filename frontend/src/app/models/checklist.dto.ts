@@ -30,6 +30,9 @@ export interface ChecklistRegistroDto {
   totalItems: number | null;
   itemsOk: number | null;
   detalle: unknown;
+  vigente?: boolean;
+  obsoleto?: boolean;
+  estadoOperativoCarro?: boolean;
   carro: { id: number; nomenclatura: string; nombre: string | null };
   cuartelero: { id: number; nombre: string; rol: string };
 }
@@ -38,4 +41,19 @@ export interface ChecklistUnidadResponseDto {
   unidad: string;
   carro: { id: number; nomenclatura: string; nombre: string | null };
   checklist: ChecklistRegistroDto | null;
+}
+
+export interface ChecklistPlantillaMaterialDto {
+  nombre: string;
+  cantidadRequerida: number;
+}
+
+export interface ChecklistPlantillaUbicacionDto {
+  nombre: string;
+  materiales: ChecklistPlantillaMaterialDto[];
+}
+
+export interface ChecklistPlantillaUnidadResponseDto {
+  unidad: string;
+  ubicaciones: ChecklistPlantillaUbicacionDto[];
 }

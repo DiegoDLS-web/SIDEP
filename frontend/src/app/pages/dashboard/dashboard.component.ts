@@ -9,8 +9,10 @@ import type { DashboardResumenDto } from '../../models/dashboard.dto';
 type UnidadDashboard = DashboardResumenDto['unidadesSemaforo'][number];
 import { CarrosService } from '../../services/carros.service';
 import { DashboardService } from '../../services/dashboard.service';
+import { ReportesService } from '../../services/reportes.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { CLAVES_EMERGENCIA } from '../partes/partes.constants';
+import type { CuadroHonorDto } from '../../models/reportes.dto';
 
 type StatCard = {
   label: string;
@@ -30,6 +32,7 @@ type StatCard = {
 export class DashboardComponent implements OnInit, OnDestroy {
   private readonly dashboardApi = inject(DashboardService);
   private readonly carrosApi = inject(CarrosService);
+  private readonly reportesApi = inject(ReportesService);
 
   readonly clavesTipo = CLAVES_EMERGENCIA;
 
@@ -83,6 +86,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   mesesChart: { mes: string; cantidadActual: number; cantidadPrev: number }[] = [];
   maxMes = 1;
+  cuadroHonor: CuadroHonorDto | null = null;
+  mostrarCuadroHonor = true;
 
   ngOnInit(): void {
     const y = new Date().getFullYear();
@@ -119,6 +124,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       previo: this.dashboardApi
         .resumen(this.anio - 1, this.claveFiltro, this.unidadFiltro)
         .pipe(catchError(() => of(null))),
+      honor: this.reportesApi.cuadroHonor(this.anio).pipe(catchError(() => of(null))),
     })
       .pipe(
         finalize(() => {
@@ -126,9 +132,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }),
       )
       .subscribe({
-        next: ({ actual, previo }) => {
+        next: ({ actual, previo, honor }) => {
           const d = actual;
           this.datos = d;
+          this.cuadroHonor = honor;
           this.actualizarStats(d);
           this.mesesChart = this.buildMesesChart(d, previo);
           this.maxMes = Math.max(
@@ -187,8 +194,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   maxPorTipo(): number {
-    const t = this.datos?.porTipo ?? [];
+    const t = this.tiposEmergenciaTop();
     return Math.max(...t.map((x) => x.cantidad), 1);
+  }
+
+  tiposEmergenciaTop(): Array<{ claveEmergencia: string; cantidad: number }> {
+    return (this.datos?.porTipo ?? []).slice(0, 8);
   }
 
   maxHeat(): number {
@@ -259,6 +270,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return Math.round(((Number(c?.itemsOk) || 0) / t) * 100);
   }
 
+  porcentajeChecklistTrauma(u: UnidadDashboard): number {
+    const c = u.checklistTrauma;
+    const t = Number(c?.totalItems) || 0;
+    if (t <= 0) {
+      return 0;
+    }
+    return Math.round(((Number(c?.itemsOk) || 0) / t) * 100);
+  }
+
   fechaChecklistCorta(iso: string | undefined | null): string {
     if (!iso) {
       return '—';
@@ -273,6 +293,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
   itemsChecklistEtiqueta(
     c: UnidadDashboard['checklistUnidad'] | UnidadDashboard['checklistEra'],
   ): string {
+    if (!c || c.totalItems == null || c.totalItems <= 0) {
+      return 'Sin registro';
+    }
+    const ok = c.itemsOk ?? 0;
+    return `${ok}/${c.totalItems} ítems`;
+  }
+
+  itemsChecklistEtiquetaTrauma(c: UnidadDashboard['checklistTrauma']): string {
     if (!c || c.totalItems == null || c.totalItems <= 0) {
       return 'Sin registro';
     }
@@ -306,5 +334,66 @@ export class DashboardComponent implements OnInit, OnDestroy {
           ? 'bg-emerald-500/25 text-emerald-100 ring-1 ring-emerald-400/40'
           : 'bg-amber-500/25 text-amber-100 ring-1 ring-amber-400/40';
     }
+  }
+
+  clasesCardSemaforo(u: UnidadDashboard): string {
+    switch (u.semaforo) {
+      case 'operativa':
+        return 'border-emerald-700/40 hover:border-emerald-500/60';
+      case 'mantencion':
+        return 'border-amber-700/40 hover:border-amber-500/60';
+      case 'fuera_servicio':
+        return 'border-red-700/50 hover:border-red-500/70';
+      default:
+        return u.estadoOperativo
+          ? 'border-emerald-700/40 hover:border-emerald-500/60'
+          : 'border-amber-700/40 hover:border-amber-500/60';
+    }
+  }
+
+  clasesHeaderSemaforo(u: UnidadDashboard): string {
+    switch (u.semaforo) {
+      case 'operativa':
+        return 'from-emerald-600 to-emerald-700';
+      case 'mantencion':
+        return 'from-amber-500 to-amber-700';
+      case 'fuera_servicio':
+        return 'from-red-600 to-red-800';
+      default:
+        return u.estadoOperativo ? 'from-emerald-600 to-emerald-700' : 'from-amber-500 to-amber-700';
+    }
+  }
+
+  clasesBarraSemaforo(u: UnidadDashboard): string {
+    switch (u.semaforo) {
+      case 'operativa':
+        return 'bg-emerald-100';
+      case 'mantencion':
+        return 'bg-amber-100';
+      case 'fuera_servicio':
+        return 'bg-red-100';
+      default:
+        return u.estadoOperativo ? 'bg-emerald-100' : 'bg-amber-100';
+    }
+  }
+
+  conteoSemaforo(tipo: 'operativa' | 'mantencion' | 'fuera_servicio'): number {
+    return this.datos?.unidadesSemaforo.filter((u) => u.semaforo === tipo).length ?? 0;
+  }
+
+  toggleCuadroHonor(): void {
+    this.mostrarCuadroHonor = !this.mostrarCuadroHonor;
+  }
+
+  cargoCuadroHonor(cargo: string | null | undefined): string {
+    const raw = String(cargo ?? '')
+      .trim()
+      .toUpperCase();
+    if (!raw) return 'Sin cargo';
+    return raw
+      .replace(/_COMPANIA/g, '')
+      .replace(/_/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 }

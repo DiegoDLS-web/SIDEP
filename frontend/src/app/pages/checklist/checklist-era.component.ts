@@ -17,6 +17,7 @@ export type EraEquipo = {
   marca: string;
   tipo: string;
   ubicacion: string;
+  codigoMascara: string;
   mascaraLimpia: string;
   mascaraBolsaGenero: string;
   mascaraCondicion: string;
@@ -24,6 +25,7 @@ export type EraEquipo = {
   presionMayor2000: string;
   cilindroCondicion: string;
   codigoCilindro: string;
+  codigoArnes: string;
   arnesLimpio: string;
   arnesCorreasSueltas: string;
   arnesFuga: string;
@@ -63,6 +65,7 @@ function eraEquipoVacio(num: number): EraEquipo {
     marca: 'MSA',
     tipo: 'M7',
     ubicacion: 'Cabina',
+    codigoMascara: '',
     mascaraLimpia: 'Si',
     mascaraBolsaGenero: 'Si',
     mascaraCondicion: 'Operativo',
@@ -70,6 +73,7 @@ function eraEquipoVacio(num: number): EraEquipo {
     presionMayor2000: 'Si',
     cilindroCondicion: 'Operativo',
     codigoCilindro: '',
+    codigoArnes: '',
     arnesLimpio: 'Si',
     arnesCorreasSueltas: 'No',
     arnesFuga: 'No',
@@ -80,6 +84,69 @@ function eraEquipoVacio(num: number): EraEquipo {
     estado: 'Operativo',
   };
 }
+
+type EraPreset = { equipos: EraEquipo[]; recambios: CilindroRecambio[] };
+
+function crearEquipoPreset(num: number, codigoBase: string, ubicacion: string): EraEquipo {
+  const e = eraEquipoVacio(num);
+  e.ubicacion = ubicacion;
+  e.codigoMascara = codigoBase;
+  e.codigoArnes = codigoBase;
+  e.codigoCilindro = codigoBase;
+  e.presion = '4000';
+  return e;
+}
+
+function crearRecambioPreset(num: number, codigo: string): CilindroRecambio {
+  const r = cilindroRecambioVacio(num, 'G1');
+  r.presionAire = '4000';
+  r.codigoCilindro = codigo;
+  return r;
+}
+
+const ERA_PRESETS_UNIDAD: Record<string, EraPreset> = {
+  'R-1': {
+    equipos: [
+      crearEquipoPreset(1, 'R1-1', 'Cabina'),
+      crearEquipoPreset(2, 'R1-2', 'Cabina'),
+      crearEquipoPreset(3, 'R1-3', 'Cabina'),
+      crearEquipoPreset(4, 'R1-4', 'Cabina'),
+    ],
+    recambios: [
+      crearRecambioPreset(1, 'OJ-199397'),
+      crearRecambioPreset(2, 'OJ-198825'),
+      crearRecambioPreset(3, 'R1-RC-3'),
+    ],
+  },
+  'BX-1': {
+    equipos: [
+      crearEquipoPreset(1, 'BX1-1', 'Cabina'),
+      crearEquipoPreset(2, 'BX1-2', 'Cabina'),
+      crearEquipoPreset(3, 'BX1-3', 'Cabina'),
+      crearEquipoPreset(4, 'BX1-4', 'Cabina'),
+    ],
+    recambios: [crearRecambioPreset(1, 'ACU-611333'), crearRecambioPreset(2, 'AGD-103950')],
+  },
+  'B-1': {
+    equipos: [
+      crearEquipoPreset(1, 'B1-1', 'Cabina'),
+      crearEquipoPreset(2, 'B1-2', 'Cabina'),
+      crearEquipoPreset(3, 'B1-3', 'Cabina'),
+      crearEquipoPreset(4, 'B1-4', 'Cabina'),
+      crearEquipoPreset(5, 'B1-5', 'Cortina 4'),
+      crearEquipoPreset(6, 'B1-6', 'Cortina 4'),
+      crearEquipoPreset(7, 'B1-7', 'Cortina 4'),
+      crearEquipoPreset(8, 'B1-8', 'Cortina 4'),
+    ],
+    recambios: [
+      crearRecambioPreset(1, 'B1-RC-1'),
+      crearRecambioPreset(2, 'B1-RC-2'),
+      crearRecambioPreset(3, 'B1-RC-3'),
+      crearRecambioPreset(4, 'B1-RC-4'),
+      crearRecambioPreset(5, 'B1-RC-5'),
+    ],
+  },
+};
 
 @Component({
   selector: 'app-checklist-era',
@@ -140,6 +207,7 @@ export class ChecklistEraComponent implements OnInit {
 
   equipos: EraEquipo[] = [eraEquipoVacio(1)];
   recambios: CilindroRecambio[] = [cilindroRecambioVacio(1, 'G1')];
+  seccionesAbiertas: Record<string, boolean> = {};
 
   ngOnInit(): void {
     Promise.all([this.carrosApi.listar().toPromise(), this.usuariosApi.listar().toPromise()])
@@ -149,6 +217,7 @@ export class ChecklistEraComponent implements OnInit {
         if (this.carros.length > 0) {
           const pref = this.carros.find((c) => c.nomenclatura === 'R-1') ?? this.carros[0];
           this.unidad = pref.nomenclatura;
+          this.aplicarPresetUnidad(this.unidad);
         }
         if (this.usuarios.length > 0) this.cuarteleroId = this.usuarios[0].id;
         const hoy = new Date();
@@ -183,9 +252,26 @@ export class ChecklistEraComponent implements OnInit {
   seleccionarUnidad(nomenclatura: string): void {
     this.unidad = nomenclatura;
     this.mostrarRegistro = true;
+    this.aplicarPresetUnidad(this.unidad);
     this.firmaInicialServidor = null;
     this.limpiarFirma();
     this.refrescarHistorialEra();
+  }
+
+  private aplicarPresetUnidad(unidad: string): void {
+    const preset = ERA_PRESETS_UNIDAD[unidad] ?? ERA_PRESETS_UNIDAD['R-1'];
+    this.equipos = preset.equipos.map((e, i) => ({
+      ...e,
+      numero: i + 1,
+    }));
+    this.recambios = preset.recambios.map((r, i) => ({
+      ...r,
+      numero: i + 1,
+    }));
+    this.seccionesAbiertas = {};
+    for (let i = 0; i < this.equipos.length; i += 1) {
+      this.abrirSeccionesEquipo(i);
+    }
   }
 
   volverSeleccionUnidad(): void {
@@ -495,7 +581,9 @@ export class ChecklistEraComponent implements OnInit {
 
   etiquetaEstadoEra(h: ChecklistRegistroDto): string {
     const det = (h.detalle ?? {}) as { borrador?: boolean };
-    return det.borrador ? 'BORRADOR' : 'CERRADO';
+    if (det.borrador) return 'BORRADOR';
+    if (h.obsoleto) return 'OBSOLETO';
+    return 'VIGENTE';
   }
 
   porcentajeCumplimiento(h: ChecklistRegistroDto): string {
@@ -563,11 +651,49 @@ export class ChecklistEraComponent implements OnInit {
   }
 
   agregarEquipo(): void {
-    this.equipos.push(eraEquipoVacio(this.equipos.length + 1));
+    const index = this.equipos.length;
+    this.equipos.push(eraEquipoVacio(index + 1));
+    this.abrirSeccionesEquipo(index);
   }
 
   agregarRecambio(): void {
     this.recambios.push(cilindroRecambioVacio(this.recambios.length + 1, 'G1'));
+  }
+
+  private claveSeccion(index: number, seccion: string): string {
+    return `${index}:${seccion}`;
+  }
+
+  private abrirSeccionesEquipo(index: number): void {
+    for (const s of ['mascara', 'regulador', 'cilindro', 'arnes', 'prueba']) {
+      this.seccionesAbiertas[this.claveSeccion(index, s)] = true;
+    }
+  }
+
+  seccionAbierta(index: number, seccion: string): boolean {
+    return this.seccionesAbiertas[this.claveSeccion(index, seccion)] ?? true;
+  }
+
+  toggleSeccion(index: number, seccion: string): void {
+    const key = this.claveSeccion(index, seccion);
+    this.seccionesAbiertas[key] = !this.seccionAbierta(index, seccion);
+  }
+
+  etiquetaEstadoEquipo(e: EraEquipo): 'Operativo' | 'Observación' | 'Crítico' {
+    if (e.arnesCondicion !== 'Operativo' || e.cilindroCondicion !== 'Operativo' || e.mascaraCondicion !== 'Operativo') {
+      return 'Crítico';
+    }
+    if (e.arnesModuloDigital === 'Regular' || e.arnesModuloAnalogo === 'Regular' || e.arnesAlarma === 'Regular') {
+      return 'Observación';
+    }
+    return 'Operativo';
+  }
+
+  claseEstadoEquipo(e: EraEquipo): string {
+    const estado = this.etiquetaEstadoEquipo(e);
+    if (estado === 'Operativo') return 'border-emerald-500/50 bg-emerald-500/20 text-emerald-200';
+    if (estado === 'Observación') return 'border-amber-500/50 bg-amber-500/20 text-amber-200';
+    return 'border-red-500/50 bg-red-500/20 text-red-200';
   }
 
   validarEraCompleto(): string | null {
@@ -593,10 +719,12 @@ export class ChecklistEraComponent implements OnInit {
       if (
         !e.marca.trim() ||
         !e.tipo.trim() ||
+        !e.codigoMascara.trim() ||
+        !e.codigoArnes.trim() ||
         !e.presion.trim() ||
         !e.codigoCilindro.trim()
       ) {
-        return `Completa todos los campos del ERA ${e.numero} (marca, tipo, presión y código de cilindro).`;
+        return `Completa todos los campos del ERA ${e.numero} (marca, tipo, códigos de máscara/arnés/cilindro y presión).`;
       }
     }
     if (this.recambios.length === 0) {

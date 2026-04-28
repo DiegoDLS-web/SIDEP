@@ -3,6 +3,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import type { ParteEmergenciaDto, ParteMetadataDto } from '../models/parte.dto';
+import { ASISTENCIA_CONTEXTO_OPCIONES, ASISTENCIA_ITEM_LABELS } from '../pages/partes/asistencia-roster.constants';
 
 type DocWithLast = jsPDF & { lastAutoTable?: { finalY: number } };
 
@@ -82,6 +83,13 @@ function fmtKm(km: number): string {
   return new Intl.NumberFormat('es-CL').format(km);
 }
 
+function nombresAsistenciaMarcados(sel: Record<string, boolean> | undefined): string[] {
+  if (!sel) return [];
+  return Object.entries(sel)
+    .filter(([, v]) => Boolean(v))
+    .map(([id]) => ASISTENCIA_ITEM_LABELS[id] ?? id);
+}
+
 function resumenAsistencia(m: ParteMetadataDto | null | undefined): string {
   const a = m?.asistencia;
   if (!a) {
@@ -101,13 +109,43 @@ function resumenAsistencia(m: ParteMetadataDto | null | undefined): string {
     partes.push(`Comando incidente: ${cmd}`);
   }
   if (a.otraCompaniaNombre?.trim()) {
-    partes.push(`Apoyo otra compañía: ${a.otraCompaniaNombre.trim()}`);
+    partes.push(`Apoyo otra compañía (nombre): ${a.otraCompaniaNombre.trim()}`);
+  }
+  if (a.otraCompaniaNombreCompania?.trim()) {
+    partes.push(`Apoyo otra compañía (compañía): ${a.otraCompaniaNombreCompania.trim()}`);
+  }
+  if (a.otraCompaniaUnidad?.trim()) {
+    partes.push(`Apoyo otra compañía (unidad): ${a.otraCompaniaUnidad.trim()}`);
   }
   if (a.encargadoDatos?.trim()) {
     partes.push(`Encargado datos: ${a.encargadoDatos.trim()}`);
   }
+  if (a.nombreObac?.trim()) {
+    partes.push(`OBAC (parte): ${a.nombreObac.trim()}`);
+  }
   if (a.radiosUtilizadas?.trim()) {
     partes.push(`Radios: ${a.radiosUtilizadas.trim()}`);
+  }
+  if (a.radiosDetalle && Object.keys(a.radiosDetalle).length > 0) {
+    const radios = Object.entries(a.radiosDetalle)
+      .map(([k, v]) => `${k}: ${(v ?? '').trim() || '—'}`)
+      .join('; ');
+    if (radios) {
+      partes.push(`Detalle radios: ${radios}`);
+    }
+  }
+  if (a.asistenciaPorContexto) {
+    for (const ctx of ASISTENCIA_CONTEXTO_OPCIONES) {
+      const marcados = nombresAsistenciaMarcados(a.asistenciaPorContexto[ctx.key]);
+      if (marcados.length > 0) {
+        partes.push(`${ctx.label}: ${marcados.join(', ')}`);
+      }
+    }
+  } else if (a.asistenciaSeleccion) {
+    const legacy = nombresAsistenciaMarcados(a.asistenciaSeleccion);
+    if (legacy.length > 0) {
+      partes.push(`Asistencia: ${legacy.join(', ')}`);
+    }
   }
   return partes.join('\n');
 }
@@ -430,35 +468,51 @@ export class PartesExportService {
 
     y = ensureSpace(doc, y, 200);
 
-    // ——— Firma ———
-    y = sectionHeading(doc, y, 'Firma del oficial a cargo (OBAC)');
+    // ——— Firmas del cierre ———
+    y = sectionHeading(doc, y, 'Firmas del cierre de asistencia');
+    const firmaEncargado = m?.asistencia?.firmaEncargadoDatos?.trim() || '';
+    const etiquetaEncargado = m?.asistencia?.encargadoDatos?.trim() || 'Encargado de tomar datos';
     const firmaObac =
       m?.asistencia?.firmaObac?.trim() ||
       parte.obac.firmaImagen?.trim() ||
       '';
-    if (firmaObac.startsWith('data:image')) {
-      y += 2;
-      try {
-        const w = 64;
-        const h = 22;
-        if (y + h > 275) {
-          doc.addPage();
-          y = M + 4;
-        }
-        doc.addImage(firmaObac, fmtFirmaJsPdf(firmaObac), M, y, w, h);
-        y += h + 4;
-      } catch {
-        doc.setFontSize(9);
-        doc.setTextColor(...C_TEXT_MUTED);
-        doc.text('No se pudo incrustar la imagen de la firma.', M, y + 4);
-        y += 10;
-      }
-    } else {
+    y += 1;
+    const colGap = 8;
+    const colW = (CONTENT_W - colGap) / 2;
+    const leftX = M;
+    const rightX = M + colW + colGap;
+    const boxH = 24;
+    if (y + boxH + 8 > 275) {
+      doc.addPage();
+      y = M + 4;
+    }
+
+    const dibujarBloqueFirma = (titulo: string, firma: string, x: number): void => {
+      doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       doc.setTextColor(...C_TEXT_MUTED);
-      doc.text('Sin firma digital adjunta en este parte.', M, y + 4);
-      y += 10;
-    }
+      doc.text(titulo, x, y + 4);
+      doc.setTextColor(0, 0, 0);
+      doc.setDrawColor(...C_BORDER);
+      doc.roundedRect(x, y + 6, colW, boxH, 1.2, 1.2);
+      if (firma.startsWith('data:image')) {
+        try {
+          doc.addImage(firma, fmtFirmaJsPdf(firma), x + 2, y + 8, colW - 4, boxH - 4);
+          return;
+        } catch {
+          // fallback text below
+        }
+      }
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...C_TEXT_MUTED);
+      doc.text('Sin firma digital adjunta.', x + 3, y + 20);
+      doc.setTextColor(0, 0, 0);
+    };
+
+    dibujarBloqueFirma(`Encargado de datos: ${etiquetaEncargado}`, firmaEncargado, leftX);
+    dibujarBloqueFirma(`OBAC: ${m?.asistencia?.nombreObac?.trim() || parte.obac.nombre}`, firmaObac, rightX);
+    y += boxH + 12;
     doc.setTextColor(0, 0, 0);
 
     // Pie al final de la última página (si hubo saltos de página)

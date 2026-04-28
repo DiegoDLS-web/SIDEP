@@ -21,6 +21,10 @@ export const CARGOS_OFICIALIDAD = [
 
 export const TIPOS_VOLUNTARIO = [
   'ACTIVO',
+  'VOLUNTARIO',
+  'OFICIAL',
+  'CADETE',
+  'ASPIRANTE',
   'HONORARIO',
   'CUARTELERO',
   'CANJE',

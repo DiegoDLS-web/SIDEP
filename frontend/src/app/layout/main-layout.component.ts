@@ -39,14 +39,16 @@ export class MainLayoutComponent {
       title: 'OPERACIONES',
       items: [
         { routerLink: '/carros', label: 'Carros', icon: 'truck' },
-        { routerLink: '/checklist', label: 'Checklist', icon: 'clipboard-check' },
-        { routerLink: '/checklist-era', label: 'Checklist ERA', icon: 'clipboard-check' },
+        { routerLink: '/checklist', label: 'Checklist', icon: 'clipboard-list' },
+        { routerLink: '/checklist-era', label: 'Checklist ERA', icon: 'shield' },
         {
           routerLink: '/bolso-trauma',
           label: 'Bolso de Trauma',
           icon: 'briefcase',
           activePrefix: '/bolso-trauma',
         },
+        { routerLink: '/licencias-medicas', label: 'Licencias', icon: 'heart-pulse' },
+        { routerLink: '/analitica-operacional', label: 'Analítica operacional', icon: 'chart-column' },
       ],
     },
     {
@@ -125,4 +127,5 @@ export class MainLayoutComponent {
   logout(): void {
     this.auth.logout();
   }
+
 }

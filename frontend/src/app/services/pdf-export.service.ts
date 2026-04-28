@@ -68,6 +68,10 @@ function fmtFirmaParaJsPdf(firma: string): 'PNG' | 'JPEG' {
   return 'PNG';
 }
 
+function keyUbicacionNombre(v: string): string {
+  return (v || '').trim().toLowerCase();
+}
+
 function drawHeaderCard(doc: jsPDF, title: string, subtitle: string): void {
   doc.setFillColor(185, 28, 28);
   doc.roundedRect(12, 10, 186, 24, 4, 4, 'F');
@@ -145,6 +149,7 @@ export class PdfExportService {
     const margin = 14;
     const pageW = doc.internal.pageSize.getWidth();
     const textW = pageW - 2 * margin;
+    const esSnapshotActual = r.id === 0;
 
     await this.drawHeaderMarca(doc, `Registro ${input.nomenclatura}`, 'SIDEP · Mantención e inspección');
     doc.setFontSize(10);
@@ -156,14 +161,15 @@ export class PdfExportService {
       startY: 60,
       head: [['Campo', 'Valor']],
       body: [
-        ['Registro guardado el', fmtFechaHoraPdf(r.creadoEn)],
-        ['Último conductor', r.ultimoConductor?.trim() || '—'],
-        ['Inspector', r.ultimoInspector?.trim() || '—'],
-        ['Fecha inspección', fmtFechaPdf(r.fechaUltimaInspeccion)],
+        ['Documento', esSnapshotActual ? 'PDF actual' : 'Registro de historial'],
+        ['Registro guardado el', esSnapshotActual ? fmtFechaHoraPdf(new Date().toISOString()) : fmtFechaHoraPdf(r.creadoEn)],
         ['Último mantenimiento', fmtFechaPdf(r.ultimoMantenimiento)],
         ['Próximo mantenimiento', fmtFechaPdf(r.proximoMantenimiento)],
         ['Próxima revisión técnica', fmtFechaPdf(r.proximaRevisionTecnica)],
         ['Última revisión bomba de agua', fmtFechaPdf(r.ultimaRevisionBombaAgua)],
+        ['Último conductor', r.ultimoConductor?.trim() || '—'],
+        ['Inspector', r.ultimoInspector?.trim() || '—'],
+        ['Fecha inspección', fmtFechaPdf(r.fechaUltimaInspeccion)],
       ],
       styles: { fontSize: 9, cellPadding: 2 },
       headStyles: { fillColor: [180, 30, 30] },
@@ -174,7 +180,7 @@ export class PdfExportService {
     let y = lastY + 10;
 
     doc.setFontSize(10);
-    doc.text('Descripción última mantención:', margin, y);
+    doc.text('Descripción Última Mantención:', margin, y);
     y += 6;
     const desc = (r.descripcionUltimoMantenimiento ?? '—').trim() || '—';
     const descLines = doc.splitTextToSize(desc, textW);
@@ -187,23 +193,39 @@ export class PdfExportService {
       y += 5;
     }
 
+    y += 4;
+    if (y > 236) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.setFontSize(10);
+    doc.text('Firma del inspector:', margin, y);
+    doc.setFontSize(9);
+    doc.setTextColor(82, 82, 91);
+    doc.text(`Fecha inspección: ${fmtFechaPdf(r.fechaUltimaInspeccion)}`, margin + 64, y);
+    doc.setTextColor(20, 20, 20);
+    y += 4;
+
     const firma = r.firmaUltimoInspector?.trim();
     if (firma?.startsWith('data:image')) {
-      y += 6;
-      if (y > 240) {
-        doc.addPage();
-        y = 20;
-      }
-      doc.text('Firma del inspector:', margin, y);
-      y += 5;
       try {
         const imgW = 70;
         const imgH = 22;
         doc.addImage(firma, fmtFirmaParaJsPdf(firma), margin, y, imgW, imgH);
+        y += imgH + 2;
       } catch {
         doc.setFontSize(9);
-        doc.text('(No se pudo incrustar la imagen de la firma.)', margin, y);
+        doc.setTextColor(82, 82, 91);
+        doc.text('(No se pudo incrustar la imagen de la firma.)', margin, y + 6);
+        doc.setTextColor(20, 20, 20);
+        y += 10;
       }
+    } else {
+      doc.setFontSize(9);
+      doc.setTextColor(82, 82, 91);
+      doc.text('Sin firma registrada.', margin, y + 6);
+      doc.setTextColor(20, 20, 20);
+      y += 10;
     }
 
     const safeNom = input.nomenclatura.replace(/[^\w-]+/g, '_');
@@ -245,35 +267,81 @@ export class PdfExportService {
 
     let headerY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 56;
     headerY += 8;
+
+    const grupos = new Map<string, { nombre: string; items: UnidadMaterial[] }>();
+    for (const m of input.materiales) {
+      const key = keyUbicacionNombre(m.ubicacion);
+      if (!grupos.has(key)) {
+        grupos.set(key, { nombre: m.ubicacion || 'Sin ubicación', items: [] });
+      }
+      grupos.get(key)!.items.push(m);
+    }
+
+    let y = headerY;
+    for (const [, grupo] of grupos) {
+      // Salto de página preventivo si no queda espacio para título + cabecera.
+      if (y > 240) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.setFontSize(10);
+      doc.setTextColor(82, 82, 91);
+      doc.text(`Ubicación: ${grupo.nombre}`, 14, y);
+      doc.setTextColor(20, 20, 20);
+      y += 3;
+
+      autoTable(doc, {
+        startY: y + 2,
+        head: [['Material', 'Cant. Req.', 'Cant. Actual', 'Estado']],
+        body: grupo.items.map((m) => [m.material, String(m.requerida), String(m.actual), m.estado]),
+        styles: { fontSize: 8.5, cellPadding: 2.5 },
+        headStyles: { fillColor: [200, 30, 30] },
+        alternateRowStyles: { fillColor: [247, 247, 247] },
+        columnStyles: {
+          0: { cellWidth: 110 },
+          1: { cellWidth: 24, halign: 'center' },
+          2: { cellWidth: 24, halign: 'center' },
+          3: { cellWidth: 28, halign: 'center' },
+        },
+      });
+      y = ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y + 2) + 7;
+    }
+
+    doc.setFontSize(10);
+    doc.text('Observaciones:', 14, y + 10);
+    const obsY = y + 16;
+    const obsLines = doc.splitTextToSize(input.observaciones || 'Sin observaciones.', 180);
+    doc.text(obsLines, 14, obsY);
+
+    let firmaY = obsY + obsLines.length * 5 + 8;
     const firma = input.firmaOficial?.trim();
+    if (firmaY > 250) {
+      doc.addPage();
+      firmaY = 20;
+    }
+    doc.setFontSize(10);
+    doc.text('Firma oficial a cargo (OBAC):', 14, firmaY);
+    firmaY += 5;
     if (firma?.startsWith('data:image')) {
-      doc.text('Firma oficial a cargo (OBAC):', 14, headerY);
-      headerY += 5;
       try {
         const imgW = 70;
         const imgH = 22;
-        doc.addImage(firma, fmtFirmaParaJsPdf(firma), 14, headerY, imgW, imgH);
-        headerY += imgH + 6;
+        if (firmaY + imgH > 280) {
+          doc.addPage();
+          firmaY = 20;
+          doc.setFontSize(10);
+          doc.text('Firma oficial a cargo (OBAC):', 14, firmaY);
+          firmaY += 5;
+        }
+        doc.addImage(firma, fmtFirmaParaJsPdf(firma), 14, firmaY, imgW, imgH);
       } catch {
         doc.setFontSize(9);
-        doc.text('(No se pudo incrustar la imagen de la firma.)', 14, headerY);
-        headerY += 8;
+        doc.text('(No se pudo incrustar la imagen de la firma.)', 14, firmaY + 4);
       }
+    } else {
+      doc.setFontSize(9);
+      doc.text('Sin firma digital adjunta.', 14, firmaY + 4);
     }
-
-    autoTable(doc, {
-      startY: headerY,
-      head: [['Ubicacion', 'Material', 'Cant. Req.', 'Cant. Actual', 'Estado']],
-      body: input.materiales.map((m) => [m.ubicacion, m.material, String(m.requerida), String(m.actual), m.estado]),
-      styles: { fontSize: 8.5, cellPadding: 2.5 },
-      headStyles: { fillColor: [200, 30, 30] },
-      alternateRowStyles: { fillColor: [247, 247, 247] },
-    });
-
-    const y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? headerY;
-    doc.setFontSize(10);
-    doc.text('Observaciones:', 14, y + 10);
-    doc.text(input.observaciones || 'Sin observaciones.', 14, y + 16);
 
     doc.save(`checklist-${input.unidad}.pdf`);
   }
@@ -532,5 +600,54 @@ export class PdfExportService {
     });
 
     doc.save('SIDEP-historial-bolsos-trauma.pdf');
+  }
+
+  async exportarLicencia(input: {
+    id: number;
+    solicitante: string;
+    rut?: string | null;
+    rol?: string | null;
+    fechaInicio: string;
+    fechaTermino: string;
+    motivo: string;
+    estado: string;
+    observacionResolucion?: string | null;
+    resueltoPor?: string | null;
+    resueltoEn?: string | null;
+  }): Promise<void> {
+    const doc = new jsPDF();
+    await this.drawHeaderMarca(doc, `Licencia #${input.id}`, 'SIDEP · Documento de licencia');
+    doc.setFontSize(10);
+    doc.text(`Solicitante: ${input.solicitante || '—'}`, 14, 42);
+    doc.text(`RUT: ${input.rut || '—'}`, 14, 48);
+    doc.text(`Rol/Cargo: ${input.rol || '—'}`, 14, 54);
+
+    autoTable(doc, {
+      startY: 62,
+      head: [['Campo', 'Valor']],
+      body: [
+        ['Fecha inicio', fmtFechaPdf(input.fechaInicio)],
+        ['Fecha término', fmtFechaPdf(input.fechaTermino)],
+        ['Estado', input.estado || '—'],
+        ['Resuelto por', input.resueltoPor || '—'],
+        ['Fecha resolución', fmtFechaHoraPdf(input.resueltoEn || null)],
+      ],
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: [180, 30, 30] },
+      columnStyles: { 0: { cellWidth: 58 }, 1: { cellWidth: 130 } },
+    });
+
+    const y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 62;
+    doc.setFontSize(10);
+    doc.text('Motivo:', 14, y + 10);
+    const motivoLines = doc.splitTextToSize(input.motivo || '—', 180);
+    doc.text(motivoLines, 14, y + 16);
+
+    const y2 = y + 16 + motivoLines.length * 5;
+    doc.text('Observación de resolución:', 14, y2 + 8);
+    const obsLines = doc.splitTextToSize(input.observacionResolucion || 'Sin observación.', 180);
+    doc.text(obsLines, 14, y2 + 14);
+
+    doc.save(`Licencia${input.id}.pdf`);
   }
 }

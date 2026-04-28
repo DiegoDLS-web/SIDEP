@@ -35,9 +35,9 @@ export class CarrosPageComponent {
 
   /** Si el backend no trae `imagenUrl`, usamos la foto local conocida por unidad. */
   private readonly imagenPorNomenclatura: Record<string, string> = {
-    'B-1': '/assets/carros/b1.png',
-    'BX-1': '/assets/carros/bx1.png',
-    'R-1': '/assets/carros/r1.png',
+    'B-1': 'assets/carros/b1.png',
+    'BX-1': 'assets/carros/bx1.png',
+    'R-1': 'assets/carros/r1.png',
   };
 
   readonly imagenFallback =
@@ -191,12 +191,50 @@ export class CarrosPageComponent {
   }
 
   imagenCarro(c: CarroDto): string {
-    const raw = c.imagenUrl?.trim();
+    const raw = c.imagenUrl?.trim() ?? '';
     if (!raw) {
       return this.imagenPorNomenclatura[c.nomenclatura] ?? this.imagenFallback;
     }
-    if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) return raw;
-    return `/${raw}`;
+    return this.normalizarUrlImagen(raw, c.nomenclatura);
+  }
+
+  onImageError(event: Event, c: CarroDto): void {
+    const img = event.target as HTMLImageElement | null;
+    if (!img) {
+      return;
+    }
+    const fallbackUnidad = this.imagenPorNomenclatura[c.nomenclatura];
+    if (fallbackUnidad && !img.src.includes(fallbackUnidad)) {
+      img.src = fallbackUnidad;
+      return;
+    }
+    if (!img.src.includes(this.imagenFallback)) {
+      img.src = this.imagenFallback;
+    }
+  }
+
+  private normalizarUrlImagen(raw: string, nomenclatura: string): string {
+    const limpio = raw.replace(/\\/g, '/').trim();
+    if (limpio.startsWith('http://') || limpio.startsWith('https://') || limpio.startsWith('data:image')) {
+      return limpio;
+    }
+    if (limpio.startsWith('/assets/')) {
+      return limpio.slice(1);
+    }
+    const idxAssets = limpio.toLowerCase().indexOf('/assets/');
+    if (idxAssets >= 0) {
+      return limpio.slice(idxAssets + 1);
+    }
+    if (limpio.startsWith('assets/')) {
+      return limpio;
+    }
+    if (limpio.startsWith('/')) {
+      return limpio;
+    }
+    if (limpio.includes('/')) {
+      return limpio;
+    }
+    return this.imagenPorNomenclatura[nomenclatura] ?? this.imagenFallback;
   }
 
   /** Firma guardada como PNG en base64 (data URL). */

@@ -15,13 +15,14 @@ import { CarrosService } from '../../services/carros.service';
 import { PartesService } from '../../services/partes.service';
 import { ToastService } from '../../services/toast.service';
 import { UsuariosService } from '../../services/usuarios.service';
+import { LicenciasService } from '../../services/licencias.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { CLAVES_COMPANIA_SERVICIOS, CLAVES_OPERATIVAS, CLAVE_BORRADOR_DEFAULT } from './partes.constants';
 import {
   ASISTENCIA_CONTEXTO_OPCIONES,
   ASISTENCIA_LAYOUT,
   RADIOS_PARTE_OPCIONES,
-  esVoluntarioAsistenciaId,
+  type AsistenciaColumnaDef,
   type AsistenciaItemDef,
 } from './asistencia-roster.constants';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
@@ -42,6 +43,7 @@ type PacienteFila = { nombre: string; edad: string; rut: string; triage: string 
 type VehiculoFila = { tipo: string; patente: string; marca: string; conductor: string; rut: string };
 
 type ApoyoFila = { tipo: string; nombre: string; cargo: string; patente: string; conductor: string };
+type OtraCompaniaFila = { obac: string; compania: string; unidad: string };
 
 type PasoId = 'basicos' | 'emergencia' | 'trabajo' | 'asistencia' | 'apoyo' | 'obs';
 
@@ -55,12 +57,14 @@ export class ParteNuevoComponent implements OnInit {
   private readonly carrosApi = inject(CarrosService);
   private readonly usuariosApi = inject(UsuariosService);
   private readonly partesApi = inject(PartesService);
+  private readonly licenciasApi = inject(LicenciasService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
 
   readonly clavesOperativas = CLAVES_OPERATIVAS;
   readonly clavesCompania = CLAVES_COMPANIA_SERVICIOS;
   readonly asistenciaLayout = ASISTENCIA_LAYOUT;
+  asistenciaLayoutVista: AsistenciaColumnaDef[] = ASISTENCIA_LAYOUT;
   readonly asistenciaContextos = ASISTENCIA_CONTEXTO_OPCIONES;
   readonly radiosParteOpciones = RADIOS_PARTE_OPCIONES;
   readonly tiposApoyoExterno = [
@@ -69,6 +73,11 @@ export class ParteNuevoComponent implements OnInit {
     { id: 'SEGURIDAD_CIUDADANA', label: 'Seguridad ciudadana' },
     { id: 'OTRO', label: 'Otro' },
   ] as const;
+  private readonly DISP_NORMAL = 'normal';
+  private readonly DISP_LICENCIA = 'licencia';
+  private readonly DISP_BLOQUEADO = 'bloqueado';
+  private readonly usuarioAsistenciaPorId: Record<string, UsuarioListaDto> = {};
+  private readonly licenciasActivasPorUsuario: Record<number, { desde: Date; hasta: Date }> = {};
 
   /** Pestaña activa del padrón (motivo de asistencia). */
   contextoAsistenciaActivo: AsistenciaContextoKey = 'emergencia';
@@ -175,6 +184,20 @@ export class ParteNuevoComponent implements OnInit {
     { v: 'ROJO', l: 'Rojo' },
     { v: 'NEGRO', l: 'Negro' },
   ];
+  readonly materialesSugeridos = [
+    'Tabla espinal',
+    'Collar cervical',
+    'Bolso de trauma',
+    'Oxigeno',
+    'DEA',
+    'Camilla',
+    'Ferno',
+    'Laringoscopio',
+    'Monitor',
+    'Aposito',
+  ];
+  otrasCompanias: OtraCompaniaFila[] = [];
+  mostrarComandoIncidente = false;
 
   ngOnInit(): void {
     const d = new Date();
@@ -184,10 +207,13 @@ export class ParteNuevoComponent implements OnInit {
     forkJoin({
       carros: this.carrosApi.listar(),
       usuarios: this.usuariosApi.listar(),
+      licencias: this.licenciasApi.listarActivas(this.fechaDia),
     }).subscribe({
-      next: ({ carros, usuarios }) => {
+      next: ({ carros, usuarios, licencias }) => {
         this.carros = carros;
         this.usuarios = usuarios;
+        this.aplicarLicenciasActivas(licencias);
+        this.reconstruirAsistenciaLayout();
         if (usuarios.length > 0) {
           this.obacId = usuarios[0].id;
           this.obacInput = this.formatoObac(usuarios[0]);
@@ -202,6 +228,18 @@ export class ParteNuevoComponent implements OnInit {
       error: () => {
         this.error = 'No se pudieron cargar carros u OBAC. ¿Backend activo?';
         this.loading = false;
+      },
+    });
+  }
+
+  onFechaAsistenciaChange(): void {
+    if (!this.fechaDia?.trim()) {
+      return;
+    }
+    this.licenciasApi.listarActivas(this.fechaDia).subscribe({
+      next: (rows) => this.aplicarLicenciasActivas(rows),
+      error: () => {
+        this.aplicarLicenciasActivas([]);
       },
     });
   }
@@ -290,6 +328,11 @@ export class ParteNuevoComponent implements OnInit {
 
   onToggleAsistencia(id: string, ev: Event): void {
     const checked = (ev.target as HTMLInputElement).checked;
+    if (checked && this.asistenciaNoSeleccionable(id)) {
+      this.bloqueoAsistenciaMensaje =
+        this.motivoDisponibilidadAsistencia(id) || 'Este voluntario no está disponible en la fecha seleccionada.';
+      return;
+    }
     const ctx = this.contextoAsistenciaActivo;
     const ctxPrevio = this.contextoAsignadoEnOtroContexto(id, ctx);
     if (checked && ctxPrevio) {
@@ -359,7 +402,7 @@ export class ParteNuevoComponent implements OnInit {
         continue;
       }
       for (const [id, v] of Object.entries(rec)) {
-        if (v && esVoluntarioAsistenciaId(id)) {
+        if (v && (id.startsWith('usr-') || id.startsWith('vh-') || id.startsWith('va-'))) {
           ids.add(id);
         }
       }
@@ -379,6 +422,179 @@ export class ParteNuevoComponent implements OnInit {
     return items.filter(
       (it) => it.label.toLowerCase().includes(q) || it.id.toLowerCase().includes(q),
     );
+  }
+
+  asistenciaNoSeleccionable(id: string): boolean {
+    const estado = this.estadoDisponibilidadAsistencia(id);
+    return estado === this.DISP_BLOQUEADO || estado === this.DISP_LICENCIA;
+  }
+
+  estadoDisponibilidadAsistencia(id: string): 'normal' | 'licencia' | 'bloqueado' {
+    const u = this.usuarioAsistenciaPorId[id];
+    if (!u) {
+      return this.DISP_NORMAL;
+    }
+    const base = this.fechaBaseAsistencia();
+    const estado = (u.estadoVoluntario ?? '').toUpperCase();
+    const tipo = (u.tipoVoluntario ?? '').toUpperCase();
+    const obs = u.observacionesRegistro ?? '';
+    const rangoSusp = this.rangoDesdeTexto(obs, 'susp');
+    const rangoLic = this.rangoDesdeTexto(obs, 'lic');
+    const licenciaActiva = this.licenciasActivasPorUsuario[u.id];
+
+    if (!u.activo || estado === 'INACTIVO') {
+      return this.DISP_BLOQUEADO;
+    }
+    if (tipo.includes('SUSP') || estado.includes('SUSP')) {
+      if (!rangoSusp || this.fechaEnRango(base, rangoSusp.desde, rangoSusp.hasta)) {
+        return this.DISP_BLOQUEADO;
+      }
+    }
+    if (licenciaActiva) {
+      return this.DISP_LICENCIA;
+    }
+    if (tipo.includes('LICEN')) {
+      if (!rangoLic || this.fechaEnRango(base, rangoLic.desde, rangoLic.hasta)) {
+        return this.DISP_LICENCIA;
+      }
+    }
+    return this.DISP_NORMAL;
+  }
+
+  colorPuntoDisponibilidadAsistencia(id: string): string {
+    const u = this.usuarioAsistenciaPorId[id];
+    if (!u) {
+      return 'bg-gray-500';
+    }
+    const estado = this.estadoDisponibilidadAsistencia(id);
+    if (estado === this.DISP_LICENCIA) {
+      return 'bg-yellow-400';
+    }
+    if (estado === this.DISP_BLOQUEADO) {
+      return 'bg-red-500';
+    }
+    return 'bg-emerald-400';
+  }
+
+  motivoDisponibilidadAsistencia(id: string): string {
+    const u = this.usuarioAsistenciaPorId[id];
+    if (!u) {
+      return '';
+    }
+    const estado = this.estadoDisponibilidadAsistencia(id);
+    if (estado === this.DISP_NORMAL) {
+      return '';
+    }
+    const obs = u.observacionesRegistro ?? '';
+    const rangoSusp = this.rangoDesdeTexto(obs, 'susp');
+    const rangoLic = this.rangoDesdeTexto(obs, 'lic');
+    const licenciaActiva = this.licenciasActivasPorUsuario[u.id] ?? null;
+    const fechas = (r: { desde: Date; hasta: Date } | null): string =>
+      r ? ` (${this.formatearDia(r.desde)} a ${this.formatearDia(r.hasta)})` : '';
+    if (estado === this.DISP_LICENCIA) {
+      if (licenciaActiva) {
+        return `Con licencia médica (${this.formatearDia(licenciaActiva.desde)} a ${this.formatearDia(licenciaActiva.hasta)}).`;
+      }
+      return `Con licencia médica${fechas(rangoLic)}.`;
+    }
+    if ((u.estadoVoluntario ?? '').toUpperCase() === 'INACTIVO' || !u.activo) {
+      return 'Voluntario inactivo.';
+    }
+    return `Voluntario suspendido${fechas(rangoSusp)}.`;
+  }
+
+  private reconstruirAsistenciaLayout(): void {
+    this.asistenciaLayoutVista = this.asistenciaLayout;
+  }
+
+  private itemDesdeUsuario(u: UsuarioListaDto): AsistenciaItemDef {
+    const id = `usr-${u.id}`;
+    this.usuarioAsistenciaPorId[id] = u;
+    const cargo = u.cargoOficialidad ? ` · ${u.cargoOficialidad}` : '';
+    return { id, label: `${u.nombre}${cargo}` };
+  }
+
+  private esHonorario(u: UsuarioListaDto): boolean {
+    const tipo = (u.tipoVoluntario ?? '').toUpperCase();
+    return tipo.includes('HONOR');
+  }
+
+  private esActivoRoster(u: UsuarioListaDto): boolean {
+    const tipo = (u.tipoVoluntario ?? '').toUpperCase();
+    return !tipo.includes('HONOR');
+  }
+
+  private aplicarLicenciasActivas(
+    rows: Array<{ usuarioId: number; fechaInicio: string; fechaTermino: string }>,
+  ): void {
+    for (const k of Object.keys(this.licenciasActivasPorUsuario)) {
+      delete this.licenciasActivasPorUsuario[Number(k)];
+    }
+    for (const row of rows) {
+      const desde = new Date(row.fechaInicio);
+      const hasta = new Date(row.fechaTermino);
+      if (Number.isNaN(desde.getTime()) || Number.isNaN(hasta.getTime())) {
+        continue;
+      }
+      this.licenciasActivasPorUsuario[row.usuarioId] = { desde, hasta };
+    }
+  }
+
+  private fechaBaseAsistencia(): Date {
+    if (this.fechaDia?.trim()) {
+      const d = new Date(`${this.fechaDia}T00:00:00`);
+      if (!Number.isNaN(d.getTime())) {
+        return d;
+      }
+    }
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return now;
+  }
+
+  private fechaEnRango(base: Date, desde: Date, hasta: Date): boolean {
+    const b = new Date(base);
+    b.setHours(0, 0, 0, 0);
+    const d = new Date(desde);
+    d.setHours(0, 0, 0, 0);
+    const h = new Date(hasta);
+    h.setHours(0, 0, 0, 0);
+    return b.getTime() >= d.getTime() && b.getTime() <= h.getTime();
+  }
+
+  private formatearDia(d: Date): string {
+    return d.toISOString().slice(0, 10);
+  }
+
+  private rangoDesdeTexto(txt: string, kind: 'susp' | 'lic'): { desde: Date; hasta: Date } | null {
+    if (!txt) {
+      return null;
+    }
+    const t = txt.toLowerCase();
+    const key = kind === 'susp' ? 'susp' : 'lic';
+    const reCompact = new RegExp(
+      `${key}\\w*\\s*\\[\\s*(\\d{4}-\\d{2}-\\d{2})\\s*[,;]\\s*(\\d{4}-\\d{2}-\\d{2})\\s*\\]`,
+    );
+    const mCompact = reCompact.exec(t);
+    if (mCompact) {
+      const d = new Date(`${mCompact[1]}T00:00:00`);
+      const h = new Date(`${mCompact[2]}T00:00:00`);
+      if (!Number.isNaN(d.getTime()) && !Number.isNaN(h.getTime())) {
+        return { desde: d, hasta: h };
+      }
+    }
+    const reDesde = new RegExp(`${key}\\w*[_\\s-]*desde\\s*[:=]\\s*(\\d{4}-\\d{2}-\\d{2})`);
+    const reHasta = new RegExp(`${key}\\w*[_\\s-]*hasta\\s*[:=]\\s*(\\d{4}-\\d{2}-\\d{2})`);
+    const mD = reDesde.exec(t);
+    const mH = reHasta.exec(t);
+    if (mD && mH) {
+      const d = new Date(`${mD[1]}T00:00:00`);
+      const h = new Date(`${mH[1]}T00:00:00`);
+      if (!Number.isNaN(d.getTime()) && !Number.isNaN(h.getTime())) {
+        return { desde: d, hasta: h };
+      }
+    }
+    return null;
   }
 
   /** True cuando el texto de búsqueda no coincide con ninguna casilla. */
@@ -437,6 +653,14 @@ export class ParteNuevoComponent implements OnInit {
     this.apoyos.push({ tipo: 'SAMU', nombre: '', cargo: '', patente: '', conductor: '' });
   }
 
+  agregarOtraCompania(): void {
+    this.otrasCompanias.push({ obac: '', compania: '', unidad: '' });
+  }
+
+  quitarOtraCompania(index: number): void {
+    this.otrasCompanias.splice(index, 1);
+  }
+
   private formatoObac(u: UsuarioListaDto): string {
     return `${u.nombre} — ${u.rol}`;
   }
@@ -492,6 +716,78 @@ export class ParteNuevoComponent implements OnInit {
     this.apoyos.splice(index, 1);
   }
 
+  private normalizarRut(valor: string): string {
+    const clean = (valor || '').replace(/[^0-9kK]/g, '').toUpperCase();
+    if (clean.length <= 1) return clean;
+    const cuerpo = clean.slice(0, -1);
+    const dv = clean.slice(-1);
+    const withDots = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return `${withDots}-${dv}`;
+  }
+
+  private normalizarPatente(valor: string): string {
+    const clean = (valor || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (clean.length === 6) {
+      const a = clean.slice(0, 2);
+      const b = clean.slice(2);
+      if (/^[A-Z]{2}[0-9]{4}$/.test(clean)) return `${a}-${b}`;
+      const c = clean.slice(0, 4);
+      const d = clean.slice(4);
+      if (/^[A-Z]{4}[0-9]{2}$/.test(clean)) return `${c}-${d}`;
+    }
+    return clean;
+  }
+
+  onPacienteRutInput(index: number, value: string): void {
+    this.pacientes[index]!.rut = this.normalizarRut(value);
+  }
+
+  onVehiculoRutInput(index: number, value: string): void {
+    this.vehiculos[index]!.rut = this.normalizarRut(value);
+  }
+
+  onVehiculoPatenteInput(index: number, value: string): void {
+    this.vehiculos[index]!.patente = this.normalizarPatente(value);
+  }
+
+  onApoyoPatenteInput(index: number, value: string): void {
+    this.apoyos[index]!.patente = this.normalizarPatente(value);
+  }
+
+  triageClass(triage: string): string {
+    const t = (triage || '').toUpperCase();
+    if (t === 'ROJO') return 'text-red-300';
+    if (t === 'AMARILLO') return 'text-amber-300';
+    if (t === 'VERDE') return 'text-emerald-300';
+    if (t === 'NEGRO') return 'text-gray-300';
+    return 'text-gray-300';
+  }
+
+  materialMarcado(item: string): boolean {
+    const s = new Set(
+      this.materialUtilizado
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean)
+        .map((x) => x.toLowerCase()),
+    );
+    return s.has(item.toLowerCase());
+  }
+
+  toggleMaterial(item: string): void {
+    const vals = this.materialUtilizado
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean);
+    const idx = vals.findIndex((x) => x.toLowerCase() === item.toLowerCase());
+    if (idx >= 0) {
+      vals.splice(idx, 1);
+    } else {
+      vals.push(item);
+    }
+    this.materialUtilizado = vals.join(', ');
+  }
+
   private toDateInput(d: Date): string {
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -508,7 +804,7 @@ export class ParteNuevoComponent implements OnInit {
       return null;
     }
     let t = '12:00';
-    const raw = this.horaIncidente?.trim();
+    const raw = this.horaIncidente?.trim() || this.horaDelLlamado?.trim();
     if (raw) {
       const m = raw.match(/^(\d{1,2}):(\d{2})$/);
       if (m) {
@@ -574,6 +870,22 @@ export class ParteNuevoComponent implements OnInit {
       const v = this.asistencia[key]?.trim();
       if (v) {
         (out as Record<string, string>)[key as string] = v;
+      }
+    }
+    if (this.otrasCompanias.length > 0) {
+      const rows = this.otrasCompanias
+        .map((x) => ({
+          obac: x.obac.trim(),
+          compania: x.compania.trim(),
+          unidad: x.unidad.trim(),
+        }))
+        .filter((x) => x.obac || x.compania || x.unidad);
+      if (rows.length > 0) {
+        (out as unknown as { otrasCompanias?: OtraCompaniaFila[] }).otrasCompanias = rows;
+        const first = rows[0]!;
+        out.otraCompaniaNombre = first.obac || undefined;
+        out.otraCompaniaNombreCompania = first.compania || undefined;
+        out.otraCompaniaUnidad = first.unidad || undefined;
       }
     }
     if (this.firmaEncargadoDatos.startsWith('data:image')) {
@@ -758,6 +1070,11 @@ export class ParteNuevoComponent implements OnInit {
       this.pasoIdx = this.pasosVisibles.indexOf('obs');
       return;
     }
+    if (!(this.asistencia.oficial128 ?? '').trim()) {
+      this.guardadoError = 'En cierre de asistencia, el Oficial 12-8 es obligatorio.';
+      this.pasoIdx = this.pasosVisibles.indexOf('obs');
+      return;
+    }
     if (!this.firmaEncargadoDatos.startsWith('data:image')) {
       this.guardadoError = 'En cierre de asistencia, falta la firma del encargado de tomar datos.';
       this.pasoIdx = this.pasosVisibles.indexOf('obs');
@@ -782,6 +1099,54 @@ export class ParteNuevoComponent implements OnInit {
     const unidadesPayload = this.parseUnidadesPayload();
     if (unidadesPayload.length === 0) {
       this.guardadoError = 'Agrega al menos una unidad con carro asignado.';
+      return;
+    }
+    const unidadesInvalidas = this.unidades.some(
+      (u) =>
+        u.carroId === '' ||
+        !u.conductor.trim() ||
+        !u.hora6_0.trim() ||
+        !u.hora6_3.trim() ||
+        !u.hora6_9.trim() ||
+        !u.hora6_10.trim() ||
+        !u.kmSalida.trim() ||
+        !u.kmLlegada.trim(),
+    );
+    if (unidadesInvalidas) {
+      this.guardadoError = 'En unidades, completa conductor, KM y tiempos 6-0/6-3/6-9/6-10.';
+      return;
+    }
+
+    const pacientesInvalidos = this.pacientes.some(
+      (p) => !p.nombre.trim() || !p.edad.trim() || !p.rut.trim() || !p.triage.trim(),
+    );
+    if (pacientesInvalidos) {
+      this.guardadoError = 'Si agregas pacientes, completa todos sus campos obligatorios.';
+      this.pasoIdx = this.pasosVisibles.indexOf('emergencia');
+      return;
+    }
+    const vehiculosInvalidos = this.vehiculos.some(
+      (v) => !v.tipo.trim() || !v.patente.trim() || !v.marca.trim() || !v.conductor.trim() || !v.rut.trim(),
+    );
+    if (vehiculosInvalidos) {
+      this.guardadoError = 'Si agregas vehículos, completa tipo, patente, marca, conductor y RUT.';
+      this.pasoIdx = this.pasosVisibles.indexOf('emergencia');
+      return;
+    }
+    const otrasCompaniasInvalidas = this.otrasCompanias.some(
+      (o) => !o.obac.trim() || !o.compania.trim() || !o.unidad.trim(),
+    );
+    if (otrasCompaniasInvalidas) {
+      this.guardadoError = 'En otras compañías, completa OBAC, compañía y unidad.';
+      this.pasoIdx = this.pasosVisibles.indexOf('asistencia');
+      return;
+    }
+    const apoyosInvalidos = this.apoyos.some(
+      (a) => !a.tipo.trim() || !a.nombre.trim() || !a.cargo.trim() || !a.patente.trim() || !a.conductor.trim(),
+    );
+    if (apoyosInvalidos) {
+      this.guardadoError = 'En apoyo externo, todos los campos son obligatorios por institución.';
+      this.pasoIdx = this.pasosVisibles.indexOf('apoyo');
       return;
     }
 

@@ -1,4 +1,4 @@
-<div class="w-full min-w-0 px-4 py-4 sm:px-5 sm:py-5 md:px-8 lg:px-10 xl:px-12">
+<div class="sid-page w-full min-w-0 px-4 py-4 sm:px-5 sm:py-5 md:px-8 lg:px-10 xl:px-12">
   <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
     <div>
       <h1 class="mb-1 text-2xl font-bold sm:text-3xl">Estadísticas operacionales</h1>
@@ -9,40 +9,40 @@
         }
       </p>
     </div>
-    <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-      <div class="flex min-w-[10rem] flex-col gap-1">
+    <div class="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:w-auto lg:grid-cols-3 lg:items-end">
+      <div class="flex min-w-0 flex-col gap-1">
         <label class="text-xs font-medium text-gray-500" for="dash-anio">Año</label>
         <select
           id="dash-anio"
           [(ngModel)]="anio"
           (ngModelChange)="aplicarFiltros()"
-          class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+          class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
         >
           @for (a of aniosDisponibles; track a) {
             <option [ngValue]="a">{{ a }}</option>
           }
         </select>
       </div>
-      <div class="flex min-w-[12rem] flex-1 flex-col gap-1 sm:min-w-[16rem]">
+      <div class="flex min-w-0 flex-col gap-1 sm:col-span-2 lg:col-span-1">
         <label class="text-xs font-medium text-gray-500" for="dash-tipo">Tipo de emergencia</label>
         <select
           id="dash-tipo"
           [(ngModel)]="claveFiltro"
           (ngModelChange)="aplicarFiltros()"
-          class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+          class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
         >
           @for (c of clavesTipo; track c.value) {
             <option [ngValue]="c.value">{{ c.label }}</option>
           }
         </select>
       </div>
-      <div class="flex min-w-[10rem] flex-col gap-1">
+      <div class="flex min-w-0 flex-col gap-1">
         <label class="text-xs font-medium text-gray-500" for="dash-unidad">Unidad</label>
         <select
           id="dash-unidad"
           [(ngModel)]="unidadFiltro"
           (ngModelChange)="aplicarFiltros()"
-          class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+          class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
         >
           <option [ngValue]="'todas'">Todas las unidades</option>
           @for (car of carros; track car.id) {
@@ -127,40 +127,54 @@
 
     <!-- Unidades (estilo tarjetas tipo operaciones / bolsos: cabecera roja + datos útiles) -->
     <div class="mb-8 w-full rounded-xl border border-gray-800 bg-[#121212] p-4 sm:p-6">
-      <div class="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+      <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 class="text-lg font-bold text-white sm:text-xl">Unidades</h2>
-          <p class="text-xs text-gray-500 sm:text-sm">
+          <p class="sid-muted text-xs sm:text-sm">
             Estado operativo, último checklist de unidad y ERA — enlaces rápidos
           </p>
         </div>
-        <p class="text-[11px] text-gray-600 sm:text-xs">{{ datos.unidadesSemaforo.length }} unidad(es)</p>
+        <div class="flex flex-wrap items-center gap-2 text-[11px] sm:text-xs">
+          <span class="rounded-full bg-emerald-500/15 px-2 py-1 text-emerald-200">
+            Operativas: {{ conteoSemaforo('operativa') }}
+          </span>
+          <span class="rounded-full bg-amber-500/20 px-2 py-1 text-amber-200">
+            Mantención: {{ conteoSemaforo('mantencion') }}
+          </span>
+          <span class="rounded-full bg-red-500/20 px-2 py-1 text-red-200">
+            Fuera de servicio: {{ conteoSemaforo('fuera_servicio') }}
+          </span>
+          <span class="text-gray-600">{{ datos.unidadesSemaforo.length }} unidad(es)</span>
+        </div>
       </div>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
         @for (u of datos.unidadesSemaforo; track u.id) {
           <div
-            class="flex min-h-0 flex-col overflow-hidden rounded-xl border border-gray-800 bg-[#0a0a0a] shadow-sm transition-colors hover:border-red-900/60"
+            class="flex min-h-0 flex-col overflow-hidden rounded-xl border bg-[#0a0a0a] shadow-sm transition-colors"
+            [ngClass]="clasesCardSemaforo(u)"
           >
-            <div class="bg-gradient-to-r from-red-600 to-red-700 px-4 py-4 sm:px-5">
+            <div class="bg-gradient-to-r px-4 py-4 sm:px-5" [ngClass]="clasesHeaderSemaforo(u)">
               <div class="mb-3 flex items-start justify-between gap-3">
                 <div class="min-w-0 flex-1">
                   <h3 class="text-2xl font-bold leading-tight text-white">{{ u.nomenclatura }}</h3>
-                  <p class="mt-0.5 line-clamp-2 text-sm text-red-100">{{ u.nombre }}</p>
+                  <p class="mt-0.5 line-clamp-2 text-sm text-white/85">{{ u.nombre }}</p>
                 </div>
                 <span
-                  class="shrink-0 rounded-full px-2.5 py-1 text-center text-[11px] font-semibold leading-tight sm:text-xs"
+                  class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-center text-[11px] font-semibold leading-tight sm:text-xs"
                   [ngClass]="clasesPillSemaforo(u)"
                 >
+                  <span class="h-2 w-2 rounded-full bg-current"></span>
                   {{ textoSemaforoUnidad(u) }}
                 </span>
               </div>
-              <div class="grid grid-cols-2 gap-3 border-t border-red-800/50 pt-3 text-xs text-red-100">
+              <div class="grid grid-cols-1 gap-3 border-t border-white/20 pt-3 text-xs text-white/90 sm:grid-cols-3">
                 <div class="min-w-0">
                   <p class="mb-1 text-[10px] font-medium uppercase tracking-wide opacity-90">Checklist unidad</p>
                   <p class="text-lg font-bold tabular-nums text-white">{{ porcentajeChecklistUnidad(u) }}%</p>
-                  <div class="mt-1.5 h-2 w-full rounded-full bg-red-950/80">
+                  <div class="mt-1.5 h-2 w-full rounded-full bg-black/35">
                     <div
-                      class="h-2 rounded-full bg-white"
+                      class="h-2 rounded-full"
+                      [ngClass]="clasesBarraSemaforo(u)"
                       [style.width.%]="porcentajeChecklistUnidad(u)"
                     ></div>
                   </div>
@@ -168,17 +182,29 @@
                 <div class="min-w-0">
                   <p class="mb-1 text-[10px] font-medium uppercase tracking-wide opacity-90">ERA</p>
                   <p class="text-lg font-bold tabular-nums text-white">{{ porcentajeChecklistEra(u) }}%</p>
-                  <div class="mt-1.5 h-2 w-full rounded-full bg-red-950/80">
+                  <div class="mt-1.5 h-2 w-full rounded-full bg-black/35">
                     <div
-                      class="h-2 rounded-full bg-white"
+                      class="h-2 rounded-full"
+                      [ngClass]="clasesBarraSemaforo(u)"
                       [style.width.%]="porcentajeChecklistEra(u)"
+                    ></div>
+                  </div>
+                </div>
+                <div class="min-w-0">
+                  <p class="mb-1 text-[10px] font-medium uppercase tracking-wide opacity-90">Bolso trauma</p>
+                  <p class="text-lg font-bold tabular-nums text-white">{{ porcentajeChecklistTrauma(u) }}%</p>
+                  <div class="mt-1.5 h-2 w-full rounded-full bg-black/35">
+                    <div
+                      class="h-2 rounded-full"
+                      [ngClass]="clasesBarraSemaforo(u)"
+                      [style.width.%]="porcentajeChecklistTrauma(u)"
                     ></div>
                   </div>
                 </div>
               </div>
             </div>
             <div class="flex flex-1 flex-col gap-3 p-4">
-              <div class="grid grid-cols-2 gap-2 text-xs">
+              <div class="grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
                 <div class="rounded-lg bg-[#121212] p-2.5 ring-1 ring-gray-800">
                   <p class="text-[10px] text-gray-500">Últ. checklist</p>
                   <p class="font-medium text-gray-100">{{ fechaChecklistCorta(u.checklistUnidad?.fecha) }}</p>
@@ -189,34 +215,106 @@
                   <p class="font-medium text-gray-100">{{ fechaChecklistCorta(u.checklistEra?.fecha) }}</p>
                   <p class="mt-0.5 text-[11px] text-gray-400">{{ itemsChecklistEtiqueta(u.checklistEra) }}</p>
                 </div>
+                <div class="rounded-lg bg-[#121212] p-2.5 ring-1 ring-gray-800">
+                  <p class="text-[10px] text-gray-500">Últ. trauma</p>
+                  <p class="font-medium text-gray-100">{{ fechaChecklistCorta(u.checklistTrauma?.fecha) }}</p>
+                  <p class="mt-0.5 text-[11px] text-gray-400">{{ itemsChecklistEtiquetaTrauma(u.checklistTrauma) }}</p>
+                </div>
               </div>
-              <div class="mt-auto flex flex-wrap gap-2 border-t border-gray-800 pt-3">
+              <div class="mt-auto grid grid-cols-1 gap-2 border-t border-gray-800 pt-3 sm:grid-cols-2 lg:grid-cols-4">
                 <a
                   [routerLink]="['/carros', u.id]"
-                  class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-600 bg-[#161616] px-3 py-2 text-center text-xs font-medium text-gray-100 hover:border-red-500 hover:text-white min-[380px]:flex-initial"
+                  class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-sky-500/40 bg-sky-500/15 px-3 py-2 text-center text-xs font-semibold text-sky-100 hover:border-sky-400 hover:bg-sky-500/25"
                 >
                   <lucide-icon name="truck" class="h-3.5 w-3.5 shrink-0" [size]="14" color="currentColor"></lucide-icon>
                   Carro
                 </a>
                 <a
                   [routerLink]="['/checklist', u.nomenclatura]"
-                  class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-600 bg-[#161616] px-3 py-2 text-center text-xs font-medium text-gray-100 hover:border-red-500 hover:text-white min-[380px]:flex-initial"
+                  class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-violet-500/40 bg-violet-500/15 px-3 py-2 text-center text-xs font-semibold text-violet-100 hover:border-violet-400 hover:bg-violet-500/25"
                 >
                   <lucide-icon name="clipboard-list" class="h-3.5 w-3.5 shrink-0" [size]="14" color="currentColor"></lucide-icon>
                   Unidad
                 </a>
                 <a
                   routerLink="/checklist-era"
-                  class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 sm:w-auto sm:flex-1 min-[380px]:flex-initial"
+                  class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/20 px-3 py-2 text-xs font-semibold text-rose-100 hover:border-rose-400 hover:bg-rose-500/30"
                 >
                   <lucide-icon name="shield" class="h-3.5 w-3.5 shrink-0" [size]="14" color="currentColor"></lucide-icon>
                   ERA
+                </a>
+                <a
+                  [routerLink]="['/bolso-trauma', u.nomenclatura]"
+                  class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-orange-500/45 bg-orange-500/20 px-3 py-2 text-xs font-semibold text-orange-100 hover:border-orange-400 hover:bg-orange-500/30"
+                >
+                  <lucide-icon name="briefcase" class="h-3.5 w-3.5 shrink-0" [size]="14" color="currentColor"></lucide-icon>
+                  Trauma
                 </a>
               </div>
             </div>
           </div>
         }
       </div>
+    </div>
+
+    <div class="mb-8 rounded-xl border border-gray-800 bg-[#121212] p-4 sm:p-6">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 class="text-lg font-bold sm:text-xl">Cuadro de honor</h2>
+          @if (cuadroHonor) {
+            <p class="sid-muted mt-1 text-xs sm:text-sm">
+              Top 15 del mes {{ cuadroHonor.mes }}/{{ cuadroHonor.anio }} por asistencia mensual y anual registrada
+            </p>
+          } @else {
+            <p class="sid-muted mt-1 text-xs sm:text-sm">Cargando cuadro de honor…</p>
+          }
+        </div>
+        <button
+          type="button"
+          class="sid-btn sid-btn-neutral !min-h-[36px] !px-3 !py-1 text-xs"
+          (click)="toggleCuadroHonor()"
+        >
+          {{ mostrarCuadroHonor ? 'Ocultar' : 'Mostrar' }}
+        </button>
+      </div>
+      @if (mostrarCuadroHonor) {
+        @if (cuadroHonor && cuadroHonor.rows.length > 0) {
+          <div class="mt-4 overflow-x-auto">
+            <table class="min-w-full text-left text-sm">
+              <thead class="text-xs uppercase tracking-wide text-gray-400">
+                <tr>
+                  <th class="px-2 py-2">Voluntario</th>
+                  <th class="px-2 py-2">Cargo</th>
+                  <th class="px-2 py-2">Tipo</th>
+                  <th class="px-2 py-2 text-right">Mensual</th>
+                  <th class="px-2 py-2 text-right">Anual</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of cuadroHonor.rows; track row.usuarioId) {
+                  <tr class="border-t border-gray-800">
+                    <td class="px-2 py-2 font-medium text-gray-100">{{ row.nombre }}</td>
+                    <td class="px-2 py-2 text-gray-300">{{ cargoCuadroHonor(row.cargo) }}</td>
+                    <td class="px-2 py-2 text-gray-300">{{ row.tipo }}</td>
+                    <td class="px-2 py-2 text-right">
+                      <span class="inline-flex min-w-14 justify-center rounded-md border border-blue-500/35 bg-blue-500/15 px-2 py-0.5 font-semibold text-blue-100">
+                        {{ row.diasMensual }}
+                      </span>
+                    </td>
+                    <td class="px-2 py-2 text-right">
+                      <span class="inline-flex min-w-14 justify-center rounded-md border border-emerald-500/35 bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-100">
+                        {{ row.diasAnual }}
+                      </span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else if (cuadroHonor) {
+          <p class="mt-3 text-sm text-gray-500">Aún no hay asistencias registradas para generar el top 15.</p>
+        }
+      }
     </div>
 
     <!-- Emergencias por mes -->
@@ -233,7 +331,8 @@
           >
         </div>
       </div>
-      <div class="flex h-56 items-end justify-between gap-2">
+      <div class="overflow-x-auto pb-1">
+        <div class="flex h-56 min-w-[40rem] items-end justify-between gap-2 sm:min-w-0">
         @for (m of mesesChart; track m.mes) {
           <div class="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-2">
             <div class="flex h-full w-full items-end justify-center gap-1">
@@ -243,6 +342,7 @@
             <span class="text-[10px] text-gray-400 sm:text-xs">{{ m.mes }}</span>
           </div>
         }
+        </div>
       </div>
     </div>
 
@@ -255,7 +355,7 @@
         </div>
         <p class="mb-4 text-xs text-gray-500">{{ datos.anio }} · según filtros</p>
         <div class="space-y-3">
-          @for (t of datos.porTipo; track t.claveEmergencia) {
+          @for (t of tiposEmergenciaTop(); track t.claveEmergencia) {
             <div>
               <div class="mb-1 flex items-start justify-between gap-2">
                 <span class="text-xs font-medium leading-snug text-gray-200">{{
@@ -271,7 +371,7 @@
               </div>
             </div>
           }
-          @if (datos.porTipo.length === 0) {
+          @if (tiposEmergenciaTop().length === 0) {
             <p class="text-sm text-gray-500">Sin datos para los filtros seleccionados.</p>
           }
         </div>

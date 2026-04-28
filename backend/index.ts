@@ -13,6 +13,7 @@ import { authRouter } from './routes/auth.js';
 import { auditoriaRouter } from './routes/auditoria.js';
 import { reportesRouter } from './routes/reportes.js';
 import { dashboardRouter } from './routes/dashboard.js';
+import { licenciasRouter } from './routes/licencias.js';
 import { requireAuth } from './middleware/auth.js';
 import { requireRoles } from './middleware/roles.js';
 
@@ -95,6 +96,7 @@ app.use('/api/checklists', requireAuth, checklistsRouter);
 app.use('/api/bolsos-trauma', requireAuth, bolsosTraumaRouter);
 app.use('/api/reportes', requireAuth, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), reportesRouter);
 app.use('/api/dashboard', requireAuth, dashboardRouter);
+app.use('/api/licencias', requireAuth, licenciasRouter);
 
 app.get('/api/carros', requireAuth, async (_req, res) => {
   try {

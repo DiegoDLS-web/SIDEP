@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable, catchError, map, of } from 'rxjs';
 import type {
+  ChecklistPlantillaUnidadResponseDto,
   ChecklistRegistroDto,
   ChecklistResumenUnidadDto,
   ChecklistUnidadResponseDto,
@@ -19,6 +20,7 @@ export type ChecklistUnidadPayload = {
 };
 
 export type ChecklistEraPayload = ChecklistUnidadPayload & { unidad: string };
+export type PlantillaTipo = 'UNIDAD' | 'ERA' | 'TRAUMA';
 
 @Injectable({ providedIn: 'root' })
 export class ChecklistsService {
@@ -156,6 +158,26 @@ export class ChecklistsService {
       );
   }
 
+  obtenerPlantillaUnidad(unidad: string): Observable<ChecklistPlantillaUnidadResponseDto> {
+    return this.http
+      .get<ChecklistPlantillaUnidadResponseDto>(
+        `/api/checklists/unidad/${encodeURIComponent(unidad)}/plantilla`,
+      )
+      .pipe(catchError(() => of({ unidad, ubicaciones: [] })));
+  }
+
+  guardarPlantillaUnidad(
+    unidad: string,
+    payload: { ubicaciones: Array<{ nombre: string; materiales: Array<{ nombre: string; cantidadRequerida: number }> }> },
+  ): Observable<ChecklistPlantillaUnidadResponseDto> {
+    return this.http
+      .put<ChecklistPlantillaUnidadResponseDto>(
+        `/api/checklists/unidad/${encodeURIComponent(unidad)}/plantilla`,
+        payload,
+      )
+      .pipe(catchError(() => of({ unidad, ubicaciones: payload.ubicaciones })));
+  }
+
   historialUnidad(unidad: string): Observable<ChecklistRegistroDto[]> {
     return this.http
       .get<ChecklistRegistroDto[]>(
@@ -221,5 +243,28 @@ export class ChecklistsService {
         }),
       ),
     );
+  }
+
+  obtenerPlantilla(tipo: PlantillaTipo, unidad: string): Observable<unknown | null> {
+    return this.http
+      .get<{ plantilla: unknown | null }>(
+        `/api/checklists/plantillas/${encodeURIComponent(tipo)}/${encodeURIComponent(unidad)}`,
+      )
+      .pipe(
+        map((r) => r?.plantilla ?? null),
+        catchError(() => of(null)),
+      );
+  }
+
+  guardarPlantilla(tipo: PlantillaTipo, unidad: string, plantilla: unknown): Observable<boolean> {
+    return this.http
+      .put<{ ok: boolean }>(
+        `/api/checklists/plantillas/${encodeURIComponent(tipo)}/${encodeURIComponent(unidad)}`,
+        { plantilla },
+      )
+      .pipe(
+        map((r) => !!r?.ok),
+        catchError(() => of(false)),
+      );
   }
 }

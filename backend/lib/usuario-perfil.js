@@ -27,6 +27,10 @@ exports.CARGOS_OFICIALIDAD = [
 ];
 exports.TIPOS_VOLUNTARIO = [
     'ACTIVO',
+    'VOLUNTARIO',
+    'OFICIAL',
+    'CADETE',
+    'ASPIRANTE',
     'HONORARIO',
     'CUARTELERO',
     'CANJE',

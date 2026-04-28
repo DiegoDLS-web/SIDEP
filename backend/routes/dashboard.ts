@@ -220,8 +220,28 @@ dashboardRouter.get('/resumen', async (req, res) => {
       return true;
     });
 
+    const rowsTrauma = await prisma.checklistCarro.findMany({
+      where: { tipo: 'TRAUMA' },
+      orderBy: { fecha: 'desc' },
+      select: {
+        carroId: true,
+        fecha: true,
+        totalItems: true,
+        itemsOk: true,
+        detalle: true,
+        carro: { select: { nomenclatura: true } },
+      },
+    });
+    const seenT = new Set<number>();
+    const ultimosCheckTrauma = rowsTrauma.filter((r) => {
+      if (seenT.has(r.carroId)) return false;
+      seenT.add(r.carroId);
+      return true;
+    });
+
     const mapUnidad = new Map(ultimosCheckUnidad.map((c) => [c.carroId, c]));
     const mapEra = new Map(ultimosCheckEra.map((c) => [c.carroId, c]));
+    const mapTrauma = new Map(ultimosCheckTrauma.map((c) => [c.carroId, c]));
 
     let alertas: Array<{
       tipo: string;
@@ -285,6 +305,26 @@ dashboardRouter.get('/resumen', async (req, res) => {
         });
       }
 
+      const chT = mapTrauma.get(c.id);
+      if (
+        chT &&
+        chT.totalItems != null &&
+        chT.totalItems > 0 &&
+        chT.itemsOk != null &&
+        chT.itemsOk < chT.totalItems &&
+        !detalleBorrador(chT.detalle)
+      ) {
+        const faltan = chT.totalItems - chT.itemsOk;
+        alertas.push({
+          tipo: 'checklist_trauma_fallas',
+          severidad: 'advertencia',
+          titulo: 'Bolso de trauma con ítems pendientes',
+          detalle: `${c.nomenclatura}: faltan ${faltan} ítem(ns) en el último control de trauma (${chT.fecha.toISOString().slice(0, 10)}).`,
+          carroId: c.id,
+          nomenclatura: c.nomenclatura,
+        });
+      }
+
       return {
         id: c.id,
         nomenclatura: c.nomenclatura,
@@ -313,6 +353,18 @@ dashboardRouter.get('/resumen', async (req, res) => {
                 chE.totalItems > 0 &&
                 chE.itemsOk != null &&
                 chE.itemsOk >= chE.totalItems,
+            }
+          : null,
+        checklistTrauma: chT
+          ? {
+              fecha: chT.fecha.toISOString(),
+              totalItems: chT.totalItems,
+              itemsOk: chT.itemsOk,
+              completo:
+                chT.totalItems != null &&
+                chT.totalItems > 0 &&
+                chT.itemsOk != null &&
+                chT.itemsOk >= chT.totalItems,
             }
           : null,
       };

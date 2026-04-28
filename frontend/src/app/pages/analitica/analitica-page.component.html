@@ -1,0 +1,361 @@
+<div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-5 sm:py-5 md:px-8 lg:px-10 xl:px-12">
+  <section
+    class="relative overflow-hidden rounded-2xl border border-red-900/50 bg-[radial-gradient(circle_at_0%_0%,rgba(220,38,38,0.22),transparent_48%),radial-gradient(circle_at_100%_0%,rgba(59,130,246,0.12),transparent_40%),#0a0a0a] p-5 sm:p-6"
+  >
+    <div class="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <p class="mb-2 inline-flex items-center gap-2 rounded-full border border-red-500/35 bg-red-500/10 px-3 py-1 text-xs text-red-200">
+          Centro de monitoreo
+        </p>
+        <h1 class="mb-1 flex items-center gap-2 text-2xl font-bold sm:text-3xl">
+          <lucide-icon name="chart-column" class="h-7 w-7 text-red-400" [size]="28" color="currentColor"></lucide-icon>
+          Analítica operacional
+        </h1>
+        <p class="text-sm text-gray-300 sm:text-base">KPIs de respuesta, desgaste de unidades y disciplina operativa</p>
+      </div>
+      <div class="grid w-full grid-cols-2 gap-3 lg:w-auto">
+        <div class="flex min-w-0 flex-col gap-1">
+          <label class="text-xs font-medium text-gray-400" for="ana-anio">Año</label>
+          <select
+            id="ana-anio"
+            [(ngModel)]="anio"
+            (ngModelChange)="cargar()"
+            class="w-full rounded-lg border border-gray-700 bg-black/50 px-3 py-2.5 text-sm text-white backdrop-blur-sm focus:border-red-600/50 focus:outline-none focus:ring-2 focus:ring-red-600/20"
+          >
+            @for (a of aniosDisponibles; track a) {
+              <option [ngValue]="a">{{ a }}</option>
+            }
+          </select>
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <label class="text-xs font-medium text-gray-400" for="ana-mes">Mes</label>
+          <select
+            id="ana-mes"
+            [(ngModel)]="mes"
+            (ngModelChange)="cargar()"
+            class="w-full rounded-lg border border-gray-700 bg-black/50 px-3 py-2.5 text-sm text-white backdrop-blur-sm focus:border-red-600/50 focus:outline-none focus:ring-2 focus:ring-red-600/20"
+          >
+            @for (m of meses; track m.id) {
+              <option [ngValue]="m.id">{{ m.nombre }}</option>
+            }
+          </select>
+        </div>
+      </div>
+      <div class="flex w-full flex-wrap gap-2 lg:w-auto">
+        <button
+          type="button"
+          class="sid-btn sid-btn-primary inline-flex items-center justify-center gap-2"
+          data-export-hide="true"
+          [disabled]="!datos || exportandoPdf"
+          (click)="exportarReportePdf()"
+        >
+          <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+          {{ exportandoPdf ? 'Exportando PDF...' : 'Exportar reporte PDF' }}
+        </button>
+      </div>
+    </div>
+  </section>
+
+  @if (error) {
+    <div class="rounded-lg border border-red-800 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+      {{ error }}
+    </div>
+  }
+
+  @if (loading && !datos) {
+    <p class="text-gray-400">Cargando analítica…</p>
+  }
+
+  @if (datos) {
+    <div #reporteAnalitica class="space-y-8">
+      <div class="mb-1 flex items-center justify-between gap-2">
+        <div>
+          <h3 class="text-xl font-bold text-white">KPIs operacionales</h3>
+          <p class="text-xs text-gray-500">Indicadores principales del periodo seleccionado</p>
+        </div>
+        <button
+          type="button"
+          class="sid-btn sid-btn-neutral inline-flex min-h-[36px] items-center gap-1.5 !rounded-xl border border-gray-700 bg-[#0f1115] px-3 py-1.5 text-xs text-gray-200 transition hover:border-red-500/50 hover:bg-red-500/10 disabled:opacity-50"
+          title="Exportar sección como PNG"
+          data-export-hide="true"
+          [disabled]="exportandoPng === 'kpis'"
+          (click)="exportarSeccionPng('kpis')"
+        >
+          <lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+          {{ exportandoPng === 'kpis' ? 'Exportando…' : 'PNG' }}
+        </button>
+      </div>
+      <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" data-exportable="true" data-export-id="kpis">
+        <div class="rounded-2xl border border-gray-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
+          <p class="text-sm text-gray-400">Tiempo despacho promedio</p>
+          <p class="mt-2 text-3xl font-bold text-white">{{ numero(datos.tiempoDespachoPromedioMin) }} min</p>
+        </div>
+        <div class="rounded-2xl border border-gray-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
+          <p class="text-sm text-gray-400">Tiempo respuesta promedio</p>
+          <p class="mt-2 text-3xl font-bold text-white">{{ numero(datos.tiempoRespuestaPromedioMin) }} min</p>
+        </div>
+        <div class="rounded-2xl border border-gray-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
+          <p class="text-sm text-gray-400">Duración promedio emergencia</p>
+          <p class="mt-2 text-3xl font-bold text-white">{{ numero(datos.duracionPromedioEmergenciaMin) }} min</p>
+        </div>
+        <div class="rounded-2xl border border-gray-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
+          <p class="text-sm text-gray-400">Cumplimiento respuesta &lt; 8 min</p>
+          <p class="mt-2 text-3xl font-bold text-white">{{ numero(datos.cumplimientoRespuesta8MinPct) }}%</p>
+          <span class="mt-2 inline-flex rounded-full border px-2 py-0.5 text-[11px]" [ngClass]="claseNivelSla()">
+            {{ textoNivelSla() }}
+          </span>
+        </div>
+      </section>
+
+      <div class="mb-1 flex items-center justify-between gap-2">
+        <div>
+          <h3 class="text-xl font-bold text-white">Comparativos clave</h3>
+          <p class="text-xs text-gray-500">Evolución contra el mes anterior</p>
+        </div>
+        <button
+          type="button"
+          class="sid-btn sid-btn-neutral inline-flex min-h-[36px] items-center gap-1.5 !rounded-xl border border-gray-700 bg-[#0f1115] px-3 py-1.5 text-xs text-gray-200 transition hover:border-red-500/50 hover:bg-red-500/10 disabled:opacity-50"
+          title="Exportar sección como PNG"
+          data-export-hide="true"
+          [disabled]="exportandoPng === 'comparativo-claro'"
+          (click)="exportarSeccionPng('comparativo-claro')"
+        >
+          <lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+          {{ exportandoPng === 'comparativo-claro' ? 'Exportando…' : 'PNG' }}
+        </button>
+      </div>
+      <section class="grid grid-cols-1 gap-4 lg:grid-cols-3" data-exportable="true" data-export-id="comparativo-claro">
+        <article class="rounded-2xl border border-gray-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
+          <p class="text-sm text-gray-400">Comparativo salidas (mes actual vs anterior)</p>
+          <div class="mt-3 flex items-end justify-between gap-3">
+            <div>
+              <p class="text-[11px] text-gray-400">Mes actual</p>
+              <p class="text-xl font-bold text-white">{{ numero(datos.salidasTotalesMes) }}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-[11px] text-gray-400">Mes anterior</p>
+              <p class="text-base text-gray-200">{{ numero(datos.comparativoMensual?.salidasMesAnterior ?? 0) }}</p>
+            </div>
+          </div>
+          <p class="mt-2 text-xs" [class]="claseVariacion(datos.comparativoMensual?.variacionSalidasPct ?? 0)">
+            {{ textoVariacion(datos.comparativoMensual?.variacionSalidasPct ?? 0) }}
+          </p>
+        </article>
+
+        <article class="rounded-2xl border border-gray-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
+          <p class="text-sm text-gray-400">Comparativo kilómetros (mes actual vs anterior)</p>
+          <div class="mt-3 flex items-end justify-between gap-3">
+            <div>
+              <p class="text-[11px] text-gray-400">Mes actual</p>
+              <p class="text-xl font-bold text-white">{{ numero(datos.kilometrosTotalesMes) }}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-[11px] text-gray-400">Mes anterior</p>
+              <p class="text-base text-gray-200">{{ numero(datos.comparativoMensual?.kilometrosMesAnterior ?? 0) }}</p>
+            </div>
+          </div>
+          <p class="mt-2 text-xs" [class]="claseVariacion(datos.comparativoMensual?.variacionKilometrosPct ?? 0)">
+            {{ textoVariacion(datos.comparativoMensual?.variacionKilometrosPct ?? 0) }}
+          </p>
+        </article>
+
+        <article class="rounded-2xl border border-gray-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
+          <p class="text-sm text-gray-400">Asistencia anual y mensual registrada</p>
+          <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div class="rounded-lg border border-emerald-700/50 bg-emerald-950/20 px-3 py-2">
+              <p class="text-[11px] uppercase tracking-wide text-emerald-300/80">Anual</p>
+              <p class="text-2xl font-bold text-emerald-200">{{ numero(datos.asistenciaVoluntariosTotalAnual) }}</p>
+            </div>
+            <div class="rounded-lg border border-blue-700/50 bg-blue-950/20 px-3 py-2">
+              <p class="text-[11px] uppercase tracking-wide text-blue-300/80">Mensual ({{ nombreMes(mesAsistenciaSeleccionado) }})</p>
+              <p class="text-2xl font-bold text-blue-200">
+                {{ numero(detalleAsistenciaMesSeleccionado()?.voluntarios?.length ?? 0) }}
+              </p>
+            </div>
+          </div>
+          <p class="mt-2 text-xs text-gray-500">Datos válidos sin registros demo.</p>
+        </article>
+      </section>
+
+      <section class="grid grid-cols-1 gap-6 lg:grid-cols-2" data-exportable="true" data-export-id="actividad-mensual">
+        <article class="rounded-2xl border border-gray-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <h3 class="text-lg font-bold">Actividad mensual</h3>
+            <button type="button" class="sid-btn sid-btn-neutral inline-flex min-h-[36px] items-center gap-1.5 !rounded-xl border border-gray-700 bg-[#0f1115] px-3 py-1.5 text-xs text-gray-200 transition hover:border-red-500/50 hover:bg-red-500/10 disabled:opacity-50" title="Exportar sección como PNG" data-export-hide="true" [disabled]="exportandoPng === 'actividad-mensual'" (click)="exportarSeccionPng('actividad-mensual')"><lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>{{ exportandoPng === 'actividad-mensual' ? 'Exportando…' : 'PNG' }}</button>
+          </div>
+          <p class="mt-1 text-xs text-gray-500">Salidas y kilómetros del mes seleccionado</p>
+          <div class="mt-4 grid grid-cols-2 gap-3">
+            <div class="rounded-lg border border-gray-800 bg-[#0a0a0a] p-3">
+              <p class="text-xs text-gray-500">Salidas del mes</p>
+              <p class="mt-1 text-xl font-semibold text-white">{{ numero(datos.salidasTotalesMes) }}</p>
+            </div>
+            <div class="rounded-lg border border-gray-800 bg-[#0a0a0a] p-3">
+              <p class="text-xs text-gray-500">Kilómetros del mes</p>
+              <p class="mt-1 text-xl font-semibold text-white">{{ numero(datos.kilometrosTotalesMes) }}</p>
+            </div>
+          </div>
+          <div class="mt-3 text-xs text-gray-400">
+            Variación salidas:
+            <span [class]="claseVariacion(datos.comparativoMensual?.variacionSalidasPct ?? 0)">{{
+              textoVariacion(datos.comparativoMensual?.variacionSalidasPct ?? 0)
+            }}</span>
+            · Variación km:
+            <span [class]="claseVariacion(datos.comparativoMensual?.variacionKilometrosPct ?? 0)">{{
+              textoVariacion(datos.comparativoMensual?.variacionKilometrosPct ?? 0)
+            }}</span>
+          </div>
+        </article>
+
+        <article class="rounded-2xl border border-gray-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <h3 class="text-lg font-bold">Salidas por semana</h3>
+            <button type="button" class="sid-btn sid-btn-neutral inline-flex min-h-[36px] items-center gap-1.5 !rounded-xl border border-gray-700 bg-[#0f1115] px-3 py-1.5 text-xs text-gray-200 transition hover:border-red-500/50 hover:bg-red-500/10 disabled:opacity-50" title="Exportar sección como PNG" data-export-hide="true" [disabled]="exportandoPng === 'actividad-mensual'" (click)="exportarSeccionPng('actividad-mensual')"><lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>{{ exportandoPng === 'actividad-mensual' ? 'Exportando…' : 'PNG' }}</button>
+          </div>
+          <p class="mt-1 text-xs text-gray-500">Distribución dentro del mes</p>
+          <div class="mt-4 space-y-2">
+            @for (s of datos.salidasPorSemana; track s.semana) {
+              <div>
+                <div class="mb-1 flex items-center justify-between text-xs">
+                  <span class="text-gray-200">Semana {{ s.semana }}</span>
+                  <span class="font-semibold text-gray-100">{{ s.salidas }}</span>
+                </div>
+                <div class="h-2 rounded-full bg-gray-800">
+                  <div class="h-2 rounded-full bg-red-500" [style.width.%]="anchoBarraSemana(s.salidas)"></div>
+                </div>
+              </div>
+            }
+          </div>
+        </article>
+      </section>
+
+      <section class="grid grid-cols-1 gap-6 lg:grid-cols-2" data-exportable="true" data-export-id="sectores-criticos">
+        <article class="rounded-2xl border border-gray-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <h3 class="text-lg font-bold">Sectores críticos</h3>
+            <button type="button" class="sid-btn sid-btn-neutral inline-flex min-h-[36px] items-center gap-1.5 !rounded-xl border border-gray-700 bg-[#0f1115] px-3 py-1.5 text-xs text-gray-200 transition hover:border-red-500/50 hover:bg-red-500/10 disabled:opacity-50" title="Exportar sección como PNG" data-export-hide="true" [disabled]="exportandoPng === 'sectores-criticos'" (click)="exportarSeccionPng('sectores-criticos')"><lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>{{ exportandoPng === 'sectores-criticos' ? 'Exportando…' : 'PNG' }}</button>
+          </div>
+          <div class="mt-4 space-y-3">
+            @for (s of datos.sectoresCriticos; track s.sector) {
+              <div class="rounded-lg border border-gray-800 bg-[#0a0a0a] p-3">
+                <div class="flex items-center justify-between gap-2">
+                  <p class="font-medium text-gray-100">{{ s.sector }}</p>
+                  <p class="text-xs text-gray-400">{{ s.casos }} casos</p>
+                </div>
+                <p class="mt-1 text-sm text-gray-300">Promedio respuesta: {{ numero(s.promedioRespuestaMin) }} min</p>
+              </div>
+            }
+          </div>
+        </article>
+
+        <article class="rounded-2xl border border-gray-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5" data-exportable="true" data-export-id="uso-unidades">
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <h3 class="text-lg font-bold">Uso de unidades</h3>
+            <button type="button" class="sid-btn sid-btn-neutral inline-flex min-h-[36px] items-center gap-1.5 !rounded-xl border border-gray-700 bg-[#0f1115] px-3 py-1.5 text-xs text-gray-200 transition hover:border-red-500/50 hover:bg-red-500/10 disabled:opacity-50" title="Exportar sección como PNG" data-export-hide="true" [disabled]="exportandoPng === 'uso-unidades'" (click)="exportarSeccionPng('uso-unidades')"><lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>{{ exportandoPng === 'uso-unidades' ? 'Exportando…' : 'PNG' }}</button>
+          </div>
+          <div class="mt-4 space-y-3">
+            @for (u of datos.usoUnidades; track u.id) {
+              <div>
+                <div class="mb-1 flex items-center justify-between text-xs">
+                  <span class="text-gray-200">{{ u.nomenclatura }}</span>
+                  <span class="text-gray-100">{{ u.salidas }} salidas · {{ numero(u.km) }} km</span>
+                </div>
+                <div class="h-2 rounded-full bg-gray-800">
+                  <div class="h-2 rounded-full bg-red-500" [style.width.%]="(u.salidas / maxSalidas()) * 100"></div>
+                </div>
+              </div>
+            }
+          </div>
+        </article>
+      </section>
+
+      <section class="grid grid-cols-1 gap-6 lg:grid-cols-2" data-exportable="true" data-export-id="checklist-diario">
+        <article class="rounded-2xl border border-gray-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <h3 class="text-lg font-bold">Cumplimiento checklist diario</h3>
+            <button type="button" class="sid-btn sid-btn-neutral inline-flex min-h-[36px] items-center gap-1.5 !rounded-xl border border-gray-700 bg-[#0f1115] px-3 py-1.5 text-xs text-gray-200 transition hover:border-red-500/50 hover:bg-red-500/10 disabled:opacity-50" title="Exportar sección como PNG" data-export-hide="true" [disabled]="exportandoPng === 'checklist-diario'" (click)="exportarSeccionPng('checklist-diario')"><lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>{{ exportandoPng === 'checklist-diario' ? 'Exportando…' : 'PNG' }}</button>
+          </div>
+          <div class="mt-4 space-y-3">
+            @for (c of datos.cumplimientoChecklist; track c.carroId) {
+              <div>
+                <div class="mb-1 flex items-center justify-between text-xs">
+                  <span class="text-gray-200">{{ c.nomenclatura }}</span>
+                  <span class="text-gray-100">{{ numero(c.cumplimientoPct) }}%</span>
+                </div>
+                <div class="h-2 rounded-full bg-gray-800">
+                  <div class="h-2 rounded-full bg-emerald-500" [style.width.%]="(c.cumplimientoPct / maxCumplimiento()) * 100"></div>
+                </div>
+              </div>
+            }
+          </div>
+        </article>
+
+        <article class="rounded-2xl border border-gray-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5" data-exportable="true" data-export-id="asistencia-general">
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <h3 class="text-lg font-bold">Asistencia de voluntarios</h3>
+            <button type="button" class="sid-btn sid-btn-neutral inline-flex min-h-[36px] items-center gap-1.5 !rounded-xl border border-gray-700 bg-[#0f1115] px-3 py-1.5 text-xs text-gray-200 transition hover:border-red-500/50 hover:bg-red-500/10 disabled:opacity-50" title="Exportar sección como PNG" data-export-hide="true" [disabled]="exportandoPng === 'asistencia-general'" (click)="exportarSeccionPng('asistencia-general')"><lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>{{ exportandoPng === 'asistencia-general' ? 'Exportando…' : 'PNG' }}</button>
+          </div>
+          <div class="mt-2 flex flex-wrap gap-2 text-xs">
+            <span class="inline-flex rounded-md border border-emerald-600/45 bg-emerald-500/15 px-2 py-1 text-emerald-200">
+              Total anual: {{ numero(datos.asistenciaVoluntariosTotalAnual) }}
+            </span>
+            <span class="inline-flex rounded-md border border-blue-600/45 bg-blue-500/15 px-2 py-1 text-blue-200">
+              {{ nombreMes(mesAsistenciaSeleccionado) }}: {{ numero(detalleAsistenciaMesSeleccionado()?.voluntarios?.length ?? 0) }} voluntarios
+            </span>
+          </div>
+          <div class="mt-4 space-y-3">
+            @for (a of datos.asistenciaVoluntariosPorMes; track a.mes) {
+              <div class="rounded-lg border border-gray-800 bg-[#0a0a0a] px-3 py-2">
+                <div class="mb-1 flex items-center justify-between text-xs">
+                  <span class="font-medium text-gray-200">{{ a.nombreMes }}</span>
+                  <span class="text-gray-300">{{ a.voluntariosConAsistencia }} voluntarios</span>
+                </div>
+                <div class="h-2 rounded-full bg-gray-800">
+                  <div
+                    class="h-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400"
+                    [style.width.%]="(a.voluntariosConAsistencia / maxAsistenciaVoluntarios()) * 100"
+                  ></div>
+                </div>
+              </div>
+            }
+          </div>
+        </article>
+      </section>
+
+      <section class="rounded-2xl border border-gray-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5" data-exportable="true" data-export-id="asistencia-voluntario">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h3 class="text-lg font-bold">Detalle asistencia por voluntario</h3>
+          <div class="flex items-center gap-2">
+            <select [(ngModel)]="mesAsistenciaSeleccionado" class="rounded-lg border border-gray-700 bg-black/50 px-3 py-2 text-sm text-white">
+              @for (m of meses; track m.id) {
+                <option [ngValue]="m.id">{{ m.nombre }}</option>
+              }
+            </select>
+            <button type="button" class="sid-btn sid-btn-neutral inline-flex min-h-[36px] items-center gap-1.5 !rounded-xl border border-gray-700 bg-[#0f1115] px-3 py-1.5 text-xs text-gray-200 transition hover:border-red-500/50 hover:bg-red-500/10 disabled:opacity-50" title="Exportar sección como PNG" data-export-hide="true" [disabled]="exportandoPng === 'asistencia-voluntario'" (click)="exportarSeccionPng('asistencia-voluntario')"><lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>{{ exportandoPng === 'asistencia-voluntario' ? 'Exportando…' : 'PNG' }}</button>
+          </div>
+        </div>
+        <div class="mb-2 grid grid-cols-[1fr_auto] rounded-lg border border-gray-800 bg-[#0a0a0a] px-3 py-2 text-[11px] uppercase tracking-wide text-gray-500">
+          <span>Voluntario</span>
+          <span>Asistencias / Partes</span>
+        </div>
+        <div class="space-y-2">
+          @for (v of (detalleAsistenciaMesSeleccionado()?.voluntarios ?? []); track v.usuarioId) {
+            <div class="grid grid-cols-[1fr_auto] items-center gap-3 rounded-lg border border-gray-800 bg-[#0a0a0a] px-3 py-2">
+              <p class="text-sm font-medium text-gray-100">{{ v.nombre }}</p>
+              <p class="text-xs text-gray-300">
+                <span class="rounded border border-blue-600/40 bg-blue-500/15 px-2 py-0.5 text-blue-200">{{ v.asistenciasRegistradas }} asistencias</span>
+                ·
+                <span class="rounded border border-gray-600/40 bg-gray-500/10 px-2 py-0.5">{{ v.partesConAsistencia }} partes</span>
+              </p>
+            </div>
+          }
+          @if ((detalleAsistenciaMesSeleccionado()?.voluntarios ?? []).length === 0) {
+            <div class="rounded-lg border border-amber-800/50 bg-amber-950/20 px-3 py-2">
+              <p class="text-sm text-amber-200">Sin asistencias registradas para este mes.</p>
+            </div>
+          }
+        </div>
+      </section>
+
+    </div>
+  }
+</div>

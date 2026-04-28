@@ -1,56 +1,61 @@
 @let vm = vm$ | async;
 
 @if (!vm || vm.status === 'loading') {
-  <div class="p-8 text-gray-400">Cargando…</div>
+  <div class="sid-page flex min-h-[40vh] flex-col items-center justify-center gap-3 px-4 py-12 text-gray-400">
+    <lucide-icon name="truck" class="h-10 w-10 animate-pulse text-red-500" [size]="40" color="currentColor" />
+    <p class="text-sm">Cargando flota…</p>
+  </div>
 } @else if (vm.status === 'error') {
-  <div class="p-8">
-    <p class="text-red-400">{{ vm.message }}</p>
-    <button
-      type="button"
-      class="mt-4 rounded-lg bg-gray-800 px-4 py-2 text-sm text-white hover:bg-gray-700"
-      (click)="volverLista()"
-    >
-      Volver
-    </button>
+  <div class="sid-page px-4 py-8 md:px-8">
+    <div class="max-w-md rounded-2xl border border-red-900/50 bg-red-950/20 p-6">
+      <p class="text-red-300">{{ vm.message }}</p>
+      <button
+        type="button"
+        class="sid-btn sid-btn-neutral mt-4 rounded-xl border-slate-600 px-4 py-2 text-sm"
+        (click)="volverLista()"
+      >
+        Volver
+      </button>
+    </div>
   </div>
 } @else if (vm.status === 'list') {
   @let s = stats(vm.carros);
-  <div class="w-full min-w-0 px-4 py-4 md:px-8 lg:px-10 xl:px-12 md:py-6">
-    <div class="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 class="mb-1 text-2xl font-bold md:text-3xl">Gestión de Carros</h1>
-        <p class="text-sm text-gray-400 md:text-base">Control de unidades operativas</p>
-      </div>
-      <p class="text-xs text-gray-500">Unidades y mantención centralizados en una sola vista</p>
-    </div>
+  <div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 md:px-8 lg:px-10 xl:px-12 md:py-6">
+    <section
+      class="relative overflow-hidden rounded-2xl border border-red-900/40 bg-[radial-gradient(circle_at_0%_0%,rgba(220,38,38,0.18),transparent_45%),radial-gradient(circle_at_100%_0%,rgba(59,130,246,0.1),transparent_42%),#0a0a0a] p-5 sm:p-6"
+    >
+      <p class="mb-2 inline-flex rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs text-red-200">Flota operativa</p>
+      <h1 class="text-2xl font-bold text-white md:text-3xl">Gestión de carros</h1>
+      <p class="mt-1 max-w-2xl text-sm text-slate-300 md:text-base">Control de unidades, mantención e historial en una sola vista</p>
+    </section>
 
-    <div class="mb-6 grid w-full grid-cols-1 gap-3 min-[480px]:grid-cols-3 min-[480px]:gap-4">
+    <div class="mb-2 grid w-full grid-cols-1 gap-3 min-[480px]:grid-cols-3 min-[480px]:gap-4">
       @for (t of tarjetasResumenFleet(s); track t.key) {
         <div
-          class="flex min-h-[4.5rem] min-w-0 items-center gap-4 rounded-xl border bg-[#121212] p-4"
+          class="flex min-h-[4.5rem] min-w-0 items-center gap-4 rounded-2xl border border-slate-800/80 bg-[#121212] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5"
           [ngClass]="t.border"
         >
           <div
-            class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#1a1a1a] ring-1 ring-gray-800"
+            class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#1a1a1a] ring-1 ring-gray-700/80"
           >
             <lucide-icon [name]="t.icon" class="h-6 w-6" [ngClass]="t.iconColor" [size]="24" color="currentColor"></lucide-icon>
           </div>
           <div class="min-w-0 flex-1">
-            <p class="text-2xl font-bold leading-tight">{{ t.valor }}</p>
-            <p class="text-xs text-gray-400 md:text-sm">{{ t.etiqueta }}</p>
+            <p class="text-2xl font-bold leading-tight tabular-nums text-white">{{ t.valor }}</p>
+            <p class="text-xs text-slate-400 md:text-sm">{{ t.etiqueta }}</p>
           </div>
         </div>
       }
     </div>
 
     @if (vm.carros.length === 0) {
-      <p class="text-gray-400">No hay carros en la base de datos. Ejecuta la migración y el seed en el backend.</p>
+      <p class="rounded-2xl border border-dashed border-slate-700 bg-[#121212] px-4 py-8 text-center text-slate-400">No hay carros en la base de datos. Ejecuta la migración y el seed en el backend.</p>
     }
 
     <div class="mb-8 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 xl:gap-5 [&>*]:min-w-0">
       @for (carro of vm.carros; track carro.id) {
         <div
-          class="group flex h-full min-h-[380px] flex-col overflow-hidden rounded-xl border border-gray-800 bg-[#121212] shadow-sm transition-colors hover:border-red-900/50"
+          class="group flex h-full min-h-[380px] flex-col overflow-hidden rounded-2xl border border-slate-800/90 bg-[#121212] shadow-lg shadow-black/25 ring-1 ring-inset ring-white/5 transition-all duration-200 hover:border-red-800/60 hover:shadow-red-950/20"
         >
           <div class="relative h-40 overflow-hidden sm:h-44">
             <img
@@ -58,6 +63,7 @@
               [alt]="tituloMostrar(carro)"
               class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               loading="lazy"
+              (error)="onImageError($event, carro)"
             />
             <div class="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
             <div class="absolute right-4 top-4">
@@ -110,27 +116,27 @@
             </div>
             <button
               type="button"
-              class="mt-auto w-full rounded-lg bg-red-600 py-3 font-medium text-white transition-colors hover:bg-red-700"
+              class="sid-btn sid-btn-primary mt-auto w-full rounded-xl py-3 font-semibold shadow-md shadow-red-900/20 transition-all hover:shadow-lg"
               (click)="verDetalle(carro)"
             >
-              Ver Detalles
+              Ver detalles
             </button>
           </div>
         </div>
       }
     </div>
 
-    <section class="w-full rounded-xl border border-gray-800 bg-[#121212] p-4 md:p-6">
-      <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <section class="sid-history-card w-full p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 md:p-6">
+      <div class="sid-history-head mb-4">
         <div>
-          <h2 class="text-lg font-bold">Historial general de mantención</h2>
-          <p class="text-xs text-gray-500 md:text-sm">
+          <h2 class="sid-history-title">Historial general de mantención</h2>
+          <p class="sid-history-subtitle md:text-sm">
             Registros archivados al guardar cambios (todas las unidades). Usa filtros para acotar por fechas o unidad.
           </p>
         </div>
         <button
           type="button"
-          class="shrink-0 rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-gray-100 hover:bg-gray-700"
+          class="sid-btn sid-btn-neutral shrink-0 rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-gray-100 hover:bg-gray-700"
           (click)="cargarHistorialGeneral()"
         >
           Actualizar
@@ -142,7 +148,7 @@
           <span class="text-xs text-gray-500">Unidad</span>
           <select
             [(ngModel)]="filtroUnidadHistorial"
-            class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white"
+            class="sid-history-filter"
           >
             <option [ngValue]="'TODAS'">Todas</option>
             @for (c of vm.carros; track c.id) {
@@ -155,7 +161,7 @@
           <input
             type="date"
             [(ngModel)]="filtroHistorialDesde"
-            class="dark-date-input rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white"
+            class="sid-history-filter dark-date-input"
           />
         </label>
         <label class="flex min-w-[10rem] flex-col gap-1 text-sm">
@@ -163,12 +169,12 @@
           <input
             type="date"
             [(ngModel)]="filtroHistorialHasta"
-            class="dark-date-input rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white"
+            class="sid-history-filter dark-date-input"
           />
         </label>
         <button
           type="button"
-          class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+          class="sid-btn sid-btn-primary rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
           (click)="aplicarFiltrosHistorialGeneral()"
         >
           Aplicar filtros
@@ -182,45 +188,45 @@
           Sin registros en el rango seleccionado.
         </p>
       } @else {
-        <div class="overflow-x-auto rounded-lg border border-gray-800">
-          <table class="min-w-full divide-y divide-gray-800 text-sm">
-            <thead class="bg-[#0a0a0a] text-left text-xs uppercase text-gray-500">
+        <div class="sid-history-wrap overflow-x-auto">
+          <table class="sid-history-table min-w-full text-sm">
+            <thead>
               <tr>
-                <th class="px-3 py-2">Guardado</th>
-                <th class="px-3 py-2">Unidad</th>
-                <th class="px-3 py-2">Inspector</th>
-                <th class="px-3 py-2 hidden md:table-cell">Inspección</th>
-                <th class="px-3 py-2 hidden lg:table-cell">Próx. mant.</th>
-                <th class="px-3 py-2 text-right">Acciones</th>
+                <th>Guardado</th>
+                <th>Unidad</th>
+                <th>Inspector</th>
+                <th class="hidden md:table-cell">Inspección</th>
+                <th class="hidden lg:table-cell">Próx. mant.</th>
+                <th class="text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-gray-800 bg-[#121212]">
+            <tbody class="bg-[#121212]">
               @for (row of historialGeneralPaginado(); track row.id) {
-                <tr class="hover:bg-[#1a1a1a]">
-                  <td class="whitespace-nowrap px-3 py-2 text-gray-300">{{ fechaHora(row.creadoEn) }}</td>
-                  <td class="px-3 py-2 font-medium text-white">
+                <tr>
+                  <td class="whitespace-nowrap text-gray-300">{{ fechaHora(row.creadoEn) }}</td>
+                  <td class="font-medium text-white">
                     {{ row.carro.nomenclatura }}
                     <span class="block text-xs font-normal text-gray-500">{{ row.carro.nombre || '—' }}</span>
                   </td>
-                  <td class="px-3 py-2 text-gray-300">{{ row.ultimoInspector || '—' }}</td>
-                  <td class="hidden whitespace-nowrap px-3 py-2 text-gray-400 md:table-cell">
+                  <td class="text-gray-300">{{ row.ultimoInspector || '—' }}</td>
+                  <td class="hidden whitespace-nowrap text-gray-400 md:table-cell">
                     {{ fechaCorta(row.fechaUltimaInspeccion) }}
                   </td>
-                  <td class="hidden whitespace-nowrap px-3 py-2 text-gray-400 lg:table-cell">
+                  <td class="hidden whitespace-nowrap text-gray-400 lg:table-cell">
                     {{ fechaCorta(row.proximoMantenimiento) }}
                   </td>
-                  <td class="px-3 py-2 text-right">
+                  <td class="text-right">
                     <div class="flex flex-wrap justify-end gap-2">
                       <button
                         type="button"
-                        class="rounded-lg bg-gray-700 px-2 py-1.5 text-xs text-white hover:bg-gray-600"
+                        class="sid-btn sid-btn-neutral rounded-lg bg-gray-700 px-2 py-1.5 text-xs text-white hover:bg-gray-600"
                         (click)="irADetalleCarro(row.carro.id)"
                       >
                         Ver unidad
                       </button>
                       <button
                         type="button"
-                        class="rounded-lg bg-red-600 px-2 py-1.5 text-xs text-white hover:bg-red-700"
+                        class="sid-btn sid-btn-primary rounded-lg bg-red-600 px-2 py-1.5 text-xs text-white hover:bg-red-700"
                         (click)="pdfHistorialGeneral(row)"
                       >
                         PDF
@@ -233,14 +239,14 @@
           </table>
         </div>
         <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p class="text-xs text-gray-500">
+          <p class="text-xs sid-muted">
             Página {{ paginaHistorialGeneral }} de {{ totalPaginasHistorialGeneral() }} ·
             {{ historialGeneralFilas.length }} registro(s)
           </p>
           <div class="flex gap-2">
             <button
               type="button"
-              class="rounded-lg border border-gray-600 bg-gray-800 px-3 py-1.5 text-sm disabled:opacity-40"
+              class="sid-btn sid-btn-neutral rounded-lg border border-gray-600 bg-gray-800 px-3 py-1.5 text-sm disabled:opacity-40"
               [disabled]="paginaHistorialGeneral <= 1"
               (click)="cambiarPaginaHistorialGeneral(-1)"
             >
@@ -248,7 +254,7 @@
             </button>
             <button
               type="button"
-              class="rounded-lg border border-gray-600 bg-gray-800 px-3 py-1.5 text-sm disabled:opacity-40"
+              class="sid-btn sid-btn-neutral rounded-lg border border-gray-600 bg-gray-800 px-3 py-1.5 text-sm disabled:opacity-40"
               [disabled]="paginaHistorialGeneral >= totalPaginasHistorialGeneral()"
               (click)="cambiarPaginaHistorialGeneral(1)"
             >
@@ -261,34 +267,35 @@
   </div>
 } @else if (vm.status === 'detail') {
   @let c = vm.carro;
-  <div class="w-full min-w-0 px-4 py-4 md:px-8 lg:px-10 xl:px-12 md:py-6">
+  <div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 md:px-8 lg:px-10 xl:px-12 md:py-6">
     <button
       type="button"
-      class="mb-6 inline-flex items-center gap-2 text-gray-400 transition-colors hover:text-white"
+      class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212] px-4 py-2.5 text-sm text-slate-300 shadow-sm ring-1 ring-inset ring-white/5 transition-all hover:border-slate-600 hover:text-white"
       (click)="volverLista()"
     >
       <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-      Volver a Carros
+      Volver a carros
     </button>
 
-    <div class="space-y-4 md:space-y-5">
-      <div class="overflow-hidden rounded-xl border border-gray-800 bg-[#121212]">
+    <div class="space-y-5 md:space-y-6">
+      <div class="overflow-hidden rounded-2xl border border-slate-800/90 bg-[#121212] shadow-lg shadow-black/25 ring-1 ring-inset ring-white/5">
         <div class="relative h-52 md:h-72">
           <img
             [src]="imagenCarro(c)"
             [alt]="tituloMostrar(c)"
             class="h-full w-full object-cover"
             loading="lazy"
+            (error)="onImageError($event, c)"
           />
           <div class="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent"></div>
           <div class="absolute bottom-0 left-0 right-0 p-6 md:p-8">
             <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div>
-                <h1 class="mb-2 text-3xl font-bold md:text-4xl">{{ c.nomenclatura }}</h1>
-                <p class="text-lg text-gray-300 md:text-xl">{{ tituloMostrar(c) }}</p>
+                <h1 class="mb-2 text-3xl font-bold text-white drop-shadow-sm md:text-4xl">{{ c.nomenclatura }}</h1>
+                <p class="text-lg text-slate-200 md:text-xl">{{ tituloMostrar(c) }}</p>
               </div>
               <span
-                class="inline-flex items-center gap-2 rounded-lg bg-gray-900/80 px-4 py-2 font-medium"
+                class="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/50 px-4 py-2 text-sm font-medium shadow-lg backdrop-blur-sm"
                 [ngClass]="estadoClaseTexto(c)"
               >
                 @if (c.estadoOperativo) {
@@ -303,41 +310,41 @@
         </div>
 
         <div class="p-4 md:p-6">
-          <h2 class="mb-4 text-lg font-bold md:text-xl">Información General</h2>
+          <h2 class="mb-4 text-lg font-bold text-white md:text-xl">Información general</h2>
           <div class="mb-6 grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3">
-            <div class="rounded-lg border border-gray-800 bg-[#0a0a0a] p-3 md:p-4">
-              <p class="mb-1 text-sm text-gray-400">Patente</p>
-              <p class="text-lg font-bold">{{ c.patente }}</p>
+            <div class="rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-3 ring-1 ring-inset ring-white/5 md:p-4">
+              <p class="mb-1 text-sm text-slate-500">Patente</p>
+              <p class="text-lg font-bold text-white">{{ c.patente }}</p>
             </div>
-            <div class="rounded-lg border border-gray-800 bg-[#0a0a0a] p-3 md:p-4">
-              <p class="mb-1 text-sm text-gray-400">Marca / Modelo</p>
-              <p class="text-lg font-bold">{{ c.marca || '—' }}</p>
+            <div class="rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-3 ring-1 ring-inset ring-white/5 md:p-4">
+              <p class="mb-1 text-sm text-slate-500">Marca / modelo</p>
+              <p class="text-lg font-bold text-white">{{ c.marca || '—' }}</p>
             </div>
-            <div class="rounded-lg border border-gray-800 bg-[#0a0a0a] p-3 md:p-4">
-              <p class="mb-1 text-sm text-gray-400">Año</p>
-              <p class="text-lg font-bold">{{ c.anioFabricacion ?? '—' }}</p>
+            <div class="rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-3 ring-1 ring-inset ring-white/5 md:p-4">
+              <p class="mb-1 text-sm text-slate-500">Año</p>
+              <p class="text-lg font-bold text-white">{{ c.anioFabricacion ?? '—' }}</p>
             </div>
-            <div class="rounded-lg border border-gray-800 bg-[#0a0a0a] p-3 md:p-4">
-              <p class="mb-1 text-sm text-gray-400">Capacidad Agua</p>
-              <p class="flex items-center gap-2 text-lg font-bold">
-                <lucide-icon name="droplet" class="h-5 w-5 text-blue-500" [size]="20" color="currentColor"></lucide-icon>
+            <div class="rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-3 ring-1 ring-inset ring-white/5 md:p-4">
+              <p class="mb-1 text-sm text-slate-500">Capacidad agua</p>
+              <p class="flex items-center gap-2 text-lg font-bold text-white">
+                <lucide-icon name="droplet" class="h-5 w-5 text-sky-500" [size]="20" color="currentColor"></lucide-icon>
                 {{ c.capacidadAgua || '—' }}
               </p>
             </div>
-            <div class="rounded-lg border border-gray-800 bg-[#0a0a0a] p-3 md:p-4">
-              <p class="mb-1 text-sm text-gray-400">Kilometraje</p>
-              <p class="text-lg font-bold">{{ kmTexto(c.kilometraje) }}</p>
+            <div class="rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-3 ring-1 ring-inset ring-white/5 md:p-4">
+              <p class="mb-1 text-sm text-slate-500">Kilometraje</p>
+              <p class="text-lg font-bold text-white">{{ kmTexto(c.kilometraje) }}</p>
             </div>
-            <div class="rounded-lg border border-gray-800 bg-[#0a0a0a] p-3 md:p-4">
-              <p class="mb-1 text-sm text-gray-400">Último Conductor</p>
-              <p class="flex items-center gap-2 text-lg font-bold">
-                <lucide-icon name="user" class="h-5 w-5 text-gray-400" [size]="20" color="currentColor"></lucide-icon>
+            <div class="rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-3 ring-1 ring-inset ring-white/5 md:p-4">
+              <p class="mb-1 text-sm text-slate-500">Último conductor</p>
+              <p class="flex items-center gap-2 text-lg font-bold text-white">
+                <lucide-icon name="user" class="h-5 w-5 text-slate-500" [size]="20" color="currentColor"></lucide-icon>
                 {{ c.ultimoConductor || c.conductorAsignado || '—' }}
               </p>
             </div>
           </div>
 
-          <h2 class="mb-4 text-lg font-bold md:text-xl">Mantenimiento</h2>
+          <h2 class="mb-4 text-lg font-bold text-white md:text-xl">Mantenimiento</h2>
           @if (alertaMantenimiento(c) || alertaRevisionTecnica(c) || alertaPermisoCirculacion(c)) {
             <div class="mb-4 rounded-lg border border-yellow-600/40 bg-yellow-950/20 p-3 md:p-4">
               @if (alertaMantenimiento(c); as alertaMant) {
@@ -351,11 +358,11 @@
               }
             </div>
           }
-          <div class="rounded-xl border border-gray-800 bg-[#0a0a0a] p-4 sm:p-5">
+          <div class="rounded-2xl border border-slate-800/80 bg-[#0a0a0a] p-4 shadow-inner ring-1 ring-inset ring-white/5 sm:p-5">
             <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p class="text-base font-bold md:text-lg">Registro de mantención e inspección</p>
-                <p class="text-xs text-gray-400 sm:text-sm">Fechas, inspector, firma manuscrita y observaciones.</p>
+                <p class="text-base font-bold text-white md:text-lg">Registro de mantención e inspección</p>
+                <p class="text-xs text-slate-500 sm:text-sm">Fechas, inspector, firma manuscrita y observaciones</p>
               </div>
               <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                 <button

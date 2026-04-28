@@ -410,6 +410,13 @@ export class UsuariosComponent implements OnInit {
     return this.etiquetasCargo[codigo] ?? codigo;
   }
 
+  etiquetaTipoVoluntario(tipo: string | null | undefined): string {
+    if (!tipo) {
+      return 'Sin categoría';
+    }
+    return this.etiquetasTipoVoluntario[tipo] ?? tipo;
+  }
+
   get filtrados(): UsuarioListaDto[] {
     const term = this.busqueda.trim().toLowerCase();
     if (!term) {

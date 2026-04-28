@@ -59,6 +59,12 @@ export const loadConfiguracionesComponent = () =>
 export const loadCambiarPasswordInicialComponent = () =>
   import('../pages/auth/cambiar-password-inicial.component').then((m) => m.CambiarPasswordInicialComponent);
 
+export const loadLicenciasPageComponent = () =>
+  import('../pages/licencias/licencias-page.component').then((m) => m.LicenciasPageComponent);
+
+export const loadAnaliticaPageComponent = () =>
+  import('../pages/analitica/analitica-page.component').then((m) => m.AnaliticaPageComponent);
+
 /** Pantallas “próximamente” reutilizables. */
 export function rutaPlaceholder(title: string) {
   return {

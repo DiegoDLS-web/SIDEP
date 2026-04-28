@@ -40,6 +40,10 @@ export const CARGOS_OFICIALIDAD_ORDEN = [
 ] as const;
 
 export const ETIQUETAS_TIPO_VOLUNTARIO: Record<string, string> = {
+  VOLUNTARIO: 'Voluntario',
+  OFICIAL: 'Oficial',
+  CADETE: 'Cadete',
+  ASPIRANTE: 'Aspirante',
   ACTIVO: 'Activo',
   HONORARIO: 'Honorario',
   CUARTELERO: 'Cuartelero',
@@ -49,6 +53,10 @@ export const ETIQUETAS_TIPO_VOLUNTARIO: Record<string, string> = {
 };
 
 export const TIPOS_VOLUNTARIO_ORDEN = [
+  'VOLUNTARIO',
+  'OFICIAL',
+  'CADETE',
+  'ASPIRANTE',
   'ACTIVO',
   'HONORARIO',
   'CUARTELERO',

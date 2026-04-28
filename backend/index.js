@@ -17,6 +17,7 @@ const auth_js_1 = require("./routes/auth.js");
 const auditoria_js_1 = require("./routes/auditoria.js");
 const reportes_js_1 = require("./routes/reportes.js");
 const dashboard_js_1 = require("./routes/dashboard.js");
+const licencias_js_1 = require("./routes/licencias.js");
 const auth_js_2 = require("./middleware/auth.js");
 const roles_js_2 = require("./middleware/roles.js");
 const app = (0, express_1.default)();
@@ -89,6 +90,7 @@ app.use('/api/checklists', auth_js_2.requireAuth, checklists_js_1.checklistsRout
 app.use('/api/bolsos-trauma', auth_js_2.requireAuth, bolsos_trauma_js_1.bolsosTraumaRouter);
 app.use('/api/reportes', auth_js_2.requireAuth, (0, roles_js_2.requireRoles)('ADMIN', 'CAPITAN', 'TENIENTE'), reportes_js_1.reportesRouter);
 app.use('/api/dashboard', auth_js_2.requireAuth, dashboard_js_1.dashboardRouter);
+app.use('/api/licencias', auth_js_2.requireAuth, licencias_js_1.licenciasRouter);
 app.get('/api/carros', auth_js_2.requireAuth, async (_req, res) => {
     try {
         const carros = await prisma_js_1.prisma.carro.findMany({ orderBy: { nomenclatura: 'asc' } });

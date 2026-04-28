@@ -23,6 +23,14 @@ export class LoginComponent {
   recordarme = false;
   loading = false;
   error: string | null = null;
+  logoSrc = '/assets/logos/sidep-logo.png';
+  private logoFallbackIntentado = false;
+
+  onLogoError(): void {
+    if (this.logoFallbackIntentado) return;
+    this.logoFallbackIntentado = true;
+    this.logoSrc = '/assets/logos/compania-logo.png';
+  }
 
   submit(): void {
     if (!this.email.trim() || !this.password) {

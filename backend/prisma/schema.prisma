@@ -46,6 +46,8 @@ model Usuario {
   password         String
   partesObac       ParteEmergencia[]  @relation("ObacRelation")
   checklists       ChecklistCarro[]
+  licenciasMedicas            LicenciaMedica[] @relation("LicenciaSolicitante")
+  licenciasResueltas          LicenciaMedica[] @relation("LicenciaResueltaPor")
   actividades      ActividadUsuario[]
   passwordResets   PasswordResetToken[]
 }
@@ -197,4 +199,25 @@ model PasswordResetToken {
   usedAt           DateTime?
   createdAt        DateTime @default(now())
   usuario          Usuario  @relation(fields: [usuarioId], references: [id])
+}
+
+model LicenciaMedica {
+  id                    Int      @id @default(autoincrement())
+  usuarioId             Int
+  fechaInicio           DateTime
+  fechaTermino          DateTime
+  motivo                String   @db.Text
+  archivoUrl            String?  @db.Text
+  estado                String   @default("PENDIENTE")
+  observacionResolucion String?  @db.Text
+  resueltoPorId         Int?
+  resueltoEn            DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  usuario    Usuario @relation("LicenciaSolicitante", fields: [usuarioId], references: [id], onDelete: Cascade)
+  resueltoPor Usuario? @relation("LicenciaResueltaPor", fields: [resueltoPorId], references: [id], onDelete: SetNull)
+
+  @@index([usuarioId, fechaInicio, fechaTermino])
+  @@index([estado, fechaInicio, fechaTermino])
 }

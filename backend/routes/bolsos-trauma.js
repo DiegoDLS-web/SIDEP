@@ -83,7 +83,7 @@ exports.bolsosTraumaRouter.get('/historial', async (req, res) => {
             where,
             orderBy: { fecha: 'desc' },
             include: includeChecklist,
-            take: 200,
+            take: 2000,
         });
         const out = rows.map((r) => {
             const det = r.detalle;

@@ -7,6 +7,7 @@ import {
   loadBolsoTraumaComponent,
   loadBolsoTraumaRegistroComponent,
   loadBolsoTraumaShellComponent,
+  loadAnaliticaPageComponent,
   loadCambiarPasswordInicialComponent,
   loadCarrosPageComponent,
   loadChecklistEraComponent,
@@ -16,6 +17,7 @@ import {
   loadDashboardComponent,
   loadLoginComponent,
   loadMainLayoutComponent,
+  loadLicenciasPageComponent,
   loadParteDetalleComponent,
   loadParteNuevoComponent,
   loadPartesListaComponent,
@@ -111,6 +113,18 @@ export const routes: Routes = [
       {
         path: 'cambiar-password-inicial',
         loadComponent: loadCambiarPasswordInicialComponent,
+      },
+      {
+        path: 'licencias',
+        loadComponent: loadLicenciasPageComponent,
+      },
+      {
+        path: 'licencias-medicas',
+        loadComponent: loadLicenciasPageComponent,
+      },
+      {
+        path: 'analitica-operacional',
+        loadComponent: loadAnaliticaPageComponent,
       },
     ],
   },

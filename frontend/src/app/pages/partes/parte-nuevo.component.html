@@ -1,66 +1,93 @@
-<div class="min-h-screen bg-[#0a0a0a] pb-6 text-white lg:pb-36">
+<div class="sid-page min-h-screen bg-[#0a0a0a] pb-6 text-white lg:pb-36">
   @if (loading) {
-    <div class="mx-auto w-full min-w-0 max-w-none p-6">
-      <p class="text-lg text-gray-400">Preparando formulario…</p>
+    <div class="mx-auto flex min-h-[40vh] w-full min-w-0 max-w-none flex-col items-center justify-center gap-3 p-6 text-slate-400">
+      <lucide-icon name="file-text" class="h-10 w-10 animate-pulse text-rose-500" [size]="40" color="currentColor" />
+      <p class="text-sm">Preparando formulario…</p>
     </div>
   } @else if (error) {
-    <div class="mx-auto w-full min-w-0 max-w-none p-6">
-      <p class="text-lg text-red-400">{{ error }}</p>
-      <a routerLink="/partes" class="mt-4 inline-flex items-center gap-2 text-gray-400 hover:text-white">
+    <div class="mx-auto w-full min-w-0 max-w-none space-y-4 p-6">
+      <p class="max-w-md rounded-2xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ error }}</p>
+      <a
+        routerLink="/partes"
+        class="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-[#121212] px-4 py-2.5 text-slate-300 ring-1 ring-inset ring-white/5"
+      >
         <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
         Volver
       </a>
     </div>
   } @else {
     <!-- Barra superior -->
-    <header class="border-b border-gray-800/80 bg-[#0a0a0a]/95 backdrop-blur lg:sticky lg:top-0 lg:z-20">
-      <div class="mx-auto flex w-full min-w-0 max-w-none flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 md:px-8 lg:px-10 xl:px-12">
-        <a routerLink="/partes" class="inline-flex items-center gap-2 text-sm text-gray-400 transition-colors hover:text-white">
-          <lucide-icon name="arrow-left" class="h-4 w-4 shrink-0" [size]="16" color="currentColor"></lucide-icon>
-          Partes
-        </a>
-        <div class="text-right sm:text-left">
-          <h1 class="text-lg font-bold leading-tight sm:text-xl">Nuevo parte</h1>
-          <p class="text-xs text-gray-500 sm:text-sm">SIDEP · 1ª Cía. Santa Juana</p>
+    <header
+      class="border-b border-slate-800/80 bg-[#0a0a0a]/95 backdrop-blur lg:sticky lg:top-0 lg:z-20"
+    >
+      <div
+        class="relative overflow-hidden border-b border-rose-900/25 bg-[radial-gradient(ellipse_at_50%_0%,rgba(244,63,94,0.12),transparent_55%),#0a0a0a]"
+      >
+        <div class="mx-auto flex w-full min-w-0 max-w-none flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 md:px-8 lg:px-10 xl:px-12">
+          <a
+            routerLink="/partes"
+            class="inline-flex w-fit min-w-0 -translate-y-0.5 items-center gap-2 rounded-xl border border-slate-700/80 bg-[#121212] px-3 py-2 text-sm text-slate-300 ring-1 ring-inset ring-white/5 transition-all hover:border-slate-500 hover:text-white sm:translate-y-0"
+          >
+            <lucide-icon name="arrow-left" class="h-4 w-4 shrink-0" [size]="16" color="currentColor"></lucide-icon>
+            Partes
+          </a>
+          <div class="min-w-0 sm:text-left">
+            <p class="mb-1 text-[10px] font-medium uppercase tracking-wide text-rose-200/80 sm:text-xs">Nuevo registro</p>
+            <h1 class="inline-flex items-center gap-2 text-lg font-bold leading-tight text-white sm:text-xl">
+              <lucide-icon name="file-text" class="h-5 w-5 text-rose-400" [size]="20" color="currentColor"></lucide-icon>
+              Nuevo parte de emergencia
+            </h1>
+            <p class="text-xs text-slate-500 sm:text-sm">SIDEP · 1ª Cía. Santa Juana</p>
+          </div>
         </div>
       </div>
       <!-- Progreso -->
-      <div class="mx-auto w-full min-w-0 max-w-none px-4 pb-3 sm:px-6 md:px-8 lg:px-10 xl:px-12">
+      <div class="mx-auto w-full min-w-0 max-w-none px-4 pb-3 pt-2 sm:px-6 md:px-8 lg:px-10 xl:px-12">
         <div class="flex items-center gap-2 overflow-x-auto pb-1 sm:justify-between">
           @for (p of pasosVisibles; track p; let i = $index) {
             <button
               type="button"
-              class="flex min-w-[4.25rem] flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-2 transition-colors sm:min-w-0 sm:px-2"
-              [class.bg-red-600/20]="i === pasoIdx"
-              [class.text-red-400]="i === pasoIdx"
-              [class.text-gray-500]="i !== pasoIdx"
+              class="flex min-w-[4.25rem] flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-2 transition-all sm:min-w-0 sm:px-2"
+              [class.border]="i === pasoIdx"
+              [class.border-rose-500/40]="i === pasoIdx"
+              [class.bg-rose-600/15]="i === pasoIdx"
+              [class.text-rose-200]="i === pasoIdx"
+              [class.text-slate-500]="i !== pasoIdx"
               (click)="irAPaso(i)"
             >
               <span
-                class="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold sm:h-9 sm:w-9 sm:text-sm"
+                class="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold shadow-sm sm:h-9 sm:w-9 sm:text-sm"
                 [class.bg-red-600]="i === pasoIdx"
                 [class.text-white]="i === pasoIdx"
-                [class.bg-gray-800]="i !== pasoIdx"
+                [class.bg-slate-800]="i !== pasoIdx"
+                [class.ring-1]="i === pasoIdx"
+                [class.ring-rose-400/50]="i === pasoIdx"
                 >{{ i + 1 }}</span
               >
-              <span class="max-w-[4.75rem] truncate text-center text-[9px] leading-tight sm:max-w-[5.25rem] sm:text-[10px]">{{ etiquetaCortaPaso(p) }}</span>
+              <span
+                class="max-w-[4.75rem] truncate text-center text-[9px] leading-tight sm:max-w-[5.25rem] sm:text-[10px]"
+                >{{ etiquetaCortaPaso(p) }}</span
+              >
             </button>
           }
         </div>
-        <p class="mt-2 text-center text-sm font-medium text-gray-300">{{ tituloPaso }}</p>
+        <p class="mt-2 text-center text-sm font-medium text-slate-300">{{ tituloPaso }}</p>
       </div>
     </header>
 
-    <main class="mx-auto w-full min-w-0 max-w-none px-4 pt-4 sm:px-6 md:px-8 lg:px-10 xl:px-12">
+    <main class="mx-auto w-full min-w-0 max-w-none space-y-4 px-4 pt-4 sm:px-6 md:px-8 lg:px-10 xl:px-12">
       @if (guardadoError) {
         <div class="mb-4 rounded-xl border border-red-800/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
           {{ guardadoError }}
         </div>
       }
 
-      <div class="rounded-2xl border border-gray-800 bg-[#121212] p-4 shadow-xl sm:p-6">
-        <p class="mb-4 text-xs text-gray-500">
-          <span class="text-red-400" aria-hidden="true">*</span> Indica campos obligatorios para <span class="text-gray-400">registrar</span> el parte completo (el borrador es más flexible).
+      <div
+        class="rounded-2xl border border-slate-800/90 bg-[#121212] p-4 shadow-2xl shadow-black/30 ring-1 ring-inset ring-white/5 sm:p-6"
+      >
+        <p class="mb-4 text-xs text-slate-500">
+          <span class="text-rose-400" aria-hidden="true">*</span> Campos obligatorios para
+          <span class="text-slate-400">registrar</span> el parte completo (el borrador es más flexible).
         </p>
         @switch (pasoActualId) {
           @case ('basicos') {
@@ -82,6 +109,7 @@
                       #fechaInput
                       type="date"
                       [(ngModel)]="fechaDia"
+                      (ngModelChange)="onFechaAsistenciaChange()"
                       name="fechaDia"
                       [style.color-scheme]="'dark'"
                       class="min-h-[48px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-4 py-3 pr-11 text-base text-white focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
@@ -151,19 +179,6 @@
                   />
                 </div>
               </div>
-              <div class="rounded-xl border border-gray-800/80 bg-[#0a0a0a]/50 p-3">
-                <label class="mb-1.5 block text-sm font-medium text-gray-400"
-                  >Hora referencia del parte (sistema) <span class="text-red-400" aria-hidden="true">*</span></label
-                >
-                <input
-                  type="time"
-                  [(ngModel)]="horaIncidente"
-                  name="horaIncidente"
-                  class="min-h-[44px] w-full max-w-xs rounded-xl border border-gray-700 bg-[#0a0a0a] px-4 py-2 text-base text-white focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-                />
-                <p class="mt-1 text-xs text-gray-500">Define fecha/hora registrada del parte en SIDEP (distinta de 6-0…6-10 por unidad). Obligatoria para registrar con fecha válida.</p>
-              </div>
-
               <div class="space-y-4 border-t border-gray-800 pt-4">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                   <h3 class="flex items-center gap-2 text-base font-semibold">
@@ -345,9 +360,9 @@
                           <span class="text-sm font-medium text-gray-400">Paciente {{ i + 1 }}</span>
                           <button type="button" class="text-sm text-red-400 hover:text-red-300" (click)="quitarPaciente(i)">Quitar</button>
                         </div>
-                        <div class="grid gap-3 sm:grid-cols-2">
+                        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                           <div class="sm:col-span-2">
-                            <label class="mb-1 block text-xs text-gray-500">Nombre</label>
+                            <label class="mb-1 block text-xs text-gray-500">Nombre <span class="text-red-400">*</span></label>
                             <input
                               [(ngModel)]="p.nombre"
                               [name]="'pn_' + i"
@@ -355,7 +370,7 @@
                             />
                           </div>
                           <div>
-                            <label class="mb-1 block text-xs text-gray-500">Edad</label>
+                            <label class="mb-1 block text-xs text-gray-500">Edad <span class="text-red-400">*</span></label>
                             <input
                               type="number"
                               inputmode="numeric"
@@ -365,24 +380,35 @@
                             />
                           </div>
                           <div>
-                            <label class="mb-1 block text-xs text-gray-500">RUT</label>
+                            <label class="mb-1 block text-xs text-gray-500">RUT <span class="text-red-400">*</span></label>
                             <input
                               [(ngModel)]="p.rut"
+                              (ngModelChange)="onPacienteRutInput(i, $event)"
                               [name]="'pr_' + i"
+                              placeholder="12.345.678-5"
                               class="min-h-[48px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-3 py-3 text-base"
                             />
                           </div>
-                          <div class="sm:col-span-2">
-                            <label class="mb-1 block text-xs text-gray-500">Estado (START)</label>
-                            <select
-                              [(ngModel)]="p.triage"
-                              [name]="'pt_' + i"
-                              class="min-h-[48px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-3 py-3 text-base"
-                            >
-                              @for (t of triageOpciones; track t.v) {
-                                <option [value]="t.v">{{ t.l }}</option>
-                              }
-                            </select>
+                          <div class="lg:col-span-2">
+                            <label class="mb-1 block text-xs text-gray-500">Estado (START) <span class="text-red-400">*</span></label>
+                            <div class="grid grid-cols-[auto_1fr] items-center gap-2 rounded-xl border border-gray-700 bg-[#0a0a0a] px-3">
+                              <span class="inline-flex h-3 w-3 rounded-full" [ngClass]="{
+                                'bg-emerald-400': p.triage === 'VERDE',
+                                'bg-amber-400': p.triage === 'AMARILLO',
+                                'bg-red-500': p.triage === 'ROJO',
+                                'bg-gray-400': p.triage === 'NEGRO'
+                              }"></span>
+                              <select
+                                [(ngModel)]="p.triage"
+                                [name]="'pt_' + i"
+                                class="min-h-[48px] w-full bg-transparent py-3 text-base"
+                                [ngClass]="triageClass(p.triage)"
+                              >
+                                @for (t of triageOpciones; track t.v) {
+                                  <option [value]="t.v">{{ t.l }}</option>
+                                }
+                              </select>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -415,11 +441,11 @@
                         <button type="button" class="text-xs text-red-400" (click)="quitarVehiculo(i)">Quitar</button>
                       </div>
                       <div class="grid gap-2 sm:grid-cols-2">
-                        <input [(ngModel)]="v.tipo" placeholder="Tipo" [name]="'vt_' + i" class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm" />
-                        <input [(ngModel)]="v.patente" placeholder="Patente" [name]="'vp_' + i" class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm" />
-                        <input [(ngModel)]="v.marca" placeholder="Marca" [name]="'vm_' + i" class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm" />
-                        <input [(ngModel)]="v.conductor" placeholder="Conductor" [name]="'vc_' + i" class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm" />
-                        <input [(ngModel)]="v.rut" placeholder="RUT" [name]="'vr_' + i" class="sm:col-span-2 rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm" />
+                        <input [(ngModel)]="v.tipo" placeholder="Tipo *" [name]="'vt_' + i" class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm" />
+                        <input [(ngModel)]="v.patente" (ngModelChange)="onVehiculoPatenteInput(i, $event)" placeholder="Patente * (AB-CD34)" [name]="'vp_' + i" class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm" />
+                        <input [(ngModel)]="v.marca" placeholder="Marca *" [name]="'vm_' + i" class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm" />
+                        <input [(ngModel)]="v.conductor" placeholder="Conductor *" [name]="'vc_' + i" class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm" />
+                        <input [(ngModel)]="v.rut" (ngModelChange)="onVehiculoRutInput(i, $event)" placeholder="RUT * (12.345.678-5)" [name]="'vr_' + i" class="sm:col-span-2 rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm" />
                       </div>
                     </div>
                   }
@@ -447,6 +473,22 @@
               ></textarea>
               <div>
                 <label class="mb-1.5 block text-sm font-medium text-gray-400">Material utilizado</label>
+                <div class="mb-2 flex flex-wrap gap-2">
+                  @for (m of materialesSugeridos; track m) {
+                    <button
+                      type="button"
+                      class="rounded-full border px-3 py-1 text-xs transition-colors"
+                      [class.border-red-500]="materialMarcado(m)"
+                      [class.bg-red-600/20]="materialMarcado(m)"
+                      [class.text-red-200]="materialMarcado(m)"
+                      [class.border-gray-700]="!materialMarcado(m)"
+                      [class.text-gray-300]="!materialMarcado(m)"
+                      (click)="toggleMaterial(m)"
+                    >
+                      {{ m }}
+                    </button>
+                  }
+                </div>
                 <textarea
                   [(ngModel)]="materialUtilizado"
                   name="materialUtilizado"
@@ -526,7 +568,7 @@
                 </p>
               }
               <div class="grid gap-3 lg:grid-cols-3 lg:gap-4">
-                @for (col of asistenciaLayout; track $index) {
+                @for (col of asistenciaLayoutVista; track $index) {
                   <div class="space-y-3 lg:max-h-[min(72vh,760px)] lg:overflow-y-auto lg:pr-1 [scrollbar-color:#4b5563_#111827] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-[#111827] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-600">
                     @for (sec of col.secciones; track sec.titulo) {
                       @if (itemsAsistenciaFiltrados(sec.items).length > 0) {
@@ -540,19 +582,36 @@
                             @for (it of itemsAsistenciaFiltrados(sec.items); track it.id) {
                               <label
                                 class="flex cursor-pointer items-start gap-2 rounded-lg px-1 py-1 text-sm text-gray-200 hover:bg-gray-800/50"
-                                [class.opacity-60]="asistenciaBloqueadaPorOtroContexto(it.id)"
+                                [class.opacity-60]="
+                                  asistenciaBloqueadaPorOtroContexto(it.id) || asistenciaNoSeleccionable(it.id)
+                                "
                               >
                                 <input
                                   type="checkbox"
                                   class="mt-0.5 h-4 w-4 shrink-0 appearance-none rounded border border-gray-500 bg-[#0f1115] checked:border-red-500 checked:bg-red-600 focus:ring-1 focus:ring-red-500"
                                   [checked]="asistenciaMarcada(it.id)"
-                                  [disabled]="asistenciaBloqueadaPorOtroContexto(it.id)"
+                                  [disabled]="
+                                    asistenciaBloqueadaPorOtroContexto(it.id) || asistenciaNoSeleccionable(it.id)
+                                  "
                                   (change)="onToggleAsistencia(it.id, $event)"
                                 />
-                                <span class="leading-snug">
+                                <span
+                                  class="leading-snug"
+                                  [class.text-yellow-300]="estadoDisponibilidadAsistencia(it.id) === 'licencia'"
+                                  [class.text-gray-500]="estadoDisponibilidadAsistencia(it.id) === 'bloqueado'"
+                                >
+                                  <span
+                                    class="mr-1 inline-block h-2 w-2 rounded-full align-middle"
+                                    [ngClass]="colorPuntoDisponibilidadAsistencia(it.id)"
+                                  ></span>
                                   {{ it.label }}
                                   @if (asistenciaBloqueadaPorOtroContexto(it.id)) {
                                     <span class="ml-1 text-[10px] text-amber-300">(en {{ asistenciaContextoBloqueante(it.id) }})</span>
+                                  }
+                                  @if (!asistenciaBloqueadaPorOtroContexto(it.id) && motivoDisponibilidadAsistencia(it.id)) {
+                                    <span class="ml-1 text-[10px] text-yellow-300">
+                                      ({{ motivoDisponibilidadAsistencia(it.id) }})
+                                    </span>
                                   }
                                 </span>
                               </label>
@@ -567,63 +626,89 @@
               <div class="border-t border-gray-800 pt-4">
                 <p class="mb-3 text-xs font-medium uppercase text-gray-500">Datos adicionales</p>
                 <div class="space-y-4">
-                  <p class="text-xs font-medium uppercase text-gray-500">Comando incidente — nombre o clave</p>
-                  <div class="space-y-3">
-                    <div class="rounded-lg border border-gray-800 bg-[#121212] p-3">
-                      <label class="mb-1 block text-[11px] font-medium text-gray-500">C. I</label>
-                      <input
-                        [(ngModel)]="asistencia.comandoIncidenteCi"
-                        name="as_cmd_ci"
-                        placeholder="Nombre o clave"
-                        class="min-h-[40px] w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm placeholder:text-gray-600"
-                      />
-                    </div>
-                    <div class="rounded-lg border border-gray-800 bg-[#121212] p-3">
-                      <label class="mb-1 block text-[11px] font-medium text-gray-500">J. S</label>
-                      <input
-                        [(ngModel)]="asistencia.comandoIncidenteJs"
-                        name="as_cmd_js"
-                        placeholder="Nombre o clave"
-                        class="min-h-[40px] w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm placeholder:text-gray-600"
-                      />
-                    </div>
-                    <div class="rounded-lg border border-gray-800 bg-[#121212] p-3">
-                      <label class="mb-1 block text-[11px] font-medium text-gray-500">J. O</label>
-                      <input
-                        [(ngModel)]="asistencia.comandoIncidenteJo"
-                        name="as_cmd_jo"
-                        placeholder="Nombre o clave"
-                        class="min-h-[40px] w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm placeholder:text-gray-600"
-                      />
-                    </div>
+                  <div class="flex items-center justify-between gap-2">
+                    <p class="text-xs font-medium uppercase text-gray-500">Comando incidente</p>
+                    <button
+                      type="button"
+                      class="inline-flex min-h-[34px] items-center gap-1.5 rounded-lg border border-gray-700 bg-[#121212] px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800"
+                      (click)="mostrarComandoIncidente = !mostrarComandoIncidente"
+                    >
+                      <lucide-icon name="plus" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+                      {{ mostrarComandoIncidente ? 'Ocultar' : 'Agregar' }}
+                    </button>
                   </div>
+                  @if (mostrarComandoIncidente) {
+                    <div class="space-y-3">
+                      <div class="rounded-lg border border-gray-800 bg-[#121212] p-3">
+                        <label class="mb-1 block text-[11px] font-medium text-gray-500">C. I</label>
+                        <input
+                          [(ngModel)]="asistencia.comandoIncidenteCi"
+                          name="as_cmd_ci"
+                          placeholder="Nombre o clave"
+                          class="min-h-[40px] w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm placeholder:text-gray-600"
+                        />
+                      </div>
+                      <div class="rounded-lg border border-gray-800 bg-[#121212] p-3">
+                        <label class="mb-1 block text-[11px] font-medium text-gray-500">J. S</label>
+                        <input
+                          [(ngModel)]="asistencia.comandoIncidenteJs"
+                          name="as_cmd_js"
+                          placeholder="Nombre o clave"
+                          class="min-h-[40px] w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm placeholder:text-gray-600"
+                        />
+                      </div>
+                      <div class="rounded-lg border border-gray-800 bg-[#121212] p-3">
+                        <label class="mb-1 block text-[11px] font-medium text-gray-500">J. O</label>
+                        <input
+                          [(ngModel)]="asistencia.comandoIncidenteJo"
+                          name="as_cmd_jo"
+                          placeholder="Nombre o clave"
+                          class="min-h-[40px] w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm placeholder:text-gray-600"
+                        />
+                      </div>
+                    </div>
+                  }
                   <div class="border-t border-gray-800 pt-3">
-                    <p class="mb-2 text-xs font-medium uppercase text-gray-500">Otra compañía</p>
-                    <div class="grid gap-3 sm:grid-cols-3">
-                      <div>
-                        <label class="mb-1 block text-xs text-gray-500">Nombre</label>
-                        <input
-                          [(ngModel)]="asistencia.otraCompaniaNombre"
-                          name="as_ocn"
-                          class="min-h-[44px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-base"
-                        />
-                      </div>
-                      <div>
-                        <label class="mb-1 block text-xs text-gray-500">Compañía</label>
-                        <input
-                          [(ngModel)]="asistencia.otraCompaniaNombreCompania"
-                          name="as_occ"
-                          class="min-h-[44px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-base"
-                        />
-                      </div>
-                      <div>
-                        <label class="mb-1 block text-xs text-gray-500">Unidad</label>
-                        <input
-                          [(ngModel)]="asistencia.otraCompaniaUnidad"
-                          name="as_ocu"
-                          class="min-h-[44px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-base"
-                        />
-                      </div>
+                    <div class="mb-2 flex items-center justify-between gap-2">
+                      <p class="text-xs font-medium uppercase text-gray-500">Otra compañía</p>
+                      <button
+                        type="button"
+                        class="inline-flex min-h-[34px] items-center gap-1.5 rounded-lg border border-gray-700 bg-[#121212] px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800"
+                        (click)="agregarOtraCompania()"
+                      >
+                        <lucide-icon name="plus" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+                        Agregar
+                      </button>
+                    </div>
+                    <div class="space-y-2">
+                      @for (oc of otrasCompanias; track $index; let i = $index) {
+                        <div class="rounded-lg border border-gray-800 bg-[#121212] p-3">
+                          <div class="mb-2 flex items-center justify-between">
+                            <p class="text-xs text-gray-500">Otra compañía {{ i + 1 }}</p>
+                            <button type="button" class="text-xs text-red-400" (click)="quitarOtraCompania(i)">Quitar</button>
+                          </div>
+                          <div class="grid gap-2 sm:grid-cols-3">
+                            <input
+                              [(ngModel)]="oc.obac"
+                              [name]="'oc_obac_' + i"
+                              placeholder="OBAC *"
+                              class="min-h-[42px] rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm"
+                            />
+                            <input
+                              [(ngModel)]="oc.compania"
+                              [name]="'oc_comp_' + i"
+                              placeholder="Compañía *"
+                              class="min-h-[42px] rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm"
+                            />
+                            <input
+                              [(ngModel)]="oc.unidad"
+                              [name]="'oc_unid_' + i"
+                              placeholder="Unidad *"
+                              class="min-h-[42px] rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm"
+                            />
+                          </div>
+                        </div>
+                      }
                     </div>
                   </div>
                 </div>
@@ -637,7 +722,7 @@
               >
                 <span class="flex items-center gap-2">
                   <lucide-icon name="building-2" class="h-5 w-5 text-red-500" [size]="20" color="currentColor"></lucide-icon>
-                  Apoyo externo (opcional)
+                  Apoyo externo
                 </span>
                 <lucide-icon name="chevron-down" class="h-5 w-5 shrink-0 text-gray-500" [size]="20" color="currentColor"></lucide-icon>
               </summary>
@@ -658,7 +743,7 @@
                     </div>
                     <div class="grid gap-2 rounded-lg border border-gray-700 bg-[#0a0a0a] p-2 sm:grid-cols-4">
                       <div class="sm:col-span-4">
-                        <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">Institución</label>
+                        <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">Institución *</label>
                         <select [(ngModel)]="a.tipo" [name]="'at_' + i" class="w-full rounded-lg border border-gray-700 bg-[#111111] px-3 py-2 text-sm">
                         @for (t of tiposApoyoExterno; track t.id) {
                           <option [value]="t.id">{{ t.label }}</option>
@@ -666,30 +751,30 @@
                       </select>
                       </div>
                       <div>
-                        <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">P: Patente</label>
-                        <input [(ngModel)]="a.patente" placeholder="Patente" [name]="'ap_' + i" class="w-full rounded-lg border border-gray-700 bg-[#111111] px-3 py-2 text-sm" />
+                        <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">P: Patente *</label>
+                        <input [(ngModel)]="a.patente" (ngModelChange)="onApoyoPatenteInput(i, $event)" placeholder="Patente" [name]="'ap_' + i" class="w-full rounded-lg border border-gray-700 bg-[#111111] px-3 py-2 text-sm" />
                       </div>
                       @if (apoyoMuestraConductor(a.tipo)) {
                         <div>
-                          <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">C: Conductor</label>
+                          <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">C: Conductor *</label>
                           <input [(ngModel)]="a.conductor" placeholder="Nombre y apellidos" [name]="'aco_' + i" class="w-full rounded-lg border border-gray-700 bg-[#111111] px-3 py-2 text-sm" />
                         </div>
                       }
                       @if (apoyoMuestraNombre(a.tipo)) {
                         <div>
-                          <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">N: Nombre</label>
+                          <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">N: Nombre *</label>
                           <input [(ngModel)]="a.nombre" placeholder="Nombre y apellidos" [name]="'an_' + i" class="w-full rounded-lg border border-gray-700 bg-[#111111] px-3 py-2 text-sm" />
                         </div>
                       }
                       @if (apoyoRequiereCargo(a.tipo)) {
                         <div>
-                          <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">Cargo</label>
+                          <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">Cargo *</label>
                           <input [(ngModel)]="a.cargo" placeholder="Cargo" [name]="'ac_' + i" class="w-full rounded-lg border border-gray-700 bg-[#111111] px-3 py-2 text-sm" />
                         </div>
                       }
                       @if (a.tipo === 'SAMU') {
                         <div>
-                          <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">PA: Paramédico</label>
+                          <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">PA: Paramédico *</label>
                           <input [(ngModel)]="a.cargo" placeholder="Nombre paramédico" [name]="'ac_' + i" class="w-full rounded-lg border border-gray-700 bg-[#111111] px-3 py-2 text-sm" />
                         </div>
                       }
@@ -810,30 +895,39 @@
         }
       </div>
 
-      <p class="mt-4 text-center text-xs text-gray-600">
+      <p class="mt-4 text-center text-xs text-slate-600">
         Un paso a la vez para no saturar. Puedes guardar borrador en cualquier momento.
       </p>
     </main>
 
     <!-- Pie fijo: navegación + acciones -->
-    <footer class="border-t border-gray-800 bg-[#0a0a0a]/95 backdrop-blur lg:fixed lg:bottom-0 lg:left-0 lg:right-0 lg:z-30">
+    <footer
+      class="border-t border-slate-800/90 bg-[#0a0a0a]/95 shadow-[0_-8px_32px_rgba(0,0,0,0.35)] backdrop-blur lg:fixed lg:bottom-0 lg:left-64 lg:right-0 lg:z-30"
+    >
       <div class="mx-auto grid w-full min-w-0 max-w-none gap-2 px-4 py-3 sm:px-6 md:px-8 lg:grid-cols-2 lg:px-10 xl:px-12">
         <div class="grid grid-cols-2 gap-2">
           <button
             type="button"
-            class="min-h-[48px] flex-1 rounded-xl border border-gray-700 bg-gray-900 px-4 text-sm font-medium text-white disabled:opacity-40"
+            class="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold shadow-sm transition-all disabled:cursor-not-allowed"
+            [ngClass]="
+              pasoIdx === 0
+                ? 'border-gray-800 bg-[#121212] text-gray-500'
+                : 'border-slate-500/70 bg-slate-700 text-white hover:-translate-y-0.5 hover:bg-slate-600'
+            "
             [disabled]="pasoIdx === 0"
             (click)="anteriorPaso()"
           >
+            <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
             Anterior
           </button>
           <button
             type="button"
-            class="min-h-[48px] flex-1 rounded-xl bg-gray-800 px-4 text-sm font-medium text-white disabled:opacity-40"
+            class="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl bg-gray-700 px-4 text-sm font-semibold text-white shadow-sm disabled:opacity-40"
             [disabled]="esUltimoPaso"
             (click)="siguientePaso()"
           >
             Siguiente
+            <lucide-icon name="chevron-right" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
           </button>
         </div>
         <div class="grid gap-2 sm:grid-cols-2">
@@ -848,7 +942,7 @@
           </button>
           <button
             type="button"
-            class="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+            class="sid-btn sid-btn-primary inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
             [disabled]="submitting"
             (click)="guardarParte()"
           >

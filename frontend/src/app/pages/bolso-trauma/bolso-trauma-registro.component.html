@@ -1,57 +1,98 @@
-<div class="w-full min-w-0 px-4 py-4 sm:px-6 md:py-8 md:px-8 lg:px-10 xl:px-12">
+<div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 md:py-8 md:px-8 lg:px-10 xl:px-12">
   @if (loading) {
-    <p class="text-gray-400">Cargando registro…</p>
+    <div class="flex min-h-[35vh] flex-col items-center justify-center gap-3 text-slate-400">
+      <lucide-icon name="briefcase" class="h-10 w-10 animate-pulse text-rose-500" [size]="40" color="currentColor" />
+      <p class="text-sm">Cargando registro…</p>
+    </div>
   } @else {
-    <a routerLink="/bolso-trauma" class="mb-4 inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white sm:mb-6">
+    <a
+      routerLink="/bolso-trauma"
+      class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212] px-4 py-2.5 text-sm text-slate-300 shadow-sm ring-1 ring-inset ring-white/5 transition-all hover:border-slate-600 hover:text-white"
+    >
       <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-      Volver a Bolsos de Trauma
+      Volver a bolsos de trauma
     </a>
 
     @if (error) {
-      <p class="mb-4 rounded-lg border border-red-800/60 bg-red-950/30 px-3 py-2 text-sm text-red-300">{{ error }}</p>
+      <p class="rounded-xl border border-red-800/60 bg-red-950/30 px-4 py-3 text-sm text-red-300">{{ error }}</p>
     }
     @if (mensajeFlash) {
       <div
-        class="mb-4 rounded-xl border border-amber-600/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100"
+        class="rounded-xl border border-amber-600/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100"
         role="status"
       >
         {{ mensajeFlash }}
       </div>
     }
 
+    <section
+      class="relative overflow-hidden rounded-2xl border border-cyan-900/30 bg-[radial-gradient(circle_at_0%_0%,rgba(6,182,212,0.12),transparent_48%),radial-gradient(circle_at_100%_0%,rgba(225,29,72,0.1),transparent_40%),#0a0a0a] p-1"
+    >
     <!-- Cabecera unidad + PDF -->
-    <div class="mb-6 rounded-2xl border border-gray-700/80 bg-[#121212] p-4 sm:p-6">
+    <div class="rounded-[14px] border border-slate-800/50 bg-[#121212] p-4 sm:p-6">
       <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div class="flex min-w-0 items-start gap-3">
           <div
-            class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-600/90 text-white shadow-lg"
+            class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-rose-500/30 bg-gradient-to-br from-rose-600 to-rose-900 text-white shadow-lg shadow-rose-900/30"
           >
-            <lucide-icon name="shield" class="h-7 w-7" [size]="28" color="currentColor"></lucide-icon>
+            <lucide-icon name="briefcase" class="h-7 w-7" [size]="28" color="currentColor"></lucide-icon>
           </div>
           <div class="min-w-0">
+            <p class="mb-1 text-xs font-medium uppercase tracking-wide text-cyan-300/80">Revisión de bolso</p>
             <h1 class="text-xl font-bold text-white sm:text-2xl">Unidad {{ unidad }} — Bolso {{ bolsoNumero }}</h1>
-            <p class="text-sm text-gray-400">{{ nombreCarro }}</p>
+            <p class="text-sm text-slate-400">{{ nombreCarro }}</p>
           </div>
         </div>
-        <button
-          type="button"
-          (click)="descargarPdf()"
-          [disabled]="!checklistCompletoParaPdf()"
-          [title]="
-            checklistCompletoParaPdf()
-              ? 'Generar PDF del checklist de bolso de trauma'
-              : 'Completa datos, firma OBAC e ítems para generar el PDF'
-          "
-          class="inline-flex min-h-[44px] w-full shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors sm:w-auto"
-          [ngClass]="
-            checklistCompletoParaPdf()
-              ? 'border border-red-500 bg-red-600 text-white hover:bg-red-700'
-              : 'cursor-not-allowed border border-red-900/60 bg-red-950/40 text-red-200/40'
-          "
-        >
-          <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-          Generar PDF
-        </button>
+        <div class="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+          @if (puedeEditarPlantilla) {
+            <div class="flex flex-wrap gap-2 sm:justify-end">
+              @if (!editandoPlantilla) {
+                <button
+                  type="button"
+                  class="rounded-xl border border-cyan-700/70 bg-cyan-900/20 px-3 py-2 text-xs font-semibold text-cyan-200"
+                  (click)="activarEdicionPlantilla()"
+                >
+                  Editar plantilla trauma
+                </button>
+              } @else {
+                <button
+                  type="button"
+                  class="rounded-xl border border-emerald-700/70 bg-emerald-900/20 px-3 py-2 text-xs font-semibold text-emerald-200"
+                  [disabled]="guardandoPlantilla"
+                  (click)="guardarPlantillaTrauma()"
+                >
+                  {{ guardandoPlantilla ? 'Guardando...' : 'Guardar plantilla' }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-xl border border-slate-700/70 bg-slate-900/20 px-3 py-2 text-xs font-semibold text-slate-200"
+                  (click)="cancelarEdicionPlantilla()"
+                >
+                  Cancelar
+                </button>
+              }
+            </div>
+          }
+          <button
+            type="button"
+            (click)="descargarPdf()"
+            [disabled]="!checklistCompletoParaPdf()"
+            [title]="
+              checklistCompletoParaPdf()
+                ? 'Generar PDF del checklist de bolso de trauma'
+                : 'Completa datos, firma OBAC e ítems para generar el PDF'
+            "
+            class="sid-btn inline-flex min-h-[44px] w-full shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors sm:w-auto"
+            [ngClass]="
+              checklistCompletoParaPdf()
+              ? 'sid-btn-primary border border-red-500 bg-red-600 text-white hover:bg-red-700'
+                : 'cursor-not-allowed border border-red-900/60 bg-red-950/40 text-red-200/40'
+            "
+          >
+            <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            Generar PDF
+          </button>
+        </div>
       </div>
 
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -63,7 +104,7 @@
             [(ngModel)]="nombreInspector"
             name="inspector"
             placeholder="Ej: Juan Pérez · clave 1234"
-            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white placeholder:text-gray-600"
+            class="sid-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white placeholder:text-gray-600"
           />
         </div>
         <div>
@@ -73,7 +114,7 @@
           <select
             [(ngModel)]="grupoGuardia"
             name="grupoGuardia"
-            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+            class="sid-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
           >
             <option value="">Seleccionar</option>
             <option value="1">1</option>
@@ -89,7 +130,7 @@
           <select
             [(ngModel)]="cuarteleroId"
             name="cuarteleroId"
-            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+            class="sid-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
           >
             @for (u of usuarios; track u.id) {
               <option [ngValue]="u.id">{{ u.nombre }} ({{ u.rol }})</option>
@@ -123,58 +164,63 @@
         </div>
       </div>
     </div>
+    </section>
 
     <!-- Resumen -->
-    <div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-      <div class="rounded-xl border border-gray-800 bg-[#121212] p-6">
-        <p class="mb-1 text-sm text-gray-400">Total ítems (este bolso)</p>
-        <p class="text-3xl font-bold">{{ totalMateriales() }}</p>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+        <p class="mb-1 text-sm text-slate-500">Total ítems (este bolso)</p>
+        <p class="text-3xl font-bold tabular-nums text-white">{{ totalMateriales() }}</p>
       </div>
-      <div class="rounded-xl border border-green-600 bg-[#121212] p-6">
-        <p class="mb-1 text-sm text-gray-400">Cantidad mínima OK</p>
-        <p class="text-3xl font-bold text-green-500">{{ materialesMinimosOk() }}/{{ totalMateriales() }}</p>
+      <div class="rounded-2xl border border-emerald-800/45 bg-gradient-to-br from-emerald-950/40 to-transparent p-5 ring-1 ring-inset ring-emerald-500/10 sm:p-6">
+        <p class="mb-1 text-sm text-slate-400">Cantidad mínima OK</p>
+        <p class="text-3xl font-bold tabular-nums text-emerald-400">{{ materialesMinimosOk() }}/{{ totalMateriales() }}</p>
       </div>
-      <div class="rounded-xl border border-blue-600 bg-[#121212] p-6">
-        <p class="mb-1 text-sm text-gray-400">Cantidad óptima OK</p>
-        <p class="text-3xl font-bold text-blue-500">{{ materialesOptimosOk() }}/{{ totalMateriales() }}</p>
+      <div class="rounded-2xl border border-sky-800/45 bg-gradient-to-br from-sky-950/40 to-transparent p-5 ring-1 ring-inset ring-sky-500/10 sm:p-6">
+        <p class="mb-1 text-sm text-slate-400">Cantidad óptima OK</p>
+        <p class="text-3xl font-bold tabular-nums text-sky-400">{{ materialesOptimosOk() }}/{{ totalMateriales() }}</p>
       </div>
     </div>
 
     @for (ubicacion of bolsoActual.ubicaciones; track $index; let ui = $index) {
-      <div class="mb-6 rounded-xl border border-gray-800 bg-[#121212] p-6">
+      <div class="overflow-hidden rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
         <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div class="flex items-center gap-2">
-            <lucide-icon name="briefcase" class="h-5 w-5 text-red-500" [size]="20" color="currentColor"></lucide-icon>
-            <h2 class="text-xl font-bold">{{ ubicacion.nombre }}</h2>
+            <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-600/20 text-rose-400 ring-1 ring-rose-500/30">
+              <lucide-icon name="package" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            </span>
+            <h2 class="text-xl font-bold text-white">{{ ubicacion.nombre }}</h2>
           </div>
           <button
             type="button"
             (click)="agregarMaterial(ui)"
-            class="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium hover:bg-red-700"
+            [disabled]="!editandoPlantilla"
+            class="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-900/20 transition-all hover:bg-red-700"
           >
             <lucide-icon name="plus" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-            Agregar Material
+            Agregar material
           </button>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full">
             <thead>
-              <tr class="border-b border-gray-800">
-                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-400">Material</th>
-                <th class="px-4 py-3 text-center text-sm font-semibold text-gray-400">Cant. Mínima</th>
-                <th class="px-4 py-3 text-center text-sm font-semibold text-gray-400">Cant. Óptima</th>
-                <th class="px-4 py-3 text-center text-sm font-semibold text-gray-400">Cant. Actual</th>
-                <th class="px-4 py-3 text-center text-sm font-semibold text-gray-400">Estado</th>
-                <th class="px-4 py-3 text-center text-sm font-semibold text-gray-400">Acciones</th>
+              <tr class="border-b border-slate-800">
+                <th class="px-4 py-3 text-left text-sm font-semibold text-slate-500">Material</th>
+                <th class="px-4 py-3 text-center text-sm font-semibold text-slate-500">Cant. mínima</th>
+                <th class="px-4 py-3 text-center text-sm font-semibold text-slate-500">Cant. óptima</th>
+                <th class="px-4 py-3 text-center text-sm font-semibold text-slate-500">Cant. actual</th>
+                <th class="px-4 py-3 text-center text-sm font-semibold text-slate-500">Estado</th>
+                <th class="px-4 py-3 text-center text-sm font-semibold text-slate-500">Acciones</th>
               </tr>
             </thead>
             <tbody>
               @for (material of ubicacion.materiales; track material.id; let mi = $index) {
-                <tr class="border-b border-gray-800 hover:bg-[#0a0a0a]">
+                <tr class="border-b border-slate-800/80 transition-colors hover:bg-[#0a0a0a]">
                   <td class="px-4 py-3">
                     <input
                       [(ngModel)]="material.nombre"
                       [name]="'mn_' + ui + '_' + mi"
+                      [readonly]="!editandoPlantilla"
                       class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
                     />
                   </td>
@@ -183,6 +229,7 @@
                       type="number"
                       [(ngModel)]="material.cantidadMinima"
                       [name]="'mm_' + ui + '_' + mi"
+                        [disabled]="!editandoPlantilla"
                       class="w-20 rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-center text-sm text-white"
                     />
                   </td>
@@ -191,6 +238,7 @@
                       type="number"
                       [(ngModel)]="material.cantidadOptima"
                       [name]="'mo_' + ui + '_' + mi"
+                        [disabled]="!editandoPlantilla"
                       class="w-20 rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-center text-sm text-white"
                     />
                   </td>
@@ -215,6 +263,7 @@
                     <button
                       type="button"
                       (click)="eliminarMaterial(ui, mi)"
+                      [disabled]="!editandoPlantilla"
                       class="rounded-lg bg-red-600 p-2 transition-colors hover:bg-red-700"
                       aria-label="Quitar material"
                     >
@@ -229,22 +278,22 @@
       </div>
     }
 
-    <div class="mb-6 rounded-xl border border-gray-800 bg-[#121212] p-6">
-      <h2 class="mb-4 text-xl font-bold">Observaciones (opcional)</h2>
+    <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+      <h2 class="mb-4 text-lg font-bold text-white sm:text-xl">Observaciones (opcional)</h2>
       <textarea
         rows="4"
         [(ngModel)]="observaciones"
         name="observaciones"
         placeholder="Observaciones adicionales para reparación o reposición…"
-        class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white placeholder:text-gray-600"
+        class="w-full rounded-xl border border-slate-700 bg-[#0a0a0a] px-3 py-2.5 text-white placeholder:text-slate-500"
       ></textarea>
     </div>
 
-    <div class="mb-8 rounded-xl border border-gray-800 bg-[#121212] p-6">
-      <h2 class="mb-2 text-xl font-bold text-white">
+    <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+      <h2 class="mb-2 text-lg font-bold text-white sm:text-xl">
         Firma oficial a cargo (OBAC) <span class="text-red-400">*</span>
       </h2>
-      <p class="mb-4 text-sm text-gray-400">
+      <p class="mb-4 text-sm text-slate-500">
         Firma con el dedo o el mouse sobre el área oscura. La fecha del cierre se muestra arriba en «Fecha de cierre /
         firma».
       </p>
@@ -257,12 +306,12 @@
       />
     </div>
 
-    <div class="flex flex-col gap-3 sm:flex-row sm:gap-4">
+    <div class="flex flex-col gap-3 pb-2 sm:flex-row sm:gap-4">
       <button
         type="button"
         [disabled]="savingBorrador || saving"
         (click)="guardarBorrador()"
-        class="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-600 bg-gray-800 px-6 py-4 font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50"
+        class="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-600 bg-slate-900/80 px-6 py-4 font-semibold text-white ring-1 ring-inset ring-white/5 transition-all hover:bg-slate-800 disabled:opacity-50"
       >
         <lucide-icon name="save" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
         Guardar como borrador
@@ -271,7 +320,7 @@
         type="button"
         [disabled]="saving || savingBorrador"
         (click)="guardarFinal()"
-        class="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 px-6 py-4 font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+        class="sid-btn sid-btn-primary inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-4 font-semibold text-white shadow-lg shadow-red-900/25 transition-all hover:bg-red-700 disabled:opacity-50"
       >
         <lucide-icon name="save" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
         Guardar checklist bolso trauma

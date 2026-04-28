@@ -45,6 +45,12 @@ export interface DashboardResumenDto {
       itemsOk: number | null;
       completo: boolean;
     } | null;
+    checklistTrauma: {
+      fecha: string;
+      totalItems: number | null;
+      itemsOk: number | null;
+      completo: boolean;
+    } | null;
   }>;
   generadoEn: string;
 }

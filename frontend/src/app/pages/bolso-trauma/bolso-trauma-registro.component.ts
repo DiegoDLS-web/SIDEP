@@ -5,9 +5,11 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import type { UsuarioListaDto } from '../../models/usuario.dto';
 import { BolsosTraumaService } from '../../services/bolsos-trauma.service';
+import { ChecklistsService } from '../../services/checklists.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { ToastService } from '../../services/toast.service';
 import { UsuariosService } from '../../services/usuarios.service';
+import { AuthService } from '../../services/auth.service';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { firmaEfectiva } from '../../utils/firma-resolver';
@@ -45,40 +47,70 @@ function plantillaBolso(numero: number): Bolso {
       {
         nombre: 'Bolsillo Principal',
         materiales: [
-          nuevoMaterial('Kit de cánulas', 1, 2, 2),
-          nuevoMaterial('Vendas elásticas 10cm', 4, 6, 5),
-          nuevoMaterial('Gasas estériles', 8, 10, 10),
-          nuevoMaterial('Guantes de nitrilo (pares)', 10, 15, 12),
+          nuevoMaterial('Kit de cánulas', 1, 2, 0),
+          nuevoMaterial('Estuche con guantes de nitrilo', 1, 2, 0),
+          nuevoMaterial('Estuche con mascarillas', 1, 1, 0),
+          nuevoMaterial('Vendaje israelí 4"', 1, 2, 0),
+          nuevoMaterial('Torniquete', 1, 1, 0),
+          nuevoMaterial('Suero 250 ml', 2, 5, 0),
+          nuevoMaterial('Linterna pupilar', 1, 1, 0),
+          nuevoMaterial('Bajada de suero', 1, 1, 0),
+          nuevoMaterial('Tela adhesiva', 1, 3, 0),
+          nuevoMaterial('Tarjetas signos vitales', 1, 1, 0),
+          nuevoMaterial('Cortador de anillos', 1, 1, 0),
+          nuevoMaterial('Tijera punta pato de rescate', 1, 1, 0),
+          nuevoMaterial('Saturómetro', 1, 1, 0),
+          nuevoMaterial('Plumón permanente Sharpie', 1, 1, 0),
+          nuevoMaterial('Apósitos 10 x 10', 5, 10, 0),
+          nuevoMaterial('Apósitos 10 x 20', 5, 10, 0),
+          nuevoMaterial('Apósitos 13 x 24', 5, 10, 0),
+          nuevoMaterial('Apósitos 20 x 25', 5, 10, 0),
+          nuevoMaterial('Vendaje triangular', 1, 3, 0),
+          nuevoMaterial('Elastomull 8 cm', 4, 10, 0),
+          nuevoMaterial('Elastomull 6 cm', 4, 10, 0),
+          nuevoMaterial('Elastomull 4 cm', 4, 10, 0),
+          nuevoMaterial('Mantas térmicas', 2, 5, 0),
+          nuevoMaterial('Suero 20 ml', 5, 10, 0),
         ],
       },
       {
         nombre: 'Bolsillo Delantero',
         materiales: [
-          nuevoMaterial('Tijeras de trauma', 1, 2, 2),
-          nuevoMaterial('Linterna pupilar', 1, 1, 1),
-          nuevoMaterial('Termómetro digital', 1, 1, 1),
+          nuevoMaterial('Collar cervical adulto', 3, 4, 0),
+          nuevoMaterial('Collar cervical pediátrico', 1, 2, 0),
         ],
       },
       {
         nombre: 'Bolsillo Superior',
-        materiales: [
-          nuevoMaterial('Mascarilla RCP', 1, 2, 2),
-          nuevoMaterial('Collar cervical ajustable', 1, 2, 1),
-        ],
+        materiales: [nuevoMaterial('Aspirador manual', 1, 1, 0)],
       },
       {
         nombre: 'Bolsillo Posterior',
         materiales: [
-          nuevoMaterial('Manta térmica', 2, 4, 3),
-          nuevoMaterial('Torniquete de emergencia', 1, 2, 2),
+          nuevoMaterial('Bolsa de resucitación manual adulto', 1, 1, 0),
+          nuevoMaterial('Bolsa de resucitación manual pediátrica', 1, 1, 0),
+          nuevoMaterial('Mascarilla oxígeno con reservorio adulto', 1, 2, 0),
+          nuevoMaterial('Mascarilla oxígeno con reservorio pediátrica', 1, 2, 0),
         ],
+      },
+      {
+        nombre: 'Bolsillo Derecho',
+        materiales: [
+          nuevoMaterial('Máscara unidireccional', 1, 1, 0),
+          nuevoMaterial('Bolsas para residuos', 1, 1, 0),
+        ],
+      },
+      {
+        nombre: 'Bolsillo Izquierdo',
+        materiales: [nuevoMaterial('Esfigmomanómetro', 1, 1, 0)],
       },
     ],
   };
 }
 
 function defaultBolsos(unidad: string): Bolso[] {
-  const cantidad = unidad === 'R-1' ? 3 : unidad === 'BX-1' ? 2 : 1;
+  // A solicitud operativa: BX-1 y B-1 usan la misma base de bolsos del R-1.
+  const cantidad = 3;
   return Array.from({ length: cantidad }, (_, i) => plantillaBolso(i + 1));
 }
 
@@ -93,8 +125,10 @@ export class BolsoTraumaRegistroComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly bolsosApi = inject(BolsosTraumaService);
   private readonly usuariosApi = inject(UsuariosService);
+  private readonly checklistsApi = inject(ChecklistsService);
   private readonly pdf = inject(PdfExportService);
   private readonly toast = inject(ToastService);
+  private readonly auth = inject(AuthService);
 
   unidad = 'R-1';
   nombreCarro = '';
@@ -119,6 +153,8 @@ export class BolsoTraumaRegistroComponent implements OnInit {
   error: string | null = null;
   mensajeFlash: string | null = null;
   private flashTimer: ReturnType<typeof setTimeout> | null = null;
+  editandoPlantilla = false;
+  guardandoPlantilla = false;
 
   ngOnInit(): void {
     this.unidad = this.route.snapshot.paramMap.get('unidad') ?? 'R-1';
@@ -130,8 +166,9 @@ export class BolsoTraumaRegistroComponent implements OnInit {
     forkJoin({
       data: this.bolsosApi.obtenerUnidad(this.unidad),
       usuarios: this.usuariosApi.listar(),
+      plantilla: this.checklistsApi.obtenerPlantilla('TRAUMA', this.unidad),
     }).subscribe({
-      next: ({ data, usuarios }) => {
+      next: ({ data, usuarios, plantilla }) => {
         this.usuarios = usuarios;
         this.nombreCarro = (data.carro.nombre ?? '').trim() || '—';
 
@@ -143,8 +180,11 @@ export class BolsoTraumaRegistroComponent implements OnInit {
           bolsoNumero?: number;
         } | null;
 
+        const plantillaBolsos = this.parsePlantillaBolsos(plantilla);
         if (detalle?.bolsos?.length) {
           this.bolsos = detalle.bolsos;
+        } else if (plantillaBolsos?.length) {
+          this.bolsos = plantillaBolsos;
         } else {
           this.bolsos = defaultBolsos(this.unidad);
         }
@@ -226,6 +266,94 @@ export class BolsoTraumaRegistroComponent implements OnInit {
       cantidadOptima: 1,
       cantidadActual: 0,
     });
+  }
+
+  get puedeEditarPlantilla(): boolean {
+    const rol = this.auth.usuarioActual?.rol?.toUpperCase();
+    return rol === 'ADMIN' || rol === 'CAPITAN' || rol === 'TENIENTE';
+  }
+
+  activarEdicionPlantilla(): void {
+    this.editandoPlantilla = true;
+  }
+
+  cancelarEdicionPlantilla(): void {
+    this.editandoPlantilla = false;
+  }
+
+  guardarPlantillaTrauma(): void {
+    if (!this.puedeEditarPlantilla || this.guardandoPlantilla) return;
+    this.guardandoPlantilla = true;
+    const plantilla = {
+      bolsos: this.bolsos.map((b) => ({
+        numero: b.numero,
+        ubicaciones: b.ubicaciones.map((u) => ({
+          nombre: u.nombre,
+          materiales: u.materiales.map((m) => ({
+            nombre: m.nombre,
+            cantidadMinima: m.cantidadMinima,
+            cantidadOptima: m.cantidadOptima,
+          })),
+        })),
+      })),
+    };
+    this.checklistsApi.guardarPlantilla('TRAUMA', this.unidad, plantilla).subscribe({
+      next: (ok) => {
+        this.guardandoPlantilla = false;
+        if (!ok) {
+          this.toast.error('No se pudo guardar plantilla de trauma.');
+          return;
+        }
+        this.editandoPlantilla = false;
+        this.toast.exito('Plantilla de trauma guardada.');
+      },
+      error: () => {
+        this.guardandoPlantilla = false;
+        this.toast.error('No se pudo guardar plantilla de trauma.');
+      },
+    });
+  }
+
+  private parsePlantillaBolsos(raw: unknown): Bolso[] | null {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    const bolsos = (raw as { bolsos?: unknown }).bolsos;
+    if (!Array.isArray(bolsos)) return null;
+    const out: Bolso[] = [];
+    for (const b of bolsos) {
+      if (!b || typeof b !== 'object' || Array.isArray(b)) continue;
+      const numero = Number((b as { numero?: unknown }).numero ?? 0);
+      const ubRaw = (b as { ubicaciones?: unknown }).ubicaciones;
+      if (!Number.isFinite(numero) || numero <= 0 || !Array.isArray(ubRaw)) continue;
+      const ubicaciones: Ubicacion[] = [];
+      for (const u of ubRaw) {
+        if (!u || typeof u !== 'object' || Array.isArray(u)) continue;
+        const nombre = String((u as { nombre?: unknown }).nombre ?? '').trim();
+        const matsRaw = (u as { materiales?: unknown }).materiales;
+        const materiales: MaterialItem[] = [];
+        if (Array.isArray(matsRaw)) {
+          for (const m of matsRaw) {
+            if (!m || typeof m !== 'object' || Array.isArray(m)) continue;
+            const mn = String((m as { nombre?: unknown }).nombre ?? '').trim();
+            if (!mn) continue;
+            const min = Number((m as { cantidadMinima?: unknown }).cantidadMinima ?? 0);
+            const opt = Number((m as { cantidadOptima?: unknown }).cantidadOptima ?? 0);
+            const minInt = Number.isFinite(min) && min >= 0 ? Math.round(min) : 0;
+            const optInt = Number.isFinite(opt) && opt >= 0 ? Math.round(opt) : minInt;
+            materiales.push({
+              id: crypto.randomUUID(),
+              nombre: mn,
+              cantidadMinima: minInt,
+              cantidadOptima: optInt,
+              cantidadActual: 0,
+            });
+          }
+        }
+        if (!nombre) continue;
+        ubicaciones.push({ nombre, materiales });
+      }
+      out.push({ numero: Math.round(numero), ubicaciones });
+    }
+    return out;
   }
 
   eliminarMaterial(ubicacionIndex: number, materialIndex: number): void {

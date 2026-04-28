@@ -1,16 +1,29 @@
-<div class="min-h-0 w-full min-w-0 px-4 py-3 sm:px-6 md:py-6 md:px-8 lg:px-10 xl:px-12">
+<div class="sid-page min-h-0 w-full min-w-0 space-y-6 px-4 py-3 sm:px-6 md:py-6 md:px-8 lg:px-10 xl:px-12">
   @if (loading) {
-    <p class="text-gray-400">Cargando checklist ERA…</p>
-  } @else {
-    <div class="mb-4 flex flex-col gap-2 sm:mb-6 md:flex-row md:items-start md:justify-between">
-      <div>
-        <h1 class="mb-1 text-2xl font-bold text-white sm:text-3xl">Control de Checklist ERA</h1>
-        <p class="text-sm text-gray-400 sm:text-base">Seleccione la unidad para realizar el registro del equipo ERA</p>
-      </div>
+    <div class="flex min-h-[30vh] flex-col items-center justify-center gap-3 text-slate-400">
+      <lucide-icon name="shield" class="h-10 w-10 animate-pulse text-red-500" [size]="40" color="currentColor" />
+      <p class="text-sm">Cargando checklist ERA…</p>
     </div>
+  } @else {
+    <section
+      class="relative overflow-hidden rounded-2xl border border-violet-900/35 bg-[radial-gradient(circle_at_0%_0%,rgba(139,92,246,0.18),transparent_48%),radial-gradient(circle_at_100%_0%,rgba(220,38,38,0.12),transparent_40%),#0a0a0a] p-5 sm:p-6"
+    >
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p class="mb-2 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs text-violet-200">
+            Equipos de escape · ERA
+          </p>
+          <h1 class="flex items-center gap-2 text-2xl font-bold text-white sm:text-3xl">
+            <lucide-icon name="shield" class="h-7 w-7 text-red-400" [size]="28" color="currentColor"></lucide-icon>
+            Checklist ERA
+          </h1>
+          <p class="mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">Registro por unidad de máscaras, cilindros, arnés y recambios</p>
+        </div>
+      </div>
+    </section>
 
     @if (error) {
-      <p class="mb-4 rounded-lg border border-red-800/60 bg-red-950/30 px-3 py-2 text-sm text-red-300">{{ error }}</p>
+      <p class="rounded-xl border border-red-800/60 bg-red-950/30 px-4 py-3 text-sm text-red-300">{{ error }}</p>
     }
     @if (mensajeFlash) {
       <div
@@ -26,9 +39,9 @@
         @for (c of carrosOrdenados(); track c.id) {
           @let r = resumenUnidadEra(c);
           <div
-            class="flex min-h-[240px] flex-col overflow-hidden rounded-xl border border-gray-800 bg-[#121212] shadow-sm transition-colors hover:border-red-900/50"
+            class="flex min-h-[240px] flex-col overflow-hidden rounded-2xl border border-slate-800/90 bg-[#121212] shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 transition-all duration-200 hover:border-red-800/50 hover:shadow-red-950/20"
           >
-            <div class="bg-gradient-to-r from-red-600 to-red-700 p-3 sm:p-4">
+            <div class="bg-gradient-to-br from-red-600 via-red-700 to-red-900 p-3 sm:p-4">
               <div class="mb-1.5 flex items-start justify-between gap-2">
                 <div class="min-w-0">
                   <h3 class="text-xl font-bold text-white sm:text-2xl">{{ r.unidad }}</h3>
@@ -56,9 +69,9 @@
               <button
                 type="button"
                 (click)="seleccionarUnidad(r.unidad)"
-                class="mt-auto w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-left text-sm font-semibold text-white hover:border-red-600"
+                class="sid-btn sid-btn-neutral mt-auto w-full rounded-xl border-slate-600 bg-[#0a0a0a] px-3 py-2.5 text-left text-sm font-semibold text-white shadow-md transition-all hover:border-red-500 hover:bg-[#111]"
               >
-                Realizar Checklist
+                Realizar checklist
               </button>
             </div>
           </div>
@@ -186,7 +199,7 @@
         <button
           type="button"
           (click)="agregarEquipo()"
-          class="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+          class="sid-btn sid-btn-primary rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
         >
           + Agregar equipo
         </button>
@@ -195,7 +208,12 @@
       @for (e of equipos; track $index; let i = $index) {
         <div class="overflow-hidden rounded-2xl border border-gray-800 bg-[#121212]">
           <div class="border-b border-gray-800 px-4 py-3 sm:px-6">
-            <h4 class="text-base font-bold text-white sm:text-lg">ERA {{ e.numero }}</h4>
+            <div class="flex items-center justify-between gap-3">
+              <h4 class="text-base font-bold text-white sm:text-lg">ERA {{ e.numero }}</h4>
+              <span class="inline-flex items-center justify-center rounded-lg border px-3 py-1 text-xs font-bold" [ngClass]="claseEstadoEquipo(e)">
+                {{ etiquetaEstadoEquipo(e) }}
+              </span>
+            </div>
           </div>
 
           <div class="space-y-5 p-4 sm:p-6">
@@ -233,8 +251,21 @@
 
             <!-- MÁSCARA -->
             <div class="rounded-xl border border-red-900/40 bg-[#0d0d0d] p-4">
-              <p class="mb-3 text-xs font-bold uppercase tracking-wide text-red-400">Máscara</p>
+              <button type="button" (click)="toggleSeccion(i, 'mascara')" class="mb-3 flex w-full items-center justify-between text-left">
+                <p class="text-xs font-bold uppercase tracking-wide text-red-400">Máscara</p>
+                <lucide-icon name="chevron-down" class="h-4 w-4 text-red-300 transition-transform" [class.rotate-180]="seccionAbierta(i, 'mascara')"></lucide-icon>
+              </button>
+              @if (seccionAbierta(i, 'mascara')) {
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Código máscara</label>
+                  <input
+                    [(ngModel)]="e.codigoMascara"
+                    [name]="'cm' + i"
+                    placeholder="Ingrese código"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  />
+                </div>
                 <div>
                   <label class="mb-1 block text-xs text-gray-500">Limpia</label>
                   <select
@@ -272,11 +303,64 @@
                   </select>
                 </div>
               </div>
+              }
+            </div>
+
+            <!-- REGULADOR -->
+            <div class="rounded-xl border border-cyan-900/40 bg-[#0d0d0d] p-4">
+              <button type="button" (click)="toggleSeccion(i, 'regulador')" class="mb-3 flex w-full items-center justify-between text-left">
+                <p class="text-xs font-bold uppercase tracking-wide text-cyan-400">Regulador</p>
+                <lucide-icon name="chevron-down" class="h-4 w-4 text-cyan-300 transition-transform" [class.rotate-180]="seccionAbierta(i, 'regulador')"></lucide-icon>
+              </button>
+              @if (seccionAbierta(i, 'regulador')) {
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Módulo control digital</label>
+                  <select
+                    [(ngModel)]="e.arnesModuloDigital"
+                    [name]="'amd' + i"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optBueno; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Módulo control análogo</label>
+                  <select
+                    [(ngModel)]="e.arnesModuloAnalogo"
+                    [name]="'ama' + i"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optBueno; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Alarma baja presión</label>
+                  <select
+                    [(ngModel)]="e.arnesAlarma"
+                    [name]="'aa' + i"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optBueno; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+              }
             </div>
 
             <!-- CILINDRO -->
             <div class="rounded-xl border border-blue-900/40 bg-[#0d0d0d] p-4">
-              <p class="mb-3 text-xs font-bold uppercase tracking-wide text-blue-400">Cilindro</p>
+              <button type="button" (click)="toggleSeccion(i, 'cilindro')" class="mb-3 flex w-full items-center justify-between text-left">
+                <p class="text-xs font-bold uppercase tracking-wide text-blue-400">Cilindro</p>
+                <lucide-icon name="chevron-down" class="h-4 w-4 text-blue-300 transition-transform" [class.rotate-180]="seccionAbierta(i, 'cilindro')"></lucide-icon>
+              </button>
+              @if (seccionAbierta(i, 'cilindro')) {
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label class="mb-1 block text-xs text-gray-500">Presión de aire (cantidad / rango)</label>
@@ -321,12 +405,26 @@
                   />
                 </div>
               </div>
+              }
             </div>
 
             <!-- ARNÉS -->
             <div class="rounded-xl border border-amber-900/40 bg-[#0d0d0d] p-4">
-              <p class="mb-3 text-xs font-bold uppercase tracking-wide text-amber-400">Arnés</p>
+              <button type="button" (click)="toggleSeccion(i, 'arnes')" class="mb-3 flex w-full items-center justify-between text-left">
+                <p class="text-xs font-bold uppercase tracking-wide text-amber-400">Arnés</p>
+                <lucide-icon name="chevron-down" class="h-4 w-4 text-amber-300 transition-transform" [class.rotate-180]="seccionAbierta(i, 'arnes')"></lucide-icon>
+              </button>
+              @if (seccionAbierta(i, 'arnes')) {
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Código arnés</label>
+                  <input
+                    [(ngModel)]="e.codigoArnes"
+                    [name]="'ca' + i"
+                    placeholder="Ingrese código"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  />
+                </div>
                 <div>
                   <label class="mb-1 block text-xs text-gray-500">Limpio</label>
                   <select
@@ -364,42 +462,6 @@
                   </select>
                 </div>
                 <div>
-                  <label class="mb-1 block text-xs text-gray-500">Módulo control digital</label>
-                  <select
-                    [(ngModel)]="e.arnesModuloDigital"
-                    [name]="'amd' + i"
-                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
-                  >
-                    @for (o of optBueno; track o) {
-                      <option [value]="o">{{ o }}</option>
-                    }
-                  </select>
-                </div>
-                <div>
-                  <label class="mb-1 block text-xs text-gray-500">Módulo control análogo</label>
-                  <select
-                    [(ngModel)]="e.arnesModuloAnalogo"
-                    [name]="'ama' + i"
-                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
-                  >
-                    @for (o of optBueno; track o) {
-                      <option [value]="o">{{ o }}</option>
-                    }
-                  </select>
-                </div>
-                <div>
-                  <label class="mb-1 block text-xs text-gray-500">Alarma baja presión (campana)</label>
-                  <select
-                    [(ngModel)]="e.arnesAlarma"
-                    [name]="'aa' + i"
-                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
-                  >
-                    @for (o of optBueno; track o) {
-                      <option [value]="o">{{ o }}</option>
-                    }
-                  </select>
-                </div>
-                <div class="sm:col-span-3">
                   <label class="mb-1 block text-xs text-gray-500">Condición general</label>
                   <select
                     [(ngModel)]="e.arnesCondicion"
@@ -413,6 +475,44 @@
                   </select>
                 </div>
               </div>
+              }
+            </div>
+
+            <!-- PRUEBA FUNCIONAL -->
+            <div class="rounded-xl border border-emerald-900/40 bg-[#0d0d0d] p-4">
+              <button type="button" (click)="toggleSeccion(i, 'prueba')" class="mb-3 flex w-full items-center justify-between text-left">
+                <p class="text-xs font-bold uppercase tracking-wide text-emerald-400">Prueba funcional</p>
+                <lucide-icon name="chevron-down" class="h-4 w-4 text-emerald-300 transition-transform" [class.rotate-180]="seccionAbierta(i, 'prueba')"></lucide-icon>
+              </button>
+              @if (seccionAbierta(i, 'prueba')) {
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Presión mayor a 2000</label>
+                  <select
+                    [(ngModel)]="e.presionMayor2000"
+                    [name]="'pmf' + i"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optSiNo; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Condición general</label>
+                  <select
+                    [(ngModel)]="e.arnesCondicion"
+                    (ngModelChange)="e.estado = $event"
+                    [name]="'acg' + i"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                  >
+                    @for (o of optOperativo; track o) {
+                      <option [value]="o">{{ o }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+              }
             </div>
           </div>
         </div>
@@ -532,21 +632,24 @@
         </div>
       </div>
 
-      <div class="flex flex-col gap-3 sm:flex-row sm:gap-4">
+      <div class="pb-20">
         <button
           type="button"
           [disabled]="saving || savingBorrador"
           (click)="guardarBorrador()"
-          class="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-xl border border-gray-600 bg-[#1a1a1a] px-4 py-3 text-sm font-semibold text-gray-200 hover:border-gray-500 hover:bg-gray-900 disabled:opacity-50"
+          class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-gray-600 bg-[#1a1a1a] px-4 py-2.5 text-sm font-semibold text-gray-200 hover:border-gray-500 hover:bg-gray-900 disabled:opacity-50"
         >
           <lucide-icon name="save" class="h-5 w-5 opacity-80" [size]="20" color="currentColor"></lucide-icon>
           Guardar como borrador
         </button>
+      </div>
+
+      <div class="sticky bottom-0 z-30 -mx-4 border-t border-slate-800/80 bg-[#0a0a0a]/95 px-4 py-3 backdrop-blur md:-mx-8 md:px-8 lg:-mx-10 lg:px-10 xl:-mx-12 xl:px-12">
         <button
           type="button"
           [disabled]="saving || savingBorrador"
           (click)="guardar()"
-          class="flex min-h-[52px] flex-[2] items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
+          class="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
         >
           <lucide-icon name="save" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
           {{ saving ? 'Guardando…' : 'Guardar checklist ERA' }}
@@ -556,17 +659,23 @@
     </div>
     }
 
-    <section class="mt-6 w-full rounded-xl border border-gray-800 bg-[#121212] p-4 md:p-5">
-      <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h2 class="text-lg font-bold md:text-xl">Historial General ERA</h2>
-        <button
-          type="button"
-          (click)="cargarHistorialGeneral()"
-          class="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-        >
-          <lucide-icon name="refresh-cw" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-          Actualizar
-        </button>
+    @if (!mostrarRegistro) {
+    <section class="sid-history-card w-full p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 md:p-6">
+      <div class="sid-history-head mb-4">
+        <div>
+          <h2 class="sid-history-title">Historial general ERA</h2>
+          <p class="sid-history-subtitle">Inspecciones archivadas por unidad y fecha</p>
+        </div>
+        <div class="sid-history-actions w-full sm:w-auto">
+          <button
+            type="button"
+            (click)="cargarHistorialGeneral()"
+            class="sid-btn sid-btn-primary inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-900/25 hover:bg-red-700 sm:w-auto"
+          >
+            <lucide-icon name="clipboard-list" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            Actualizar
+          </button>
+        </div>
       </div>
 
       <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
@@ -575,7 +684,7 @@
           <select
             [(ngModel)]="filtroUnidad"
             (ngModelChange)="aplicarFiltrosHistorialEra()"
-            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+            class="sid-history-filter w-full text-sm"
           >
             <option value="">Todas</option>
             @for (c of carrosOrdenados(); track c.id) {
@@ -589,7 +698,7 @@
             type="date"
             [(ngModel)]="filtroDesde"
             (ngModelChange)="aplicarFiltrosHistorialEra()"
-            class="dark-date-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+            class="sid-history-filter dark-date-input w-full text-sm"
           />
         </div>
         <div>
@@ -598,14 +707,14 @@
             type="date"
             [(ngModel)]="filtroHasta"
             (ngModelChange)="aplicarFiltrosHistorialEra()"
-            class="dark-date-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+            class="sid-history-filter dark-date-input w-full text-sm"
           />
         </div>
         <div>
           <button
             type="button"
             (click)="aplicarFiltrosHistorialEra()"
-            class="w-full rounded-lg bg-red-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-red-700"
+            class="sid-btn sid-btn-primary w-full rounded-lg bg-red-600 px-4 py-2 text-sm font-medium transition-colors hover:bg-red-700"
           >
             Aplicar filtros
           </button>
@@ -613,46 +722,58 @@
       </div>
 
       @if (historialGeneralLoading) {
-        <p class="text-gray-400">Cargando historial…</p>
+        <div class="flex items-center gap-3 rounded-xl border border-slate-800/80 bg-[#0a0a0a] px-4 py-6 text-sm text-slate-400">
+          <lucide-icon name="clipboard-list" class="h-5 w-5 animate-pulse text-violet-400" [size]="20" color="currentColor"></lucide-icon>
+          Cargando historial…
+        </div>
       } @else if (historialGeneralError) {
-        <p class="text-red-400">{{ historialGeneralError }}</p>
+        <p class="rounded-xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ historialGeneralError }}</p>
       } @else {
-        <div class="overflow-x-auto">
-          <table class="w-full">
+        <div class="sid-history-wrap overflow-x-auto">
+          <table class="sid-history-table w-full">
             <thead>
-              <tr class="border-b border-gray-800">
-                <th class="px-3 py-2 text-left text-sm text-gray-400">Fecha</th>
-                <th class="px-3 py-2 text-left text-sm text-gray-400">Unidad</th>
-                <th class="px-3 py-2 text-left text-sm text-gray-400">Estado</th>
-                <th class="px-3 py-2 text-left text-sm text-gray-400">Inspector</th>
-                <th class="px-3 py-2 text-left text-sm text-gray-400">Responsable</th>
-                <th class="px-3 py-2 text-left text-sm text-gray-400">Guardia</th>
-                <th class="px-3 py-2 text-left text-sm text-gray-400">Cumplimiento</th>
-                <th class="px-3 py-2 text-left text-sm text-gray-400">Obs.</th>
-                <th class="px-3 py-2 text-left text-sm text-gray-400">Acciones</th>
+              <tr>
+                <th>Fecha</th>
+                <th>Unidad</th>
+                <th>Estado</th>
+                <th>Inspector</th>
+                <th>OBAC</th>
+                <th>Guardia</th>
+                <th>Cumplimiento</th>
+                <th>Obs.</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               @for (h of historialGeneralPaginado(); track h.id) {
-                <tr class="border-b border-gray-800 hover:bg-[#0a0a0a]">
-                  <td class="px-3 py-3 text-sm">{{ fechaHoraHist(h.fecha) }}</td>
-                  <td class="px-3 py-3 text-sm font-mono">{{ h.carro.nomenclatura || '—' }}</td>
-                  <td class="px-3 py-3 text-sm">
-                    <span class="rounded px-2 py-0.5 text-xs font-medium bg-emerald-950 text-emerald-200">
+                <tr>
+                  <td>{{ fechaHoraHist(h.fecha) }}</td>
+                  <td class="font-mono">{{ h.carro.nomenclatura || '—' }}</td>
+                  <td>
+                    <span
+                      class="sid-status-chip"
+                      [ngClass]="
+                        etiquetaEstadoEra(h) === 'VIGENTE'
+                          ? 'sid-status-chip-ok'
+                          : etiquetaEstadoEra(h) === 'OBSOLETO'
+                            ? 'sid-status-chip-neutral'
+                            : 'sid-status-chip-warn'
+                      "
+                    >
                       {{ etiquetaEstadoEra(h) }}
                     </span>
                   </td>
-                  <td class="px-3 py-3 text-sm">{{ h.inspector || '—' }}</td>
-                  <td class="px-3 py-3 text-sm">{{ h.cuartelero.nombre || '—' }}</td>
-                  <td class="px-3 py-3 text-sm">{{ h.grupoGuardia || '—' }}</td>
-                  <td class="px-3 py-3 text-sm">{{ porcentajeCumplimiento(h) }}</td>
-                  <td class="max-w-[200px] truncate px-3 py-3 text-sm text-gray-300">{{ h.observaciones || '—' }}</td>
-                  <td class="px-3 py-3 text-sm">
+                  <td>{{ h.inspector || '—' }}</td>
+                  <td>{{ h.cuartelero.nombre || '—' }}</td>
+                  <td>{{ h.grupoGuardia || '—' }}</td>
+                  <td>{{ porcentajeCumplimiento(h) }}</td>
+                  <td class="max-w-[200px] truncate text-gray-300">{{ h.observaciones || '—' }}</td>
+                  <td>
                     <div class="flex items-center gap-2">
                       <button
                         type="button"
                         (click)="editarRegistroEra(h)"
-                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
+                        class="sid-btn sid-btn-neutral inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
                         title="Editar registro"
                       >
                         <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
@@ -660,7 +781,7 @@
                       <button
                         type="button"
                         (click)="descargarRegistroEraPdf(h)"
-                        class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
+                        class="sid-btn sid-btn-primary inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
                         title="Descargar PDF"
                       >
                         <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
@@ -676,14 +797,14 @@
             </tbody>
           </table>
         </div>
-        <div class="mt-4 flex items-center justify-between text-sm text-gray-400">
+        <div class="mt-4 flex items-center justify-between text-sm sid-muted">
           <span>Página {{ paginaHistorial }} de {{ totalPaginasHistorial() }}</span>
           <div class="flex items-center gap-2">
             <button
               type="button"
               (click)="cambiarPaginaHistorial(-1)"
               [disabled]="paginaHistorial <= 1"
-              class="rounded-lg border border-gray-700 px-3 py-1.5 text-white disabled:opacity-40"
+              class="sid-btn sid-btn-neutral rounded-lg border border-gray-700 px-3 py-1.5 text-white disabled:opacity-40"
             >
               Anterior
             </button>
@@ -691,7 +812,7 @@
               type="button"
               (click)="cambiarPaginaHistorial(1)"
               [disabled]="paginaHistorial >= totalPaginasHistorial()"
-              class="rounded-lg border border-gray-700 px-3 py-1.5 text-white disabled:opacity-40"
+              class="sid-btn sid-btn-neutral rounded-lg border border-gray-700 px-3 py-1.5 text-white disabled:opacity-40"
             >
               Siguiente
             </button>
@@ -699,5 +820,6 @@
         </div>
       }
     </section>
+    }
   }
 </div>

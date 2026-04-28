@@ -5,6 +5,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const prisma_1 = require("../lib/prisma");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+function pick(arr, i) {
+    return arr[Math.abs(i) % arr.length];
+}
+function isoHora(base, hh, mm) {
+    const d = new Date(base);
+    d.setUTCHours(hh, mm, 0, 0);
+    return d;
+}
 async function main() {
     const hashDefault = await bcryptjs_1.default.hash('123456', 10);
     const rolesBase = ['CAPITAN', 'TENIENTE', 'VOLUNTARIOS', 'ADMIN'];
@@ -85,12 +93,7 @@ async function main() {
             create: carro,
         });
     }
-    const usuariosBase = [
-        { rut: '11.111.111-1', nombre: 'Capitán Carlos Pérez', rol: 'CAPITAN' },
-        { rut: '22.222.222-2', nombre: 'Teniente María González', rol: 'TENIENTE' },
-        { rut: '33.333.333-3', nombre: 'Juan Rojas', rol: 'VOLUNTARIOS' },
-        { rut: '99.999.999-9', nombre: 'Administrador SIDEP', rol: 'ADMIN' },
-    ];
+    const usuariosBase = [{ rut: '99.999.999-9', nombre: 'Administrador SIDEP', rol: 'ADMIN' }];
     for (let i = 0; i < usuariosBase.length; i += 1) {
         const u = usuariosBase[i];
         await prisma_1.prisma.usuario.upsert({
@@ -98,7 +101,7 @@ async function main() {
             update: {
                 nombre: u.nombre,
                 rol: u.rol,
-                email: `base${i + 1}@bomberos.cl`,
+                email: null,
                 telefono: `+56 9 7000 ${String(1000 + i)}`,
                 activo: true,
                 password: hashDefault,
@@ -107,36 +110,210 @@ async function main() {
                 rut: u.rut,
                 nombre: u.nombre,
                 rol: u.rol,
-                email: `base${i + 1}@bomberos.cl`,
+                email: null,
                 telefono: `+56 9 7000 ${String(1000 + i)}`,
                 activo: true,
                 password: hashDefault,
             },
         });
     }
-    for (let i = 1; i <= 26; i += 1) {
-        const rut = `77.${String(100000 + i).slice(0, 3)}.${String(200 + i).padStart(3, '0')}-${(i % 9) + 1}`;
+    const nominaCompania = [
+        { nombre: 'Nicolás Ponce Ramírez', rol: 'CAPITAN' },
+        { nombre: 'Luciano Rodriguez Burdiles', rol: 'VOLUNTARIOS' },
+        { nombre: 'Martin Salazar Villalobos', rol: 'VOLUNTARIOS' },
+        { nombre: 'Tomás Leyton Miranda', rol: 'VOLUNTARIOS' },
+        { nombre: 'Victor Venegas Zambrano', rol: 'TENIENTE' },
+        { nombre: 'Leonardo Ríos Guzmán', rol: 'TENIENTE' },
+        { nombre: 'Carlos Neira Valenzuela', rol: 'TENIENTE' },
+        { nombre: 'Claudio Aroca Oñate', rol: 'TENIENTE' },
+        { nombre: 'Renato Medina Araneda', rol: 'VOLUNTARIOS' },
+        { nombre: 'Ignacio Pinares Escobar', rol: 'VOLUNTARIOS' },
+        { nombre: 'Luis Valenzuela Jara', rol: 'VOLUNTARIOS' },
+        { nombre: 'Nicolás Gutierrez Cid', rol: 'VOLUNTARIOS' },
+        { nombre: 'Francisco López Flores', rol: 'VOLUNTARIOS' },
+        { nombre: 'Eduardo Pezo Espinoza', rol: 'VOLUNTARIOS' },
+        { nombre: 'Hector González Duran', rol: 'VOLUNTARIOS' },
+        { nombre: 'Freddy Pezo Mardones', rol: 'VOLUNTARIOS' },
+        { nombre: 'Luis Núñez De La Fuente', rol: 'VOLUNTARIOS' },
+        { nombre: 'Omar Ramos Valenzuela', rol: 'VOLUNTARIOS' },
+        { nombre: 'Jhonathan Núñez Pacheco', rol: 'VOLUNTARIOS' },
+        { nombre: 'Francisco Bravo Duran', rol: 'VOLUNTARIOS' },
+        { nombre: 'Claudio Venegas Martinez', rol: 'VOLUNTARIOS' },
+        { nombre: 'Carlos Urrutia Fernandez', rol: 'VOLUNTARIOS' },
+        { nombre: 'Nelson Gutierrez Colipi', rol: 'VOLUNTARIOS' },
+        { nombre: 'Felipe López Flores', rol: 'VOLUNTARIOS' },
+        { nombre: 'Juan José Salazar Erices', rol: 'VOLUNTARIOS' },
+        { nombre: 'Ihan Cleveland Figueroa', rol: 'VOLUNTARIOS' },
+        { nombre: 'Luis Molina Castro', rol: 'VOLUNTARIOS' },
+        { nombre: 'Bernardo Valenzuela Palma', rol: 'VOLUNTARIOS' },
+        { nombre: 'Jonathan Mora Bustamante', rol: 'VOLUNTARIOS' },
+        { nombre: 'Mauricio Alexander Seguel Montecinos', rol: 'VOLUNTARIOS' },
+        { nombre: 'Patricio Alfredo Madariaga Faundez', rol: 'VOLUNTARIOS' },
+        { nombre: 'Felipe Andrés Villagra Rojas', rol: 'VOLUNTARIOS' },
+        { nombre: 'Sergio Ariel Contreras Gutierrez', rol: 'VOLUNTARIOS' },
+        { nombre: 'Francisco Ignacio Catalán Parra', rol: 'VOLUNTARIOS' },
+        { nombre: 'Juan Carlos Yañez Vallejos', rol: 'VOLUNTARIOS' },
+        { nombre: 'Hans Albert Nuñez Salinas', rol: 'VOLUNTARIOS' },
+        { nombre: 'Paula Tamara Morales Guzman', rol: 'VOLUNTARIOS' },
+        { nombre: 'Diego Ignacio Pezo Mosquera', rol: 'VOLUNTARIOS' },
+        { nombre: 'Jasmín Elena Silva Escalona', rol: 'VOLUNTARIOS' },
+        { nombre: 'Lukas Sebastián González González', rol: 'VOLUNTARIOS' },
+        { nombre: 'Mariano Alexis Ruiz Hernandez', rol: 'VOLUNTARIOS' },
+        { nombre: 'Ricardo Sebastián González Mora', rol: 'VOLUNTARIOS' },
+        { nombre: 'Diego Salas Parra', rol: 'VOLUNTARIOS' },
+        { nombre: 'Alondra Lisoleth Reyes Pino', rol: 'VOLUNTARIOS' },
+        { nombre: 'Fernanda Camila Gallardo Gallardo', rol: 'VOLUNTARIOS' },
+        { nombre: 'Pamela Thalía Oñate Vergara', rol: 'VOLUNTARIOS' },
+        { nombre: 'Rodrigo Ivan Fernandez Burdiles', rol: 'VOLUNTARIOS' },
+        { nombre: 'Christine Rafaela Rios Guzman', rol: 'VOLUNTARIOS' },
+        { nombre: 'Débora Yinett Baeza Neira', rol: 'VOLUNTARIOS' },
+        { nombre: 'Javiera Elizabeth Quezada Rios', rol: 'VOLUNTARIOS' },
+        { nombre: 'Daniel Alexander Unda Gonzalez', rol: 'VOLUNTARIOS' },
+        { nombre: 'Carlos Elias Gutierrez Urbina', rol: 'VOLUNTARIOS' },
+        { nombre: 'Oscar Rolan Arevalo', rol: 'VOLUNTARIOS' },
+        { nombre: 'Javiera Garay Rios', rol: 'VOLUNTARIOS' },
+        { nombre: 'Belen Heck Pineda', rol: 'VOLUNTARIOS' },
+        { nombre: 'Felipe Ignacio Chamorro Ramírez', rol: 'VOLUNTARIOS' },
+        { nombre: 'Pablo Rodriguez Areyuna', rol: 'VOLUNTARIOS' },
+        { nombre: 'Michelle Andrea Sanhueza Gutiérrez', rol: 'VOLUNTARIOS' },
+        { nombre: 'Pablo Morales Morales', rol: 'VOLUNTARIOS' },
+        { nombre: 'Sebastian Gallegos Zambrano', rol: 'VOLUNTARIOS' },
+        { nombre: 'Benjamín Henríquez Yañez', rol: 'VOLUNTARIOS' },
+        { nombre: 'Alison Erices Burdiles', rol: 'VOLUNTARIOS' },
+        { nombre: 'Catalina Mora Gutiérrez', rol: 'VOLUNTARIOS' },
+        { nombre: 'Nicolás Hidalgo Carrera', rol: 'VOLUNTARIOS' },
+    ];
+    const honorarios = new Set([
+        'Eduardo Pezo Espinoza',
+        'Hector González Duran',
+        'Freddy Pezo Mardones',
+        'Luis Núñez De La Fuente',
+        'Omar Ramos Valenzuela',
+        'Jhonathan Núñez Pacheco',
+        'Francisco Bravo Duran',
+        'Claudio Venegas Martinez',
+        'Carlos Urrutia Fernandez',
+        'Nelson Gutierrez Colipi',
+        'Francisco López Flores',
+        'Felipe López Flores',
+        'Juan José Salazar Erices',
+        'Ihan Cleveland Figueroa',
+        'Luis Molina Castro',
+        'Bernardo Valenzuela Palma',
+        'Jonathan Mora Bustamante',
+    ]);
+    const canjes = new Set([
+        'Felipe Ignacio Chamorro Ramírez',
+        'Pablo Rodriguez Areyuna',
+        'Michelle Andrea Sanhueza Gutiérrez',
+    ]);
+    const cadetes = new Set([
+        'Pablo Morales Morales',
+        'Sebastian Gallegos Zambrano',
+        'Benjamín Henríquez Yañez',
+        'Alison Erices Burdiles',
+        'Catalina Mora Gutiérrez',
+        'Nicolás Hidalgo Carrera',
+    ]);
+    const insignes = new Set([...cadetes]);
+    const cargosPorNombre = {
+        'Nicolás Ponce Ramírez': 'CAPITAN_COMPANIA',
+        'Luciano Rodriguez Burdiles': 'SECRETARIO_COMPANIA',
+        'Martin Salazar Villalobos': 'PRO_SECRETARIO_COMPANIA',
+        'Tomás Leyton Miranda': 'TESORERO_COMPANIA',
+        'Victor Venegas Zambrano': 'TENIENTE_PRIMERO',
+        'Leonardo Ríos Guzmán': 'TENIENTE_SEGUNDO',
+        'Carlos Neira Valenzuela': 'TENIENTE_TERCERO',
+        'Claudio Aroca Oñate': 'TENIENTE_CUARTO',
+        'Renato Medina Araneda': 'AYUDANTE_COMPANIA',
+        'Ignacio Pinares Escobar': 'PRO_AYUDANTE',
+        'Luis Valenzuela Jara': 'VICE_SUPERINTENDENTE',
+        'Nicolás Gutierrez Cid': 'SECRETARIO_GENERAL',
+        'Francisco López Flores': 'SEGUNDO_COMANDANTE',
+    };
+    const nombreYaRegistrado = new Set();
+    for (let i = 0; i < nominaCompania.length; i += 1) {
+        const n = nominaCompania[i];
+        const claveNombre = n.nombre
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase();
+        if (nombreYaRegistrado.has(claveNombre))
+            continue;
+        nombreYaRegistrado.add(claveNombre);
+        const rut = `55.${String(100000 + i).slice(0, 3)}.${String(300 + i).padStart(3, '0')}-${((i + 3) % 9) + 1}`;
+        const tipoVoluntario = honorarios.has(n.nombre)
+            ? 'HONORARIO'
+            : canjes.has(n.nombre)
+                ? 'CANJE'
+                : insignes.has(n.nombre)
+                    ? 'INSIGNE'
+                    : 'VOLUNTARIO';
+        const cargoOficialidad = cargosPorNombre[n.nombre] ?? 'TENIENTE_CUARTO';
         await prisma_1.prisma.usuario.upsert({
             where: { rut },
             update: {
-                nombre: `Voluntario Demo ${i}`,
-                rol: i % 10 === 0 ? 'TENIENTE' : 'VOLUNTARIOS',
-                email: `voluntario${i}@bomberos.cl`,
-                telefono: `+56 9 6000 ${String(1000 + i)}`,
+                nombre: n.nombre,
+                rol: n.rol,
+                tipoVoluntario,
+                cargoOficialidad,
+                compania: '1ª Compañía Santa Juana',
+                estadoVoluntario: 'VIGENTE',
+                email: null,
+                telefono: `+56 9 6100 ${String(1000 + i)}`,
                 activo: true,
                 password: hashDefault,
             },
             create: {
                 rut,
-                nombre: `Voluntario Demo ${i}`,
-                rol: i % 10 === 0 ? 'TENIENTE' : 'VOLUNTARIOS',
-                email: `voluntario${i}@bomberos.cl`,
-                telefono: `+56 9 6000 ${String(1000 + i)}`,
+                nombre: n.nombre,
+                rol: n.rol,
+                tipoVoluntario,
+                cargoOficialidad,
+                compania: '1ª Compañía Santa Juana',
+                estadoVoluntario: 'VIGENTE',
+                email: null,
+                telefono: `+56 9 6100 ${String(1000 + i)}`,
                 activo: true,
                 password: hashDefault,
             },
         });
     }
+    const nombresPermitidos = new Set([
+        'Administrador SIDEP',
+        ...nominaCompania.map((x) => x.nombre),
+    ]);
+    await prisma_1.prisma.usuario.updateMany({
+        where: {
+            nombre: { notIn: Array.from(nombresPermitidos) },
+            rol: { not: 'ADMIN' },
+        },
+        data: { activo: false, estadoVoluntario: 'INACTIVO' },
+    });
+    await prisma_1.prisma.usuario.updateMany({
+        where: {
+            OR: [
+                { nombre: { startsWith: 'Voluntario Demo' } },
+                { nombre: 'Capitán Carlos Pérez' },
+                { nombre: 'Teniente María González' },
+                { nombre: 'Juan Rojas' },
+            ],
+        },
+        data: { activo: false },
+    });
+    await prisma_1.prisma.usuario.updateMany({
+        where: {
+            rol: { not: 'ADMIN' },
+            OR: [
+                { tipoVoluntario: null },
+                { tipoVoluntario: '' },
+                { tipoVoluntario: { in: ['ACTIVO', 'OFICIAL', 'CADETE', 'ASPIRANTE', 'CUARTELERO', 'CONFEDERADO'] } },
+            ],
+        },
+        data: { tipoVoluntario: 'VOLUNTARIO' },
+    });
     const carrosAll = await prisma_1.prisma.carro.findMany({
         where: { nomenclatura: { in: ['B-1', 'BX-1', 'R-1'] } },
         orderBy: { nomenclatura: 'asc' },
@@ -202,6 +379,161 @@ async function main() {
             },
         });
     }
+    // Partes completos de prueba 2024-2026 con asistencia, citaciones y SAMU.
+    const clavesFull = ['10-0', '10-1', '10-2', '10-3', '10-4', '10-4-2', '10-6', '10-7'];
+    const direcciones = [
+        'O Higgins 245, Santa Juana',
+        'Los Canelos 118, Santa Juana',
+        'Camino a Chacayal km 3, Santa Juana',
+        'Lautaro 77, Santa Juana',
+        'San Martín 910, Santa Juana',
+    ];
+    for (let anio = 2024; anio <= 2026; anio += 1) {
+        for (let i = 1; i <= 24; i += 1) {
+            const correlativo = `PRB-${anio}-${String(i).padStart(3, '0')}`;
+            const existe = await prisma_1.prisma.parteEmergencia.findUnique({ where: { correlativo } });
+            const carroA = pick(carrosAll, i);
+            const carroB = pick(carrosAll, i + 1);
+            const obac = pick(usuariosAll, i + anio);
+            const fechaBase = new Date(Date.UTC(anio, (i * 2) % 12, ((i * 3) % 27) + 1));
+            const h60 = `${String(8 + (i % 8)).padStart(2, '0')}:${String((i * 7) % 60).padStart(2, '0')}`;
+            const h63 = `${String(8 + (i % 8)).padStart(2, '0')}:${String((i * 7 + 4) % 60).padStart(2, '0')}`;
+            const h69 = `${String(8 + (i % 8)).padStart(2, '0')}:${String((i * 7 + 18) % 60).padStart(2, '0')}`;
+            const h610 = `${String(8 + (i % 8)).padStart(2, '0')}:${String((i * 7 + 32) % 60).padStart(2, '0')}`;
+            const idsAsistencia = usuariosAll.slice(0, 12).map((u) => `usr-${u.id}`);
+            const asistenciaPorContexto = {
+                emergencia: Object.fromEntries(idsAsistencia.slice(0, 5).map((id) => [id, true])),
+                curso: Object.fromEntries(idsAsistencia.slice(3, 7).map((id) => [id, true])),
+                cuartel: Object.fromEntries(idsAsistencia.slice(6, 10).map((id) => [id, true])),
+                comision: Object.fromEntries(idsAsistencia.slice(8, 11).map((id) => [id, true])),
+                comandancia: Object.fromEntries(idsAsistencia.slice(1, 4).map((id) => [id, true])),
+            };
+            if (existe) {
+                await prisma_1.prisma.parteEmergencia.update({
+                    where: { id: existe.id },
+                    data: {
+                        claveEmergencia: pick(clavesFull, i),
+                        direccion: pick(direcciones, i),
+                        fecha: isoHora(fechaBase, 8 + (i % 8), (i * 7) % 60),
+                        estado: i % 7 === 0 ? 'PENDIENTE' : 'COMPLETADO',
+                        obacId: obac.id,
+                        metadata: {
+                            descripcion: `Parte de prueba ${correlativo}`,
+                            trabajoRealizado: 'Control de escena, estabilizacion y traslado preventivo.',
+                            samu: i % 2 === 0 ? { asistio: true, movil: `SAMU-${100 + i}`, trasladadoA: 'Hospital Regional' } : { asistio: false },
+                            citaciones: [
+                                { unidad: carroA.nomenclatura, motivo: 'Refuerzo primera salida', hora: h63 },
+                                { unidad: carroB.nomenclatura, motivo: 'Apoyo logistica', hora: h69 },
+                            ],
+                            asistencia: {
+                                asistenciaPorContexto,
+                                asistenciaTotal: String(new Set(Object.values(asistenciaPorContexto).flatMap((x) => Object.keys(x))).size),
+                                oficial128: `Oficial 12-8 ${pick(usuariosAll, i + 4).nombre}`,
+                                encargadoDatos: pick(usuariosAll, i + 5).nombre,
+                                nombreObac: obac.nombre,
+                                radiosSeleccion: { 'C1-1': true, 'C2-2': i % 2 === 0, 'C3-3': i % 3 === 0 },
+                                radiosDetalle: { 'C1-1': 'Central y tráfico', 'C2-2': 'Comando', 'C3-3': 'Logística' },
+                            },
+                            observaciones: i % 5 === 0 ? 'Se solicita seguimiento de mantencion en unidad principal.' : '',
+                        },
+                        unidades: {
+                            deleteMany: {},
+                            create: [
+                                {
+                                    carroId: carroA.id,
+                                    horaSalida: h60,
+                                    horaLlegada: h610,
+                                    hora6_0: h60,
+                                    hora6_3: h63,
+                                    hora6_9: h69,
+                                    hora6_10: h610,
+                                    kmSalida: 12000 + anio + i * 35,
+                                    kmLlegada: 12025 + anio + i * 35,
+                                },
+                                {
+                                    carroId: carroB.id,
+                                    horaSalida: h63,
+                                    horaLlegada: h610,
+                                    hora6_0: h63,
+                                    hora6_3: h69,
+                                    hora6_9: h610,
+                                    hora6_10: h610,
+                                    kmSalida: 9000 + anio + i * 25,
+                                    kmLlegada: 9016 + anio + i * 25,
+                                },
+                            ],
+                        },
+                    },
+                });
+                continue;
+            }
+            await prisma_1.prisma.parteEmergencia.create({
+                data: {
+                    correlativo,
+                    claveEmergencia: pick(clavesFull, i),
+                    direccion: pick(direcciones, i),
+                    fecha: isoHora(fechaBase, 8 + (i % 8), (i * 7) % 60),
+                    estado: i % 7 === 0 ? 'PENDIENTE' : 'COMPLETADO',
+                    obacId: obac.id,
+                    metadata: {
+                        descripcion: `Parte de prueba ${correlativo}`,
+                        trabajoRealizado: 'Control de escena, estabilizacion y traslado preventivo.',
+                        samu: i % 2 === 0 ? { asistio: true, movil: `SAMU-${100 + i}`, trasladadoA: 'Hospital Regional' } : { asistio: false },
+                        citaciones: [
+                            { unidad: carroA.nomenclatura, motivo: 'Refuerzo primera salida', hora: h63 },
+                            { unidad: carroB.nomenclatura, motivo: 'Apoyo logistica', hora: h69 },
+                        ],
+                        asistencia: {
+                            asistenciaPorContexto,
+                            asistenciaTotal: String(new Set(Object.values(asistenciaPorContexto).flatMap((x) => Object.keys(x))).size),
+                            oficial128: `Oficial 12-8 ${pick(usuariosAll, i + 4).nombre}`,
+                            encargadoDatos: pick(usuariosAll, i + 5).nombre,
+                            nombreObac: obac.nombre,
+                            radiosSeleccion: { 'C1-1': true, 'C2-2': i % 2 === 0, 'C3-3': i % 3 === 0 },
+                            radiosDetalle: { 'C1-1': 'Central y tráfico', 'C2-2': 'Comando', 'C3-3': 'Logística' },
+                        },
+                        observaciones: i % 5 === 0 ? 'Se solicita seguimiento de mantencion en unidad principal.' : '',
+                    },
+                    unidades: {
+                        create: [
+                            {
+                                carroId: carroA.id,
+                                horaSalida: h60,
+                                horaLlegada: h610,
+                                hora6_0: h60,
+                                hora6_3: h63,
+                                hora6_9: h69,
+                                hora6_10: h610,
+                                kmSalida: 12000 + anio + i * 35,
+                                kmLlegada: 12025 + anio + i * 35,
+                            },
+                            {
+                                carroId: carroB.id,
+                                horaSalida: h63,
+                                horaLlegada: h610,
+                                hora6_0: h63,
+                                hora6_3: h69,
+                                hora6_9: h610,
+                                hora6_10: h610,
+                                kmSalida: 9000 + anio + i * 25,
+                                kmLlegada: 9016 + anio + i * 25,
+                            },
+                        ],
+                    },
+                    pacientes: {
+                        create: [
+                            {
+                                nombre: `Paciente Demo ${anio}-${i}-A`,
+                                triage: i % 3 === 0 ? 'ROJO' : i % 3 === 1 ? 'AMARILLO' : 'VERDE',
+                                edad: 18 + (i % 60),
+                                rut: `19.${String(100000 + i).slice(0, 3)}.${String(200 + i).padStart(3, '0')}-${(i % 9) + 1}`,
+                            },
+                        ],
+                    },
+                },
+            });
+        }
+    }
     for (let i = 0; i < 10; i += 1) {
         const carro = carrosAll[i % carrosAll.length];
         const cuartelero = usuariosAll[i % usuariosAll.length];
@@ -232,6 +564,105 @@ async function main() {
                 },
             },
         });
+    }
+    // Checklists de unidad de prueba en fechas 2024-2026.
+    for (let anio = 2024; anio <= 2026; anio += 1) {
+        for (let i = 1; i <= 18; i += 1) {
+            const carro = pick(carrosAll, i + anio);
+            const cuartelero = pick(usuariosAll, i + 2);
+            const marca = `SEED-UNIDAD-${anio}-${String(i).padStart(2, '0')}`;
+            const ya = await prisma_1.prisma.checklistCarro.findFirst({
+                where: { carroId: carro.id, tipo: 'UNIDAD', observaciones: { contains: marca } },
+            });
+            if (ya)
+                continue;
+            const total = 40;
+            const ok = Math.max(28, 40 - (i % 10));
+            await prisma_1.prisma.checklistCarro.create({
+                data: {
+                    carroId: carro.id,
+                    cuarteleroId: cuartelero.id,
+                    tipo: 'UNIDAD',
+                    fecha: new Date(Date.UTC(anio, i % 12, ((i * 2) % 27) + 1, 9, (i * 5) % 60, 0)),
+                    inspector: `Inspector Unidad ${anio}-${i}`,
+                    grupoGuardia: `${(i % 4) + 1}`,
+                    firmaOficial: `SEED-FIRMA-${anio}-${i}`,
+                    observaciones: `${marca} · checklist completo con semaforo`,
+                    totalItems: total,
+                    itemsOk: ok,
+                    detalle: {
+                        borrador: i % 8 === 0,
+                        ubicaciones: [
+                            {
+                                nombre: 'Cabina',
+                                materiales: [
+                                    { nombre: 'Botiquin', cantidadRequerida: 2, cantidadActual: i % 2 === 0 ? 2 : 1 },
+                                    { nombre: 'Linterna', cantidadRequerida: 2, cantidadActual: 2 },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            });
+        }
+    }
+    // Checklists ERA de prueba 2024-2026.
+    for (let anio = 2024; anio <= 2026; anio += 1) {
+        for (let i = 1; i <= 18; i += 1) {
+            const carro = pick(carrosAll, i);
+            const cuartelero = pick(usuariosAll, i + anio);
+            const marca = `SEED-ERA-${anio}-${String(i).padStart(2, '0')}`;
+            const ya = await prisma_1.prisma.checklistCarro.findFirst({
+                where: { carroId: carro.id, tipo: 'ERA', observaciones: { contains: marca } },
+            });
+            if (ya)
+                continue;
+            const total = 8;
+            const ok = i % 5 === 0 ? 6 : 8;
+            await prisma_1.prisma.checklistCarro.create({
+                data: {
+                    carroId: carro.id,
+                    cuarteleroId: cuartelero.id,
+                    tipo: 'ERA',
+                    fecha: new Date(Date.UTC(anio, (i * 3) % 12, ((i * 4) % 27) + 1, 11, (i * 3) % 60, 0)),
+                    inspector: `Inspector ERA ${anio}-${i}`,
+                    grupoGuardia: `${(i % 4) + 1}`,
+                    firmaOficial: `SEED-FIRMA-ERA-${anio}-${i}`,
+                    observaciones: `${marca} · revisión ERA`,
+                    totalItems: total,
+                    itemsOk: ok,
+                    detalle: {
+                        fechaInspeccion: new Date(Date.UTC(anio, (i * 3) % 12, ((i * 4) % 27) + 1)).toISOString().slice(0, 10),
+                        equipos: [
+                            {
+                                numero: 1,
+                                marca: 'MSA',
+                                tipo: 'M7',
+                                ubicacion: 'Cabina',
+                                codigoMascara: `M-${anio}-${i}-1`,
+                                codigoArnes: `A-${anio}-${i}-1`,
+                                codigoCilindro: `C-${anio}-${i}-1`,
+                                presion: '0 - 5000',
+                                estado: ok >= total ? 'Operativo' : 'No Operativo',
+                                arnesCondicion: ok >= total ? 'Operativo' : 'No Operativo',
+                            },
+                        ],
+                        cilindrosRecambio: [
+                            {
+                                numero: 1,
+                                tipo: 'G1',
+                                presionAire: '0 - 5000',
+                                presionMayor2000: 'Si',
+                                condicionGeneral: 'Operativo',
+                                codigoCilindro: `RC-${anio}-${i}-1`,
+                                estado: 'Operativo',
+                            },
+                        ],
+                        borrador: i % 9 === 0,
+                    },
+                },
+            });
+        }
     }
     for (let i = 0; i < 90; i += 1) {
         const carro = carrosAll[i % carrosAll.length];
@@ -273,6 +704,39 @@ async function main() {
             },
         });
     }
+    // Licencias de prueba 2024-2026.
+    const usuariosLic = usuariosAll.slice(0, Math.min(20, usuariosAll.length));
+    for (let anio = 2024; anio <= 2026; anio += 1) {
+        for (let i = 1; i <= 36; i += 1) {
+            const usuario = pick(usuariosLic, i + anio);
+            const fechaInicio = new Date(Date.UTC(anio, (i * 2) % 12, ((i * 3) % 24) + 1, 0, 0, 0));
+            const fechaTermino = new Date(fechaInicio.getTime() + (2 + (i % 6)) * 24 * 60 * 60 * 1000);
+            const marcador = `SEED-LIC-${anio}-${String(i).padStart(3, '0')}`;
+            const existeLic = await prisma_1.prisma.licenciaMedica.findFirst({
+                where: { usuarioId: usuario.id, motivo: { contains: marcador } },
+            });
+            if (existeLic)
+                continue;
+            const estado = i % 5 === 0 ? 'RECHAZADA' : i % 3 === 0 ? 'PENDIENTE' : 'APROBADA';
+            const resuelve = pick(usuariosAll, i + 3);
+            await prisma_1.prisma.licenciaMedica.create({
+                data: {
+                    usuarioId: usuario.id,
+                    fechaInicio,
+                    fechaTermino,
+                    motivo: `${marcador} · Licencia por recuperacion / permiso medico`,
+                    estado,
+                    observacionResolucion: estado === 'RECHAZADA'
+                        ? 'Falta documentación de respaldo.'
+                        : estado === 'APROBADA'
+                            ? 'Aprobada por oficialidad.'
+                            : null,
+                    resueltoPorId: estado === 'PENDIENTE' ? null : resuelve.id,
+                    resueltoEn: estado === 'PENDIENTE' ? null : new Date(fechaInicio.getTime() + 12 * 60 * 60 * 1000),
+                },
+            });
+        }
+    }
     await prisma_1.prisma.$executeRaw `
     INSERT INTO "ConfiguracionSistema" (clave, valor, "updatedAt")
     VALUES (
@@ -284,7 +748,7 @@ async function main() {
     )
     ON CONFLICT (clave) DO NOTHING
   `;
-    console.log('Seed listo: 3 carros base, 30 usuarios, partes 2024/2025/2026, trauma 2024/2025/2026, 10 checklist unidad y 10 mantenimientos por carro.');
+    console.log('Seed listo: base completa 2024-2026 con partes (asistencia/citaciones/SAMU), checklist unidad, ERA, trauma, licencias y mantenimientos.');
 }
 main()
     .catch((e) => {

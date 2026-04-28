@@ -2,7 +2,7 @@ import { CommonModule, formatDate } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { catchError, filter, map, of, startWith, switchMap, type Observable } from 'rxjs';
+import { catchError, filter, forkJoin, map, of, startWith, switchMap, type Observable } from 'rxjs';
 import type { ParteAsistenciaMetadata, ParteEmergenciaDto, ParteMetadataDto } from '../../models/parte.dto';
 import { PartesExportService } from '../../services/partes-export.service';
 import { PartesService } from '../../services/partes.service';
@@ -15,7 +15,16 @@ import { CLAVES_COMPANIA_SERVICIOS, CLAVES_NUEVO_PARTE, CLAVES_OPERATIVAS, etiqu
 type DetalleVm =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ok'; parte: ParteEmergenciaDto };
+  | { status: 'ok'; parte: ParteEmergenciaDto; analitica: ParteAnalitica };
+
+type ParteAnalitica = {
+  tiempoDespachoMin: number | null;
+  tiempoRespuestaMin: number | null;
+  tiempoServicioMin: number | null;
+  voluntariosParte: number | null;
+  promedioVoluntariosBase: number | null;
+  tendenciaVoluntarios: 'subio' | 'bajo' | 'igual' | 'sin-datos';
+};
 
 @Component({
   selector: 'app-parte-detalle',
@@ -35,8 +44,17 @@ export class ParteDetalleComponent {
     map((id) => Number(id)),
     filter((id) => Number.isFinite(id) && id > 0),
     switchMap((id) =>
-      this.partesApi.obtener(id).pipe(
-        map((parte): DetalleVm => ({ status: 'ok', parte })),
+      forkJoin({
+        parte: this.partesApi.obtener(id),
+        lista: this.partesApi.listar().pipe(catchError(() => of([] as ParteEmergenciaDto[]))),
+      }).pipe(
+        map(
+          ({ parte, lista }): DetalleVm => ({
+            status: 'ok',
+            parte,
+            analitica: this.construirAnalitica(parte, lista),
+          }),
+        ),
         catchError(
           (): Observable<DetalleVm> => of({ status: 'error', message: 'No se pudo cargar el parte.' }),
         ),
@@ -323,6 +341,94 @@ export class ParteDetalleComponent {
       parts.push(`Cond. ${cond}`);
     }
     return parts.join(' · ');
+  }
+
+  private parseHora(baseFecha: string, hhmm: string | undefined): Date | null {
+    if (!hhmm) return null;
+    const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+    if (!m) return null;
+    const hh = Number(m[1]);
+    const mm = Number(m[2]);
+    if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
+    const d = new Date(baseFecha);
+    if (Number.isNaN(d.getTime())) return null;
+    d.setHours(hh, mm, 0, 0);
+    return d;
+  }
+
+  private diffMin(a: Date | null, b: Date | null): number | null {
+    if (!a || !b) return null;
+    const x = (b.getTime() - a.getTime()) / 60000;
+    if (!Number.isFinite(x) || x < 0 || x > 24 * 60) return null;
+    return Number(x.toFixed(2));
+  }
+
+  private promedio(nums: number[]): number | null {
+    if (!nums.length) return null;
+    return Number((nums.reduce((acc, n) => acc + n, 0) / nums.length).toFixed(2));
+  }
+
+  private parseAsistenciaTotal(parte: ParteEmergenciaDto): number | null {
+    const raw = parte.metadata?.asistencia?.asistenciaTotal;
+    if (typeof raw !== 'string' || !raw.trim()) return null;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) return null;
+    return Math.round(n);
+  }
+
+  private construirAnalitica(parte: ParteEmergenciaDto, lista: ParteEmergenciaDto[]): ParteAnalitica {
+    const tiemposDespacho: number[] = [];
+    const tiemposRespuesta: number[] = [];
+    const tiemposServicio: number[] = [];
+    for (const u of parte.unidades) {
+      const base = new Date(parte.fecha);
+      const horaDespacho = this.parseHora(parte.fecha, u.hora6_0 || u.horaSalida);
+      const horaLlegada = this.parseHora(parte.fecha, u.hora6_3 || u.horaLlegada);
+      const horaDisponible = this.parseHora(parte.fecha, u.hora6_10 || u.horaLlegada);
+      const despacho = this.diffMin(base, horaDespacho);
+      const respuesta = this.diffMin(horaDespacho, horaLlegada);
+      const servicio = this.diffMin(horaDespacho, horaDisponible);
+      if (despacho != null) tiemposDespacho.push(despacho);
+      if (respuesta != null) tiemposRespuesta.push(respuesta);
+      if (servicio != null) tiemposServicio.push(servicio);
+    }
+
+    const voluntariosParte = this.parseAsistenciaTotal(parte);
+    const muestra = lista
+      .filter((x) => x.id !== parte.id)
+      .slice(0, 30)
+      .map((x) => this.parseAsistenciaTotal(x))
+      .filter((x): x is number => x != null);
+    const promedioVoluntariosBase = this.promedio(muestra);
+
+    let tendenciaVoluntarios: ParteAnalitica['tendenciaVoluntarios'] = 'sin-datos';
+    if (voluntariosParte != null && promedioVoluntariosBase != null) {
+      if (voluntariosParte > promedioVoluntariosBase) tendenciaVoluntarios = 'subio';
+      else if (voluntariosParte < promedioVoluntariosBase) tendenciaVoluntarios = 'bajo';
+      else tendenciaVoluntarios = 'igual';
+    }
+    return {
+      tiempoDespachoMin: this.promedio(tiemposDespacho),
+      tiempoRespuestaMin: this.promedio(tiemposRespuesta),
+      tiempoServicioMin: this.promedio(tiemposServicio),
+      voluntariosParte,
+      promedioVoluntariosBase,
+      tendenciaVoluntarios,
+    };
+  }
+
+  tendenciaVoluntariosEtiqueta(v: ParteAnalitica['tendenciaVoluntarios']): string {
+    if (v === 'subio') return 'Subio';
+    if (v === 'bajo') return 'Bajo';
+    if (v === 'igual') return 'Igual';
+    return 'Sin datos';
+  }
+
+  tendenciaVoluntariosClase(v: ParteAnalitica['tendenciaVoluntarios']): string {
+    if (v === 'subio') return 'text-emerald-300';
+    if (v === 'bajo') return 'text-amber-300';
+    if (v === 'igual') return 'text-sky-300';
+    return 'text-gray-400';
   }
 
 }

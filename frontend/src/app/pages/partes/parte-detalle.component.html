@@ -1,57 +1,81 @@
 @let vm = vm$ | async;
 
-<div class="w-full min-w-0 px-4 py-6 md:px-8 lg:px-10 xl:px-12 sm:py-8">
+<div class="sid-page w-full min-w-0 space-y-6 px-4 py-6 sm:py-8 md:px-8 lg:px-10 xl:px-12">
   @if (!vm || vm.status === 'loading') {
-    <p class="text-gray-400">Cargando parte…</p>
+    <div class="flex min-h-[30vh] flex-col items-center justify-center gap-3 text-slate-400">
+      <lucide-icon name="file-text" class="h-10 w-10 animate-pulse text-rose-500" [size]="40" color="currentColor" />
+      <p class="text-sm">Cargando parte…</p>
+    </div>
   } @else if (vm.status === 'error') {
-    <p class="text-red-400">{{ vm.message }}</p>
-    <a routerLink="/partes" class="mt-4 inline-block text-gray-400 hover:text-white">Volver</a>
+    <div class="max-w-md rounded-2xl border border-red-900/50 bg-red-950/25 p-5 text-sm text-red-300">
+      {{ vm.message }}
+    </div>
+    <a
+      routerLink="/partes"
+      class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212] px-4 py-2.5 text-sm text-slate-300 ring-1 ring-inset ring-white/5"
+    >
+      <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+      Volver a partes
+    </a>
   } @else {
     @let p = vm.parte;
-    <a routerLink="/partes" class="mb-4 inline-flex items-center gap-2 text-gray-400 transition-colors hover:text-white">
+    @let a = vm.analitica;
+    <a
+      routerLink="/partes"
+      class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212] px-4 py-2.5 text-sm text-slate-300 shadow-sm ring-1 ring-inset ring-white/5 transition-all hover:border-slate-600 hover:text-white"
+    >
       <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-      Volver a Partes
+      Volver a partes
     </a>
 
-    <div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-      <div>
-        <h1 class="mb-2 text-3xl font-bold">Parte {{ idDisplay(p.correlativo) }}</h1>
-        <p class="text-gray-400">{{ fechaHora(p.fecha) }} • {{ etiquetaClave(p.claveEmergencia) }}</p>
-        <p class="mt-2">
-          <span class="rounded-full px-3 py-1 text-xs font-medium" [ngClass]="estadoClase(p.estado)">{{ p.estado }}</span>
-        </p>
+    <section
+      class="overflow-hidden rounded-2xl border border-rose-900/35 bg-[radial-gradient(circle_at_0%_0%,rgba(244,63,94,0.12),transparent_50%),radial-gradient(circle_at_100%_0%,rgba(59,130,246,0.08),transparent_45%),#0a0a0a] p-5 sm:p-6"
+    >
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div class="min-w-0">
+          <p class="mb-2 inline-flex rounded-full border border-rose-500/35 bg-rose-500/10 px-3 py-1 text-xs text-rose-200">10-x · registro de emergencia</p>
+          <h1 class="text-2xl font-bold text-white sm:text-3xl">Parte {{ idDisplay(p.correlativo) }}</h1>
+          <p class="mt-1 text-sm text-slate-300 sm:text-base">{{ fechaHora(p.fecha) }} · {{ etiquetaClave(p.claveEmergencia) }}</p>
+          <p class="mt-3">
+            <span class="rounded-full px-3 py-1.5 text-xs font-semibold" [ngClass]="estadoClase(p.estado)">{{ p.estado }}</span>
+          </p>
+        </div>
+        <div class="flex flex-col gap-2 sm:items-end">
+          <div class="flex flex-wrap gap-2 sm:justify-end">
+            <a
+              routerLink="/partes/nuevo"
+              class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-600 bg-slate-900/80 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-inset ring-white/5 transition-all hover:bg-slate-800"
+            >
+              <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+              Nuevo parte
+            </a>
+            <button
+              type="button"
+              class="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-sky-600"
+              (click)="iniciarEdicion(p)"
+            >
+              <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+              Editar
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-900/20 transition-colors hover:bg-red-700"
+              (click)="descargarPdf(p)"
+            >
+              <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+              PDF
+            </button>
+          </div>
+        </div>
       </div>
-      <div class="flex flex-wrap gap-3">
-        <a
-          routerLink="/partes/nuevo"
-          class="inline-flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 font-medium transition-colors hover:bg-gray-700"
-        >
-          <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-          Nuevo parte
-        </a>
-        <button
-          type="button"
-          class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-medium transition-colors hover:bg-blue-700"
-          (click)="iniciarEdicion(p)"
-        >
-          <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-          Editar parte
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 font-medium text-white transition-colors hover:bg-red-700"
-          (click)="descargarPdf(p)"
-        >
-          <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-          Descargar PDF
-        </button>
-      </div>
-    </div>
+    </section>
 
     <div class="space-y-6">
       @if (editando) {
-        <div class="rounded-xl border border-blue-700/40 bg-blue-900/10 p-6">
-          <h2 class="mb-4 text-xl font-bold">Editar parte</h2>
+        <div
+          class="rounded-2xl border border-sky-800/50 bg-gradient-to-br from-sky-950/40 to-transparent p-5 shadow-lg ring-1 ring-inset ring-sky-500/10 sm:p-6"
+        >
+          <h2 class="mb-4 text-lg font-bold text-white sm:text-xl">Editar parte</h2>
           @if (errorEdicion) {
             <div class="mb-4 rounded-lg border border-red-700 bg-red-900/20 px-4 py-3 text-sm text-red-300">
               {{ errorEdicion }}
@@ -126,28 +150,28 @@
         </div>
       }
 
-      <div class="rounded-xl border border-gray-800 bg-[#121212] p-6">
-        <h2 class="mb-6 flex items-center gap-2 text-xl font-bold">
-          <lucide-icon name="calendar" class="h-5 w-5 text-red-500" [size]="20" color="currentColor"></lucide-icon>
+      <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+        <h2 class="mb-6 flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
+          <lucide-icon name="calendar" class="h-5 w-5 text-rose-400" [size]="20" color="currentColor"></lucide-icon>
           Información general
         </h2>
         <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
           <div>
-            <p class="mb-1 text-sm text-gray-400">OBAC</p>
-            <p class="font-medium">{{ p.obac.nombre }}</p>
-            <p class="text-xs text-gray-500">{{ p.obac.rut }} · {{ p.obac.rol }}</p>
+            <p class="mb-1 text-sm text-slate-500">OBAC</p>
+            <p class="font-medium text-white">{{ p.obac.nombre }}</p>
+            <p class="text-xs text-slate-500">{{ p.obac.rut }} · {{ p.obac.rol }}</p>
           </div>
           <div class="md:col-span-2">
-            <p class="mb-1 text-sm text-gray-400">Dirección</p>
-            <p class="font-medium">{{ p.direccion }}</p>
+            <p class="mb-1 text-sm text-slate-500">Dirección</p>
+            <p class="font-medium text-white">{{ p.direccion }}</p>
           </div>
         </div>
       </div>
 
       @if (p.metadata && tieneDetalleExtendido(p.metadata)) {
-        <div class="rounded-xl border border-gray-800 bg-[#121212] p-6">
-          <h2 class="mb-4 flex items-center gap-2 text-xl font-bold">
-            <lucide-icon name="clipboard-check" class="h-5 w-5 text-red-500" [size]="20" color="currentColor"></lucide-icon>
+        <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+          <h2 class="mb-4 flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
+            <lucide-icon name="clipboard-check" class="h-5 w-5 text-rose-400" [size]="20" color="currentColor"></lucide-icon>
             Detalle del parte
           </h2>
           <div class="space-y-4 text-sm leading-relaxed text-gray-300">
@@ -305,9 +329,9 @@
         </div>
       }
 
-      <div class="rounded-xl border border-gray-800 bg-[#121212] p-6">
-        <h2 class="mb-6 flex items-center gap-2 text-xl font-bold">
-          <lucide-icon name="truck" class="h-5 w-5 text-red-500" [size]="20" color="currentColor"></lucide-icon>
+      <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+        <h2 class="mb-6 flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
+          <lucide-icon name="truck" class="h-5 w-5 text-rose-400" [size]="20" color="currentColor"></lucide-icon>
           Unidades despachadas
         </h2>
         @if (p.unidades.length > 0) {
@@ -318,7 +342,7 @@
         }
         <div class="space-y-3">
           @for (u of p.unidades; track u.id) {
-            <div class="rounded-lg border border-gray-800 bg-[#0a0a0a] p-4">
+            <div class="rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-4 ring-1 ring-inset ring-white/5">
               <div class="mb-3 flex flex-wrap items-baseline gap-2 border-b border-gray-800 pb-2">
                 <span class="font-mono font-semibold text-red-400">{{ u.carro.nomenclatura }}</span>
                 <span class="text-sm text-gray-400">Patente {{ u.carro.patente }}</span>
@@ -350,9 +374,9 @@
         </div>
       </div>
 
-      <div class="rounded-xl border border-gray-800 bg-[#121212] p-6">
-        <h2 class="mb-6 flex items-center gap-2 text-xl font-bold">
-          <lucide-icon name="users" class="h-5 w-5 text-red-500" [size]="20" color="currentColor"></lucide-icon>
+      <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+        <h2 class="mb-6 flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
+          <lucide-icon name="users" class="h-5 w-5 text-rose-400" [size]="20" color="currentColor"></lucide-icon>
           Pacientes
         </h2>
         @if (p.pacientes.length === 0) {
@@ -380,6 +404,49 @@
               </tbody>
             </table>
           </div>
+        }
+      </div>
+
+      <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+        <h2 class="mb-4 flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
+          <lucide-icon name="chart-column" class="h-5 w-5 text-rose-400" [size]="20" color="currentColor"></lucide-icon>
+          Analítica del parte
+        </h2>
+        @if (a) {
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-3 ring-1 ring-inset ring-white/5">
+              <p class="text-xs text-slate-500">Tiempo de despacho</p>
+              <p class="mt-1 text-2xl font-bold text-rose-300">
+                {{ a.tiempoDespachoMin == null ? '—' : a.tiempoDespachoMin + ' min' }}
+              </p>
+            </div>
+            <div class="rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-3 ring-1 ring-inset ring-white/5">
+              <p class="text-xs text-slate-500">Tiempo de respuesta</p>
+              <p class="mt-1 text-2xl font-bold text-amber-300">
+                {{ a.tiempoRespuestaMin == null ? '—' : a.tiempoRespuestaMin + ' min' }}
+              </p>
+            </div>
+            <div class="rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-3 ring-1 ring-inset ring-white/5">
+              <p class="text-xs text-slate-500">Tiempo de servicio</p>
+              <p class="mt-1 text-2xl font-bold text-emerald-300">
+                {{ a.tiempoServicioMin == null ? '—' : a.tiempoServicioMin + ' min' }}
+              </p>
+            </div>
+            <div class="rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-3 ring-1 ring-inset ring-white/5">
+              <p class="text-xs text-slate-500">Dotación declarada</p>
+              <p class="mt-1 text-2xl font-bold text-sky-300">{{ a.voluntariosParte ?? '—' }}</p>
+            </div>
+          </div>
+          <div class="mt-4 rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-3 text-sm text-slate-300 ring-1 ring-inset ring-white/5">
+            Promedio base (últimos 30 partes con dotación): <strong>{{ a.promedioVoluntariosBase ?? '—' }}</strong>.
+            Tendencia de dotación:
+            <strong [ngClass]="tendenciaVoluntariosClase(a.tendenciaVoluntarios)">
+              {{ tendenciaVoluntariosEtiqueta(a.tendenciaVoluntarios) }}
+            </strong>
+            respecto al promedio.
+          </div>
+        } @else {
+          <p class="text-sm text-gray-500">Sin datos analíticos para este parte.</p>
         }
       </div>
     </div>

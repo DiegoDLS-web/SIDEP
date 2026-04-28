@@ -1,38 +1,44 @@
-<div class="w-full min-w-0 px-4 py-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 md:py-8">
+<div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 md:py-8">
   @if (loading) {
-    <p class="text-gray-400">Cargando unidades…</p>
-  } @else if (error) {
-    <p class="text-red-400">{{ error }}</p>
-  } @else {
-    <div class="mb-5 sm:mb-8">
-      <h1 class="mb-2 text-2xl font-bold sm:text-3xl">Checklist de Unidades</h1>
-      <p class="text-sm text-gray-400 sm:text-base">Seleccione la unidad para realizar el checklist de verificación</p>
+    <div class="flex min-h-[30vh] flex-col items-center justify-center gap-3 text-slate-400">
+      <lucide-icon name="clipboard-check" class="h-10 w-10 animate-pulse text-red-500" [size]="40" color="currentColor" />
+      <p class="text-sm">Cargando unidades…</p>
     </div>
+  } @else if (error) {
+    <div class="rounded-2xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ error }}</div>
+  } @else {
+    <section
+      class="relative overflow-hidden rounded-2xl border border-emerald-900/30 bg-[radial-gradient(circle_at_0%_0%,rgba(16,185,129,0.15),transparent_48%),radial-gradient(circle_at_100%_0%,rgba(220,38,38,0.12),transparent_40%),#0a0a0a] p-5 sm:p-6"
+    >
+      <p class="mb-2 inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200">Inventario por unidad</p>
+      <h1 class="text-2xl font-bold text-white sm:text-3xl">Checklist de unidades</h1>
+      <p class="mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">Selecciona la unidad para el checklist de verificación de materiales</p>
+    </section>
 
     @let s = stats();
-    <div class="mb-5 grid grid-cols-2 gap-3 sm:mb-8 sm:gap-4 lg:grid-cols-4">
-      <div class="rounded-xl border border-gray-800 bg-[#121212] p-4 sm:p-6">
-        <p class="mb-0.5 text-2xl font-bold sm:text-3xl">{{ s.total }}</p>
-        <p class="text-xs text-gray-400 sm:text-sm">Unidades</p>
+    <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div class="rounded-2xl border border-slate-800 bg-[#121212] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-5">
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ s.total }}</p>
+        <p class="text-xs text-slate-400 sm:text-sm">Unidades</p>
       </div>
-      <div class="rounded-xl border border-green-600 bg-[#121212] p-4 sm:p-6">
-        <p class="mb-0.5 text-2xl font-bold text-green-500 sm:text-3xl">{{ s.completas }}</p>
-        <p class="text-xs text-gray-400 sm:text-sm">Completas</p>
+      <div class="rounded-2xl border border-emerald-800/40 bg-gradient-to-br from-emerald-950/35 to-transparent p-4 ring-1 ring-inset ring-emerald-500/10 sm:p-5">
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-emerald-400 sm:text-3xl">{{ s.completas }}</p>
+        <p class="text-xs text-slate-400 sm:text-sm">Completas</p>
       </div>
-      <div class="rounded-xl border border-yellow-600 bg-[#121212] p-4 sm:p-6">
-        <p class="mb-0.5 text-2xl font-bold text-yellow-500 sm:text-3xl">{{ s.incompletas }}</p>
-        <p class="text-xs text-gray-400 sm:text-sm">Incompletas</p>
+      <div class="rounded-2xl border border-amber-800/40 bg-gradient-to-br from-amber-950/30 to-transparent p-4 ring-1 ring-inset ring-amber-500/10 sm:p-5">
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-amber-400 sm:text-3xl">{{ s.incompletas }}</p>
+        <p class="text-xs text-slate-400 sm:text-sm">Incompletas</p>
       </div>
-      <div class="col-span-2 rounded-xl border border-red-900/50 bg-[#121212] p-4 sm:p-6 lg:col-span-1">
-        <p class="mb-0.5 text-2xl font-bold text-red-300 sm:text-3xl">{{ s.faltantes }}</p>
-        <p class="text-xs text-gray-400 sm:text-sm">Materiales faltantes</p>
+      <div class="col-span-2 rounded-2xl border border-red-900/45 bg-gradient-to-br from-red-950/35 to-transparent p-4 ring-1 ring-inset ring-red-500/15 sm:p-5 lg:col-span-1">
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-red-300 sm:text-3xl">{{ s.faltantes }}</p>
+        <p class="text-xs text-slate-400 sm:text-sm">Materiales faltantes</p>
       </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
       @for (u of unidades; track u.unidad) {
-        <div class="group min-w-0 overflow-hidden rounded-xl border border-gray-800 bg-[#121212] transition-colors hover:border-gray-700">
-          <div class="bg-gradient-to-r from-red-600 to-red-700 p-4 sm:p-6">
+        <div class="group min-w-0 overflow-hidden rounded-2xl border border-slate-800/90 bg-[#121212] shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 transition-all duration-200 hover:border-red-800/50 hover:shadow-red-950/15">
+          <div class="bg-gradient-to-br from-red-600 via-red-700 to-red-900 p-4 sm:p-6">
             <div class="mb-4 flex min-w-0 items-start justify-between gap-3">
               <div class="relative z-10 min-w-0 flex-1">
                 <h3 class="break-words text-2xl font-bold text-white">{{ tituloUnidad(u) }}</h3>
@@ -95,7 +101,7 @@
               <button
                 type="button"
                 (click)="abrirChecklistUnidad(u, $event)"
-                class="relative z-10 flex min-h-[44px] flex-1 cursor-pointer items-center justify-between rounded-lg border border-gray-800 bg-[#0a0a0a] p-3 text-left transition-colors hover:border-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600/60"
+                class="sid-input relative z-10 flex min-h-[44px] flex-1 cursor-pointer items-center justify-between rounded-lg border border-gray-800 bg-[#0a0a0a] p-3 text-left transition-colors hover:border-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600/60"
               >
                 <span class="text-sm font-medium text-white">Realizar Checklist</span>
                 <lucide-icon name="chevron-right" class="h-5 w-5 shrink-0 text-gray-500" [size]="20" color="currentColor"></lucide-icon>
@@ -106,18 +112,18 @@
       }
     </div>
 
-    <section class="mt-6 rounded-xl border border-gray-800 bg-[#121212] p-4 sm:p-6 md:mt-8">
+    <section class="sid-history-card p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
       @let filasHistorial = historialPaginado();
-      <div class="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div class="sid-history-head mb-5">
         <div>
-          <h2 class="text-xl font-bold">Historial General</h2>
-          <p class="text-sm text-gray-400">Revisa todos los checklists de unidades en un solo lugar y filtra los resultados.</p>
+          <h2 class="sid-history-title">Historial general</h2>
+          <p class="sid-history-subtitle">Todos los checklists de unidades en un solo lugar; filtra por unidad, estado o texto.</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="sid-history-actions">
           <button
             type="button"
             (click)="actualizarHistorial()"
-            class="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-[#0a0a0a] px-4 py-2 text-sm font-medium text-white hover:bg-[#161616]"
+            class="sid-btn sid-btn-neutral inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-[#0a0a0a] px-4 py-2 text-sm font-medium text-white hover:bg-[#161616]"
           >
             <lucide-icon name="refresh-cw" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
             Actualizar
@@ -126,7 +132,7 @@
             type="button"
             (click)="exportarHistorialPdf()"
             [disabled]="filasHistorial.length === 0"
-            class="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+            class="sid-btn sid-btn-primary inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
             Descargar PDF
@@ -137,7 +143,7 @@
       <div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
         <select
           [(ngModel)]="filtroUnidadHistorial"
-          class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+          class="sid-history-filter text-sm"
         >
           <option value="TODAS">Todas las unidades</option>
           @for (u of unidades; track u.unidad) {
@@ -147,7 +153,7 @@
 
         <select
           [(ngModel)]="filtroEstadoHistorial"
-          class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+          class="sid-history-filter text-sm"
         >
           <option value="TODOS">Todos los estados</option>
           <option value="COMPLETOS">Completos</option>
@@ -157,7 +163,7 @@
         <input
           [(ngModel)]="filtroTextoHistorial"
           placeholder="Buscar por unidad, inspector, OBAC u observación"
-          class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+          class="sid-history-filter text-sm"
         />
       </div>
 
@@ -184,9 +190,9 @@
                   <dt class="text-gray-500">Estado</dt>
                   <dd>
                     @if (estadoHistorialFila(h) === 'Completo') {
-                      <span class="text-green-500">Completo</span>
+                      <span class="sid-status-chip sid-status-chip-ok">Completo</span>
                     } @else {
-                      <span class="text-yellow-500">Observado</span>
+                      <span class="sid-status-chip sid-status-chip-warn">Observado</span>
                     }
                   </dd>
                 </div>
@@ -199,7 +205,7 @@
                   <dd class="text-gray-200">{{ h.grupoGuardia || '—' }}</dd>
                 </div>
                 <div class="min-w-0 sm:col-span-2">
-                  <dt class="text-gray-500">Responsable (OBAC)</dt>
+                  <dt class="text-gray-500">OBAC</dt>
                   <dd class="text-gray-200">{{ h.cuartelero ? h.cuartelero.nombre : '—' }}</dd>
                 </div>
                 <div class="sm:col-span-2">
@@ -211,7 +217,7 @@
                 <button
                   type="button"
                   (click)="verRegistroHistorial(h)"
-                  class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                  class="sid-btn sid-btn-info inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
                   title="Ver detalle"
                 >
                   <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
@@ -219,7 +225,7 @@
                 <button
                   type="button"
                   (click)="editarRegistroHistorial(h)"
-                  class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
+                  class="sid-btn sid-btn-neutral inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
                   title="Editar"
                 >
                   <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
@@ -227,7 +233,7 @@
                 <button
                   type="button"
                   (click)="descargarRegistroHistorialPdf(h)"
-                  class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
+                  class="sid-btn sid-btn-primary inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
                   title="Descargar PDF"
                 >
                   <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
@@ -236,40 +242,40 @@
             </div>
           }
         </div>
-        <div class="hidden overflow-x-auto rounded-lg border border-gray-800 [-webkit-overflow-scrolling:touch] lg:block">
-          <table class="min-w-[900px] text-left text-sm xl:min-w-full">
-            <thead class="border-b border-gray-800 bg-black/40 text-xs uppercase text-gray-500">
+        <div class="sid-history-wrap hidden overflow-x-auto [-webkit-overflow-scrolling:touch] lg:block">
+          <table class="sid-history-table min-w-[900px] xl:min-w-full">
+            <thead>
               <tr>
                 <th class="px-3 py-2">Fecha</th>
                 <th class="px-3 py-2">Unidad</th>
                 <th class="px-3 py-2">Estado</th>
                 <th class="px-3 py-2">Inspector</th>
-                <th class="px-3 py-2">Responsable</th>
+                <th class="px-3 py-2">OBAC</th>
                 <th class="px-3 py-2">Guardia</th>
                 <th class="px-3 py-2">Acciones</th>
               </tr>
             </thead>
             <tbody>
               @for (h of filasHistorial; track trackHistorialFila(h)) {
-                <tr class="border-b border-gray-900 text-gray-300">
-                  <td class="whitespace-nowrap px-3 py-2">{{ h.fecha | date : 'short' : '' : 'es-CL' }}</td>
-                  <td class="px-3 py-2 font-medium text-white">{{ h.unidad }}</td>
-                  <td class="px-3 py-2">
+                <tr>
+                  <td class="whitespace-nowrap">{{ h.fecha | date : 'short' : '' : 'es-CL' }}</td>
+                  <td class="font-medium text-white">{{ h.unidad }}</td>
+                  <td>
                     @if (estadoHistorialFila(h) === 'Completo') {
-                      <span class="text-green-500">Completo</span>
+                      <span class="sid-status-chip sid-status-chip-ok">Completo</span>
                     } @else {
-                      <span class="text-yellow-500">Observado</span>
+                      <span class="sid-status-chip sid-status-chip-warn">Observado</span>
                     }
                   </td>
-                  <td class="px-3 py-2">{{ h.inspector || '—' }}</td>
-                  <td class="px-3 py-2">{{ h.cuartelero ? h.cuartelero.nombre : '—' }}</td>
-                  <td class="px-3 py-2">{{ h.grupoGuardia || '—' }}</td>
-                  <td class="px-3 py-2">
+                  <td>{{ h.inspector || '—' }}</td>
+                  <td>{{ h.cuartelero ? h.cuartelero.nombre : '—' }}</td>
+                  <td>{{ h.grupoGuardia || '—' }}</td>
+                  <td>
                     <div class="flex items-center gap-2">
                       <button
                         type="button"
                         (click)="verRegistroHistorial(h)"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                        class="sid-btn sid-btn-info inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
                         title="Ver detalle"
                       >
                         <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
@@ -277,7 +283,7 @@
                       <button
                         type="button"
                         (click)="editarRegistroHistorial(h)"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
+                        class="sid-btn sid-btn-neutral inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
                         title="Editar"
                       >
                         <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
@@ -285,7 +291,7 @@
                       <button
                         type="button"
                         (click)="descargarRegistroHistorialPdf(h)"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
+                        class="sid-btn sid-btn-primary inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
                         title="Descargar PDF"
                       >
                         <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
@@ -297,14 +303,14 @@
             </tbody>
           </table>
         </div>
-        <div class="mt-4 flex items-center justify-between text-sm text-gray-400">
+        <div class="mt-4 flex items-center justify-between text-sm sid-muted">
           <span>Página {{ paginaHistorial }} de {{ totalPaginasHistorial() }}</span>
           <div class="flex items-center gap-2">
             <button
               type="button"
               (click)="cambiarPaginaHistorial(-1)"
               [disabled]="paginaHistorial <= 1"
-              class="rounded-lg border border-gray-700 px-3 py-1.5 text-white disabled:opacity-40"
+              class="sid-btn sid-btn-neutral rounded-lg border border-gray-700 px-3 py-1.5 text-white disabled:opacity-40"
             >
               Anterior
             </button>
@@ -312,7 +318,7 @@
               type="button"
               (click)="cambiarPaginaHistorial(1)"
               [disabled]="paginaHistorial >= totalPaginasHistorial()"
-              class="rounded-lg border border-gray-700 px-3 py-1.5 text-white disabled:opacity-40"
+              class="sid-btn sid-btn-neutral rounded-lg border border-gray-700 px-3 py-1.5 text-white disabled:opacity-40"
             >
               Siguiente
             </button>
@@ -331,7 +337,7 @@
         <button
           type="button"
           (click)="cerrarDetalleHistorial()"
-          class="rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800"
+          class="sid-btn sid-btn-neutral rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800"
         >
           Cerrar
         </button>
