@@ -34,6 +34,66 @@ function enrichVigenciaPor(items, keyFn) {
         return { ...row, vigente: row.id === latest, obsoleto: row.id !== latest };
     });
 }
+/** Plantillas ERA/TRAUMA persistentes por clave única (`__ALL__` aplica a toda nomenclatura). */
+const CLAVE_PLANTILLAS_TRAUMA = 'CHECKLIST_TRAUMA_PLANTILLAS';
+/** Plantillas ERA guardadas por nomenclatura (incluye `__ALL__` opcional como respaldo). */
+const CLAVE_PLANTILLAS_ERA = 'CHECKLIST_ERA_PLANTILLAS';
+async function obtenerPlantillaTrauma(unidad) {
+    const cfg = await prisma_js_1.prisma.configuracionSistema.findUnique({
+        where: { clave: CLAVE_PLANTILLAS_TRAUMA },
+        select: { valor: true },
+    });
+    const v = (cfg?.valor ?? {}) || {};
+    const per = v[unidad];
+    const all = v.__ALL__ ?? v.__default__;
+    return (per ?? all) ?? null;
+}
+async function obtenerPlantillaEra(unidad) {
+    const cfg = await prisma_js_1.prisma.configuracionSistema.findUnique({
+        where: { clave: CLAVE_PLANTILLAS_ERA },
+        select: { valor: true },
+    });
+    const v = (cfg?.valor ?? {}) || {};
+    const per = v[unidad];
+    const all = v.__ALL__ ?? v.__default__;
+    return (per ?? all) ?? null;
+}
+async function obtenerPlantillaTipo(tipoRaw, unidad) {
+    const tipo = tipoRaw.trim().toUpperCase();
+    if (tipo === 'TRAUMA') {
+        return obtenerPlantillaTrauma(unidad);
+    }
+    if (tipo === 'ERA') {
+        return obtenerPlantillaEra(unidad);
+    }
+    return null;
+}
+async function guardarPlantillaTraumaGlobal(plantilla) {
+    const cfg = await prisma_js_1.prisma.configuracionSistema.findUnique({
+        where: { clave: CLAVE_PLANTILLAS_TRAUMA },
+        select: { valor: true },
+    });
+    const prev = (cfg?.valor ?? {}) || {};
+    const next = { ...prev, __ALL__: plantilla };
+    await prisma_js_1.prisma.configuracionSistema.upsert({
+        where: { clave: CLAVE_PLANTILLAS_TRAUMA },
+        update: { valor: next },
+        create: { clave: CLAVE_PLANTILLAS_TRAUMA, valor: next },
+    });
+}
+async function guardarPlantillaEraPorUnidad(unidad, plantilla) {
+    const cfg = await prisma_js_1.prisma.configuracionSistema.findUnique({
+        where: { clave: CLAVE_PLANTILLAS_ERA },
+        select: { valor: true },
+    });
+    const prev = (cfg?.valor ?? {}) || {};
+    const next = { ...prev, [unidad]: plantilla };
+    await prisma_js_1.prisma.configuracionSistema.upsert({
+        where: { clave: CLAVE_PLANTILLAS_ERA },
+        update: { valor: next },
+        create: { clave: CLAVE_PLANTILLAS_ERA, valor: next },
+    });
+}
 function calcularEstadoOperativo(totalItems, itemsOk) {
     const total = Number(totalItems ?? 0);
     const ok = Number(itemsOk ?? 0);
@@ -90,6 +150,55 @@ async function obtenerPlantillaUnidad(unidad) {
     const detalle = (last?.detalle ?? null);
     return normalizarPlantillaUnidad(detalle?.ubicaciones);
 }
+/** GET plantilla opcional ERA/TRAUMA (TRAUMA: fallback `__ALL__` para todas las unidades). */
+exports.checklistsRouter.get('/plantillas/:tipo/:unidad', async (req, res) => {
+    const tipo = String(req.params.tipo ?? '');
+    const unidad = String(req.params.unidad ?? '').trim();
+    if (!unidad) {
+        res.status(400).json({ error: 'Unidad requerida' });
+        return;
+    }
+    try {
+        const plantilla = await obtenerPlantillaTipo(tipo, unidad);
+        res.json({ plantilla });
+    }
+    catch (e) {
+        console.error(e);
+        res.status(500).json({ error: 'Error al cargar plantilla' });
+    }
+});
+exports.checklistsRouter.put('/plantillas/:tipo/:unidad', (0, roles_js_1.requireRoles)('ADMIN', 'CAPITAN', 'TENIENTE'), async (req, res) => {
+    const tipo = String(req.params.tipo ?? '').trim().toUpperCase();
+    const unidad = String(req.params.unidad ?? '').trim();
+    if (!unidad) {
+        res.status(400).json({ error: 'Unidad requerida' });
+        return;
+    }
+    if (tipo !== 'TRAUMA' && tipo !== 'ERA') {
+        res.status(400).json({ error: 'Solo se pueden guardar plantillas TRAUMA o ERA' });
+        return;
+    }
+    const plantilla = req.body?.plantilla;
+    if (plantilla === undefined || plantilla === null) {
+        res.status(400).json({ error: 'Cuerpo inválido' });
+        return;
+    }
+    try {
+        if (tipo === 'TRAUMA') {
+            await guardarPlantillaTraumaGlobal(plantilla);
+        }
+        else {
+            await guardarPlantillaEraPorUnidad(unidad, plantilla);
+        }
+        res.json({ ok: true });
+    }
+    catch (e) {
+        console.error(e);
+        res.status(500).json({
+            error: tipo === 'TRAUMA' ? 'Error al guardar plantilla trauma' : 'Error al guardar plantilla ERA',
+        });
+    }
+});
 exports.checklistsRouter.get('/unidad/:unidad/plantilla', async (req, res) => {
     const unidad = String(req.params.unidad ?? '').trim();
     if (!unidad) {
@@ -256,7 +365,8 @@ exports.checklistsRouter.get('/unidad/:unidad', async (req, res) => {
 exports.checklistsRouter.post('/unidad/:unidad', async (req, res) => {
     const unidad = req.params.unidad;
     const body = req.body;
-    if (!unidad || typeof body.cuarteleroId !== 'number') {
+    const cuarteleroUnidadId = body.cuarteleroId;
+    if (!unidad || typeof cuarteleroUnidadId !== 'number') {
         res.status(400).json({ error: 'Unidad y cuarteleroId son requeridos' });
         return;
     }
@@ -277,7 +387,7 @@ exports.checklistsRouter.post('/unidad/:unidad', async (req, res) => {
             const row = await tx.checklistCarro.create({
                 data: {
                     carroId: carro.id,
-                    cuarteleroId: body.cuarteleroId,
+                    cuarteleroId: cuarteleroUnidadId,
                     tipo: 'UNIDAD',
                     inspector: body.inspector ?? null,
                     grupoGuardia: body.grupoGuardia ?? null,

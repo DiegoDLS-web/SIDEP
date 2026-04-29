@@ -11,7 +11,7 @@
       <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p class="mb-2 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs text-violet-200">
-            Equipo de respiracion autonomos
+            Equipo de respiración autónomos
           </p>
           <h1 class="flex items-center gap-2 text-2xl font-bold text-white sm:text-3xl">
             <lucide-icon name="shield" class="h-7 w-7 text-red-400" [size]="28" color="currentColor"></lucide-icon>
@@ -59,10 +59,27 @@
               </div>
             </div>
             <div class="flex flex-1 flex-col gap-2 p-3 sm:p-4">
-              <p class="flex-1 text-xs leading-relaxed text-gray-400">
-                Última revisión:
-                {{ r.ultimaFecha ? fechaHoraHist(r.ultimaFecha) : 'Sin registro' }}
-              </p>
+              <div class="rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-3">
+                <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Última revisión</p>
+                <div class="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                  <div>
+                    <p class="text-slate-500">Fecha</p>
+                    <p class="font-semibold text-white">{{ fechaHoraCard(r.ultimaFecha).fecha }}</p>
+                  </div>
+                  <div>
+                    <p class="text-slate-500">Hora</p>
+                    <p class="font-semibold text-white">{{ fechaHoraCard(r.ultimaFecha).hora }}</p>
+                  </div>
+                  <div>
+                    <p class="text-slate-500">Inspector</p>
+                    <p class="font-semibold text-white">{{ r.ultimaInspector || '—' }}</p>
+                  </div>
+                  <div>
+                    <p class="text-slate-500">OBAC</p>
+                    <p class="font-semibold text-white">{{ r.ultimaObac || '—' }}</p>
+                  </div>
+                </div>
+              </div>
               @if (r.faltantes > 0) {
                 <div class="rounded-lg bg-yellow-600/20 px-3 py-2 text-xs text-yellow-300">{{ r.faltantes }} ítems faltantes</div>
               }
@@ -101,27 +118,68 @@
             <div class="min-w-0">
               <h2 class="text-lg font-bold text-white sm:text-xl">Unidad {{ unidad }}</h2>
               <p class="text-sm text-gray-400">{{ nombreCarroActual() }}</p>
+              @if (puedeEditarPlantilla && editandoPlantilla) {
+                <p class="mt-2 text-xs text-emerald-200/90">
+                  Modo edición de plantilla ERA: puedes añadir o quitar equipos y cilindros de recambio y ajustar ubicación y datos base. El resto del checklist lo completas en cualquier momento.
+                </p>
+              } @else if (puedeEditarPlantilla) {
+                <p class="mt-2 text-xs text-gray-500">
+                  Para modificar la lista de equipos ERA de esta unidad usa «Editar plantilla ERA» (ADMIN, capitán o teniente).
+                </p>
+              }
             </div>
           </div>
-          <button
-            type="button"
-            (click)="descargarPdf()"
-            [disabled]="!eraListoParaPdf()"
-            [title]="
-              eraListoParaPdf()
-                ? 'Generar PDF del checklist ERA'
-                : 'Completa datos, firma OBAC y equipos ERA para generar el PDF'
-            "
-            class="inline-flex min-h-[44px] w-full shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors sm:w-auto"
-            [ngClass]="
-              eraListoParaPdf()
-                ? 'border border-red-500 bg-red-600 text-white hover:bg-red-700'
-                : 'cursor-not-allowed border border-red-900/60 bg-red-950/40 text-red-200/40'
-            "
-          >
-            <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-            Generar PDF
-          </button>
+          <div class="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+            @if (puedeEditarPlantilla) {
+              <div class="flex flex-wrap gap-2 sm:justify-end">
+                @if (!editandoPlantilla) {
+                  <button
+                    type="button"
+                    (click)="activarEdicionPlantilla()"
+                    class="rounded-xl border border-cyan-700/70 bg-cyan-950/30 px-3 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-900/40"
+                  >
+                    Editar plantilla ERA
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    [disabled]="guardandoPlantilla"
+                    (click)="guardarPlantillaEra()"
+                    class="rounded-xl border border-emerald-700/70 bg-emerald-950/30 px-3 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-900/40 disabled:opacity-50"
+                  >
+                    {{ guardandoPlantilla ? 'Guardando...' : 'Guardar plantilla' }}
+                  </button>
+                  <button
+                    type="button"
+                    [disabled]="guardandoPlantilla"
+                    (click)="cancelarEdicionPlantilla()"
+                    class="rounded-xl border border-slate-700/70 bg-slate-900/30 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800/50 disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                }
+              </div>
+            }
+            <button
+              type="button"
+              (click)="descargarPdf()"
+              [disabled]="!eraListoParaPdf()"
+              [title]="
+                eraListoParaPdf()
+                  ? 'Generar PDF del checklist ERA'
+                  : 'Completa datos, firma OBAC y equipos ERA para generar el PDF'
+              "
+              class="inline-flex min-h-[44px] w-full shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors sm:w-auto"
+              [ngClass]="
+                eraListoParaPdf()
+                  ? 'border border-red-500 bg-red-600 text-white hover:bg-red-700'
+                  : 'cursor-not-allowed border border-red-900/60 bg-red-950/40 text-red-200/40'
+              "
+            >
+              <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+              Generar PDF
+            </button>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -161,6 +219,7 @@
               name="cuarteleroId"
               class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
             >
+              <option [ngValue]="''">Seleccionar</option>
               @for (u of usuarios; track u.id) {
                 <option [ngValue]="u.id">{{ u.nombre }} ({{ u.rol }})</option>
               }
@@ -199,7 +258,8 @@
         <button
           type="button"
           (click)="agregarEquipo()"
-          class="sid-btn sid-btn-primary rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+          [disabled]="!editandoPlantilla"
+          class="sid-btn sid-btn-primary rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
         >
           + Agregar equipo
         </button>
@@ -223,7 +283,8 @@
                 <input
                   [(ngModel)]="e.marca"
                   [name]="'marca' + i"
-                  class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+                  [readonly]="!editandoPlantilla"
+                  class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white read-only:opacity-80"
                 />
               </div>
               <div>
@@ -231,7 +292,8 @@
                 <input
                   [(ngModel)]="e.tipo"
                   [name]="'tipo' + i"
-                  class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+                  [readonly]="!editandoPlantilla"
+                  class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white read-only:opacity-80"
                 />
               </div>
               <div>
@@ -239,7 +301,8 @@
                 <select
                   [(ngModel)]="e.ubicacion"
                   [name]="'ubicacion' + i"
-                  class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white"
+                  [disabled]="!editandoPlantilla"
+                  class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value="Cabina">Cabina</option>
                   <option value="Cortina">Cortina</option>
@@ -274,7 +337,7 @@
                     class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
                   >
                     @for (o of optSiNo; track o) {
-                      <option [value]="o">{{ o }}</option>
+                      <option [value]="o">{{ o || 'Seleccionar' }}</option>
                     }
                   </select>
                 </div>
@@ -286,7 +349,7 @@
                     class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
                   >
                     @for (o of optSiNo; track o) {
-                      <option [value]="o">{{ o }}</option>
+                      <option [value]="o">{{ o || 'Seleccionar' }}</option>
                     }
                   </select>
                 </div>
@@ -298,7 +361,7 @@
                     class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
                   >
                     @for (o of optOperativo; track o) {
-                      <option [value]="o">{{ o }}</option>
+                      <option [value]="o">{{ o || 'Seleccionar' }}</option>
                     }
                   </select>
                 </div>
@@ -322,7 +385,7 @@
                     class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
                   >
                     @for (o of optBueno; track o) {
-                      <option [value]="o">{{ o }}</option>
+                      <option [value]="o">{{ o || 'Seleccionar' }}</option>
                     }
                   </select>
                 </div>
@@ -334,7 +397,7 @@
                     class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
                   >
                     @for (o of optBueno; track o) {
-                      <option [value]="o">{{ o }}</option>
+                      <option [value]="o">{{ o || 'Seleccionar' }}</option>
                     }
                   </select>
                 </div>
@@ -346,7 +409,7 @@
                     class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
                   >
                     @for (o of optBueno; track o) {
-                      <option [value]="o">{{ o }}</option>
+                      <option [value]="o">{{ o || 'Seleccionar' }}</option>
                     }
                   </select>
                 </div>
@@ -379,7 +442,7 @@
                     class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
                   >
                     @for (o of optSiNo; track o) {
-                      <option [value]="o">{{ o }}</option>
+                      <option [value]="o">{{ o || 'Seleccionar' }}</option>
                     }
                   </select>
                 </div>
@@ -391,7 +454,7 @@
                     class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
                   >
                     @for (o of optOperativo; track o) {
-                      <option [value]="o">{{ o }}</option>
+                      <option [value]="o">{{ o || 'Seleccionar' }}</option>
                     }
                   </select>
                 </div>
@@ -433,7 +496,7 @@
                     class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
                   >
                     @for (o of optSiNo; track o) {
-                      <option [value]="o">{{ o }}</option>
+                      <option [value]="o">{{ o || 'Seleccionar' }}</option>
                     }
                   </select>
                 </div>
@@ -445,7 +508,7 @@
                     class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
                   >
                     @for (o of optSiNo; track o) {
-                      <option [value]="o">{{ o }}</option>
+                      <option [value]="o">{{ o || 'Seleccionar' }}</option>
                     }
                   </select>
                 </div>
@@ -470,7 +533,7 @@
                     class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
                   >
                     @for (o of optOperativo; track o) {
-                      <option [value]="o">{{ o }}</option>
+                      <option [value]="o">{{ o || 'Seleccionar' }}</option>
                     }
                   </select>
                 </div>
@@ -494,7 +557,7 @@
                     class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
                   >
                     @for (o of optSiNo; track o) {
-                      <option [value]="o">{{ o }}</option>
+                      <option [value]="o">{{ o || 'Seleccionar' }}</option>
                     }
                   </select>
                 </div>
@@ -507,7 +570,7 @@
                     class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
                   >
                     @for (o of optOperativo; track o) {
-                      <option [value]="o">{{ o }}</option>
+                      <option [value]="o">{{ o || 'Seleccionar' }}</option>
                     }
                   </select>
                 </div>
@@ -525,7 +588,8 @@
           <button
             type="button"
             (click)="agregarRecambio()"
-            class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
+            [disabled]="!editandoPlantilla"
+            class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <lucide-icon name="plus" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
             Agregar cilindro
@@ -585,7 +649,8 @@
                     [(ngModel)]="c.tipo"
                     [name]="'ct' + ri"
                     placeholder="Ej: G1"
-                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
+                    [readonly]="!editandoPlantilla"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white read-only:opacity-80"
                   />
                 </div>
               </div>
@@ -729,7 +794,70 @@
       } @else if (historialGeneralError) {
         <p class="rounded-xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ historialGeneralError }}</p>
       } @else {
-        <div class="sid-history-wrap overflow-x-auto">
+        <div class="space-y-3 md:hidden">
+          @for (h of historialGeneralPaginado(); track h.id) {
+            <div class="rounded-xl border border-slate-800 bg-[#0a0a0a] p-3">
+              <div class="mb-2 flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="text-xs text-slate-400">{{ fechaHoraHist(h.fecha) }}</p>
+                  <p class="font-mono text-sm font-semibold text-white">{{ h.carro.nomenclatura || '—' }}</p>
+                </div>
+                <span
+                  class="sid-status-chip shrink-0"
+                  [ngClass]="
+                    etiquetaEstadoEra(h) === 'VIGENTE'
+                      ? 'sid-status-chip-ok'
+                      : etiquetaEstadoEra(h) === 'OBSOLETO'
+                        ? 'sid-status-chip-neutral'
+                        : 'sid-status-chip-warn'
+                  "
+                >
+                  {{ etiquetaEstadoEra(h) }}
+                </span>
+              </div>
+              <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                <div>
+                  <p class="text-slate-500">Inspector</p>
+                  <p class="font-semibold text-white">{{ h.inspector || '—' }}</p>
+                </div>
+                <div>
+                  <p class="text-slate-500">OBAC</p>
+                  <p class="font-semibold text-white">{{ h.cuartelero.nombre || '—' }}</p>
+                </div>
+                <div>
+                  <p class="text-slate-500">Guardia</p>
+                  <p class="font-semibold text-white">{{ h.grupoGuardia || '—' }}</p>
+                </div>
+                <div>
+                  <p class="text-slate-500">Cumplimiento</p>
+                  <p class="font-semibold text-white">{{ porcentajeCumplimiento(h) }}</p>
+                </div>
+              </div>
+              <p class="mt-2 line-clamp-2 text-xs text-slate-400">{{ h.observaciones || 'Sin observaciones' }}</p>
+              <div class="mt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  (click)="editarRegistroEra(h)"
+                  class="sid-btn sid-btn-neutral inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
+                  title="Editar registro"
+                >
+                  <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                </button>
+                <button
+                  type="button"
+                  (click)="descargarRegistroEraPdf(h)"
+                  class="sid-btn sid-btn-primary inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
+                  title="Descargar PDF"
+                >
+                  <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                </button>
+              </div>
+            </div>
+          } @empty {
+            <p class="rounded-xl border border-slate-800 bg-[#0a0a0a] px-4 py-6 text-center text-sm text-slate-500">Sin registros.</p>
+          }
+        </div>
+        <div class="sid-history-wrap hidden overflow-x-auto md:block">
           <table class="sid-history-table w-full">
             <thead>
               <tr>

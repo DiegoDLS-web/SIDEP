@@ -6,7 +6,7 @@ import { AuthService } from '../services/auth.service';
 export const adminGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
-  const rol = auth.usuarioActual?.rol?.toUpperCase();
+  const rol = auth.usuarioActual?.rol?.trim().toUpperCase();
   if (rol === 'ADMIN') {
     return true;
   }

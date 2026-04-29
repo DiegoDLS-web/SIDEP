@@ -30,6 +30,8 @@ export class BolsosTraumaService {
       cantidadBolsos: 2,
       ultimaRevision: {
         fecha: new Date().toISOString(),
+        inspector: 'Inspector Demo',
+        obac: 'Modo Demo Local',
         responsable: 'Modo Demo Local',
         completado: true,
       },
@@ -45,6 +47,8 @@ export class BolsosTraumaService {
       cantidadBolsos: 2,
       ultimaRevision: {
         fecha: new Date().toISOString(),
+        inspector: 'Inspector Demo',
+        obac: 'Modo Demo Local',
         responsable: 'Modo Demo Local',
         completado: false,
       },
@@ -60,6 +64,8 @@ export class BolsosTraumaService {
       cantidadBolsos: 2,
       ultimaRevision: {
         fecha: new Date().toISOString(),
+        inspector: 'Inspector Demo',
+        obac: 'Modo Demo Local',
         responsable: 'Modo Demo Local',
         completado: true,
       },

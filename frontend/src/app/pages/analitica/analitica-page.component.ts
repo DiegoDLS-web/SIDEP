@@ -285,32 +285,90 @@ export class AnaliticaPageComponent implements OnInit {
     if (!host || this.exportandoPdf) return;
     this.exportandoPdf = true;
     try {
-      const doc = new jsPDF('p', 'mm', 'a4');
+      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
       const margin = 10;
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
       const maxImageWidth = pageWidth - margin * 2;
-      let y = margin;
+      const fechaGeneracion = new Date();
 
-      doc.setFontSize(14);
-      doc.text(`Analitica operacional - ${this.meses[this.mes - 1]?.nombre} ${this.anio}`, margin, y);
-      y += 8;
+      const dibujarPie = (): void => {
+        const total = doc.getNumberOfPages();
+        const actual = doc.getCurrentPageInfo().pageNumber;
+        doc.setDrawColor(225, 228, 232);
+        doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(90, 96, 104);
+        doc.text(
+          `SIDEP · Analitica operacional · ${fechaGeneracion.toLocaleDateString('es-CL')} ${fechaGeneracion.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`,
+          margin,
+          pageHeight - 7.2,
+        );
+        doc.text(`Pagina ${actual} de ${total}`, pageWidth - margin, pageHeight - 7.2, { align: 'right' });
+      };
+
+      doc.setFillColor(185, 28, 28);
+      doc.roundedRect(margin, 12, pageWidth - margin * 2, 24, 2, 2, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('Reporte de analitica operacional', margin + 5, 22);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10.5);
+      doc.text(`Periodo: ${this.meses[this.mes - 1]?.nombre ?? this.mes} ${this.anio}`, margin + 5, 28);
+      doc.text('Compania de Bomberos · SIDEP', margin + 5, 33);
+
+      doc.setTextColor(28, 31, 35);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text(
+        'Este documento consolida indicadores, comparativos y asistencia del periodo seleccionado.',
+        margin,
+        45,
+      );
+
+      let y = 50;
 
       const sections = Array.from(host.querySelectorAll<HTMLElement>(':scope > [data-exportable="true"]'));
       for (const section of sections) {
+        const seccionId = section.getAttribute('data-export-id') ?? 'seccion';
+        const tituloSeccion = this.tituloSeccionPdf(seccionId);
         const imgData = await this.capturarElemento(section);
         const img = new Image();
         img.src = imgData;
         await img.decode();
-        const imgHeight = (img.height * maxImageWidth) / img.width;
-        if (y + imgHeight > pageHeight - margin) {
-          doc.addPage();
-          y = margin;
+
+        const altoDisponible = pageHeight - y - 14;
+        let imgHeight = (img.height * maxImageWidth) / img.width;
+        if (imgHeight > altoDisponible) {
+          imgHeight = altoDisponible;
         }
+
+        if (y + imgHeight > pageHeight - 14) {
+          doc.addPage();
+          y = 16;
+        }
+
+        doc.setFillColor(244, 245, 247);
+        doc.roundedRect(margin, y, maxImageWidth, 6.5, 1.2, 1.2, 'F');
+        doc.setTextColor(31, 41, 55);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9.5);
+        doc.text(tituloSeccion, margin + 3, y + 4.4);
+        y += 7.5;
+
         doc.addImage(imgData, 'PNG', margin, y, maxImageWidth, imgHeight);
-        y += imgHeight + 6;
+        y += imgHeight + 4;
       }
-      doc.save(`analitica-operacional-${this.anio}-${String(this.mes).padStart(2, '0')}.pdf`);
+
+      const totalPaginas = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPaginas; i++) {
+        doc.setPage(i);
+        dibujarPie();
+      }
+
+      doc.save(`SIDEP-analitica-operacional-${this.anio}-${String(this.mes).padStart(2, '0')}.pdf`);
     } catch {
       this.error = 'No se pudo exportar el reporte PDF.';
     } finally {
@@ -426,5 +484,17 @@ export class AnaliticaPageComponent implements OnInit {
       asistenciaVoluntariosTotalAnual: toNumber(asistenciaVoluntariosTotalAnual),
       asistenciaVoluntariosDetallePorMes,
     };
+  }
+
+  private tituloSeccionPdf(sectionId: string): string {
+    const mapa: Record<string, string> = {
+      kpis: 'Indicadores clave',
+      'comparativo-claro': 'Comparativos mensuales',
+      'actividad-semanas': 'Actividad y distribucion semanal',
+      'sectores-uso': 'Sectores criticos y uso de unidades',
+      'checklist-asistencia': 'Checklist y asistencia de voluntarios',
+      'asistencia-voluntario': 'Detalle asistencia por voluntario',
+    };
+    return mapa[sectionId] ?? 'Seccion de analitica';
   }
 }

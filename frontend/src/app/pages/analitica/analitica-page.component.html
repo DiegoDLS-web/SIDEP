@@ -516,20 +516,25 @@
           </div>
         </div>
         <div class="sid-history-wrap -mx-1 max-w-[100vw] overflow-x-auto pr-px sm:mx-0 sm:max-w-none sm:overflow-x-visible">
-          <table class="sid-history-table w-full min-w-[18rem] sm:min-w-0">
+          <table class="sid-history-table w-full min-w-[18rem] table-fixed sm:min-w-0">
+            <colgroup>
+              <col />
+              <col class="w-[8.5rem]" />
+              <col class="w-[7.5rem]" />
+            </colgroup>
             <thead>
               <tr>
-                <th>Voluntario</th>
-                <th class="text-right">Asistencias</th>
-                <th class="text-right">Partes</th>
+                <th class="pr-3">Voluntario</th>
+                <th class="pr-4 text-right">Asistencias</th>
+                <th class="pr-4 text-right">Partes</th>
               </tr>
             </thead>
             <tbody>
               @for (v of detalleAsistenciaMesSeleccionado()?.voluntarios ?? []; track v.usuarioId) {
                 <tr>
-                  <td class="font-medium text-slate-100">{{ v.nombre }}</td>
-                  <td class="text-right tabular-nums text-emerald-300">{{ v.asistenciasRegistradas }}</td>
-                  <td class="text-right tabular-nums text-slate-300">{{ v.partesConAsistencia }}</td>
+                  <td class="truncate pr-3 font-medium text-slate-100" [title]="v.nombre">{{ v.nombre }}</td>
+                  <td class="pr-4 text-right tabular-nums font-semibold text-emerald-300">{{ v.asistenciasRegistradas }}</td>
+                  <td class="pr-4 text-right tabular-nums font-semibold text-slate-300">{{ v.partesConAsistencia }}</td>
                 </tr>
               } @empty {
                 <tr>

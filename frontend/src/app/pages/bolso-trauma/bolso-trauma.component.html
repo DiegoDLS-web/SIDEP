@@ -77,9 +77,13 @@
                   <p class="text-xs text-gray-400">Hora</p>
                   <p class="font-medium text-gray-100">{{ fechaHora(unidad.ultimaRevision.fecha).hora }}</p>
                 </div>
-                <div class="col-span-2 min-w-0">
+                <div class="min-w-0">
+                  <p class="text-xs text-gray-400">Inspector</p>
+                  <p class="break-words font-medium text-gray-100">{{ unidad.ultimaRevision.inspector || '—' }}</p>
+                </div>
+                <div class="min-w-0">
                   <p class="text-xs text-gray-400">OBAC</p>
-                  <p class="break-words font-medium text-gray-100">{{ unidad.ultimaRevision.responsable }}</p>
+                  <p class="break-words font-medium text-gray-100">{{ unidad.ultimaRevision.obac || unidad.ultimaRevision.responsable }}</p>
                 </div>
               </div>
             } @else {
@@ -252,7 +256,76 @@
       } @else if (historialError) {
         <p class="rounded-xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ historialError }}</p>
       } @else {
-        <div class="sid-history-wrap overflow-x-auto">
+        <div class="space-y-3 md:hidden">
+          @for (h of historialPaginado(); track h.id) {
+            <div class="rounded-xl border border-slate-800 bg-[#0a0a0a] p-3">
+              <div class="mb-2 flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="text-xs text-slate-400">{{ fechaHoraHist(h.fecha) }}</p>
+                  <p class="font-mono text-sm font-semibold text-white">{{ h.unidad }} · Bolso {{ h.bolsoNumero ?? '—' }}</p>
+                </div>
+                <span class="sid-status-chip shrink-0" [class.sid-status-chip-warn]="h.borrador === true" [class.sid-status-chip-ok]="h.borrador !== true">
+                  {{ etiquetaEstado(h) }}
+                </span>
+              </div>
+              <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                <div>
+                  <p class="text-slate-500">Inspector</p>
+                  <p class="font-semibold text-white">{{ h.inspector || '—' }}</p>
+                </div>
+                <div>
+                  <p class="text-slate-500">OBAC</p>
+                  <p class="font-semibold text-white">{{ h.responsable }}</p>
+                </div>
+                <div>
+                  <p class="text-slate-500">Guardia</p>
+                  <p class="font-semibold text-white">{{ h.grupoGuardia || '—' }}</p>
+                </div>
+                <div>
+                  <p class="text-slate-500">Cumplimiento</p>
+                  <p class="font-semibold text-white">
+                    @if (h.porcentaje !== null) {
+                      {{ h.itemsOk ?? 0 }}/{{ h.totalItems ?? 0 }} ({{ h.porcentaje }}%)
+                    } @else {
+                      —
+                    }
+                  </p>
+                </div>
+              </div>
+              <p class="mt-2 line-clamp-2 text-xs text-slate-400">{{ h.observaciones || 'Sin observaciones' }}</p>
+              <div class="mt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  (click)="abrirDetalle(h)"
+                  class="sid-btn sid-btn-info inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                  title="Ver detalle"
+                >
+                  <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                </button>
+                <button
+                  type="button"
+                  (click)="editarRegistro(h)"
+                  class="sid-btn sid-btn-neutral inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
+                  title="Editar registro"
+                >
+                  <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                </button>
+                <button
+                  type="button"
+                  (click)="descargarRegistroPdf(h)"
+                  [disabled]="descargandoRegistroId === h.id"
+                  class="sid-btn sid-btn-primary inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  title="Descargar PDF"
+                >
+                  <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                </button>
+              </div>
+            </div>
+          } @empty {
+            <p class="rounded-xl border border-slate-800 bg-[#0a0a0a] px-4 py-6 text-center text-sm text-slate-500">Sin registros.</p>
+          }
+        </div>
+        <div class="sid-history-wrap hidden overflow-x-auto md:block">
           <table class="sid-history-table w-full">
             <thead>
               <tr>

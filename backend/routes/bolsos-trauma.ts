@@ -51,8 +51,7 @@ function bolsosDesdeDetalle(detalle: unknown): BolsoResumen[] {
 
 /** Si aún no hay checklist TRAUMA, igual mostramos bolsos clicables (misma lógica que el registro). */
 function cantidadBolsosPredeterminada(nomenclatura: string): number {
-  if (nomenclatura === 'R-1') return 3;
-  if (nomenclatura === 'BX-1') return 2;
+  if (nomenclatura === 'R-1' || nomenclatura === 'B-1' || nomenclatura === 'BX-1') return 3;
   return 1;
 }
 
@@ -183,6 +182,8 @@ bolsosTraumaRouter.get('/selector', async (_req, res) => {
         ultimaRevision: ultimo
           ? {
               fecha: ultimo.fecha,
+              inspector: ultimo.inspector ?? null,
+              obac: ultimo.cuartelero.nombre,
               responsable: ultimo.inspector ?? ultimo.cuartelero.nombre,
               completado: (ultimo.itemsOk ?? 0) >= (ultimo.totalItems ?? 0),
             }

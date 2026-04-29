@@ -83,6 +83,10 @@ function fmtKm(km: number): string {
   return new Intl.NumberFormat('es-CL').format(km);
 }
 
+function stampFechaArchivo(): string {
+  return new Date().toISOString().slice(0, 10).replace(/-/g, '');
+}
+
 function nombresAsistenciaMarcados(sel: Record<string, boolean> | undefined): string[] {
   if (!sel) return [];
   return Object.entries(sel)
@@ -181,6 +185,24 @@ export class PartesExportService {
       ]).then(([sidep, compania]) => ({ sidep, compania }));
     }
     return this.logosPromise;
+  }
+
+  private dibujarPieProfesional(doc: jsPDF): void {
+    const total = doc.getNumberOfPages();
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const generado = fmtFechaHora(new Date().toISOString());
+    for (let page = 1; page <= total; page += 1) {
+      doc.setPage(page);
+      doc.setDrawColor(...C_BORDER);
+      doc.line(M, pageH - 11.5, pageW - M, pageH - 11.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(...C_TEXT_MUTED);
+      doc.text(`SIDEP · Parte operativo · ${generado}`, M, pageH - 7);
+      doc.text(`Página ${page} de ${total}`, pageW - M, pageH - 7, { align: 'right' });
+    }
+    doc.setTextColor(0, 0, 0);
   }
 
   exportarPdf(parte: ParteEmergenciaDto): void {
@@ -515,22 +537,8 @@ export class PartesExportService {
     y += boxH + 12;
     doc.setTextColor(0, 0, 0);
 
-    // Pie al final de la última página (si hubo saltos de página)
-    const totalPages = doc.getNumberOfPages();
-    doc.setPage(totalPages);
-    const pageH = doc.internal.pageSize.getHeight();
-    doc.setFontSize(7);
-    doc.setTextColor(...C_TEXT_MUTED);
-    doc.text(
-      `Documento generado por SIDEP · ${fmtFechaHora(new Date().toISOString())}${
-        totalPages > 1 ? ` · Pág. ${totalPages}` : ''
-      }`,
-      PAGE_W / 2,
-      pageH - 6,
-      { align: 'center' },
-    );
-
-    doc.save(`parte-${parte.correlativo}.pdf`);
+    this.dibujarPieProfesional(doc);
+    doc.save(`SIDEP-parte-${parte.correlativo}-${stampFechaArchivo()}.pdf`);
   }
 
   exportarExcelListado(partes: ParteEmergenciaDto[]): void {

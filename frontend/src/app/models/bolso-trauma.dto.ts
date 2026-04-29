@@ -12,6 +12,8 @@ export interface BolsoTraumaSelectorUnidadDto {
   cantidadBolsos: number;
   ultimaRevision: {
     fecha: string;
+    inspector: string | null;
+    obac: string;
     responsable: string;
     completado: boolean;
   } | null;

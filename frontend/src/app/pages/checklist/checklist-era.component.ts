@@ -5,6 +5,7 @@ import type { ChecklistRegistroDto } from '../../models/checklist.dto';
 import type { CarroDto } from '../../models/carro.dto';
 import type { UsuarioListaDto } from '../../models/usuario.dto';
 import { CarrosService } from '../../services/carros.service';
+import { AuthService } from '../../services/auth.service';
 import { ChecklistsService } from '../../services/checklists.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { ToastService } from '../../services/toast.service';
@@ -51,11 +52,11 @@ function cilindroRecambioVacio(num: number, tipo = 'G1'): CilindroRecambio {
   return {
     numero: num,
     tipo,
-    presionAire: '0 - 5000',
-    presionMayor2000: 'Si',
-    condicionGeneral: 'Operativo',
+    presionAire: '',
+    presionMayor2000: '',
+    condicionGeneral: '',
     codigoCilindro: '',
-    estado: 'Operativo',
+    estado: '',
   };
 }
 
@@ -66,22 +67,22 @@ function eraEquipoVacio(num: number): EraEquipo {
     tipo: 'M7',
     ubicacion: 'Cabina',
     codigoMascara: '',
-    mascaraLimpia: 'Si',
-    mascaraBolsaGenero: 'Si',
-    mascaraCondicion: 'Operativo',
-    presion: '0 - 5000',
-    presionMayor2000: 'Si',
-    cilindroCondicion: 'Operativo',
+    mascaraLimpia: '',
+    mascaraBolsaGenero: '',
+    mascaraCondicion: '',
+    presion: '',
+    presionMayor2000: '',
+    cilindroCondicion: '',
     codigoCilindro: '',
     codigoArnes: '',
-    arnesLimpio: 'Si',
-    arnesCorreasSueltas: 'No',
-    arnesFuga: 'No',
-    arnesModuloDigital: 'Bueno',
-    arnesModuloAnalogo: 'Bueno',
-    arnesAlarma: 'Bueno',
-    arnesCondicion: 'Operativo',
-    estado: 'Operativo',
+    arnesLimpio: '',
+    arnesCorreasSueltas: '',
+    arnesFuga: '',
+    arnesModuloDigital: '',
+    arnesModuloAnalogo: '',
+    arnesAlarma: '',
+    arnesCondicion: '',
+    estado: '',
   };
 }
 
@@ -93,13 +94,11 @@ function crearEquipoPreset(num: number, codigoBase: string, ubicacion: string): 
   e.codigoMascara = codigoBase;
   e.codigoArnes = codigoBase;
   e.codigoCilindro = codigoBase;
-  e.presion = '4000';
   return e;
 }
 
 function crearRecambioPreset(num: number, codigo: string): CilindroRecambio {
   const r = cilindroRecambioVacio(num, 'G1');
-  r.presionAire = '4000';
   r.codigoCilindro = codigo;
   return r;
 }
@@ -159,12 +158,13 @@ export class ChecklistEraComponent implements OnInit {
 
   private readonly carrosApi = inject(CarrosService);
   private readonly usuariosApi = inject(UsuariosService);
+  private readonly auth = inject(AuthService);
   private readonly checklistsApi = inject(ChecklistsService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly toast = inject(ToastService);
-  readonly optSiNo = ['Si', 'No'];
-  readonly optOperativo = ['Operativo', 'No Operativo'];
-  readonly optBueno = ['Bueno', 'Regular', 'Malo'];
+  readonly optSiNo = ['', 'Si', 'No'];
+  readonly optOperativo = ['', 'Operativo', 'No Operativo'];
+  readonly optBueno = ['', 'Bueno', 'Regular', 'Malo'];
 
   carros: CarroDto[] = [];
   usuarios: UsuarioListaDto[] = [];
@@ -208,6 +208,9 @@ export class ChecklistEraComponent implements OnInit {
   equipos: EraEquipo[] = [eraEquipoVacio(1)];
   recambios: CilindroRecambio[] = [cilindroRecambioVacio(1, 'G1')];
   seccionesAbiertas: Record<string, boolean> = {};
+  editandoPlantilla = false;
+  guardandoPlantilla = false;
+  private snapshotPlantillaEra: { equipos: EraEquipo[]; recambios: CilindroRecambio[] } | null = null;
 
   ngOnInit(): void {
     Promise.all([this.carrosApi.listar().toPromise(), this.usuariosApi.listar().toPromise()])
@@ -217,11 +220,10 @@ export class ChecklistEraComponent implements OnInit {
         if (this.carros.length > 0) {
           const pref = this.carros.find((c) => c.nomenclatura === 'R-1') ?? this.carros[0];
           this.unidad = pref.nomenclatura;
-          this.aplicarPresetUnidad(this.unidad);
+          this.aplicarPlantillaDesdeServidorOPresetParaUnidad(this.unidad);
         }
-        if (this.usuarios.length > 0) this.cuarteleroId = this.usuarios[0].id;
-        const hoy = new Date();
-        this.fechaInspeccion = hoy.toISOString().slice(0, 10);
+        this.cuarteleroId = '';
+        this.fechaInspeccion = '';
         this.loading = false;
         this.refrescarHistorialEra();
         this.cargarHistorialGeneral();
@@ -249,16 +251,137 @@ export class ChecklistEraComponent implements OnInit {
     });
   }
 
-  seleccionarUnidad(nomenclatura: string): void {
-    this.unidad = nomenclatura;
-    this.mostrarRegistro = true;
-    this.aplicarPresetUnidad(this.unidad);
-    this.firmaInicialServidor = null;
-    this.limpiarFirma();
-    this.refrescarHistorialEra();
+  get puedeEditarPlantilla(): boolean {
+    const rol = this.auth.usuarioActual?.rol?.toUpperCase() ?? '';
+    return rol === 'ADMIN' || rol === 'CAPITAN' || rol === 'TENIENTE';
   }
 
-  private aplicarPresetUnidad(unidad: string): void {
+  activarEdicionPlantilla(): void {
+    if (!this.puedeEditarPlantilla) return;
+    this.snapshotPlantillaEra = {
+      equipos: this.clonarListaEquipos(),
+      recambios: this.clonarListaRecambios(),
+    };
+    this.editandoPlantilla = true;
+  }
+
+  cancelarEdicionPlantilla(): void {
+    if (this.snapshotPlantillaEra) {
+      this.equipos = this.clonarListaEquiposDesde(this.snapshotPlantillaEra.equipos);
+      this.recambios = this.clonarListaRecambiosDesde(this.snapshotPlantillaEra.recambios);
+    }
+    this.snapshotPlantillaEra = null;
+    this.editandoPlantilla = false;
+  }
+
+  guardarPlantillaEra(): void {
+    if (!this.puedeEditarPlantilla || this.guardandoPlantilla) return;
+    const plantilla = {
+      equipos: this.equipos.map((e) => ({ ...e })),
+      recambios: this.recambios.map((r) => ({ ...r })),
+    };
+    this.guardandoPlantilla = true;
+    this.checklistsApi.guardarPlantilla('ERA', this.unidad, plantilla).subscribe({
+      next: (ok) => {
+        this.guardandoPlantilla = false;
+        if (!ok) {
+          this.toast.error('No se pudo guardar plantilla ERA.');
+          return;
+        }
+        this.editandoPlantilla = false;
+        this.snapshotPlantillaEra = null;
+        this.toast.exito('Plantilla ERA guardada.');
+      },
+      error: () => {
+        this.guardandoPlantilla = false;
+        this.toast.error('No se pudo guardar plantilla ERA.');
+      },
+    });
+  }
+
+  private clonarListaEquipos(): EraEquipo[] {
+    return this.equipos.map((e) => ({ ...e }));
+  }
+
+  private clonarListaRecambios(): CilindroRecambio[] {
+    return this.recambios.map((r) => ({ ...r }));
+  }
+
+  private clonarListaEquiposDesde(src: EraEquipo[]): EraEquipo[] {
+    return src.map((e) => ({ ...e }));
+  }
+
+  private clonarListaRecambiosDesde(src: CilindroRecambio[]): CilindroRecambio[] {
+    return src.map((r) => ({ ...r }));
+  }
+
+  private aplicarPlantillaServidorOEraSiValida(raw: unknown): boolean {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
+    const o = raw as { equipos?: unknown; recambios?: unknown };
+    if (!Array.isArray(o.equipos) || o.equipos.length === 0) return false;
+    this.equipos = o.equipos.map((row, idx) => {
+      const base = eraEquipoVacio(idx + 1);
+      const patch =
+        row && typeof row === 'object' && !Array.isArray(row)
+          ? (row as Partial<EraEquipo>)
+          : undefined;
+      return { ...base, ...(patch ?? {}) };
+    });
+    const recRaw = Array.isArray(o.recambios) ? o.recambios : [];
+    if (recRaw.length === 0) {
+      this.recambios = [cilindroRecambioVacio(1, 'G1')];
+    } else {
+      this.recambios = recRaw.map((row, idx) => {
+        const base = cilindroRecambioVacio(idx + 1, 'G1');
+        const patch =
+          row && typeof row === 'object' && !Array.isArray(row)
+            ? (row as Partial<CilindroRecambio>)
+            : undefined;
+        return { ...base, ...(patch ?? {}) };
+      });
+    }
+    return true;
+  }
+
+  private abrirTodosLosPanelesEquipos(): void {
+    this.seccionesAbiertas = {};
+    for (let i = 0; i < this.equipos.length; i += 1) {
+      this.abrirSeccionesEquipo(i);
+    }
+  }
+
+  private limpiarCapturaRegistroEra(): void {
+    this.inspector = '';
+    this.grupoGuardia = '';
+    this.cuarteleroId = '';
+    this.fechaInspeccion = '';
+    this.observaciones = '';
+    this.fechaCierreChecklist = null;
+    this.firmaInicialServidor = null;
+    this.limpiarFirma();
+  }
+
+  private aplicarPlantillaDesdeServidorOPresetParaUnidad(unidad: string): void {
+    this.checklistsApi.obtenerPlantilla('ERA', unidad).subscribe({
+      next: (raw) => {
+        const aplicada = this.aplicarPlantillaServidorOEraSiValida(raw);
+        if (!aplicada) {
+          this.aplicarPresetUnidadSinApi(unidad);
+        } else {
+          this.abrirTodosLosPanelesEquipos();
+        }
+      },
+      error: () => {
+        this.aplicarPresetUnidadSinApi(unidad);
+      },
+    });
+  }
+
+  /**
+   * Preset sólo desde código local (fallback si no hay plantilla en servidor).
+   * No reabre paneles aquí (lo hace aplicarPlantillaDesdeServidorOPresetParaUnidad o el llamador si aplica).
+   */
+  private aplicarPresetUnidadSinApi(unidad: string): void {
     const preset = ERA_PRESETS_UNIDAD[unidad] ?? ERA_PRESETS_UNIDAD['R-1'];
     this.equipos = preset.equipos.map((e, i) => ({
       ...e,
@@ -268,10 +391,18 @@ export class ChecklistEraComponent implements OnInit {
       ...r,
       numero: i + 1,
     }));
-    this.seccionesAbiertas = {};
-    for (let i = 0; i < this.equipos.length; i += 1) {
-      this.abrirSeccionesEquipo(i);
-    }
+    this.abrirTodosLosPanelesEquipos();
+  }
+
+  seleccionarUnidad(nomenclatura: string): void {
+    this.unidad = nomenclatura;
+    this.mostrarRegistro = true;
+    this.editandoPlantilla = false;
+    this.snapshotPlantillaEra = null;
+    this.limpiarCapturaRegistroEra();
+    this.aplicarPlantillaDesdeServidorOPresetParaUnidad(this.unidad);
+    setTimeout(() => this.inicializarCanvasFirma(), 0);
+    this.refrescarHistorialEra();
   }
 
   volverSeleccionUnidad(): void {
@@ -325,6 +456,7 @@ export class ChecklistEraComponent implements OnInit {
     estado: 'Completo' | 'Incompleto' | 'Sin checklist';
     ultimaFecha: string | null;
     ultimaInspector: string;
+    ultimaObac: string;
     faltantes: number;
   } {
     const rows = this.historialGeneral
@@ -344,6 +476,7 @@ export class ChecklistEraComponent implements OnInit {
       estado,
       ultimaFecha: ultimo?.fecha ?? null,
       ultimaInspector: ultimo?.inspector ?? '—',
+      ultimaObac: ultimo?.cuartelero?.nombre ?? '—',
       faltantes,
     };
   }
@@ -579,6 +712,16 @@ export class ChecklistEraComponent implements OnInit {
     return `${d.toLocaleDateString('es-CL')} ${d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`;
   }
 
+  fechaHoraCard(iso: string | null | undefined): { fecha: string; hora: string } {
+    if (!iso) return { fecha: '—', hora: '—' };
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return { fecha: '—', hora: '—' };
+    return {
+      fecha: d.toLocaleDateString('es-CL'),
+      hora: d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+    };
+  }
+
   etiquetaEstadoEra(h: ChecklistRegistroDto): string {
     const det = (h.detalle ?? {}) as { borrador?: boolean };
     if (det.borrador) return 'BORRADOR';
@@ -605,6 +748,9 @@ export class ChecklistEraComponent implements OnInit {
   }
 
   editarRegistroEra(h: ChecklistRegistroDto): void {
+    this.mostrarRegistro = true;
+    this.editandoPlantilla = false;
+    this.snapshotPlantillaEra = null;
     this.unidad = h.carro.nomenclatura || this.unidad;
     this.inspector = h.inspector ?? '';
     this.grupoGuardia = h.grupoGuardia ?? '';
@@ -627,6 +773,7 @@ export class ChecklistEraComponent implements OnInit {
       this.firmaInicialServidor = h.firmaOficial;
       setTimeout(() => this.restaurarFirmaDesdeServidor(this.firmaInicialServidor), 0);
     }
+    setTimeout(() => this.inicializarCanvasFirma(), 0);
     this.flash(`Registro ${h.id} cargado para edición.`);
   }
 
@@ -651,12 +798,14 @@ export class ChecklistEraComponent implements OnInit {
   }
 
   agregarEquipo(): void {
+    if (!this.editandoPlantilla) return;
     const index = this.equipos.length;
     this.equipos.push(eraEquipoVacio(index + 1));
     this.abrirSeccionesEquipo(index);
   }
 
   agregarRecambio(): void {
+    if (!this.editandoPlantilla) return;
     this.recambios.push(cilindroRecambioVacio(this.recambios.length + 1, 'G1'));
   }
 
@@ -722,17 +871,35 @@ export class ChecklistEraComponent implements OnInit {
         !e.codigoMascara.trim() ||
         !e.codigoArnes.trim() ||
         !e.presion.trim() ||
-        !e.codigoCilindro.trim()
+        !e.codigoCilindro.trim() ||
+        !e.mascaraLimpia.trim() ||
+        !e.mascaraBolsaGenero.trim() ||
+        !e.mascaraCondicion.trim() ||
+        !e.presionMayor2000.trim() ||
+        !e.cilindroCondicion.trim() ||
+        !e.arnesLimpio.trim() ||
+        !e.arnesCorreasSueltas.trim() ||
+        !e.arnesFuga.trim() ||
+        !e.arnesModuloDigital.trim() ||
+        !e.arnesModuloAnalogo.trim() ||
+        !e.arnesAlarma.trim() ||
+        !e.arnesCondicion.trim()
       ) {
-        return `Completa todos los campos del ERA ${e.numero} (marca, tipo, códigos de máscara/arnés/cilindro y presión).`;
+        return `Completa todos los campos del ERA ${e.numero} (incluye selecciones de estado/condición).`;
       }
     }
     if (this.recambios.length === 0) {
       return 'Debe existir al menos un cilindro de recambio.';
     }
     for (const c of this.recambios) {
-      if (!c.presionAire.trim() || !c.codigoCilindro.trim() || !c.tipo.trim()) {
-        return `Completa cilindro de recambio ${c.numero}: tipo, presión y código son obligatorios.`;
+      if (
+        !c.presionAire.trim() ||
+        !c.codigoCilindro.trim() ||
+        !c.tipo.trim() ||
+        !c.presionMayor2000.trim() ||
+        !c.condicionGeneral.trim()
+      ) {
+        return `Completa cilindro de recambio ${c.numero}: tipo, presión, código y estado.`;
       }
     }
     return null;

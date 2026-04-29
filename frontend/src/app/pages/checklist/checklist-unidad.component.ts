@@ -60,6 +60,9 @@ export class ChecklistUnidadComponent implements OnInit {
 
   ubicaciones: Ubicacion[] = [];
   ubicacionesAbiertas: Record<string, boolean> = {};
+  editandoPlantilla = false;
+  guardandoPlantilla = false;
+  private plantillaUbicacionesBackup: Ubicacion[] | null = null;
 
   mensajeFlash: string | null = null;
   private flashTimer: ReturnType<typeof setTimeout> | null = null;
@@ -130,6 +133,20 @@ export class ChecklistUnidadComponent implements OnInit {
   get puedeEditarPlantilla(): boolean {
     const rol = this.auth.usuarioActual?.rol?.toUpperCase() ?? '';
     return rol === 'ADMIN' || rol === 'CAPITAN' || rol === 'TENIENTE';
+  }
+
+  activarEdicionPlantilla(): void {
+    if (!this.puedeEditarPlantilla) return;
+    this.plantillaUbicacionesBackup = this.clonarUbicaciones(this.ubicaciones);
+    this.editandoPlantilla = true;
+  }
+
+  cancelarEdicionPlantilla(): void {
+    if (this.plantillaUbicacionesBackup != null) {
+      this.ubicaciones = this.clonarUbicaciones(this.plantillaUbicacionesBackup);
+    }
+    this.plantillaUbicacionesBackup = null;
+    this.editandoPlantilla = false;
   }
 
   private inicializarCanvasFirma(): void {
@@ -470,6 +487,7 @@ export class ChecklistUnidadComponent implements OnInit {
   }
 
   agregarMaterial(ubicacionIdx: number): void {
+    if (!this.editandoPlantilla) return;
     this.ubicaciones[ubicacionIdx]?.materiales.push({
       id: crypto.randomUUID(),
       nombre: '',
@@ -480,6 +498,7 @@ export class ChecklistUnidadComponent implements OnInit {
   }
 
   eliminarMaterial(ubicacionIdx: number, materialIdx: number): void {
+    if (!this.editandoPlantilla) return;
     if (!window.confirm('¿Seguro que deseas eliminar este material del checklist? Esta acción no se puede deshacer.')) return;
     this.ubicaciones[ubicacionIdx]?.materiales.splice(materialIdx, 1);
     this.toast.exito('Material eliminado del checklist.');
@@ -713,8 +732,8 @@ export class ChecklistUnidadComponent implements OnInit {
   }
 
   guardarPlantillaUnidad(): void {
-    if (!this.puedeEditarPlantilla) {
-      this.toast.error('No tienes permisos para editar plantilla.');
+    if (!this.puedeEditarPlantilla || this.guardandoPlantilla) {
+      if (!this.puedeEditarPlantilla) this.toast.error('No tienes permisos para editar plantilla.');
       return;
     }
     const ubicaciones = this.ubicaciones
@@ -732,11 +751,16 @@ export class ChecklistUnidadComponent implements OnInit {
       this.toast.error('La plantilla debe tener compartimientos y materiales.');
       return;
     }
+    this.guardandoPlantilla = true;
     this.checklistsApi.guardarPlantillaUnidad(this.unidad, { ubicaciones }).subscribe({
       next: () => {
+        this.guardandoPlantilla = false;
+        this.editandoPlantilla = false;
+        this.plantillaUbicacionesBackup = null;
         this.toast.exito('Plantilla de checklist guardada.');
       },
       error: () => {
+        this.guardandoPlantilla = false;
         this.toast.error('No se pudo guardar la plantilla.');
       },
     });

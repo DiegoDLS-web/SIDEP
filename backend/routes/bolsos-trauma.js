@@ -33,10 +33,8 @@ function bolsosDesdeDetalle(detalle) {
 }
 /** Si aún no hay checklist TRAUMA, igual mostramos bolsos clicables (misma lógica que el registro). */
 function cantidadBolsosPredeterminada(nomenclatura) {
-    if (nomenclatura === 'R-1')
+    if (nomenclatura === 'R-1' || nomenclatura === 'B-1' || nomenclatura === 'BX-1')
         return 3;
-    if (nomenclatura === 'BX-1')
-        return 2;
     return 1;
 }
 function bolsosParaSelector(nomenclatura, detalle) {
@@ -156,6 +154,8 @@ exports.bolsosTraumaRouter.get('/selector', async (_req, res) => {
                 ultimaRevision: ultimo
                     ? {
                         fecha: ultimo.fecha,
+                        inspector: ultimo.inspector ?? null,
+                        obac: ultimo.cuartelero.nombre,
                         responsable: ultimo.inspector ?? ultimo.cuartelero.nombre,
                         completado: (ultimo.itemsOk ?? 0) >= (ultimo.totalItems ?? 0),
                     }

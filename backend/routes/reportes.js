@@ -34,7 +34,6 @@ function wherePartesSinDemo(fecha) {
         NOT: [
             { direccion: { contains: 'demo', mode: 'insensitive' } },
             { direccion: { contains: 'prueba', mode: 'insensitive' } },
-            { correlativo: { startsWith: 'PRB-' } },
         ],
     };
 }

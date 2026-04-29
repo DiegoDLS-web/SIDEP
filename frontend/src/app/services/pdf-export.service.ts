@@ -68,6 +68,10 @@ function fmtFirmaParaJsPdf(firma: string): 'PNG' | 'JPEG' {
   return 'PNG';
 }
 
+function stampFechaArchivo(): string {
+  return new Date().toISOString().slice(0, 10).replace(/-/g, '');
+}
+
 function keyUbicacionNombre(v: string): string {
   return (v || '').trim().toLowerCase();
 }
@@ -132,6 +136,24 @@ export class PdfExportService {
       } catch {
         // ignore logo rendering errors
       }
+    }
+  }
+
+  private finalizarDocumentoPdf(doc: jsPDF): void {
+    const totalPages = doc.getNumberOfPages();
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const generado = fmtFechaHoraPdf(new Date().toISOString());
+    for (let page = 1; page <= totalPages; page += 1) {
+      doc.setPage(page);
+      doc.setDrawColor(228, 228, 231);
+      doc.line(14, pageH - 11.5, pageW - 14, pageH - 11.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(82, 82, 91);
+      doc.text(`SIDEP · Documento oficial · ${generado}`, 14, pageH - 7);
+      doc.text(`Página ${page} de ${totalPages}`, pageW - 14, pageH - 7, { align: 'right' });
+      doc.setTextColor(20, 20, 20);
     }
   }
 
@@ -229,7 +251,8 @@ export class PdfExportService {
     }
 
     const safeNom = input.nomenclatura.replace(/[^\w-]+/g, '_');
-    doc.save(`SIDEP-${safeNom}-historial-${r.id}.pdf`);
+    this.finalizarDocumentoPdf(doc);
+    doc.save(`SIDEP-carro-${safeNom}-historial-${r.id}-${stampFechaArchivo()}.pdf`);
   }
 
   async exportarChecklistUnidad(input: {
@@ -343,7 +366,8 @@ export class PdfExportService {
       doc.text('Sin firma digital adjunta.', 14, firmaY + 4);
     }
 
-    doc.save(`checklist-${input.unidad}.pdf`);
+    this.finalizarDocumentoPdf(doc);
+    doc.save(`SIDEP-checklist-unidad-${input.unidad}-${stampFechaArchivo()}.pdf`);
   }
 
   async exportarRegistroChecklistHistorial(input: {
@@ -389,7 +413,8 @@ export class PdfExportService {
       }
     }
     const safeNom = input.unidad.replace(/[^\w-]+/g, '_');
-    doc.save(`SIDEP-${safeNom}-historial-registro-${r.id}.pdf`);
+    this.finalizarDocumentoPdf(doc);
+    doc.save(`SIDEP-checklist-${safeNom}-registro-${r.id}-${stampFechaArchivo()}.pdf`);
   }
 
   async exportarHistorialChecklistUnidad(input: {
@@ -447,7 +472,8 @@ export class PdfExportService {
     }
 
     const safeNom = input.unidad.replace(/[^\w-]+/g, '_');
-    doc.save(`SIDEP-${safeNom}-historial-checklists.pdf`);
+    this.finalizarDocumentoPdf(doc);
+    doc.save(`SIDEP-checklist-${safeNom}-historial-${stampFechaArchivo()}.pdf`);
   }
 
   async exportarChecklistEra(input: {
@@ -464,86 +490,180 @@ export class PdfExportService {
   }): Promise<void> {
     const doc = new jsPDF();
     await this.drawHeaderMarca(doc, `Check List ERA ${input.unidad}`, 'SIDEP · Equipos ERA');
-    doc.setFontSize(10);
-    doc.text(`Unidad: ${input.nombreCarro && input.nombreCarro !== '—' ? input.nombreCarro : input.unidad}`, 14, 42);
-    doc.text(`Fecha inspección: ${input.fechaInspeccion || '—'}`, 14, 48);
-    doc.text(`Inspector: ${input.inspector || '—'}`, 14, 54);
-    doc.text(`Grupo de guardia: ${input.grupoGuardia || '—'}`, 14, 60);
-    doc.text(`OBAC / responsable: ${input.responsable || '—'}`, 14, 66);
-
-    let headerY = 72;
+    const unidadDesc = input.nombreCarro && input.nombreCarro !== '—' ? `${input.unidad} · ${input.nombreCarro}` : input.unidad;
     const firma = input.firmaOficial?.trim();
-    if (firma?.startsWith('data:image')) {
-      doc.text('Firma oficial a cargo (OBAC):', 14, headerY);
-      headerY += 5;
-      try {
-        const imgW = 70;
-        const imgH = 22;
-        doc.addImage(firma, fmtFirmaParaJsPdf(firma), 14, headerY, imgW, imgH);
-        headerY += imgH + 6;
-      } catch {
-        doc.setFontSize(9);
-        doc.text('(No se pudo incrustar la imagen de la firma.)', 14, headerY);
-        headerY += 8;
-      }
-    } else if (firma) {
-      doc.text(`Firma / texto: ${firma}`, 14, headerY);
-      headerY += 6;
-    } else {
-      doc.text('Firma oficial a cargo (OBAC): —', 14, headerY);
-      headerY += 6;
-    }
+    const totalEquipos = input.equipos.length;
+    const totalRecambios = input.recambios.length;
+    const operativosEquipos = input.equipos.filter((e) => (e.arnesCondicion || '').toUpperCase() === 'OPERATIVO').length;
+    const operativosRecambios = input.recambios.filter((r) => (r.condicionGeneral || '').toUpperCase() === 'OPERATIVO').length;
+    const totalChequeos = totalEquipos + totalRecambios;
+    const totalOk = operativosEquipos + operativosRecambios;
+    const cumplimiento = totalChequeos > 0 ? Math.round((totalOk / totalChequeos) * 100) : 0;
 
     autoTable(doc, {
-      startY: headerY + 2,
+      startY: 40,
+      head: [['Campo', 'Valor']],
+      body: [
+        ['Unidad', unidadDesc || '—'],
+        ['Fecha inspección', input.fechaInspeccion || '—'],
+        ['Inspector', input.inspector || '—'],
+        ['Grupo de guardia', input.grupoGuardia || '—'],
+        ['OBAC / responsable', input.responsable || '—'],
+      ],
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 2.3, lineColor: [228, 228, 231], lineWidth: 0.1 },
+      headStyles: { fillColor: [24, 24, 27], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
+      columnStyles: { 0: { cellWidth: 52, fontStyle: 'bold', textColor: [63, 63, 70] }, 1: { cellWidth: 134 } },
+      margin: { left: 14, right: 14 },
+    });
+
+    const yMeta = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 40;
+    autoTable(doc, {
+      startY: yMeta + 4,
+      head: [['Equipos ERA', 'Recambios', 'Operativos', 'Cumplimiento']],
+      body: [[String(totalEquipos), String(totalRecambios), `${totalOk}/${totalChequeos}`, `${cumplimiento}%`]],
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 3.2, halign: 'center' },
+      headStyles: { fillColor: [185, 28, 28], textColor: [255, 255, 255], fontStyle: 'bold' },
+      bodyStyles: { textColor: [24, 24, 27], fontStyle: 'bold' },
+      margin: { left: 14, right: 14 },
+    });
+
+    let y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yMeta + 12;
+    y += 6;
+
+    doc.setFillColor(245, 245, 245);
+    doc.roundedRect(14, y, 182, 7, 1.3, 1.3, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(31, 41, 55);
+    doc.text('Equipos ERA', 17, y + 4.7);
+    doc.setTextColor(20, 20, 20);
+    doc.setFont('helvetica', 'normal');
+
+    autoTable(doc, {
+      startY: y + 9,
       head: [
         [
           '#',
           'Marca',
           'Tipo',
-          'Ubic.',
+          'Ubicación',
           'Máscara',
-          'Cilindro',
+          'Cilindro/Presión',
           'Arnés',
           'Estado',
         ],
       ],
       body: input.equipos.map((e) => [
         String(e.numero),
-        e.marca,
-        e.tipo,
-        e.ubicacion,
-        [e.mascaraLimpia, e.mascaraCondicion].filter(Boolean).join(' · ') || '—',
-        [e.presion, e.cilindroCondicion, e.codigoCilindro].filter(Boolean).join(' · ') || '—',
-        [e.arnesLimpio, e.arnesCondicion].filter(Boolean).join(' · ') || '—',
+        e.marca || '—',
+        e.tipo || '—',
+        e.ubicacion || '—',
+        [e.codigoMascara, e.mascaraLimpia, e.mascaraCondicion].filter((x) => (x ?? '').trim()).join(' · ') || '—',
+        [e.codigoCilindro, e.presion, e.cilindroCondicion].filter((x) => (x ?? '').trim()).join(' · ') || '—',
+        [e.codigoArnes, e.arnesLimpio, e.arnesCondicion].filter((x) => (x ?? '').trim()).join(' · ') || '—',
         e.estado || e.arnesCondicion || '—',
       ]),
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [200, 30, 30] },
+      theme: 'striped',
+      styles: { fontSize: 7.8, cellPadding: 2.1, lineColor: [228, 228, 231], lineWidth: 0.1 },
+      headStyles: { fillColor: [185, 28, 28], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+      alternateRowStyles: { fillColor: [252, 252, 253] },
+      columnStyles: {
+        0: { cellWidth: 10, halign: 'center' },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 16 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 43 },
+        5: { cellWidth: 43 },
+        6: { cellWidth: 20 },
+        7: { cellWidth: 10, halign: 'center' },
+      },
+      margin: { left: 14, right: 14 },
     });
 
-    const y1 = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 50;
+    const y1 = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y + 9;
+    let yRec = y1 + 6;
+    if (yRec > 255) {
+      doc.addPage();
+      yRec = 18;
+    }
+    doc.setFillColor(245, 245, 245);
+    doc.roundedRect(14, yRec, 182, 7, 1.3, 1.3, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(31, 41, 55);
+    doc.text('Cilindros de recambio', 17, yRec + 4.7);
+    doc.setTextColor(20, 20, 20);
+    doc.setFont('helvetica', 'normal');
+
     autoTable(doc, {
-      startY: y1 + 8,
+      startY: yRec + 9,
       head: [['#', 'Tipo', 'Presión aire', '>2000', 'Cond. gral.', 'Código', 'Estado']],
       body: input.recambios.map((r) => [
         String(r.numero),
-        r.tipo,
+        r.tipo || '—',
         r.presionAire || '—',
         r.presionMayor2000 ?? '—',
         r.condicionGeneral ?? '—',
         r.codigoCilindro?.trim() || '—',
-        r.estado,
+        r.estado || r.condicionGeneral || '—',
       ]),
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [40, 80, 160] },
+      theme: 'striped',
+      styles: { fontSize: 8.2, cellPadding: 2.3, lineColor: [228, 228, 231], lineWidth: 0.1 },
+      headStyles: { fillColor: [55, 65, 81], textColor: [255, 255, 255], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [252, 252, 253] },
+      margin: { left: 14, right: 14 },
     });
 
-    const y2 = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y1 + 8;
-    doc.text('Observaciones:', 14, y2 + 10);
-    doc.text(input.observaciones || 'Sin observaciones.', 14, y2 + 16);
+    const y2 = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yRec + 9;
+    let yObs = y2 + 8;
+    if (yObs > 246) {
+      doc.addPage();
+      yObs = 18;
+    }
+    doc.setFillColor(245, 245, 245);
+    doc.roundedRect(14, yObs, 182, 7, 1.3, 1.3, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(31, 41, 55);
+    doc.text('Observaciones y firma', 17, yObs + 4.7);
+    doc.setTextColor(20, 20, 20);
+    doc.setFont('helvetica', 'normal');
 
-    doc.save(`checklist-era-${input.unidad}.pdf`);
+    const obs = (input.observaciones || 'Sin observaciones.').trim() || 'Sin observaciones.';
+    const obsLines = doc.splitTextToSize(obs, 176);
+    doc.setFontSize(9);
+    doc.text(obsLines, 14, yObs + 13);
+    let yFirma = yObs + 13 + obsLines.length * 4.2 + 4;
+    if (yFirma > 258) {
+      doc.addPage();
+      yFirma = 20;
+    }
+    doc.setFontSize(9.5);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`OBAC: ${input.responsable || '—'}`, 14, yFirma);
+    doc.setFont('helvetica', 'normal');
+    doc.setDrawColor(228, 228, 231);
+    doc.roundedRect(14, yFirma + 2, 80, 24, 1.2, 1.2);
+    if (firma?.startsWith('data:image')) {
+      try {
+        doc.addImage(firma, fmtFirmaParaJsPdf(firma), 16, yFirma + 4, 76, 20);
+      } catch {
+        doc.setFontSize(8.5);
+        doc.setTextColor(82, 82, 91);
+        doc.text('No se pudo incrustar la firma.', 18, yFirma + 15);
+        doc.setTextColor(20, 20, 20);
+      }
+    } else {
+      doc.setFontSize(8.5);
+      doc.setTextColor(82, 82, 91);
+      doc.text('Sin firma digital adjunta.', 18, yFirma + 15);
+      doc.setTextColor(20, 20, 20);
+    }
+
+    this.finalizarDocumentoPdf(doc);
+    doc.save(`SIDEP-checklist-era-${input.unidad}-${stampFechaArchivo()}.pdf`);
   }
 
   /** Tabla de historial de bolsos de trauma (mismo criterio visual que la pantalla). */
@@ -599,7 +719,8 @@ export class PdfExportService {
       alternateRowStyles: { fillColor: [247, 247, 247] },
     });
 
-    doc.save('SIDEP-historial-bolsos-trauma.pdf');
+    this.finalizarDocumentoPdf(doc);
+    doc.save(`SIDEP-bolsos-trauma-historial-${stampFechaArchivo()}.pdf`);
   }
 
   async exportarLicencia(input: {
@@ -648,6 +769,7 @@ export class PdfExportService {
     const obsLines = doc.splitTextToSize(input.observacionResolucion || 'Sin observación.', 180);
     doc.text(obsLines, 14, y2 + 14);
 
-    doc.save(`Licencia${input.id}.pdf`);
+    this.finalizarDocumentoPdf(doc);
+    doc.save(`SIDEP-licencia-${input.id}-${stampFechaArchivo()}.pdf`);
   }
 }

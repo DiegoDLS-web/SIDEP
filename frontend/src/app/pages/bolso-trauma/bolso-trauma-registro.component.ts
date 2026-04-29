@@ -13,6 +13,7 @@ import { AuthService } from '../../services/auth.service';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { firmaEfectiva } from '../../utils/firma-resolver';
+import { ubicacionesPlantillaTraumaOficial } from './trauma-plantilla-oficial';
 
 type MaterialItem = {
   id: string;
@@ -39,79 +40,88 @@ function nuevoMaterial(
   };
 }
 
-/** Plantilla por bolso: cuatro bolsillos con ítems de referencia. */
-function plantillaBolso(numero: number): Bolso {
+/** Plantilla según checklist Excel R-1 (mismos mínimos/óptimos en todas las unidades). */
+function bolsoPlantillaOficial(numero: number): Bolso {
   return {
     numero,
-    ubicaciones: [
-      {
-        nombre: 'Bolsillo Principal',
-        materiales: [
-          nuevoMaterial('Kit de cánulas', 1, 2, 0),
-          nuevoMaterial('Estuche con guantes de nitrilo', 1, 2, 0),
-          nuevoMaterial('Estuche con mascarillas', 1, 1, 0),
-          nuevoMaterial('Vendaje israelí 4"', 1, 2, 0),
-          nuevoMaterial('Torniquete', 1, 1, 0),
-          nuevoMaterial('Suero 250 ml', 2, 5, 0),
-          nuevoMaterial('Linterna pupilar', 1, 1, 0),
-          nuevoMaterial('Bajada de suero', 1, 1, 0),
-          nuevoMaterial('Tela adhesiva', 1, 3, 0),
-          nuevoMaterial('Tarjetas signos vitales', 1, 1, 0),
-          nuevoMaterial('Cortador de anillos', 1, 1, 0),
-          nuevoMaterial('Tijera punta pato de rescate', 1, 1, 0),
-          nuevoMaterial('Saturómetro', 1, 1, 0),
-          nuevoMaterial('Plumón permanente Sharpie', 1, 1, 0),
-          nuevoMaterial('Apósitos 10 x 10', 5, 10, 0),
-          nuevoMaterial('Apósitos 10 x 20', 5, 10, 0),
-          nuevoMaterial('Apósitos 13 x 24', 5, 10, 0),
-          nuevoMaterial('Apósitos 20 x 25', 5, 10, 0),
-          nuevoMaterial('Vendaje triangular', 1, 3, 0),
-          nuevoMaterial('Elastomull 8 cm', 4, 10, 0),
-          nuevoMaterial('Elastomull 6 cm', 4, 10, 0),
-          nuevoMaterial('Elastomull 4 cm', 4, 10, 0),
-          nuevoMaterial('Mantas térmicas', 2, 5, 0),
-          nuevoMaterial('Suero 20 ml', 5, 10, 0),
-        ],
-      },
-      {
-        nombre: 'Bolsillo Delantero',
-        materiales: [
-          nuevoMaterial('Collar cervical adulto', 3, 4, 0),
-          nuevoMaterial('Collar cervical pediátrico', 1, 2, 0),
-        ],
-      },
-      {
-        nombre: 'Bolsillo Superior',
-        materiales: [nuevoMaterial('Aspirador manual', 1, 1, 0)],
-      },
-      {
-        nombre: 'Bolsillo Posterior',
-        materiales: [
-          nuevoMaterial('Bolsa de resucitación manual adulto', 1, 1, 0),
-          nuevoMaterial('Bolsa de resucitación manual pediátrica', 1, 1, 0),
-          nuevoMaterial('Mascarilla oxígeno con reservorio adulto', 1, 2, 0),
-          nuevoMaterial('Mascarilla oxígeno con reservorio pediátrica', 1, 2, 0),
-        ],
-      },
-      {
-        nombre: 'Bolsillo Derecho',
-        materiales: [
-          nuevoMaterial('Máscara unidireccional', 1, 1, 0),
-          nuevoMaterial('Bolsas para residuos', 1, 1, 0),
-        ],
-      },
-      {
-        nombre: 'Bolsillo Izquierdo',
-        materiales: [nuevoMaterial('Esfigmomanómetro', 1, 1, 0)],
-      },
-    ],
+    ubicaciones: ubicacionesPlantillaTraumaOficial().map((u) => ({
+      nombre: u.nombre,
+      materiales: u.materiales.map((m) =>
+        nuevoMaterial(m.nombre, m.cantidadMinima, m.cantidadOptima, 0),
+      ),
+    })),
   };
 }
 
+/** Misma política que el selector del backend (`bolsos-trauma`). R-1, B-1 y BX-1 comparten catálogo de 3 bolsos. */
+function cantidadBolsosPorUnidad(unidad: string): number {
+  if (unidad === 'R-1' || unidad === 'B-1' || unidad === 'BX-1') return 3;
+  return 1;
+}
+
 function defaultBolsos(unidad: string): Bolso[] {
-  // A solicitud operativa: BX-1 y B-1 usan la misma base de bolsos del R-1.
-  const cantidad = 3;
-  return Array.from({ length: cantidad }, (_, i) => plantillaBolso(i + 1));
+  const cantidad = cantidadBolsosPorUnidad(unidad);
+  return Array.from({ length: cantidad }, (_, i) => bolsoPlantillaOficial(i + 1));
+}
+
+/** Alinea filas guardadas/plantilla con la cantidad de bolsos de la nomenclatura (R-1/B-1/BX-1→3, resto→1). */
+function ajustarBolsosACantidadUnidad(bolsos: Bolso[], unidad: string): Bolso[] {
+  const n = cantidadBolsosPorUnidad(unidad);
+  const out: Bolso[] = [];
+  for (let i = 0; i < n; i++) {
+    const b = bolsos[i];
+    out.push(b ? { ...b, numero: i + 1 } : bolsoPlantillaOficial(i + 1));
+  }
+  return out;
+}
+
+function keyTraumaNombre(s: string): string {
+  return String(s ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+/** R-1, B-1 y BX-1 deben listar siempre la misma plantilla oficial (p. ej. B-1 no queda con menos ítems por checklists viejos). */
+function unidadConCatalogoTraumaCompleto(unidad: string): boolean {
+  return unidad === 'R-1' || unidad === 'B-1' || unidad === 'BX-1';
+}
+
+/**
+ * Reescribe compartimientos y materiales según `bolsoPlantillaOficial`, conservando cantidad actual
+ * cuando coincide el nombre (tras normalizar).
+ */
+function fusionarBolsosConPlantillaCanon(bolsos: Bolso[], unidad: string): Bolso[] {
+  const n = cantidadBolsosPorUnidad(unidad);
+  const out: Bolso[] = [];
+  for (let i = 0; i < n; i++) {
+    const numero = i + 1;
+    const ref = bolsoPlantillaOficial(numero);
+    const viejo = bolsos[i];
+    const ubicaciones: Ubicacion[] = ref.ubicaciones.map((tplU) => {
+      const viejaU = viejo?.ubicaciones.find(
+        (u) => keyTraumaNombre(u.nombre) === keyTraumaNombre(tplU.nombre),
+      );
+      const materiales: MaterialItem[] = tplU.materiales.map((tm) => {
+        const viejoM = viejaU?.materiales.find(
+          (m) => keyTraumaNombre(m.nombre) === keyTraumaNombre(tm.nombre),
+        );
+        const act = viejoM?.cantidadActual;
+        return {
+          id: viejoM?.id ?? crypto.randomUUID(),
+          nombre: tm.nombre,
+          cantidadMinima: tm.cantidadMinima,
+          cantidadOptima: tm.cantidadOptima,
+          cantidadActual:
+            typeof act === 'number' && Number.isFinite(act) ? Math.max(0, Math.round(act)) : 0,
+        };
+      });
+      return { nombre: tplU.nombre, materiales };
+    });
+    out.push({ numero, ubicaciones });
+  }
+  return out;
 }
 
 @Component({
@@ -155,6 +165,8 @@ export class BolsoTraumaRegistroComponent implements OnInit {
   private flashTimer: ReturnType<typeof setTimeout> | null = null;
   editandoPlantilla = false;
   guardandoPlantilla = false;
+  /** Acordeón por compartimiento (índice); true = expandido. */
+  private ubicacionesExpandidas: Record<number, boolean> = {};
 
   ngOnInit(): void {
     this.unidad = this.route.snapshot.paramMap.get('unidad') ?? 'R-1';
@@ -182,11 +194,15 @@ export class BolsoTraumaRegistroComponent implements OnInit {
 
         const plantillaBolsos = this.parsePlantillaBolsos(plantilla);
         if (detalle?.bolsos?.length) {
-          this.bolsos = detalle.bolsos;
+          this.bolsos = ajustarBolsosACantidadUnidad(detalle.bolsos, this.unidad);
         } else if (plantillaBolsos?.length) {
-          this.bolsos = plantillaBolsos;
+          this.bolsos = ajustarBolsosACantidadUnidad(plantillaBolsos, this.unidad);
         } else {
           this.bolsos = defaultBolsos(this.unidad);
+        }
+
+        if (unidadConCatalogoTraumaCompleto(this.unidad)) {
+          this.bolsos = fusionarBolsosConPlantillaCanon(this.bolsos, this.unidad);
         }
 
         if (checklist?.inspector) this.nombreInspector = checklist.inspector;
@@ -222,11 +238,11 @@ export class BolsoTraumaRegistroComponent implements OnInit {
     const b = this.bolsos.find((x) => x.numero === this.bolsoNumero);
     if (b) {
       if (b.ubicaciones.length === 0) {
-        b.ubicaciones = plantillaBolso(this.bolsoNumero).ubicaciones;
+        b.ubicaciones = bolsoPlantillaOficial(this.bolsoNumero).ubicaciones;
       }
       return b;
     }
-    const nuevo: Bolso = { numero: this.bolsoNumero, ubicaciones: plantillaBolso(this.bolsoNumero).ubicaciones };
+    const nuevo: Bolso = { numero: this.bolsoNumero, ubicaciones: bolsoPlantillaOficial(this.bolsoNumero).ubicaciones };
     this.bolsos.push(nuevo);
     return nuevo;
   }
@@ -284,16 +300,22 @@ export class BolsoTraumaRegistroComponent implements OnInit {
   guardarPlantillaTrauma(): void {
     if (!this.puedeEditarPlantilla || this.guardandoPlantilla) return;
     this.guardandoPlantilla = true;
+    const ref = this.bolsos.find((b) => b.numero === this.bolsoNumero) ?? this.bolsos[0] ?? bolsoPlantillaOficial(1);
+    const ubicTpl = ref.ubicaciones.map((u) => ({
+      nombre: u.nombre,
+      materiales: u.materiales.map((m) => ({
+        nombre: m.nombre,
+        cantidadMinima: m.cantidadMinima,
+        cantidadOptima: m.cantidadOptima,
+      })),
+    }));
+    /** Catálogo R-1 (3 bolsos idénticos) para uso en todas las nomenclaturas. */
     const plantilla = {
-      bolsos: this.bolsos.map((b) => ({
-        numero: b.numero,
-        ubicaciones: b.ubicaciones.map((u) => ({
+      bolsos: [1, 2, 3].map((numero) => ({
+        numero,
+        ubicaciones: ubicTpl.map((u) => ({
           nombre: u.nombre,
-          materiales: u.materiales.map((m) => ({
-            nombre: m.nombre,
-            cantidadMinima: m.cantidadMinima,
-            cantidadOptima: m.cantidadOptima,
-          })),
+          materiales: u.materiales.map((m) => ({ ...m })),
         })),
       })),
     };
@@ -368,16 +390,30 @@ export class BolsoTraumaRegistroComponent implements OnInit {
     return this.bolsoActual.ubicaciones.reduce((acc, u) => acc + u.materiales.length, 0);
   }
 
+  /** Resumen tipo «conformes / críticos» por compartimiento (según cantidad mínima). */
+  materialesConMinimoCubierto(u: Ubicacion): number {
+    return u.materiales.filter((m) => m.cantidadActual >= m.cantidadMinima).length;
+  }
+
+  materialesBajoMinimo(u: Ubicacion): number {
+    return u.materiales.filter((m) => m.cantidadActual < m.cantidadMinima).length;
+  }
+
+  totalMaterialesBajoMinimoEsteBolso(): number {
+    return this.bolsoActual.ubicaciones.reduce((acc, u) => acc + this.materialesBajoMinimo(u), 0);
+  }
+
+  esUbAbierta(ui: number): boolean {
+    return this.ubicacionesExpandidas[ui] !== false;
+  }
+
+  toggleUbAccordion(ui: number): void {
+    this.ubicacionesExpandidas[ui] = !this.esUbAbierta(ui);
+  }
+
   materialesMinimosOk(): number {
     return this.bolsoActual.ubicaciones.reduce(
       (acc, u) => acc + u.materiales.filter((m) => m.cantidadActual >= m.cantidadMinima).length,
-      0,
-    );
-  }
-
-  materialesOptimosOk(): number {
-    return this.bolsoActual.ubicaciones.reduce(
-      (acc, u) => acc + u.materiales.filter((m) => m.cantidadActual >= m.cantidadOptima).length,
       0,
     );
   }

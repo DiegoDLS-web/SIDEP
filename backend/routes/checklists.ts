@@ -41,6 +41,72 @@ function enrichVigenciaPor<T extends { id: number }>(
   });
 }
 
+/** Plantillas ERA/TRAUMA persistentes por clave única (`__ALL__` aplica a toda nomenclatura). */
+const CLAVE_PLANTILLAS_TRAUMA = 'CHECKLIST_TRAUMA_PLANTILLAS';
+/** Plantillas ERA guardadas por nomenclatura (incluye `__ALL__` opcional como respaldo). */
+const CLAVE_PLANTILLAS_ERA = 'CHECKLIST_ERA_PLANTILLAS';
+
+async function obtenerPlantillaTrauma(unidad: string): Promise<unknown | null> {
+  const cfg = await prisma.configuracionSistema.findUnique({
+    where: { clave: CLAVE_PLANTILLAS_TRAUMA },
+    select: { valor: true },
+  });
+  const v = ((cfg?.valor ?? {}) as Record<string, unknown>) || {};
+  const per = v[unidad];
+  const all = v.__ALL__ ?? v.__default__;
+  return (per ?? all) ?? null;
+}
+
+async function obtenerPlantillaEra(unidad: string): Promise<unknown | null> {
+  const cfg = await prisma.configuracionSistema.findUnique({
+    where: { clave: CLAVE_PLANTILLAS_ERA },
+    select: { valor: true },
+  });
+  const v = ((cfg?.valor ?? {}) as Record<string, unknown>) || {};
+  const per = v[unidad];
+  const all = v.__ALL__ ?? v.__default__;
+  return (per ?? all) ?? null;
+}
+
+async function obtenerPlantillaTipo(tipoRaw: string, unidad: string): Promise<unknown | null> {
+  const tipo = tipoRaw.trim().toUpperCase();
+  if (tipo === 'TRAUMA') {
+    return obtenerPlantillaTrauma(unidad);
+  }
+  if (tipo === 'ERA') {
+    return obtenerPlantillaEra(unidad);
+  }
+  return null;
+}
+
+async function guardarPlantillaTraumaGlobal(plantilla: unknown): Promise<void> {
+  const cfg = await prisma.configuracionSistema.findUnique({
+    where: { clave: CLAVE_PLANTILLAS_TRAUMA },
+    select: { valor: true },
+  });
+  const prev = ((cfg?.valor ?? {}) as Record<string, unknown>) || {};
+  const next: Record<string, unknown> = { ...prev, __ALL__: plantilla };
+  await prisma.configuracionSistema.upsert({
+    where: { clave: CLAVE_PLANTILLAS_TRAUMA },
+    update: { valor: next as Prisma.InputJsonValue },
+    create: { clave: CLAVE_PLANTILLAS_TRAUMA, valor: next as Prisma.InputJsonValue },
+  });
+}
+
+async function guardarPlantillaEraPorUnidad(unidad: string, plantilla: unknown): Promise<void> {
+  const cfg = await prisma.configuracionSistema.findUnique({
+    where: { clave: CLAVE_PLANTILLAS_ERA },
+    select: { valor: true },
+  });
+  const prev = ((cfg?.valor ?? {}) as Record<string, unknown>) || {};
+  const next: Record<string, unknown> = { ...prev, [unidad]: plantilla };
+  await prisma.configuracionSistema.upsert({
+    where: { clave: CLAVE_PLANTILLAS_ERA },
+    update: { valor: next as Prisma.InputJsonValue },
+    create: { clave: CLAVE_PLANTILLAS_ERA, valor: next as Prisma.InputJsonValue },
+  });
+}
+
 function calcularEstadoOperativo(totalItems: number | null | undefined, itemsOk: number | null | undefined): boolean {
   const total = Number(totalItems ?? 0);
   const ok = Number(itemsOk ?? 0);
@@ -92,6 +158,58 @@ async function obtenerPlantillaUnidad(unidad: string): Promise<PlantillaUbicacio
   const detalle = (last?.detalle ?? null) as { ubicaciones?: unknown } | null;
   return normalizarPlantillaUnidad(detalle?.ubicaciones);
 }
+
+/** GET plantilla opcional ERA/TRAUMA (TRAUMA: fallback `__ALL__` para todas las unidades). */
+checklistsRouter.get('/plantillas/:tipo/:unidad', async (req, res) => {
+  const tipo = String(req.params.tipo ?? '');
+  const unidad = String(req.params.unidad ?? '').trim();
+  if (!unidad) {
+    res.status(400).json({ error: 'Unidad requerida' });
+    return;
+  }
+  try {
+    const plantilla = await obtenerPlantillaTipo(tipo, unidad);
+    res.json({ plantilla });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Error al cargar plantilla' });
+  }
+});
+
+checklistsRouter.put(
+  '/plantillas/:tipo/:unidad',
+  requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'),
+  async (req, res) => {
+    const tipo = String(req.params.tipo ?? '').trim().toUpperCase();
+    const unidad = String(req.params.unidad ?? '').trim();
+    if (!unidad) {
+      res.status(400).json({ error: 'Unidad requerida' });
+      return;
+    }
+    if (tipo !== 'TRAUMA' && tipo !== 'ERA') {
+      res.status(400).json({ error: 'Solo se pueden guardar plantillas TRAUMA o ERA' });
+      return;
+    }
+    const plantilla = (req.body as { plantilla?: unknown } | null)?.plantilla;
+    if (plantilla === undefined || plantilla === null) {
+      res.status(400).json({ error: 'Cuerpo inválido' });
+      return;
+    }
+    try {
+      if (tipo === 'TRAUMA') {
+        await guardarPlantillaTraumaGlobal(plantilla);
+      } else {
+        await guardarPlantillaEraPorUnidad(unidad, plantilla);
+      }
+      res.json({ ok: true });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({
+        error: tipo === 'TRAUMA' ? 'Error al guardar plantilla trauma' : 'Error al guardar plantilla ERA',
+      });
+    }
+  },
+);
 
 checklistsRouter.get('/unidad/:unidad/plantilla', async (req, res) => {
   const unidad = String(req.params.unidad ?? '').trim();
@@ -271,7 +389,8 @@ checklistsRouter.post('/unidad/:unidad', async (req, res) => {
     itemsOk?: number;
     detalle?: unknown;
   };
-  if (!unidad || typeof body.cuarteleroId !== 'number') {
+  const cuarteleroUnidadId = body.cuarteleroId;
+  if (!unidad || typeof cuarteleroUnidadId !== 'number') {
     res.status(400).json({ error: 'Unidad y cuarteleroId son requeridos' });
     return;
   }
@@ -294,7 +413,7 @@ checklistsRouter.post('/unidad/:unidad', async (req, res) => {
       const row = await tx.checklistCarro.create({
         data: {
           carroId: carro.id,
-          cuarteleroId: body.cuarteleroId,
+          cuarteleroId: cuarteleroUnidadId,
           tipo: 'UNIDAD',
           inspector: body.inspector ?? null,
           grupoGuardia: body.grupoGuardia ?? null,
