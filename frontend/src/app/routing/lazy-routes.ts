@@ -71,5 +71,6 @@ export function rutaPlaceholder(title: string) {
     loadComponent: () =>
       import('../pages/placeholder/feature-placeholder.component').then((m) => m.FeaturePlaceholderComponent),
     data: { title },
+    title: `${title} · SIDEP`,
   };
 }

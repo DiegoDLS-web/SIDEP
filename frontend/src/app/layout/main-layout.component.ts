@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { AuthService } from '../services/auth.service';
@@ -95,8 +95,8 @@ export class MainLayoutComponent {
 
   navClasses(active: boolean): string {
     return active
-      ? 'bg-red-600 text-white'
-      : 'text-gray-400 hover:text-white hover:bg-gray-800';
+      ? 'bg-red-600 text-white shadow-sm shadow-black/20'
+      : 'text-gray-400 hover:bg-gray-800/90 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-red-500/40';
   }
 
   toggleSidebar(): void {
@@ -105,6 +105,21 @@ export class MainLayoutComponent {
 
   cerrarSidebar(): void {
     this.sidebarAbierto = false;
+  }
+
+  saltarAlContenido(ev: Event): void {
+    ev.preventDefault();
+    const el = document.getElementById('main-content');
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeCerrarSidebar(): void {
+    if (this.sidebarAbierto) {
+      this.sidebarAbierto = false;
+    }
   }
 
   get nombreUsuario(): string {

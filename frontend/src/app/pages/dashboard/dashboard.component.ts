@@ -80,7 +80,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       icon: 'users',
       trend: '—',
       trendUp: true,
-      grad: 'from-blue-500 to-blue-600',
+      grad: 'from-red-500 to-red-600',
     },
   ];
 

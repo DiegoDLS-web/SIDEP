@@ -1,7 +1,7 @@
 <div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 sm:py-5 md:px-8 lg:px-10 xl:px-12 lg:py-6">
   @if (loading) {
     <div class="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-slate-400">
-      <lucide-icon name="file-text" class="h-10 w-10 animate-pulse text-red-500" [size]="40" color="currentColor" />
+      <lucide-icon name="file-text" class="h-10 w-10 animate-pulse text-red-400/90" [size]="40" color="currentColor" />
       <p class="text-sm">Cargando partes…</p>
     </div>
   } @else if (error) {
@@ -12,7 +12,7 @@
     >
       <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p class="mb-2 inline-flex rounded-full border border-rose-500/35 bg-rose-500/10 px-3 py-1 text-xs text-rose-200">10-x y compañía</p>
+          <p class="mb-2 inline-flex rounded-full border border-rose-500/35 bg-rose-500/10 px-3 py-1 text-xs text-rose-200">Gestion operativa</p>
           <h1 class="text-2xl font-bold tracking-tight text-white sm:text-3xl">Partes de emergencia</h1>
           <p class="mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">Historial, filtros y exportación de partes</p>
         </div>

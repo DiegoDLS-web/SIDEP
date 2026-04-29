@@ -77,7 +77,7 @@ export class ToastContainerComponent implements OnInit {
       case 'warning':
         return 'border-amber-600/60 bg-amber-950/90';
       default:
-        return 'border-sky-700/60 bg-slate-900/95';
+        return 'border-[color:var(--sid-border-strong)] bg-[color:var(--sid-shell-aside)]/95';
     }
   }
 }

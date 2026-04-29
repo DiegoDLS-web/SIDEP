@@ -21,7 +21,7 @@ body {
 select,
 option,
 optgroup {
-  background-color: #0a0a0a;
+  background-color: var(--sid-shell-bg);
   color: #f3f4f6;
 }
 
@@ -40,12 +40,17 @@ input[type='datetime-local']::-webkit-calendar-picker-indicator {
   opacity: 0.95;
 }
 
-/* Sistema visual reutilizable (web/tablet/móvil). */
-.sid-page {
-  --sid-card: #121212;
-  --sid-card-soft: #0a0a0a;
+/* Sistema visual reutilizable (web/tablet/móvil). Tokens en :root para shell, tablas e inputs. */
+:root {
+  --sid-shell-bg: #0a0a0a;
+  --sid-shell-aside: #121212;
   --sid-border: #2f2f2f;
   --sid-border-strong: #454545;
+}
+
+.sid-page {
+  --sid-card: var(--sid-shell-aside);
+  --sid-card-soft: var(--sid-shell-bg);
 }
 
 .sid-card {
@@ -122,11 +127,71 @@ input[type='datetime-local']::-webkit-calendar-picker-indicator {
   color: #9ca3af;
 }
 
+/*
+ * Shell de la aplicación (sidebar + main): mismos valores base que .sid-page
+ * para fondos y texto; el layout no inventa otros grises/azules fuera del tema.
+ */
+.sid-shell {
+  position: relative;
+  display: flex;
+  min-height: 100dvh;
+  min-height: 100vh;
+  background-color: var(--sid-shell-bg);
+  color: #fff;
+}
+
+.sid-shell__aside {
+  background-color: var(--sid-shell-aside);
+}
+
+.sid-shell__main {
+  min-height: 0;
+}
+
+/* Fase 4 — accesibilidad: ir al contenido sin pasar por todo el menú (visible al enfocar con Tab) */
+.sid-skip-link {
+  position: fixed;
+  left: 0.75rem;
+  top: 0.75rem;
+  z-index: 60;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(252, 165, 165, 0.5);
+  background: #b91c1c;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+  outline-offset: 3px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transform: translateY(calc(-100% - 0.75rem));
+  transition:
+    transform 0.2s ease,
+    background-color 0.15s ease;
+}
+.sid-skip-link:focus,
+.sid-skip-link:focus-visible {
+  transform: translateY(0);
+  background: #dc2626;
+}
+
+/* Login y flujos de contraseña: mismo contenedor centrado sobre fondo #0a0a0a */
+.sid-auth-shell {
+  box-sizing: border-box;
+  min-height: 100dvh;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--sid-shell-bg);
+  padding: 1rem;
+}
+
 /* Historiales generales: estilo unificado */
 .sid-history-card {
-  border: 1px solid #2f2f2f;
+  border: 1px solid var(--sid-border);
   border-radius: 0.9rem;
-  background: #121212;
+  background: var(--sid-shell-aside);
 }
 
 .sid-history-title {
@@ -143,7 +208,7 @@ input[type='datetime-local']::-webkit-calendar-picker-indicator {
 .sid-history-filter {
   border: 1px solid #4b5563;
   border-radius: 0.65rem;
-  background: #0a0a0a;
+  background: var(--sid-shell-bg);
   color: #fff;
   min-height: 2.5rem;
   padding: 0.5rem 0.75rem;
@@ -151,13 +216,13 @@ input[type='datetime-local']::-webkit-calendar-picker-indicator {
 
 .sid-history-table-wrap {
   overflow-x: auto;
-  border: 1px solid #2f2f2f;
+  border: 1px solid var(--sid-border);
   border-radius: 0.7rem;
 }
 
 .sid-history-wrap {
   overflow-x: auto;
-  border: 1px solid #2f2f2f;
+  border: 1px solid var(--sid-border);
   border-radius: 0.7rem;
 }
 
@@ -168,8 +233,8 @@ input[type='datetime-local']::-webkit-calendar-picker-indicator {
 }
 
 .sid-history-table thead tr {
-  border-bottom: 1px solid #2f2f2f;
-  background: #0a0a0a;
+  border-bottom: 1px solid var(--sid-border);
+  background: var(--sid-shell-bg);
 }
 
 .sid-history-table th {
@@ -239,10 +304,10 @@ input[type='datetime-local']::-webkit-calendar-picker-indicator {
 }
 
 .sid-history-wrap {
-  border: 1px solid #2f2f2f;
+  border: 1px solid var(--sid-border);
   border-radius: 0.75rem;
   overflow: hidden;
-  background: #121212;
+  background: var(--sid-shell-aside);
 }
 
 .sid-history-table {
@@ -251,8 +316,8 @@ input[type='datetime-local']::-webkit-calendar-picker-indicator {
 }
 
 .sid-history-table thead tr {
-  border-bottom: 1px solid #2f2f2f;
-  background: #0a0a0a;
+  border-bottom: 1px solid var(--sid-border);
+  background: var(--sid-shell-bg);
 }
 
 .sid-history-table thead th {

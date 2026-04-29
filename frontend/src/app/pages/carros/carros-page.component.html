@@ -1,12 +1,14 @@
 @let vm = vm$ | async;
 
 @if (!vm || vm.status === 'loading') {
-  <div class="sid-page flex min-h-[40vh] flex-col items-center justify-center gap-3 px-4 py-12 text-gray-400">
+  <div
+    class="sid-page flex min-h-[40vh] w-full min-w-0 flex-col items-center justify-center gap-3 px-4 py-12 text-gray-400 sm:px-6 md:px-8 lg:px-10 xl:px-12"
+  >
     <lucide-icon name="truck" class="h-10 w-10 animate-pulse text-red-500" [size]="40" color="currentColor" />
     <p class="text-sm">Cargando flota…</p>
   </div>
 } @else if (vm.status === 'error') {
-  <div class="sid-page px-4 py-8 md:px-8">
+  <div class="sid-page w-full min-w-0 px-4 py-8 sm:px-6 md:px-8 lg:px-10 xl:px-12">
     <div class="max-w-md rounded-2xl border border-red-900/50 bg-red-950/20 p-6">
       <p class="text-red-300">{{ vm.message }}</p>
       <button
@@ -20,7 +22,7 @@
   </div>
 } @else if (vm.status === 'list') {
   @let s = stats(vm.carros);
-  <div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 md:px-8 lg:px-10 xl:px-12 md:py-6">
+  <div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 sm:py-6 md:px-8 lg:px-10 xl:px-12 md:py-6">
     <section
       class="relative overflow-hidden rounded-2xl border border-red-900/40 bg-[radial-gradient(circle_at_0%_0%,rgba(220,38,38,0.18),transparent_45%),radial-gradient(circle_at_100%_0%,rgba(59,130,246,0.1),transparent_42%),#0a0a0a] p-5 sm:p-6"
     >
@@ -267,7 +269,7 @@
   </div>
 } @else if (vm.status === 'detail') {
   @let c = vm.carro;
-  <div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 md:px-8 lg:px-10 xl:px-12 md:py-6">
+  <div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 sm:py-6 md:px-8 lg:px-10 xl:px-12 md:py-6">
     <button
       type="button"
       class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212] px-4 py-2.5 text-sm text-slate-300 shadow-sm ring-1 ring-inset ring-white/5 transition-all hover:border-slate-600 hover:text-white"
