@@ -6,6 +6,7 @@ import { forkJoin } from 'rxjs';
 import type { UsuarioListaDto } from '../../models/usuario.dto';
 import { BolsosTraumaService } from '../../services/bolsos-trauma.service';
 import { ChecklistsService } from '../../services/checklists.service';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { ToastService } from '../../services/toast.service';
 import { UsuariosService } from '../../services/usuarios.service';
@@ -136,6 +137,7 @@ export class BolsoTraumaRegistroComponent implements OnInit {
   private readonly bolsosApi = inject(BolsosTraumaService);
   private readonly usuariosApi = inject(UsuariosService);
   private readonly checklistsApi = inject(ChecklistsService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly pdf = inject(PdfExportService);
   private readonly toast = inject(ToastService);
   private readonly auth = inject(AuthService);
@@ -378,8 +380,14 @@ export class BolsoTraumaRegistroComponent implements OnInit {
     return out;
   }
 
-  eliminarMaterial(ubicacionIndex: number, materialIndex: number): void {
-    if (!window.confirm('¿Eliminar este material del bolso?')) {
+  async eliminarMaterial(ubicacionIndex: number, materialIndex: number): Promise<void> {
+    const ok = await this.confirmDialog.abrir({
+      title: 'Eliminar material',
+      message: '¿Eliminar este material del bolso?',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+    });
+    if (!ok) {
       return;
     }
     this.bolsoActual.ubicaciones[ubicacionIndex]?.materiales.splice(materialIndex, 1);

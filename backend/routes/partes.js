@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.partesRouter = void 0;
+const client_1 = require("@prisma/client");
 const express_1 = require("express");
 const prisma_js_1 = require("../lib/prisma.js");
 const correlativo_js_1 = require("../lib/correlativo.js");
@@ -32,7 +33,7 @@ exports.partesRouter.get('/', async (_req, res) => {
 exports.partesRouter.get('/:id', async (req, res) => {
     const id = Number(req.params.id);
     if (Number.isNaN(id) || !Number.isFinite(id)) {
-        res.status(400).json({ error: 'ID inválido' });
+        res.status(400).json({ error: 'ID inv?lido' });
         return;
     }
     try {
@@ -51,7 +52,7 @@ exports.partesRouter.get('/:id', async (req, res) => {
         res.status(500).json({ error: 'Error al obtener parte' });
     }
 });
-/** Parsea unidades; en modo borrador omite filas sin carro válido. */
+/** Parsea unidades; en modo borrador omite filas sin carro v?lido. */
 function parseUnidades(unidades, esBorrador) {
     if (!Array.isArray(unidades)) {
         return esBorrador ? [] : null;
@@ -110,7 +111,7 @@ exports.partesRouter.post('/', (0, roles_js_1.requireRoles)('TENIENTE', 'CAPITAN
     }
     const unidadesParsed = parseUnidades(body.unidades, esBorrador);
     if (unidadesParsed === null) {
-        res.status(400).json({ error: 'Datos de unidad inválidos' });
+        res.status(400).json({ error: 'Datos de unidad inv?lidos' });
         return;
     }
     if (!esBorrador && unidadesParsed.length === 0) {
@@ -133,18 +134,18 @@ exports.partesRouter.post('/', (0, roles_js_1.requireRoles)('TENIENTE', 'CAPITAN
         if (!claveEmergencia)
             claveEmergencia = '10-9';
         if (!direccion)
-            direccion = '��� Borrador (sin dirección)';
+            direccion = '��� Borrador (sin direcci?n)';
     }
     const pacientes = Array.isArray(body.pacientes) ? body.pacientes : [];
     for (const p of pacientes) {
         if (typeof p.nombre !== 'string' || typeof p.triage !== 'string') {
-            res.status(400).json({ error: 'Datos de paciente inválidos' });
+            res.status(400).json({ error: 'Datos de paciente inv?lidos' });
             return;
         }
     }
     const fecha = body.fecha ? new Date(body.fecha) : new Date();
     if (Number.isNaN(fecha.getTime())) {
-        res.status(400).json({ error: 'fecha inválida' });
+        res.status(400).json({ error: 'fecha inv?lida' });
         return;
     }
     const estado = typeof body.estado === 'string' && body.estado.trim()
@@ -216,28 +217,28 @@ exports.partesRouter.post('/', (0, roles_js_1.requireRoles)('TENIENTE', 'CAPITAN
 exports.partesRouter.patch('/:id', (0, roles_js_1.requireRoles)('TENIENTE', 'CAPITAN', 'ADMIN'), async (req, res) => {
     const id = Number(req.params.id);
     if (Number.isNaN(id) || !Number.isFinite(id) || id <= 0) {
-        res.status(400).json({ error: 'ID inválido' });
+        res.status(400).json({ error: 'ID inv?lido' });
         return;
     }
     const body = req.body;
     const data = {};
     if (body.claveEmergencia !== undefined) {
         if (typeof body.claveEmergencia !== 'string' || !body.claveEmergencia.trim()) {
-            res.status(400).json({ error: 'claveEmergencia inválida' });
+            res.status(400).json({ error: 'claveEmergencia inv?lida' });
             return;
         }
         data.claveEmergencia = body.claveEmergencia.trim();
     }
     if (body.direccion !== undefined) {
         if (typeof body.direccion !== 'string' || !body.direccion.trim()) {
-            res.status(400).json({ error: 'direccion inválida' });
+            res.status(400).json({ error: 'direccion inv?lida' });
             return;
         }
         data.direccion = body.direccion.trim();
     }
     if (body.estado !== undefined) {
         if (typeof body.estado !== 'string' || !body.estado.trim()) {
-            res.status(400).json({ error: 'estado inválido' });
+            res.status(400).json({ error: 'estado inv?lido' });
             return;
         }
         data.estado = body.estado.trim().toUpperCase();
@@ -245,10 +246,67 @@ exports.partesRouter.patch('/:id', (0, roles_js_1.requireRoles)('TENIENTE', 'CAP
     if (body.fecha !== undefined) {
         const fecha = new Date(body.fecha);
         if (Number.isNaN(fecha.getTime())) {
-            res.status(400).json({ error: 'fecha inválida' });
+            res.status(400).json({ error: 'fecha inv?lida' });
             return;
         }
         data.fecha = fecha;
+    }
+    if (body.obacId !== undefined) {
+        if (typeof body.obacId !== 'number' || !Number.isFinite(body.obacId) || body.obacId <= 0) {
+            res.status(400).json({ error: 'obacId inv?lido' });
+            return;
+        }
+        data.obac = { connect: { id: body.obacId } };
+    }
+    if (body.metadata !== undefined) {
+        if (body.metadata === null) {
+            data.metadata = client_1.Prisma.JsonNull;
+        }
+        else if (typeof body.metadata === 'object' && !Array.isArray(body.metadata)) {
+            data.metadata = body.metadata;
+        }
+        else {
+            res.status(400).json({ error: 'metadata inv?lida' });
+            return;
+        }
+    }
+    if (body.unidades !== undefined) {
+        const estadoEvaluado = (body.estado ?? '').trim().toUpperCase();
+        const esBorrador = estadoEvaluado === 'BORRADOR';
+        const unidadesParsed = parseUnidades(body.unidades, esBorrador);
+        if (unidadesParsed === null) {
+            res.status(400).json({ error: 'Datos de unidad inv?lidos' });
+            return;
+        }
+        if (!esBorrador && unidadesParsed.length === 0) {
+            res.status(400).json({ error: 'Debe incluir al menos una unidad' });
+            return;
+        }
+        data.unidades = {
+            deleteMany: {},
+            create: unidadesParsed,
+        };
+    }
+    if (body.pacientes !== undefined) {
+        if (!Array.isArray(body.pacientes)) {
+            res.status(400).json({ error: 'pacientes inv?lidos' });
+            return;
+        }
+        for (const p of body.pacientes) {
+            if (typeof p.nombre !== 'string' || typeof p.triage !== 'string') {
+                res.status(400).json({ error: 'Datos de paciente inv?lidos' });
+                return;
+            }
+        }
+        data.pacientes = {
+            deleteMany: {},
+            create: body.pacientes.map((p) => ({
+                nombre: p.nombre.trim(),
+                triage: p.triage.trim().toUpperCase(),
+                edad: typeof p.edad === 'number' && Number.isFinite(p.edad) ? Math.floor(p.edad) : null,
+                rut: typeof p.rut === 'string' && p.rut.trim() ? p.rut.trim() : null,
+            })),
+        };
     }
     if (Object.keys(data).length === 0) {
         res.status(400).json({ error: 'No se enviaron cambios' });
@@ -265,7 +323,6 @@ exports.partesRouter.patch('/:id', (0, roles_js_1.requireRoles)('TENIENTE', 'CAP
             accion: 'PARTE_ACTUALIZADO',
             modulo: 'PARTES',
             referencia: `parte:${id}`,
-            detalle: data,
         });
         res.json(parte);
     }

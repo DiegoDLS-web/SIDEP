@@ -7,6 +7,7 @@ import type { UsuarioListaDto } from '../../models/usuario.dto';
 import { AuthService } from '../../services/auth.service';
 import { ChecklistsService } from '../../services/checklists.service';
 import { PdfExportService } from '../../services/pdf-export.service';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { ToastService } from '../../services/toast.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
@@ -35,6 +36,7 @@ export class ChecklistUnidadComponent implements OnInit {
   private readonly checklistsApi = inject(ChecklistsService);
   private readonly auth = inject(AuthService);
   private readonly pdfExport = inject(PdfExportService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly usuariosApi = inject(UsuariosService);
   private readonly toast = inject(ToastService);
 
@@ -497,9 +499,15 @@ export class ChecklistUnidadComponent implements OnInit {
     this.toast.info('Fila de material agregada. Completa nombre y cantidades.');
   }
 
-  eliminarMaterial(ubicacionIdx: number, materialIdx: number): void {
+  async eliminarMaterial(ubicacionIdx: number, materialIdx: number): Promise<void> {
     if (!this.editandoPlantilla) return;
-    if (!window.confirm('¿Seguro que deseas eliminar este material del checklist? Esta acción no se puede deshacer.')) return;
+    const ok = await this.confirmDialog.abrir({
+      title: 'Eliminar material',
+      message: '¿Seguro que deseas eliminar este material del checklist? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+    });
+    if (!ok) return;
     this.ubicaciones[ubicacionIdx]?.materiales.splice(materialIdx, 1);
     this.toast.exito('Material eliminado del checklist.');
   }
@@ -508,7 +516,7 @@ export class ChecklistUnidadComponent implements OnInit {
     this.nombreOriginalMaterial.set(material.id, material.nombre ?? '');
   }
 
-  confirmarCambioNombre(material: Material): void {
+  async confirmarCambioNombre(material: Material): Promise<void> {
     const original = this.nombreOriginalMaterial.get(material.id) ?? '';
     const actual = material.nombre ?? '';
     if (original.trim() === actual.trim()) {
@@ -518,7 +526,12 @@ export class ChecklistUnidadComponent implements OnInit {
       // Si estaba vacío, no forzamos confirmación de primera carga/escritura.
       return;
     }
-    const ok = window.confirm(`Vas a cambiar el nombre del material:\n\n"${original}"\n\npor\n\n"${actual || '(vacío)'}"\n\n¿Confirmas este cambio?`);
+    const ok = await this.confirmDialog.abrir({
+      title: 'Confirmar cambio',
+      message: `Vas a cambiar el nombre del material "${original}" por "${actual || '(vacío)'}".`,
+      confirmText: 'Confirmar',
+      cancelText: 'Cancelar',
+    });
     if (!ok) {
       material.nombre = original;
       this.toast.info('Se mantuvo el nombre original del material.');
@@ -631,7 +644,7 @@ export class ChecklistUnidadComponent implements OnInit {
     return null;
   }
 
-  guardar(): void {
+  async guardar(): Promise<void> {
     const v = this.validarCamposBaseCierre();
     if (v) {
       this.error = v;
@@ -653,7 +666,13 @@ export class ChecklistUnidadComponent implements OnInit {
       criticos > 0
         ? `${resumen}\n\nHay faltantes críticos. ¿Confirmas guardar igualmente?`
         : `${resumen}\n\n¿Confirmas guardar checklist?`;
-    if (!window.confirm(confirmTexto)) {
+    const ok = await this.confirmDialog.abrir({
+      title: 'Cerrar checklist',
+      message: confirmTexto,
+      confirmText: 'Guardar',
+      cancelText: 'Cancelar',
+    });
+    if (!ok) {
       return;
     }
     const firma = this.firmaResueltaObac();

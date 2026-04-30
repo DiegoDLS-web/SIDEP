@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import type { ConfiguracionSistemaDto } from '../../models/configuracion.dto';
 import type { RolUsuarioDto } from '../../models/rol.dto';
 import { ConfiguracionesService } from '../../services/configuraciones.service';
+import { MotionProfile, MotionProfileService } from '../../services/motion-profile.service';
 import { RolesService } from '../../services/roles.service';
 import { ToastService } from '../../services/toast.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
@@ -18,12 +19,14 @@ export class ConfiguracionesComponent implements OnInit {
   private readonly configApi = inject(ConfiguracionesService);
   private readonly rolesApi = inject(RolesService);
   private readonly toast = inject(ToastService);
+  private readonly motionProfileService = inject(MotionProfileService);
 
   loading = true;
   guardando = false;
   error: string | null = null;
   exito: string | null = null;
   roles: RolUsuarioDto[] = [];
+  perfilMovimiento: MotionProfile = 'PREMIUM';
 
   config: ConfiguracionSistemaDto = {
     compania: {
@@ -48,6 +51,8 @@ export class ConfiguracionesComponent implements OnInit {
   };
 
   ngOnInit(): void {
+    this.perfilMovimiento = this.motionProfileService.obtener();
+    this.motionProfileService.aplicar(this.perfilMovimiento);
     this.cargarRoles();
     this.configApi.obtener().subscribe({
       next: (data) => {
@@ -104,5 +109,17 @@ export class ConfiguracionesComponent implements OnInit {
         this.toast.error('No se pudieron guardar los cambios.');
       },
     });
+  }
+
+  cambiarPerfilMovimiento(profile: MotionProfile): void {
+    this.perfilMovimiento = profile;
+    this.motionProfileService.guardar(profile);
+    this.toast.info(`Perfil de movimiento: ${this.etiquetaPerfil(profile)}`);
+  }
+
+  etiquetaPerfil(profile: MotionProfile): string {
+    if (profile === 'SUAVE') return 'Suave';
+    if (profile === 'CINEMATICO') return 'Cinemático';
+    return 'Premium';
   }
 }

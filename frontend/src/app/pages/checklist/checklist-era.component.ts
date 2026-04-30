@@ -12,6 +12,8 @@ import { ToastService } from '../../services/toast.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { firmaEfectiva } from '../../utils/firma-resolver';
+import type { EstadoChecklist } from '../../models/checklist.dto';
+import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 
 export type EraEquipo = {
   numero: number;
@@ -453,7 +455,7 @@ export class ChecklistEraComponent implements OnInit {
     unidad: string;
     nombre: string;
     completitud: number;
-    estado: 'Completo' | 'Incompleto' | 'Sin checklist';
+    estado: EstadoChecklist;
     ultimaFecha: string | null;
     ultimaInspector: string;
     ultimaObac: string;
@@ -467,8 +469,9 @@ export class ChecklistEraComponent implements OnInit {
     const ok = Number(ultimo?.itemsOk) || 0;
     const faltantes = Math.max(total - ok, 0);
     const completitud = total > 0 ? Math.round((ok / total) * 100) : 0;
-    const estado: 'Completo' | 'Incompleto' | 'Sin checklist' =
-      total <= 0 ? 'Sin checklist' : ok >= total ? 'Completo' : 'Incompleto';
+    const estado: EstadoChecklist =
+      (ultimo?.estadoChecklist as EstadoChecklist | undefined) ??
+      calcularEstadoChecklist(total, ok, ultimo?.observaciones ?? null);
     return {
       unidad: carro.nomenclatura,
       nombre: (carro.nombre ?? '').trim() || carro.patente || 'Sin nombre',
@@ -722,11 +725,20 @@ export class ChecklistEraComponent implements OnInit {
     };
   }
 
-  etiquetaEstadoEra(h: ChecklistRegistroDto): string {
-    const det = (h.detalle ?? {}) as { borrador?: boolean };
-    if (det.borrador) return 'BORRADOR';
-    if (h.obsoleto) return 'OBSOLETO';
-    return 'VIGENTE';
+  etiquetaEstadoEra(h: ChecklistRegistroDto): 'COMPLETADO' | 'PENDIENTE' | 'CON_OBSERVACION' {
+    if (h.estadoChecklist) return h.estadoChecklist;
+    return calcularEstadoChecklist(h.totalItems, h.itemsOk, h.observaciones);
+  }
+
+  etiquetaEstadoEraTexto(h: ChecklistRegistroDto): string {
+    return etiquetaEstadoChecklist(this.etiquetaEstadoEra(h));
+  }
+
+  claseEstadoEra(h: ChecklistRegistroDto): string {
+    const estado = this.etiquetaEstadoEra(h);
+    if (estado === 'COMPLETADO') return 'sid-status-chip-ok';
+    if (estado === 'CON_OBSERVACION') return 'sid-status-chip-warn';
+    return 'sid-status-chip-neutral';
   }
 
   porcentajeCumplimiento(h: ChecklistRegistroDto): string {

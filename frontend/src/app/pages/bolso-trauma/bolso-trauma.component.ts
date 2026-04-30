@@ -10,6 +10,7 @@ import type {
 import { BolsosTraumaService } from '../../services/bolsos-trauma.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
+import { etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 
 @Component({
   selector: 'app-bolso-trauma',
@@ -32,7 +33,7 @@ export class BolsoTraumaComponent implements OnInit {
   filtroDesde = '';
   filtroHasta = '';
   /** Filtro local sobre el resultado cargado (no requiere nueva petición). */
-  filtroEstado: 'TODOS' | 'BORRADOR' | 'CERRADO' = 'TODOS';
+  filtroEstado: 'TODOS' | 'COMPLETADO' | 'PENDIENTE' | 'CON_OBSERVACION' = 'TODOS';
   filtroInspectorObac = '';
 
   detalleRegistro: BolsoTraumaRegistroDto | null = null;
@@ -79,7 +80,10 @@ export class BolsoTraumaComponent implements OnInit {
   stats() {
     const totalBolsos = this.unidades.reduce((acc, u) => acc + u.cantidadBolsos, 0);
     const completos = this.unidades.reduce(
-      (acc, u) => acc + u.bolsos.filter((b) => b.status === 'complete').length,
+      (acc, u) =>
+        acc +
+        u.bolsos.filter((b) => (b.estadoChecklist ? b.estadoChecklist === 'COMPLETADO' : b.status === 'complete'))
+          .length,
       0,
     );
     return {
@@ -175,7 +179,14 @@ export class BolsoTraumaComponent implements OnInit {
   }
 
   etiquetaEstado(h: BolsoTraumaHistorialDto): string {
+    if (h.estadoChecklist) return etiquetaEstadoChecklist(h.estadoChecklist);
     return h.borrador === true ? 'Borrador' : 'Cerrado';
+  }
+
+  claseEstado(h: BolsoTraumaHistorialDto): string {
+    if (h.estadoChecklist === 'COMPLETADO') return 'sid-status-chip-ok';
+    if (h.estadoChecklist === 'CON_OBSERVACION') return 'sid-status-chip-warn';
+    return 'sid-status-chip-neutral';
   }
 
   exportarHistorialPdf(): void {
@@ -189,12 +200,8 @@ export class BolsoTraumaComponent implements OnInit {
   historialFiltrado(): BolsoTraumaHistorialDto[] {
     const txt = this.filtroInspectorObac.trim().toLowerCase();
     return this.historial.filter((h) => {
-      if (this.filtroEstado === 'BORRADOR' && h.borrador !== true) {
-        return false;
-      }
-      if (this.filtroEstado === 'CERRADO' && h.borrador === true) {
-        return false;
-      }
+      const estado = h.estadoChecklist ?? 'PENDIENTE';
+      if (this.filtroEstado !== 'TODOS' && estado !== this.filtroEstado) return false;
       if (!txt) {
         return true;
       }

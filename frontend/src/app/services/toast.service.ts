@@ -8,6 +8,7 @@ export interface ToastItem {
   id: number;
   tipo: ToastTipo;
   mensaje: string;
+  duracionMs: number;
 }
 
 /**
@@ -60,7 +61,7 @@ export class ToastService {
   }
 
   private mostrar(tipo: ToastTipo, mensaje: string, duracionMs: number): void {
-    const nuevo: ToastItem = { id: ++this.id, tipo, mensaje };
+    const nuevo: ToastItem = { id: ++this.id, tipo, mensaje, duracionMs };
     this.items.next([...this.items.value, nuevo]);
     if (duracionMs > 0) {
       timer(duracionMs)

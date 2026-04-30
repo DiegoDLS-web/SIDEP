@@ -1,8 +1,11 @@
 import { Component, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterLink, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { AuthService } from '../services/auth.service';
+import { ConfirmDialogService } from '../services/confirm-dialog.service';
+import { MotionProfileService } from '../services/motion-profile.service';
 import { SidepIconsModule } from '../shared/sidep-icons.module';
+import { ConfirmDialogComponent } from '../shared/confirm-dialog.component';
 
 type NavItem = {
   routerLink: string;
@@ -19,13 +22,16 @@ type NavSection = { title: string; items: NavItem[] };
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, SidepIconsModule],
+  imports: [CommonModule, RouterOutlet, RouterLink, SidepIconsModule, ConfirmDialogComponent],
   templateUrl: './main-layout.component.html',
 })
 export class MainLayoutComponent {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
+  private readonly motionProfile = inject(MotionProfileService);
   sidebarAbierto = false;
+  routeTransitioning = false;
 
   private readonly baseSections: NavSection[] = [
     {
@@ -59,6 +65,18 @@ export class MainLayoutComponent {
       ],
     },
   ];
+
+  constructor() {
+    this.motionProfile.aplicar();
+    this.router.events.subscribe((ev) => {
+      if (ev instanceof NavigationEnd) {
+        this.routeTransitioning = true;
+        setTimeout(() => {
+          this.routeTransitioning = false;
+        }, 220);
+      }
+    });
+  }
 
   get sections(): NavSection[] {
     const rol = this.auth.usuarioActual?.rol?.toUpperCase();
@@ -95,8 +113,8 @@ export class MainLayoutComponent {
 
   navClasses(active: boolean): string {
     return active
-      ? 'bg-red-600 text-white shadow-sm shadow-black/20'
-      : 'text-gray-400 hover:bg-gray-800/90 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-red-500/40';
+      ? 'bg-red-600 text-white shadow-sm shadow-black/30 ring-1 ring-red-400/35'
+      : 'border border-slate-700/70 bg-[#141414] text-gray-200 hover:border-slate-500/80 hover:bg-[#1b1b1b] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-red-500/40';
   }
 
   toggleSidebar(): void {
@@ -139,7 +157,15 @@ export class MainLayoutComponent {
       .slice(0, 2);
   }
 
-  logout(): void {
+  async logout(): Promise<void> {
+    const ok = await this.confirmDialog.abrir({
+      title: 'Cerrar sesión',
+      message: '¿Estás seguro de que quieres cerrar tu sesión actual en SIDEP?',
+      confirmText: 'Sí, cerrar sesión',
+      cancelText: 'Seguir en SIDEP',
+      variant: 'logout',
+    });
+    if (!ok) return;
     this.auth.logout();
   }
 

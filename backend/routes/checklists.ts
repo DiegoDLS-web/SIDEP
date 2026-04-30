@@ -12,6 +12,20 @@ const includeChecklist = {
 
 type PlantillaMaterial = { nombre: string; cantidadRequerida: number };
 type PlantillaUbicacion = { nombre: string; materiales: PlantillaMaterial[] };
+type EstadoChecklist = 'COMPLETADO' | 'PENDIENTE' | 'CON_OBSERVACION';
+
+function estadoChecklistDesdeTotalesYObs(
+  totalItems: number | null | undefined,
+  itemsOk: number | null | undefined,
+  observaciones: string | null | undefined,
+): EstadoChecklist {
+  const total = Number(totalItems ?? 0);
+  const ok = Number(itemsOk ?? 0);
+  const tieneObs = String(observaciones ?? '').trim().length > 0;
+  if (tieneObs) return 'CON_OBSERVACION';
+  if (total > 0 && ok >= total) return 'COMPLETADO';
+  return 'PENDIENTE';
+}
 
 function enrichVigencia<T extends { id: number }>(items: T[]): Array<T & { vigente: boolean; obsoleto: boolean }> {
   let latestId = -1;
@@ -274,7 +288,11 @@ checklistsRouter.get('/unidad/:unidad/historial', async (req, res) => {
       take: 100,
       include: includeChecklist,
     });
-    res.json(enrichVigencia(items));
+    const enriched = enrichVigencia(items).map((row) => ({
+      ...row,
+      estadoChecklist: estadoChecklistDesdeTotalesYObs(row.totalItems, row.itemsOk, row.observaciones),
+    }));
+    res.json(enriched);
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Error al cargar historial de checklist' });
@@ -299,7 +317,11 @@ checklistsRouter.get('/unidad/:unidad/historial-era', async (req, res) => {
       take: 100,
       include: includeChecklist,
     });
-    res.json(enrichVigencia(items));
+    const enriched = enrichVigencia(items).map((row) => ({
+      ...row,
+      estadoChecklist: estadoChecklistDesdeTotalesYObs(row.totalItems, row.itemsOk, row.observaciones),
+    }));
+    res.json(enriched);
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Error al cargar historial ERA' });
@@ -338,6 +360,7 @@ checklistsRouter.get('/selector', async (_req, res) => {
                 (ultimo.cuartelero?.nombre ?? '').trim() ||
                 '—',
               completado: total > 0 ? ok >= total : true,
+              estadoChecklist: estadoChecklistDesdeTotalesYObs(total, ok, ultimo.observaciones),
             }
           : null,
         itemsTotal: total,
@@ -370,7 +393,20 @@ checklistsRouter.get('/unidad/:unidad', async (req, res) => {
       orderBy: { fecha: 'desc' },
       include: includeChecklist,
     });
-    res.json({ unidad: carro.nomenclatura, carro, checklist });
+    res.json({
+      unidad: carro.nomenclatura,
+      carro,
+      checklist: checklist
+        ? {
+            ...checklist,
+            estadoChecklist: estadoChecklistDesdeTotalesYObs(
+              checklist.totalItems,
+              checklist.itemsOk,
+              checklist.observaciones,
+            ),
+          }
+        : null,
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Error al obtener checklist de unidad' });
@@ -440,6 +476,7 @@ checklistsRouter.post('/unidad/:unidad', async (req, res) => {
       vigente: true,
       obsoleto: false,
       estadoOperativoCarro: esBorrador ? undefined : estadoOperativoCarro,
+      estadoChecklist: estadoChecklistDesdeTotalesYObs(created.totalItems, created.itemsOk, created.observaciones),
     });
   } catch (e) {
     console.error(e);
@@ -455,7 +492,11 @@ checklistsRouter.get('/era', async (_req, res) => {
       take: 30,
       include: includeChecklist,
     });
-    res.json(enrichVigenciaPor(checks, (r) => r.carroId));
+    const enriched = enrichVigenciaPor(checks, (r) => r.carroId).map((row) => ({
+      ...row,
+      estadoChecklist: estadoChecklistDesdeTotalesYObs(row.totalItems, row.itemsOk, row.observaciones),
+    }));
+    res.json(enriched);
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Error al listar checklist ERA' });
@@ -507,6 +548,7 @@ checklistsRouter.post('/era', async (req, res) => {
       ...created,
       vigente: true,
       obsoleto: false,
+      estadoChecklist: estadoChecklistDesdeTotalesYObs(created.totalItems, created.itemsOk, created.observaciones),
     });
   } catch (e) {
     console.error(e);

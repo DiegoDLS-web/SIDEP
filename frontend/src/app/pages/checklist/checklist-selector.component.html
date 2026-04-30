@@ -79,7 +79,7 @@
                 </div>
               </div>
             } @else {
-              <p class="text-sm text-gray-500">Sin checklist registrado aún.</p>
+              <p class="text-sm text-gray-500">Pendiente de checklist.</p>
             }
           </div>
 
@@ -89,12 +89,12 @@
                 <p class="mb-1 text-xs text-gray-400">Ítems verificados</p>
                 <p class="text-2xl font-bold text-white">{{ itemsVerificadosTexto(u) }}</p>
               </div>
-              @if (estadoItemsEtiqueta(u) === 'Completo') {
-                <span class="shrink-0 text-sm font-medium text-green-500">Completo</span>
-              } @else if (estadoItemsEtiqueta(u) === 'Incompleto') {
-                <span class="shrink-0 text-sm font-medium text-yellow-500">Incompleto</span>
+              @if (estadoItemsEtiqueta(u) === 'COMPLETADO') {
+                <span class="shrink-0 text-sm font-medium text-green-500">Completado</span>
+              } @else if (estadoItemsEtiqueta(u) === 'CON_OBSERVACION') {
+                <span class="shrink-0 text-sm font-medium text-amber-400">Con observación</span>
               } @else {
-                <span class="shrink-0 text-sm font-medium text-gray-500">Sin checklist</span>
+                <span class="shrink-0 text-sm font-medium text-yellow-500">Pendiente</span>
               }
             </div>
             <div class="flex flex-wrap gap-3">
@@ -156,8 +156,9 @@
           class="sid-history-filter text-sm"
         >
           <option value="TODOS">Todos los estados</option>
-          <option value="COMPLETOS">Completos</option>
-          <option value="OBSERVADOS">Con observaciones</option>
+          <option value="COMPLETADOS">Completados</option>
+          <option value="PENDIENTES">Pendientes</option>
+          <option value="CON_OBSERVACION">Con observación</option>
         </select>
 
         <input
@@ -189,10 +190,12 @@
                 <div class="min-w-0">
                   <dt class="text-gray-500">Estado</dt>
                   <dd>
-                    @if (estadoHistorialFila(h) === 'Completo') {
-                      <span class="sid-status-chip sid-status-chip-ok">Completo</span>
+                    @if (estadoHistorialFila(h) === 'COMPLETADO') {
+                      <span class="sid-status-chip sid-status-chip-ok">Completado</span>
+                    } @else if (estadoHistorialFila(h) === 'CON_OBSERVACION') {
+                      <span class="sid-status-chip sid-status-chip-warn">Con observación</span>
                     } @else {
-                      <span class="sid-status-chip sid-status-chip-warn">Observado</span>
+                      <span class="sid-status-chip sid-status-chip-warn">Pendiente</span>
                     }
                   </dd>
                 </div>
@@ -261,10 +264,12 @@
                   <td class="whitespace-nowrap">{{ h.fecha | date : 'short' : '' : 'es-CL' }}</td>
                   <td class="font-medium text-white">{{ h.unidad }}</td>
                   <td>
-                    @if (estadoHistorialFila(h) === 'Completo') {
-                      <span class="sid-status-chip sid-status-chip-ok">Completo</span>
+                    @if (estadoHistorialFila(h) === 'COMPLETADO') {
+                      <span class="sid-status-chip sid-status-chip-ok">Completado</span>
+                    } @else if (estadoHistorialFila(h) === 'CON_OBSERVACION') {
+                      <span class="sid-status-chip sid-status-chip-warn">Con observación</span>
                     } @else {
-                      <span class="sid-status-chip sid-status-chip-warn">Observado</span>
+                      <span class="sid-status-chip sid-status-chip-warn">Pendiente</span>
                     }
                   </td>
                   <td>{{ h.inspector || '—' }}</td>

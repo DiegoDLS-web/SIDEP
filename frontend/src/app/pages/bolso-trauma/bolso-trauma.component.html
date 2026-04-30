@@ -216,8 +216,9 @@
             class="sid-history-filter w-full text-sm"
           >
             <option [ngValue]="'TODOS'">Todos</option>
-            <option [ngValue]="'BORRADOR'">Borrador</option>
-            <option [ngValue]="'CERRADO'">Cerrado</option>
+            <option [ngValue]="'COMPLETADO'">Completado</option>
+            <option [ngValue]="'PENDIENTE'">Pendiente</option>
+            <option [ngValue]="'CON_OBSERVACION'">Con observación</option>
           </select>
         </div>
         <div class="sm:col-span-2 xl:col-span-2">
@@ -264,7 +265,7 @@
                   <p class="text-xs text-slate-400">{{ fechaHoraHist(h.fecha) }}</p>
                   <p class="font-mono text-sm font-semibold text-white">{{ h.unidad }} · Bolso {{ h.bolsoNumero ?? '—' }}</p>
                 </div>
-                <span class="sid-status-chip shrink-0" [class.sid-status-chip-warn]="h.borrador === true" [class.sid-status-chip-ok]="h.borrador !== true">
+                <span class="sid-status-chip shrink-0" [ngClass]="claseEstado(h)">
                   {{ etiquetaEstado(h) }}
                 </span>
               </div>
@@ -348,7 +349,7 @@
                   <td class="font-mono">{{ h.unidad }}</td>
                   <td>{{ h.bolsoNumero ?? '—' }}</td>
                   <td>
-                    <span class="sid-status-chip" [class.sid-status-chip-warn]="h.borrador === true" [class.sid-status-chip-ok]="h.borrador !== true">
+                    <span class="sid-status-chip" [ngClass]="claseEstado(h)">
                       {{ etiquetaEstado(h) }}
                     </span>
                   </td>

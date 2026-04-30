@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { forkJoin, of } from 'rxjs';
 import type { CarroDto } from '../../models/carro.dto';
 import type {
   AsistenciaContextoKey,
+  ParteEmergenciaDto,
   ParteAsistenciaMetadata,
   ParteMetadataDto,
 } from '../../models/parte.dto';
@@ -54,6 +55,7 @@ type PasoId = 'basicos' | 'emergencia' | 'trabajo' | 'asistencia' | 'apoyo' | 'o
   templateUrl: './parte-nuevo.component.html',
 })
 export class ParteNuevoComponent implements OnInit {
+  private readonly route = inject(ActivatedRoute);
   private readonly carrosApi = inject(CarrosService);
   private readonly usuariosApi = inject(UsuariosService);
   private readonly partesApi = inject(PartesService);
@@ -198,8 +200,12 @@ export class ParteNuevoComponent implements OnInit {
   ];
   otrasCompanias: OtraCompaniaFila[] = [];
   mostrarComandoIncidente = false;
+  editandoParteId: number | null = null;
 
   ngOnInit(): void {
+    const parteIdRaw = this.route.snapshot.queryParamMap.get('editar');
+    const parteId = Number(parteIdRaw ?? '');
+    this.editandoParteId = Number.isFinite(parteId) && parteId > 0 ? parteId : null;
     const d = new Date();
     this.fechaDia = this.toDateInput(d);
     this.horaIncidente = this.toTimeInput(d);
@@ -208,8 +214,10 @@ export class ParteNuevoComponent implements OnInit {
       carros: this.carrosApi.listar(),
       usuarios: this.usuariosApi.listar(),
       licencias: this.licenciasApi.listarActivas(this.fechaDia),
+      parteEdicion:
+        this.editandoParteId != null ? this.partesApi.obtener(this.editandoParteId) : of(null),
     }).subscribe({
-      next: ({ carros, usuarios, licencias }) => {
+      next: ({ carros, usuarios, licencias, parteEdicion }) => {
         this.carros = carros;
         this.usuarios = usuarios;
         this.aplicarLicenciasActivas(licencias);
@@ -223,13 +231,22 @@ export class ParteNuevoComponent implements OnInit {
             this.radiosDetalle[r.id] = '';
           }
         }
+        if (parteEdicion) {
+          this.cargarParteEnFormulario(parteEdicion);
+        }
         this.loading = false;
       },
       error: () => {
-        this.error = 'No se pudieron cargar carros u OBAC. ¿Backend activo?';
+        this.error = this.editandoParteId
+          ? 'No se pudieron cargar datos para editar el parte.'
+          : 'No se pudieron cargar carros u OBAC. ¿Backend activo?';
         this.loading = false;
       },
     });
+  }
+
+  get esEdicion(): boolean {
+    return this.editandoParteId != null;
   }
 
   onFechaAsistenciaChange(): void {
@@ -994,6 +1011,110 @@ export class ParteNuevoComponent implements OnInit {
     return u ? u.id : null;
   }
 
+  private cargarParteEnFormulario(parte: ParteEmergenciaDto): void {
+    this.claveEmergencia = parte.claveEmergencia ?? '';
+    this.direccion = parte.direccion ?? '';
+    this.estado = parte.estado ?? 'PENDIENTE';
+    const fechaParte = new Date(parte.fecha);
+    if (!Number.isNaN(fechaParte.getTime())) {
+      this.fechaDia = this.toDateInput(fechaParte);
+      this.horaIncidente = this.toTimeInput(fechaParte);
+    }
+    this.obacId = parte.obacId;
+    const obac = this.usuarios.find((u) => u.id === parte.obacId);
+    this.obacInput = obac ? this.formatoObac(obac) : '';
+
+    const meta = (parte.metadata ?? {}) as ParteMetadataDto;
+    this.descripcionEmergencia = meta.descripcionEmergencia ?? '';
+    this.trabajoRealizado = meta.trabajoRealizado ?? '';
+    this.horaDelLlamado = meta.horaDelLlamado ?? '';
+    this.materialUtilizado = meta.materialUtilizado ?? '';
+    this.observaciones = meta.observaciones ?? '';
+
+    const asistencia = (meta.asistencia ?? {}) as ParteAsistenciaMetadata;
+    this.asistencia = {
+      comandoIncidenteCi: asistencia.comandoIncidenteCi ?? '',
+      comandoIncidenteJs: asistencia.comandoIncidenteJs ?? '',
+      comandoIncidenteJo: asistencia.comandoIncidenteJo ?? '',
+      otraCompaniaNombre: asistencia.otraCompaniaNombre ?? '',
+      otraCompaniaNombreCompania: asistencia.otraCompaniaNombreCompania ?? '',
+      otraCompaniaUnidad: asistencia.otraCompaniaUnidad ?? '',
+      oficial128: asistencia.oficial128 ?? '',
+      encargadoDatos: asistencia.encargadoDatos ?? '',
+      nombreObac: asistencia.nombreObac ?? '',
+    };
+    this.firmaEncargadoDatos = asistencia.firmaEncargadoDatos ?? '';
+    this.firmaObac = asistencia.firmaObac ?? '';
+    this.radiosSeleccion = {};
+    this.radiosDetalle = {};
+    for (const r of this.radiosParteOpciones) {
+      this.radiosSeleccion[r.id] = asistencia.radiosSeleccion?.[r.id] === true;
+      this.radiosDetalle[r.id] = asistencia.radiosDetalle?.[r.id] ?? '';
+    }
+    this.asistenciaPorContexto = {
+      emergencia: { ...(asistencia.asistenciaPorContexto?.emergencia ?? {}) },
+      curso: { ...(asistencia.asistenciaPorContexto?.curso ?? {}) },
+      cuartel: { ...(asistencia.asistenciaPorContexto?.cuartel ?? {}) },
+      comision: { ...(asistencia.asistenciaPorContexto?.comision ?? {}) },
+      comandancia: { ...(asistencia.asistenciaPorContexto?.comandancia ?? {}) },
+    };
+    const otrasCompaniasMeta = (asistencia as unknown as { otrasCompanias?: OtraCompaniaFila[] })
+      .otrasCompanias;
+    this.otrasCompanias = Array.isArray(otrasCompaniasMeta)
+      ? otrasCompaniasMeta.map((o) => ({
+          obac: o.obac ?? '',
+          compania: o.compania ?? '',
+          unidad: o.unidad ?? '',
+        }))
+      : [];
+
+    this.unidades =
+      parte.unidades.length > 0
+        ? parte.unidades.map((u) => ({
+            carroId: u.carroId,
+            conductor: meta.conductoresPorCarroId?.[String(u.carroId)] ?? '',
+            hora6_0: u.hora6_0 ?? u.horaSalida ?? '',
+            hora6_3: u.hora6_3 ?? '',
+            hora6_9: u.hora6_9 ?? '',
+            hora6_10: u.hora6_10 ?? u.horaLlegada ?? '',
+            kmSalida: String(u.kmSalida ?? ''),
+            kmLlegada: String(u.kmLlegada ?? ''),
+          }))
+        : [
+            {
+              carroId: '',
+              conductor: '',
+              hora6_0: '',
+              hora6_3: '',
+              hora6_9: '',
+              hora6_10: '',
+              kmSalida: '',
+              kmLlegada: '',
+            },
+          ];
+
+    this.pacientes = parte.pacientes.map((p) => ({
+      nombre: p.nombre ?? '',
+      edad: p.edad == null ? '' : String(p.edad),
+      rut: p.rut ?? '',
+      triage: p.triage ?? 'VERDE',
+    }));
+    this.vehiculos = (meta.vehiculos ?? []).map((v) => ({
+      tipo: v.tipo ?? '',
+      patente: v.patente ?? '',
+      marca: v.marca ?? '',
+      conductor: v.conductor ?? '',
+      rut: v.rut ?? '',
+    }));
+    this.apoyos = (meta.apoyoExterno ?? []).map((a) => ({
+      tipo: a.tipo ?? 'SAMU',
+      nombre: a.nombre ?? '',
+      cargo: a.cargo ?? '',
+      patente: a.patente ?? '',
+      conductor: a.conductor ?? '',
+    }));
+  }
+
   guardarBorrador(): void {
     this.guardadoError = null;
     const obac = this.resolverObacId();
@@ -1006,29 +1127,34 @@ export class ParteNuevoComponent implements OnInit {
     const unidadesPayload = this.parseUnidadesPayload();
 
     this.submitting = true;
-    this.partesApi
-      .crear({
-        claveEmergencia: this.claveEmergencia.trim() || CLAVE_BORRADOR_DEFAULT,
-        direccion: this.direccion.trim() || '— Borrador (sin dirección)',
-        obacId: obac,
-        fecha: fechaIso,
-        estado: 'BORRADOR',
-        borrador: true,
-        unidades: unidadesPayload,
-        pacientes: this.parsePacientesPayload(),
-        metadata: meta,
-      })
-      .subscribe({
-        next: (creado) => {
-          this.toast.exito('Borrador guardado.');
-          void this.router.navigate(['/partes', creado.id]);
-        },
-        error: () => {
-          this.guardadoError = 'No se pudo guardar el borrador.';
-          this.toast.error('No se pudo guardar el borrador.');
-          this.submitting = false;
-        },
-      });
+    const payload = {
+      claveEmergencia: this.claveEmergencia.trim() || CLAVE_BORRADOR_DEFAULT,
+      direccion: this.direccion.trim() || '— Borrador (sin dirección)',
+      obacId: obac,
+      fecha: fechaIso,
+      estado: 'BORRADOR',
+      borrador: true,
+      unidades: unidadesPayload,
+      pacientes: this.parsePacientesPayload(),
+      metadata: meta,
+    } satisfies CrearPartePayload;
+    const request$ =
+      this.editandoParteId != null
+        ? this.partesApi.actualizar(this.editandoParteId, payload)
+        : this.partesApi.crear(payload);
+    request$.subscribe({
+      next: (registro) => {
+        this.toast.exito(this.editandoParteId != null ? 'Parte actualizado como borrador.' : 'Borrador guardado.');
+        void this.router.navigate(['/partes', registro.id]);
+      },
+      error: () => {
+        this.guardadoError = this.editandoParteId != null
+          ? 'No se pudo actualizar el parte.'
+          : 'No se pudo guardar el borrador.';
+        this.toast.error(this.guardadoError);
+        this.submitting = false;
+      },
+    });
   }
 
   /** Registro completo: solo validación mínima para no frenar en emergencia. */
@@ -1153,28 +1279,33 @@ export class ParteNuevoComponent implements OnInit {
     const meta = this.construirMetadata();
 
     this.submitting = true;
-    this.partesApi
-      .crear({
-        claveEmergencia: this.claveEmergencia.trim(),
-        direccion: this.direccion.trim(),
-        obacId: obac,
-        fecha: fechaIso,
-        estado: 'PENDIENTE',
-        unidades: unidadesPayload,
-        pacientes: this.parsePacientesPayload(),
-        metadata: meta,
-      })
-      .subscribe({
-        next: (creado) => {
-          this.toast.exito('Parte registrado correctamente.');
-          void this.router.navigate(['/partes', creado.id]);
-        },
-        error: () => {
-          this.guardadoError = 'No se pudo registrar el parte.';
-          this.toast.error('No se pudo registrar el parte.');
-          this.submitting = false;
-        },
-      });
+    const payload = {
+      claveEmergencia: this.claveEmergencia.trim(),
+      direccion: this.direccion.trim(),
+      obacId: obac,
+      fecha: fechaIso,
+      estado: 'PENDIENTE',
+      unidades: unidadesPayload,
+      pacientes: this.parsePacientesPayload(),
+      metadata: meta,
+    } satisfies CrearPartePayload;
+    const request$ =
+      this.editandoParteId != null
+        ? this.partesApi.actualizar(this.editandoParteId, payload)
+        : this.partesApi.crear(payload);
+    request$.subscribe({
+      next: (registro) => {
+        this.toast.exito(this.editandoParteId != null ? 'Parte actualizado correctamente.' : 'Parte registrado correctamente.');
+        void this.router.navigate(['/partes', registro.id]);
+      },
+      error: () => {
+        this.guardadoError = this.editandoParteId != null
+          ? 'No se pudo actualizar el parte.'
+          : 'No se pudo registrar el parte.';
+        this.toast.error(this.guardadoError);
+        this.submitting = false;
+      },
+    });
   }
 
 }

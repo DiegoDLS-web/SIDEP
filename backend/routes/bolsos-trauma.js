@@ -8,6 +8,16 @@ const includeChecklist = {
     carro: { select: { id: true, nomenclatura: true, nombre: true } },
     cuartelero: { select: { id: true, nombre: true, rol: true, firmaImagen: true } },
 };
+function estadoChecklistDesdeTotalesYObs(totalItems, itemsOk, observaciones) {
+    const total = Number(totalItems ?? 0);
+    const ok = Number(itemsOk ?? 0);
+    const tieneObs = String(observaciones ?? '').trim().length > 0;
+    if (tieneObs)
+        return 'CON_OBSERVACION';
+    if (total > 0 && ok >= total)
+        return 'COMPLETADO';
+    return 'PENDIENTE';
+}
 function materialesDeBolso(b) {
     const direct = b.materiales ?? [];
     if (direct.length > 0)
@@ -28,6 +38,7 @@ function bolsosDesdeDetalle(detalle) {
             completitud,
             itemsFaltantes,
             status: itemsFaltantes > 0 ? 'incomplete' : 'complete',
+            estadoChecklist: itemsFaltantes > 0 ? 'PENDIENTE' : 'COMPLETADO',
         };
     });
 }
@@ -47,6 +58,7 @@ function bolsosParaSelector(nomenclatura, detalle) {
         completitud: 0,
         itemsFaltantes: 0,
         status: 'incomplete',
+        estadoChecklist: 'PENDIENTE',
     }));
 }
 exports.bolsosTraumaRouter.get('/historial', async (req, res) => {
@@ -99,6 +111,7 @@ exports.bolsosTraumaRouter.get('/historial', async (req, res) => {
                 observaciones: r.observaciones,
                 bolsoNumero: typeof det?.bolsoNumero === 'number' ? det.bolsoNumero : null,
                 borrador: det?.borrador === true,
+                estadoChecklist: estadoChecklistDesdeTotalesYObs(r.totalItems, r.itemsOk, r.observaciones),
             };
         });
         res.json(out);
@@ -123,7 +136,10 @@ exports.bolsosTraumaRouter.get('/historial/:id', async (req, res) => {
             res.status(404).json({ error: 'Registro no encontrado' });
             return;
         }
-        res.json(row);
+        res.json({
+            ...row,
+            estadoChecklist: estadoChecklistDesdeTotalesYObs(row.totalItems, row.itemsOk, row.observaciones),
+        });
     }
     catch (e) {
         console.error(e);
@@ -187,7 +203,16 @@ exports.bolsosTraumaRouter.get('/:unidad', async (req, res) => {
             orderBy: { fecha: 'desc' },
             include: includeChecklist,
         });
-        res.json({ unidad: carro.nomenclatura, carro, checklist });
+        res.json({
+            unidad: carro.nomenclatura,
+            carro,
+            checklist: checklist
+                ? {
+                    ...checklist,
+                    estadoChecklist: estadoChecklistDesdeTotalesYObs(checklist.totalItems, checklist.itemsOk, checklist.observaciones),
+                }
+                : null,
+        });
     }
     catch (e) {
         console.error(e);
@@ -222,7 +247,10 @@ exports.bolsosTraumaRouter.post('/:unidad', async (req, res) => {
             },
             include: includeChecklist,
         });
-        res.status(201).json(created);
+        res.status(201).json({
+            ...created,
+            estadoChecklist: estadoChecklistDesdeTotalesYObs(created.totalItems, created.itemsOk, created.observaciones),
+        });
     }
     catch (e) {
         console.error(e);

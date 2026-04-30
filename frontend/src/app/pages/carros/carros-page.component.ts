@@ -35,13 +35,15 @@ export class CarrosPageComponent {
 
   /** Si el backend no trae `imagenUrl`, usamos la foto local conocida por unidad. */
   private readonly imagenPorNomenclatura: Record<string, string> = {
-    'B-1': 'assets/carros/b1.png',
-    'BX-1': 'assets/carros/bx1.png',
-    'R-1': 'assets/carros/r1.png',
+    'B-1': this.assetUrl('assets/carros/b1.png'),
+    'BX-1': this.assetUrl('assets/carros/bx1.png'),
+    'R-1': this.assetUrl('assets/carros/r1.png'),
   };
 
   readonly imagenFallback =
     'https://images.unsplash.com/photo-1588662880295-13d2b28127c6?w=1080&q=80&fm=jpg';
+  hoveredCarroId: number | null = null;
+  private readonly carroGlow = new Map<number, { x: number; y: number }>();
   editando = false;
   guardando = false;
   mensajeEdicion = '';
@@ -213,20 +215,49 @@ export class CarrosPageComponent {
     }
   }
 
+  onCarroMouseMove(event: MouseEvent, carro: CarroDto): void {
+    const el = event.currentTarget as HTMLElement | null;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    this.hoveredCarroId = carro.id;
+    this.carroGlow.set(carro.id, { x, y });
+  }
+
+  onCarroMouseLeave(carro: CarroDto): void {
+    if (this.hoveredCarroId === carro.id) {
+      this.hoveredCarroId = null;
+    }
+  }
+
+  estiloGlowCarro(carro: CarroDto): Record<string, string> {
+    const pos = this.carroGlow.get(carro.id) ?? { x: 50, y: 50 };
+    return {
+      '--mx': `${pos.x}%`,
+      '--my': `${pos.y}%`,
+    };
+  }
+
+  claseVivaCarro(carro: CarroDto): string {
+    if (carro.estadoOperativo) return 'sid-carro-vivo-ok';
+    return 'sid-carro-vivo-mant';
+  }
+
   private normalizarUrlImagen(raw: string, nomenclatura: string): string {
     const limpio = raw.replace(/\\/g, '/').trim();
     if (limpio.startsWith('http://') || limpio.startsWith('https://') || limpio.startsWith('data:image')) {
       return limpio;
     }
     if (limpio.startsWith('/assets/')) {
-      return limpio.slice(1);
+      return this.assetUrl(limpio.slice(1));
     }
     const idxAssets = limpio.toLowerCase().indexOf('/assets/');
     if (idxAssets >= 0) {
-      return limpio.slice(idxAssets + 1);
+      return this.assetUrl(limpio.slice(idxAssets + 1));
     }
     if (limpio.startsWith('assets/')) {
-      return limpio;
+      return this.assetUrl(limpio);
     }
     if (limpio.startsWith('/')) {
       return limpio;
@@ -235,6 +266,10 @@ export class CarrosPageComponent {
       return limpio;
     }
     return this.imagenPorNomenclatura[nomenclatura] ?? this.imagenFallback;
+  }
+
+  private assetUrl(path: string): string {
+    return new URL(path, document.baseURI).toString();
   }
 
   /** Firma guardada como PNG en base64 (data URL). */

@@ -32,10 +32,12 @@
             Partes
           </a>
           <div class="min-w-0 sm:text-left">
-            <p class="mb-1 text-[10px] font-medium uppercase tracking-wide text-rose-200/80 sm:text-xs">Nuevo registro</p>
+            <p class="mb-1 text-[10px] font-medium uppercase tracking-wide text-rose-200/80 sm:text-xs">
+              {{ esEdicion ? 'Edición completa' : 'Nuevo registro' }}
+            </p>
             <h1 class="inline-flex items-center gap-2 text-lg font-bold leading-tight text-white sm:text-xl">
               <lucide-icon name="file-text" class="h-5 w-5 text-rose-400" [size]="20" color="currentColor"></lucide-icon>
-              Nuevo parte de emergencia
+              {{ esEdicion ? 'Editar parte de emergencia' : 'Nuevo parte de emergencia' }}
             </h1>
             <p class="text-xs text-slate-500 sm:text-sm">SIDEP · 1ª Cía. Santa Juana</p>
           </div>
@@ -938,7 +940,7 @@
             (click)="guardarBorrador()"
           >
             <lucide-icon name="save" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-            Guardar borrador
+            {{ esEdicion ? 'Actualizar borrador' : 'Guardar borrador' }}
           </button>
           <button
             type="button"
@@ -947,7 +949,7 @@
             (click)="guardarParte()"
           >
             <lucide-icon name="send" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-            Registrar parte
+            {{ esEdicion ? 'Actualizar parte' : 'Registrar parte' }}
           </button>
         </div>
       </div>

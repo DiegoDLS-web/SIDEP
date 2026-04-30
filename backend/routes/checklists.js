@@ -9,6 +9,16 @@ const includeChecklist = {
     carro: { select: { id: true, nomenclatura: true, nombre: true } },
     cuartelero: { select: { id: true, nombre: true, rol: true, firmaImagen: true } },
 };
+function estadoChecklistDesdeTotalesYObs(totalItems, itemsOk, observaciones) {
+    const total = Number(totalItems ?? 0);
+    const ok = Number(itemsOk ?? 0);
+    const tieneObs = String(observaciones ?? '').trim().length > 0;
+    if (tieneObs)
+        return 'CON_OBSERVACION';
+    if (total > 0 && ok >= total)
+        return 'COMPLETADO';
+    return 'PENDIENTE';
+}
 function enrichVigencia(items) {
     let latestId = -1;
     for (const row of items) {
@@ -262,7 +272,11 @@ exports.checklistsRouter.get('/unidad/:unidad/historial', async (req, res) => {
             take: 100,
             include: includeChecklist,
         });
-        res.json(enrichVigencia(items));
+        const enriched = enrichVigencia(items).map((row) => ({
+            ...row,
+            estadoChecklist: estadoChecklistDesdeTotalesYObs(row.totalItems, row.itemsOk, row.observaciones),
+        }));
+        res.json(enriched);
     }
     catch (e) {
         console.error(e);
@@ -287,7 +301,11 @@ exports.checklistsRouter.get('/unidad/:unidad/historial-era', async (req, res) =
             take: 100,
             include: includeChecklist,
         });
-        res.json(enrichVigencia(items));
+        const enriched = enrichVigencia(items).map((row) => ({
+            ...row,
+            estadoChecklist: estadoChecklistDesdeTotalesYObs(row.totalItems, row.itemsOk, row.observaciones),
+        }));
+        res.json(enriched);
     }
     catch (e) {
         console.error(e);
@@ -324,6 +342,7 @@ exports.checklistsRouter.get('/selector', async (_req, res) => {
                             (ultimo.cuartelero?.nombre ?? '').trim() ||
                             '—',
                         completado: total > 0 ? ok >= total : true,
+                        estadoChecklist: estadoChecklistDesdeTotalesYObs(total, ok, ultimo.observaciones),
                     }
                     : null,
                 itemsTotal: total,
@@ -355,7 +374,16 @@ exports.checklistsRouter.get('/unidad/:unidad', async (req, res) => {
             orderBy: { fecha: 'desc' },
             include: includeChecklist,
         });
-        res.json({ unidad: carro.nomenclatura, carro, checklist });
+        res.json({
+            unidad: carro.nomenclatura,
+            carro,
+            checklist: checklist
+                ? {
+                    ...checklist,
+                    estadoChecklist: estadoChecklistDesdeTotalesYObs(checklist.totalItems, checklist.itemsOk, checklist.observaciones),
+                }
+                : null,
+        });
     }
     catch (e) {
         console.error(e);
@@ -414,6 +442,7 @@ exports.checklistsRouter.post('/unidad/:unidad', async (req, res) => {
             vigente: true,
             obsoleto: false,
             estadoOperativoCarro: esBorrador ? undefined : estadoOperativoCarro,
+            estadoChecklist: estadoChecklistDesdeTotalesYObs(created.totalItems, created.itemsOk, created.observaciones),
         });
     }
     catch (e) {
@@ -429,7 +458,11 @@ exports.checklistsRouter.get('/era', async (_req, res) => {
             take: 30,
             include: includeChecklist,
         });
-        res.json(enrichVigenciaPor(checks, (r) => r.carroId));
+        const enriched = enrichVigenciaPor(checks, (r) => r.carroId).map((row) => ({
+            ...row,
+            estadoChecklist: estadoChecklistDesdeTotalesYObs(row.totalItems, row.itemsOk, row.observaciones),
+        }));
+        res.json(enriched);
     }
     catch (e) {
         console.error(e);
@@ -471,6 +504,7 @@ exports.checklistsRouter.post('/era', async (req, res) => {
             ...created,
             vigente: true,
             obsoleto: false,
+            estadoChecklist: estadoChecklistDesdeTotalesYObs(created.totalItems, created.itemsOk, created.observaciones),
         });
     }
     catch (e) {

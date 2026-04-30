@@ -1,3 +1,5 @@
+export type EstadoChecklist = 'COMPLETADO' | 'PENDIENTE' | 'CON_OBSERVACION';
+
 export interface ChecklistResumenUnidadDto {
   id: number;
   unidad: string;
@@ -11,6 +13,7 @@ export interface ChecklistResumenUnidadDto {
     /** Compatibilidad: inspector u OBAC como texto único. */
     responsable: string;
     completado: boolean;
+    estadoChecklist?: EstadoChecklist;
   } | null;
   itemsTotal: number;
   itemsOk: number;
@@ -33,6 +36,7 @@ export interface ChecklistRegistroDto {
   vigente?: boolean;
   obsoleto?: boolean;
   estadoOperativoCarro?: boolean;
+  estadoChecklist?: EstadoChecklist;
   carro: { id: number; nomenclatura: string; nombre: string | null };
   cuartelero: { id: number; nombre: string; rol: string };
 }

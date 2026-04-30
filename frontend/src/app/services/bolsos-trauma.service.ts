@@ -36,8 +36,8 @@ export class BolsosTraumaService {
         completado: true,
       },
       bolsos: [
-        { numero: 1, completitud: 100, itemsFaltantes: 0, status: 'complete' },
-        { numero: 2, completitud: 75, itemsFaltantes: 2, status: 'incomplete' },
+        { numero: 1, completitud: 100, itemsFaltantes: 0, status: 'complete', estadoChecklist: 'COMPLETADO' },
+        { numero: 2, completitud: 75, itemsFaltantes: 2, status: 'incomplete', estadoChecklist: 'PENDIENTE' },
       ],
     },
     {
@@ -53,8 +53,8 @@ export class BolsosTraumaService {
         completado: false,
       },
       bolsos: [
-        { numero: 1, completitud: 88, itemsFaltantes: 1, status: 'incomplete' },
-        { numero: 2, completitud: 100, itemsFaltantes: 0, status: 'complete' },
+        { numero: 1, completitud: 88, itemsFaltantes: 1, status: 'incomplete', estadoChecklist: 'PENDIENTE' },
+        { numero: 2, completitud: 100, itemsFaltantes: 0, status: 'complete', estadoChecklist: 'COMPLETADO' },
       ],
     },
     {
@@ -70,8 +70,8 @@ export class BolsosTraumaService {
         completado: true,
       },
       bolsos: [
-        { numero: 1, completitud: 100, itemsFaltantes: 0, status: 'complete' },
-        { numero: 2, completitud: 100, itemsFaltantes: 0, status: 'complete' },
+        { numero: 1, completitud: 100, itemsFaltantes: 0, status: 'complete', estadoChecklist: 'COMPLETADO' },
+        { numero: 2, completitud: 100, itemsFaltantes: 0, status: 'complete', estadoChecklist: 'COMPLETADO' },
       ],
     },
   ];
@@ -150,7 +150,8 @@ export class BolsosTraumaService {
             observaciones: 'Registro demo sin backend',
             bolsoNumero: 1,
             borrador: false,
-          },
+            estadoChecklist: 'CON_OBSERVACION' as const,
+          } satisfies BolsoTraumaHistorialDto,
         ]),
       ),
     );

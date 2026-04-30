@@ -1,7 +1,7 @@
 import { CommonModule, formatDate } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, filter, forkJoin, map, of, startWith, switchMap, type Observable } from 'rxjs';
 import type { ParteAsistenciaMetadata, ParteEmergenciaDto, ParteMetadataDto } from '../../models/parte.dto';
 import { PartesExportService } from '../../services/partes-export.service';
@@ -34,6 +34,7 @@ type ParteAnalitica = {
 })
 export class ParteDetalleComponent {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly partesApi = inject(PartesService);
   private readonly exportador = inject(PartesExportService);
   private readonly toast = inject(ToastService);
@@ -163,6 +164,10 @@ export class ParteDetalleComponent {
           this.toast.error('No se pudo guardar la edición.');
         },
       });
+  }
+
+  editarParteCompleto(parte: ParteEmergenciaDto): void {
+    void this.router.navigate(['/partes/nuevo'], { queryParams: { editar: parte.id } });
   }
 
   private isoLocal(fechaIso: string): string {

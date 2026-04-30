@@ -1,8 +1,11 @@
+import type { EstadoChecklist } from './checklist.dto';
+
 export interface BolsoTraumaItemDto {
   numero: number;
   completitud: number;
   itemsFaltantes: number;
   status: 'complete' | 'incomplete';
+  estadoChecklist?: EstadoChecklist;
 }
 
 export interface BolsoTraumaSelectorUnidadDto {
@@ -33,6 +36,7 @@ export interface BolsoTraumaRegistroDto {
   totalItems: number | null;
   itemsOk: number | null;
   detalle: unknown;
+  estadoChecklist?: EstadoChecklist;
   carro: { id: number; nomenclatura: string; nombre: string | null };
   cuartelero: { id: number; nombre: string; rol: string };
 }
@@ -59,4 +63,5 @@ export interface BolsoTraumaHistorialDto {
   bolsoNumero?: number | null;
   /** true si se guardó como borrador. */
   borrador?: boolean;
+  estadoChecklist?: EstadoChecklist;
 }

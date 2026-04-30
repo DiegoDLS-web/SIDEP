@@ -14,7 +14,21 @@ type BolsoResumen = {
   completitud: number;
   itemsFaltantes: number;
   status: 'complete' | 'incomplete';
+  estadoChecklist: 'COMPLETADO' | 'PENDIENTE' | 'CON_OBSERVACION';
 };
+
+function estadoChecklistDesdeTotalesYObs(
+  totalItems: number | null | undefined,
+  itemsOk: number | null | undefined,
+  observaciones: string | null | undefined,
+): 'COMPLETADO' | 'PENDIENTE' | 'CON_OBSERVACION' {
+  const total = Number(totalItems ?? 0);
+  const ok = Number(itemsOk ?? 0);
+  const tieneObs = String(observaciones ?? '').trim().length > 0;
+  if (tieneObs) return 'CON_OBSERVACION';
+  if (total > 0 && ok >= total) return 'COMPLETADO';
+  return 'PENDIENTE';
+}
 
 function materialesDeBolso(b: {
   materiales?: Array<{ cantidadMinima?: number; cantidadActual?: number }>;
@@ -45,6 +59,7 @@ function bolsosDesdeDetalle(detalle: unknown): BolsoResumen[] {
       completitud,
       itemsFaltantes,
       status: itemsFaltantes > 0 ? 'incomplete' : 'complete',
+      estadoChecklist: itemsFaltantes > 0 ? 'PENDIENTE' : 'COMPLETADO',
     };
   });
 }
@@ -64,6 +79,7 @@ function bolsosParaSelector(nomenclatura: string, detalle: unknown): BolsoResume
     completitud: 0,
     itemsFaltantes: 0,
     status: 'incomplete' as const,
+    estadoChecklist: 'PENDIENTE' as const,
   }));
 }
 
@@ -125,6 +141,7 @@ bolsosTraumaRouter.get('/historial', async (req, res) => {
         observaciones: r.observaciones,
         bolsoNumero: typeof det?.bolsoNumero === 'number' ? det.bolsoNumero : null,
         borrador: det?.borrador === true,
+        estadoChecklist: estadoChecklistDesdeTotalesYObs(r.totalItems, r.itemsOk, r.observaciones),
       };
     });
 
@@ -150,7 +167,10 @@ bolsosTraumaRouter.get('/historial/:id', async (req, res) => {
       res.status(404).json({ error: 'Registro no encontrado' });
       return;
     }
-    res.json(row);
+    res.json({
+      ...row,
+      estadoChecklist: estadoChecklistDesdeTotalesYObs(row.totalItems, row.itemsOk, row.observaciones),
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Error al cargar registro de bolso trauma' });
@@ -216,7 +236,20 @@ bolsosTraumaRouter.get('/:unidad', async (req, res) => {
       orderBy: { fecha: 'desc' },
       include: includeChecklist,
     });
-    res.json({ unidad: carro.nomenclatura, carro, checklist });
+    res.json({
+      unidad: carro.nomenclatura,
+      carro,
+      checklist: checklist
+        ? {
+            ...checklist,
+            estadoChecklist: estadoChecklistDesdeTotalesYObs(
+              checklist.totalItems,
+              checklist.itemsOk,
+              checklist.observaciones,
+            ),
+          }
+        : null,
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Error al obtener registro bolso trauma' });
@@ -260,7 +293,10 @@ bolsosTraumaRouter.post('/:unidad', async (req, res) => {
       },
       include: includeChecklist,
     });
-    res.status(201).json(created);
+    res.status(201).json({
+      ...created,
+      estadoChecklist: estadoChecklistDesdeTotalesYObs(created.totalItems, created.itemsOk, created.observaciones),
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Error al guardar bolso trauma' });

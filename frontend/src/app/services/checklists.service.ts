@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable, catchError, map, of } from 'rxjs';
 import type {
+  EstadoChecklist,
   ChecklistPlantillaUnidadResponseDto,
   ChecklistRegistroDto,
   ChecklistResumenUnidadDto,
@@ -135,12 +136,16 @@ export class ChecklistsService {
       null;
     const obacOut = obacT || null;
     const responsableOut = legadoStr || inspectorT || obacT || '—';
+    const estadoChecklist: EstadoChecklist =
+      (r.estadoChecklist as EstadoChecklist | undefined) ??
+      (r.completado ? 'COMPLETADO' : 'PENDIENTE');
     return {
       fecha: fechaIso,
       inspector: inspectorOut,
       obac: obacOut,
       responsable: responsableOut,
       completado: !!r.completado,
+      estadoChecklist,
     };
   }
 

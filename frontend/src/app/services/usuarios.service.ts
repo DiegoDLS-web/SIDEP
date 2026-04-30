@@ -19,7 +19,7 @@ export class UsuariosService {
     return this.http.patch<UsuarioListaDto>(`/api/usuarios/${id}`, payload);
   }
 
-  eliminar(id: number): Observable<{ ok: boolean }> {
-    return this.http.delete<{ ok: boolean }>(`/api/usuarios/${id}`);
+  eliminar(id: number): Observable<{ ok: boolean; softDeleted?: boolean; message?: string }> {
+    return this.http.delete<{ ok: boolean; softDeleted?: boolean; message?: string }>(`/api/usuarios/${id}`);
   }
 }

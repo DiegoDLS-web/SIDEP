@@ -3,10 +3,11 @@ import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
-import type { ChecklistRegistroDto, ChecklistResumenUnidadDto } from '../../models/checklist.dto';
+import type { ChecklistRegistroDto, ChecklistResumenUnidadDto, EstadoChecklist } from '../../models/checklist.dto';
 import { ChecklistsService } from '../../services/checklists.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
+import { calcularEstadoChecklist } from '../../utils/checklist-estado';
 
 @Component({
   selector: 'app-checklist-selector',
@@ -61,11 +62,9 @@ export class ChecklistSelectorComponent implements OnInit {
   }
 
   /** Estado del checklist de unidad para la tarjeta. */
-  estadoItemsEtiqueta(u: ChecklistResumenUnidadDto): 'Completo' | 'Incompleto' | 'Sin checklist' {
-    const total = Number(u.itemsTotal) || 0;
-    const ok = Number(u.itemsOk) || 0;
-    if (total <= 0) return 'Sin checklist';
-    return ok >= total ? 'Completo' : 'Incompleto';
+  estadoItemsEtiqueta(u: ChecklistResumenUnidadDto): EstadoChecklist {
+    if (u.ultimaRevision?.estadoChecklist) return u.ultimaRevision.estadoChecklist;
+    return calcularEstadoChecklist(u.itemsTotal, u.itemsOk, null);
   }
 
   fechaHora(iso: string | null | undefined): { fecha: string; hora: string } {
@@ -135,12 +134,9 @@ export class ChecklistSelectorComponent implements OnInit {
       });
   }
 
-  estadoHistorialFila(
-    registro: ChecklistRegistroDto & { unidad: string; nombreUnidad: string },
-  ): 'Completo' | 'Observado' {
-    const t = Number(registro.totalItems) || 0;
-    const ok = Number(registro.itemsOk) || 0;
-    return t > 0 && ok >= t ? 'Completo' : 'Observado';
+  estadoHistorialFila(registro: ChecklistRegistroDto & { unidad: string; nombreUnidad: string }): EstadoChecklist {
+    if (registro.estadoChecklist) return registro.estadoChecklist;
+    return calcularEstadoChecklist(registro.totalItems, registro.itemsOk, registro.observaciones);
   }
 
   historialFiltrado(): Array<ChecklistRegistroDto & { unidad: string; nombreUnidad: string }> {
@@ -148,11 +144,12 @@ export class ChecklistSelectorComponent implements OnInit {
     return this.historialGeneral().filter((registro) => {
       const coincideUnidad =
         this.filtroUnidadHistorial === 'TODAS' || registro.unidad === this.filtroUnidadHistorial;
-      const completo = (registro.itemsOk ?? 0) >= (registro.totalItems ?? 0) && (registro.totalItems ?? 0) > 0;
+      const estado = this.estadoHistorialFila(registro);
       const coincideEstado =
         this.filtroEstadoHistorial === 'TODOS' ||
-        (this.filtroEstadoHistorial === 'COMPLETOS' && completo) ||
-        (this.filtroEstadoHistorial === 'OBSERVADOS' && !completo);
+        (this.filtroEstadoHistorial === 'COMPLETADOS' && estado === 'COMPLETADO') ||
+        (this.filtroEstadoHistorial === 'PENDIENTES' && estado === 'PENDIENTE') ||
+        (this.filtroEstadoHistorial === 'CON_OBSERVACION' && estado === 'CON_OBSERVACION');
       const coincideTexto =
         !texto ||
         (registro.unidad ?? '').toLowerCase().includes(texto) ||

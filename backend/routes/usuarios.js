@@ -383,7 +383,44 @@ exports.usuariosRouter.delete('/:id', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al eliminar usuario' });
+        try {
+            const now = new Date().toISOString();
+            const prev = await prisma_js_1.prisma.usuario.findUnique({
+                where: { id },
+                select: { observacionesRegistro: true },
+            });
+            if (!prev) {
+                res.status(404).json({ error: 'Usuario no encontrado' });
+                return;
+            }
+            const nota = `[${now}] Baja automática: no se pudo eliminar físicamente el usuario.`;
+            const observacionesRegistro = [prev.observacionesRegistro?.trim(), nota]
+                .filter(Boolean)
+                .join('\n');
+            await prisma_js_1.prisma.usuario.update({
+                where: { id },
+                data: {
+                    activo: false,
+                    estadoVoluntario: 'INACTIVO',
+                    observacionesRegistro,
+                },
+            });
+            await (0, auditoria_js_1.registrarActividad)({
+                usuarioId: req.user?.uid,
+                accion: 'USUARIO_BAJA_POR_REFERENCIAS',
+                modulo: 'USUARIOS',
+                referencia: `usuario:${id}`,
+            });
+            res.status(200).json({
+                ok: true,
+                softDeleted: true,
+                message: 'No se pudo eliminar físicamente el usuario, pero se dio de baja automáticamente.',
+            });
+        }
+        catch (softErr) {
+            console.error(softErr);
+            res.status(500).json({ error: 'No se pudo eliminar ni dar de baja automáticamente al usuario.' });
+        }
     }
 });
 //# sourceMappingURL=usuarios.js.map

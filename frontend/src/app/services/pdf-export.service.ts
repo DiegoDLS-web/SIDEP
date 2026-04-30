@@ -3,6 +3,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { CarroRegistroHistorialDto } from '../models/carro-registro-historial.dto';
 import type { ChecklistRegistroDto } from '../models/checklist.dto';
+import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../utils/checklist-estado';
 
 type UnidadMaterial = {
   ubicacion: string;
@@ -12,11 +13,15 @@ type UnidadMaterial = {
   estado: string;
 };
 
+type EstadoChecklistPdf = 'COMPLETADO' | 'PENDIENTE' | 'CON_OBSERVACION';
+
 type EraEquipo = {
   numero: number;
   marca: string;
   tipo: string;
   ubicacion: string;
+  codigoMascara?: string;
+  codigoArnes?: string;
   presion: string;
   estado: string;
   mascaraLimpia?: string;
@@ -74,6 +79,16 @@ function stampFechaArchivo(): string {
 
 function keyUbicacionNombre(v: string): string {
   return (v || '').trim().toLowerCase();
+}
+
+function estadoChecklistDesdeRegistro(r: {
+  totalItems?: number | null;
+  itemsOk?: number | null;
+  observaciones?: string | null;
+  estadoChecklist?: EstadoChecklistPdf;
+}): EstadoChecklistPdf {
+  return (r.estadoChecklist as EstadoChecklistPdf | undefined) ??
+    calcularEstadoChecklist(r.totalItems ?? null, r.itemsOk ?? null, r.observaciones ?? null);
 }
 
 function drawHeaderCard(doc: jsPDF, title: string, subtitle: string): void {
@@ -281,8 +296,13 @@ export class PdfExportService {
     autoTable(doc, {
       startY: 56,
       theme: 'grid',
-      head: [['Total ítems', 'Ítems OK', 'Faltantes']],
-      body: [[String(input.totalItems), String(input.itemsOk), String(Math.max(input.totalItems - input.itemsOk, 0))]],
+      head: [['Total ítems', 'Ítems OK', 'Faltantes', 'Estado checklist']],
+      body: [[
+        String(input.totalItems),
+        String(input.itemsOk),
+        String(Math.max(input.totalItems - input.itemsOk, 0)),
+        etiquetaEstadoChecklist(calcularEstadoChecklist(input.totalItems, input.itemsOk, input.observaciones)),
+      ]],
       styles: { halign: 'center', fontSize: 10, cellPadding: 4 },
       headStyles: { fillColor: [24, 24, 27], textColor: [255, 255, 255] },
       bodyStyles: { textColor: [20, 20, 20] },
@@ -388,6 +408,7 @@ export class PdfExportService {
       head: [['Campo', 'Valor']],
       body: [
         ['Tipo', r.tipo || '—'],
+        ['Estado checklist', etiquetaEstadoChecklist(estadoChecklistDesdeRegistro(r))],
         ['Inspector', r.inspector?.trim() || '—'],
         ['Guardia', r.grupoGuardia?.trim() || '—'],
         ['Responsable (OBAC)', r.cuartelero?.nombre || '—'],
@@ -432,9 +453,7 @@ export class PdfExportService {
       startY: 50,
       head: [['Fecha', 'Unidad', 'Bolso', 'Estado', 'Inspector', 'Responsable (OBAC)', 'Guardia']],
       body: input.registros.map((registro) => {
-        const t = Number(registro.totalItems) || 0;
-        const ok = Number(registro.itemsOk) || 0;
-        const estado = t > 0 && ok >= t ? 'Completo' : 'Observado';
+        const estado = etiquetaEstadoChecklist(estadoChecklistDesdeRegistro(registro));
         return [
           fmtFechaHoraPdf(registro.fecha),
           registro.unidad ?? '—',
@@ -499,6 +518,7 @@ export class PdfExportService {
     const totalChequeos = totalEquipos + totalRecambios;
     const totalOk = operativosEquipos + operativosRecambios;
     const cumplimiento = totalChequeos > 0 ? Math.round((totalOk / totalChequeos) * 100) : 0;
+    const estadoChecklistEra = calcularEstadoChecklist(totalChequeos, totalOk, input.observaciones);
 
     autoTable(doc, {
       startY: 40,
@@ -520,8 +540,14 @@ export class PdfExportService {
     const yMeta = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 40;
     autoTable(doc, {
       startY: yMeta + 4,
-      head: [['Equipos ERA', 'Recambios', 'Operativos', 'Cumplimiento']],
-      body: [[String(totalEquipos), String(totalRecambios), `${totalOk}/${totalChequeos}`, `${cumplimiento}%`]],
+      head: [['Equipos ERA', 'Recambios', 'Operativos', 'Cumplimiento', 'Estado checklist']],
+      body: [[
+        String(totalEquipos),
+        String(totalRecambios),
+        `${totalOk}/${totalChequeos}`,
+        `${cumplimiento}%`,
+        etiquetaEstadoChecklist(estadoChecklistEra),
+      ]],
       theme: 'grid',
       styles: { fontSize: 10, cellPadding: 3.2, halign: 'center' },
       headStyles: { fillColor: [185, 28, 28], textColor: [255, 255, 255], fontStyle: 'bold' },
@@ -673,6 +699,7 @@ export class PdfExportService {
       unidad: string;
       bolsoNumero?: number | null;
       borrador?: boolean;
+        estadoChecklist?: EstadoChecklistPdf;
       inspector: string | null;
       responsable: string;
       grupoGuardia: string | null;
@@ -702,11 +729,12 @@ export class PdfExportService {
               : '—';
         const cumpl = t > 0 ? `${ok}/${t} (${pct})` : '—';
         const obs = (r.observaciones?.trim() || '—').slice(0, 48);
+        const estado = etiquetaEstadoChecklist(estadoChecklistDesdeRegistro(r));
         return [
           fmtFechaHoraPdf(r.fecha),
           r.unidad,
           r.bolsoNumero != null ? String(r.bolsoNumero) : '—',
-          r.borrador === true ? 'Borrador' : 'Cerrado',
+          estado,
           r.inspector?.trim() || '—',
           r.responsable?.trim() || '—',
           r.grupoGuardia?.trim() || '—',

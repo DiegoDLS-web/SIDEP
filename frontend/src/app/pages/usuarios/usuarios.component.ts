@@ -5,6 +5,7 @@ import type { UsuarioActualizarDto, UsuarioCrearDto, UsuarioListaDto } from '../
 import type { RolUsuarioDto } from '../../models/rol.dto';
 import { AuthService } from '../../services/auth.service';
 import { RolesService } from '../../services/roles.service';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { ToastService } from '../../services/toast.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
@@ -13,6 +14,8 @@ import {
   ETIQUETAS_CARGO_OFICIALIDAD,
   ETIQUETAS_TIPO_VOLUNTARIO,
   GRUPOS_SANGUINEOS,
+  REGIONES_COMUNAS_CHILE,
+  ROLES_SISTEMA_FALLBACK,
   TIPOS_VOLUNTARIO_ORDEN,
 } from './usuario-registro.constants';
 
@@ -52,12 +55,15 @@ export class UsuariosComponent implements OnInit {
   private readonly rolesApi = inject(RolesService);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
 
   readonly cargosOrden = CARGOS_OFICIALIDAD_ORDEN;
   readonly etiquetasCargo = ETIQUETAS_CARGO_OFICIALIDAD;
   readonly tiposVoluntario = TIPOS_VOLUNTARIO_ORDEN;
   readonly etiquetasTipoVoluntario = ETIQUETAS_TIPO_VOLUNTARIO;
   readonly gruposSanguineos = GRUPOS_SANGUINEOS;
+  readonly regionesComunas = REGIONES_COMUNAS_CHILE;
+  readonly rolesFallback = ROLES_SISTEMA_FALLBACK;
 
   usuarios: UsuarioListaDto[] = [];
   loading = true;
@@ -109,7 +115,7 @@ export class UsuariosComponent implements OnInit {
       cuerpoBombero: '',
       compania: '',
       estadoVoluntario: 'VIGENTE',
-      cargoOficialidad: 'TENIENTE_CUARTO',
+      cargoOficialidad: 'VOLUNTARIO',
       rol: 'VOLUNTARIOS',
       observacionesRegistro: '',
       firmaImagen: '',
@@ -130,16 +136,106 @@ export class UsuariosComponent implements OnInit {
   cargarRoles(): void {
     this.rolesApi.listar(true).subscribe({
       next: (data) => {
-        this.roles = data;
-        if (!this.form.rol?.trim() && data.length > 0) {
-          this.form.rol = data[0]!.nombre;
+        this.roles = data.length
+          ? data
+          : this.rolesFallback.map((nombre, idx) => ({
+              id: idx + 1,
+              nombre,
+              activo: true,
+              createdAt: '',
+              updatedAt: '',
+            }));
+        if (!this.form.rol?.trim() && this.roles.length > 0) {
+          this.form.rol = this.roles[0]!.nombre;
         }
       },
       error: () => {
-        this.error = 'No se pudieron cargar los roles.';
-        this.toast.error('No se pudieron cargar los roles.');
+        this.roles = this.rolesFallback.map((nombre, idx) => ({
+          id: idx + 1,
+          nombre,
+          activo: true,
+          createdAt: '',
+          updatedAt: '',
+        }));
+        this.form.rol = this.form.rol?.trim() || this.roles[0]!.nombre;
+        this.toast.advertencia('No se pudieron cargar roles desde API, se usó listado base.');
       },
     });
+  }
+
+  get comunasDisponibles(): string[] {
+    const region = this.form.region.trim();
+    if (!region) return [];
+    return [...(this.regionesComunas.find((r) => r.region === region)?.comunas ?? [])].sort((a, b) =>
+      a.localeCompare(b, 'es-CL'),
+    );
+  }
+
+  onRegionChange(): void {
+    if (!this.comunasDisponibles.includes(this.form.comuna)) {
+      this.form.comuna = '';
+    }
+  }
+
+  private limpiarRut(value: string): string {
+    return value.replace(/[^0-9kK]/g, '').toUpperCase();
+  }
+
+  private formatearRut(value: string): string {
+    const limpio = this.limpiarRut(value);
+    if (limpio.length <= 1) return limpio;
+    const cuerpo = limpio.slice(0, -1);
+    const dv = limpio.slice(-1);
+    const cuerpoConPuntos = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return `${cuerpoConPuntos}-${dv}`;
+  }
+
+  onRutInput(value: string): void {
+    this.form.rut = this.formatearRut(value);
+  }
+
+  private rutEsValido(value: string): boolean {
+    const limpio = this.limpiarRut(value);
+    if (limpio.length < 2) return false;
+    const cuerpo = limpio.slice(0, -1);
+    const dv = limpio.slice(-1);
+    let suma = 0;
+    let multiplo = 2;
+    for (let i = cuerpo.length - 1; i >= 0; i -= 1) {
+      suma += Number(cuerpo[i]) * multiplo;
+      multiplo = multiplo === 7 ? 2 : multiplo + 1;
+    }
+    const resto = 11 - (suma % 11);
+    const esperado = resto === 11 ? '0' : resto === 10 ? 'K' : String(resto);
+    return dv === esperado;
+  }
+
+  private emailEsValido(value: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+
+  onTelefonoInput(value: string): void {
+    const digits = value.replace(/\D/g, '');
+    let base = digits;
+    if (base.startsWith('56')) base = base.slice(2);
+    if (base.length > 9) base = base.slice(0, 9);
+    if (!base) {
+      this.form.telefono = '';
+      return;
+    }
+    const formatted =
+      base.length <= 1
+        ? `+56 ${base}`
+        : base.length <= 5
+          ? `+56 ${base[0]} ${base.slice(1)}`
+          : `+56 ${base[0]} ${base.slice(1, 5)} ${base.slice(5)}`;
+    this.form.telefono = formatted.trim();
+  }
+
+  private telefonoChileEsValido(value: string): boolean {
+    const digits = value.replace(/\D/g, '');
+    const local = digits.startsWith('56') ? digits.slice(2) : digits;
+    return /^9\d{8}$/.test(local);
   }
 
   cargarUsuarios(): void {
@@ -193,7 +289,7 @@ export class UsuariosComponent implements OnInit {
       cuerpoBombero: usuario.cuerpoBombero ?? '',
       compania: usuario.compania ?? '',
       estadoVoluntario: usuario.estadoVoluntario ?? 'VIGENTE',
-      cargoOficialidad: usuario.cargoOficialidad ?? 'TENIENTE_CUARTO',
+      cargoOficialidad: usuario.cargoOficialidad ?? 'VOLUNTARIO',
       rol: usuario.rol,
       observacionesRegistro: '',
       firmaImagen: usuario.firmaImagen ?? '',
@@ -258,11 +354,17 @@ export class UsuariosComponent implements OnInit {
 
   private validarCreacion(): string | null {
     const f = this.form;
+    this.form.rut = this.formatearRut(this.form.rut);
     for (const k of this.camposObligatoriosCreacionEdicion()) {
       if (!String(f[k]).trim()) {
         return 'Completa todos los campos obligatorios (marcados con *).';
       }
     }
+    if (!this.rutEsValido(f.rut)) return 'El RUT no es válido.';
+    if (!this.emailEsValido(f.email.trim())) return 'El correo electrónico no tiene formato válido.';
+    if (!this.telefonoChileEsValido(f.telefono)) return 'El teléfono debe ser celular chileno válido (ej: +56 9 1234 5678).';
+    if (this.comunasDisponibles.length === 0) return 'Selecciona una región válida de Chile.';
+    if (!this.comunasDisponibles.includes(f.comuna)) return 'Selecciona una comuna válida para la región elegida.';
     return null;
   }
 
@@ -282,11 +384,12 @@ export class UsuariosComponent implements OnInit {
         this.error = errEd;
         return;
       }
+      const rut = this.formatearRut(this.form.rut);
       const payload: UsuarioActualizarDto = {
         nombres: this.form.nombres.trim(),
         apellidoPaterno: this.form.apellidoPaterno.trim(),
         apellidoMaterno: this.form.apellidoMaterno.trim(),
-        rut: this.form.rut.trim(),
+        rut,
         nacionalidad: this.form.nacionalidad.trim(),
         grupoSanguineo: this.form.grupoSanguineo.trim() || null,
         direccion: this.form.direccion.trim(),
@@ -344,7 +447,7 @@ export class UsuariosComponent implements OnInit {
       nombres: this.form.nombres.trim(),
       apellidoPaterno: this.form.apellidoPaterno.trim(),
       apellidoMaterno: this.form.apellidoMaterno.trim(),
-      rut: this.form.rut.trim(),
+      rut: this.formatearRut(this.form.rut),
       nacionalidad: this.form.nacionalidad.trim(),
       grupoSanguineo: this.form.grupoSanguineo.trim(),
       direccion: this.form.direccion.trim(),
@@ -464,7 +567,7 @@ export class UsuariosComponent implements OnInit {
     }).length;
   }
 
-  eliminar(usuario: UsuarioListaDto): void {
+  async eliminar(usuario: UsuarioListaDto): Promise<void> {
     if (!this.esAdmin) {
       return;
     }
@@ -473,12 +576,23 @@ export class UsuariosComponent implements OnInit {
       this.toast.advertencia('No puedes eliminar tu propio usuario.');
       return;
     }
-    if (!window.confirm(`¿Eliminar definitivamente al usuario "${usuario.nombre}"?`)) {
-      return;
-    }
+    const ok = await this.confirmDialog.abrir({
+      title: 'Confirmar eliminación',
+      message: `¿Deseas eliminar al usuario "${usuario.nombre}"?`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+    });
+    if (!ok) return;
     this.usuariosApi.eliminar(usuario.id).subscribe({
-      next: () => {
-        this.toast.exito('Usuario eliminado correctamente.');
+      next: (resp) => {
+        if (resp.softDeleted) {
+          this.toast.advertencia(
+            resp.message ||
+              'No se pudo eliminar físicamente por historial relacionado; usuario dado de baja.',
+          );
+        } else {
+          this.toast.exito('Usuario eliminado correctamente.');
+        }
         this.cargarUsuarios();
       },
       error: (err) => {

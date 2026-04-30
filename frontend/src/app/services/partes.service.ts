@@ -34,7 +34,7 @@ export type CrearPartePayload = {
 };
 
 export type ActualizarPartePayload = Partial<
-  Pick<CrearPartePayload, 'claveEmergencia' | 'direccion' | 'fecha' | 'estado'>
+  Omit<CrearPartePayload, 'borrador'>
 >;
 
 @Injectable({ providedIn: 'root' })

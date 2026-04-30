@@ -23,13 +23,17 @@ export class LoginComponent {
   recordarme = false;
   loading = false;
   error: string | null = null;
-  logoSrc = '/assets/logos/sidep-logo.png';
+  logoSrc = this.assetUrl('assets/logos/sidep-logo.png');
   private logoFallbackIntentado = false;
 
   onLogoError(): void {
     if (this.logoFallbackIntentado) return;
     this.logoFallbackIntentado = true;
-    this.logoSrc = '/assets/logos/compania-logo.png';
+    this.logoSrc = this.assetUrl('assets/logos/compania-logo.png');
+  }
+
+  private assetUrl(path: string): string {
+    return new URL(path, document.baseURI).toString();
   }
 
   submit(): void {
