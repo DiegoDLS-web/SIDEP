@@ -4,11 +4,11 @@
   >
     <div class="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div>
-        <p class="mb-2 inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs text-blue-200">
+        <p class="sid-page-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs text-blue-200">
           Directorio institucional
         </p>
-        <h1 class="text-2xl font-bold sm:text-3xl">Gestión de usuarios</h1>
-        <p class="mt-1 text-sm text-gray-300 sm:text-base">Registro de voluntarios y datos institucionales</p>
+        <h1 class="sid-page-hero-title text-2xl font-bold sm:text-3xl">Gestión de usuarios</h1>
+        <p class="sid-page-hero-subtitle mt-1 text-sm text-gray-300 sm:text-base">Registro de voluntarios y datos institucionales</p>
       </div>
       <button
         type="button"
@@ -74,12 +74,12 @@
   </div>
 
   @if (error) {
-    <div class="rounded-xl border border-red-800/60 bg-red-950/25 px-4 py-3 text-sm text-red-200">
+    <div class="sid-feedback rounded-xl border border-red-800/60 bg-red-950/25 px-4 py-3 text-sm text-red-200">
       {{ error }}
     </div>
   }
   @if (exito) {
-    <div class="rounded-xl border border-emerald-800/60 bg-emerald-950/25 px-4 py-3 text-sm text-emerald-200">
+    <div class="sid-feedback rounded-xl border border-emerald-800/60 bg-emerald-950/25 px-4 py-3 text-sm text-emerald-200">
       {{ exito }}
     </div>
   }

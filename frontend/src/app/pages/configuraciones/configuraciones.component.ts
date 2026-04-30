@@ -7,6 +7,7 @@ import { ConfiguracionesService } from '../../services/configuraciones.service';
 import { MotionProfile, MotionProfileService } from '../../services/motion-profile.service';
 import { RolesService } from '../../services/roles.service';
 import { ToastService } from '../../services/toast.service';
+import { UiDensity, UiDensityService } from '../../services/ui-density.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 
 @Component({
@@ -20,6 +21,7 @@ export class ConfiguracionesComponent implements OnInit {
   private readonly rolesApi = inject(RolesService);
   private readonly toast = inject(ToastService);
   private readonly motionProfileService = inject(MotionProfileService);
+  private readonly uiDensityService = inject(UiDensityService);
 
   loading = true;
   guardando = false;
@@ -27,6 +29,7 @@ export class ConfiguracionesComponent implements OnInit {
   exito: string | null = null;
   roles: RolUsuarioDto[] = [];
   perfilMovimiento: MotionProfile = 'PREMIUM';
+  densidadUi: UiDensity = 'NORMAL';
 
   config: ConfiguracionSistemaDto = {
     compania: {
@@ -53,6 +56,8 @@ export class ConfiguracionesComponent implements OnInit {
   ngOnInit(): void {
     this.perfilMovimiento = this.motionProfileService.obtener();
     this.motionProfileService.aplicar(this.perfilMovimiento);
+    this.densidadUi = this.uiDensityService.obtener();
+    this.uiDensityService.aplicar(this.densidadUi);
     this.cargarRoles();
     this.configApi.obtener().subscribe({
       next: (data) => {
@@ -121,5 +126,17 @@ export class ConfiguracionesComponent implements OnInit {
     if (profile === 'SUAVE') return 'Suave';
     if (profile === 'CINEMATICO') return 'Cinemático';
     return 'Premium';
+  }
+
+  cambiarDensidad(density: UiDensity): void {
+    this.densidadUi = density;
+    this.uiDensityService.guardar(density);
+    this.toast.info(`Densidad UI: ${this.etiquetaDensidad(density)}`);
+  }
+
+  etiquetaDensidad(density: UiDensity): string {
+    if (density === 'COMPACTO') return 'Compacto';
+    if (density === 'COMODO') return 'Cómodo';
+    return 'Normal';
   }
 }

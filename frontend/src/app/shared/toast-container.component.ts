@@ -75,6 +75,18 @@ import { ToastService, type ToastItem } from '../services/toast.service';
           0 0 0 1px rgba(167, 139, 250, 0.16) inset;
       }
 
+      .toast-card.cine-export {
+        box-shadow:
+          0 12px 34px rgba(56, 189, 248, 0.22),
+          0 0 0 1px rgba(56, 189, 248, 0.16) inset;
+      }
+
+      .toast-card.cine-network {
+        box-shadow:
+          0 12px 34px rgba(245, 158, 11, 0.22),
+          0 0 0 1px rgba(251, 191, 36, 0.16) inset;
+      }
+
       .toast-progress {
         animation-name: toastProgress;
         animation-timing-function: linear;
@@ -111,6 +123,14 @@ import { ToastService, type ToastItem } from '../services/toast.service';
 
       .toast-icon-cine-session {
         animation: orbitIn 0.48s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .toast-icon-cine-export {
+        animation: infoFloat 0.4s ease-out, glowPulseInfo 1s ease-out;
+      }
+
+      .toast-icon-cine-network {
+        animation: warningPulse 0.6s ease-out, glowPulseWarn 1s ease-out;
       }
 
       @keyframes toastIn {
@@ -211,6 +231,24 @@ import { ToastService, type ToastItem } from '../services/toast.service';
         }
       }
 
+      @keyframes glowPulseInfo {
+        0% {
+          box-shadow: 0 0 0 rgba(56, 189, 248, 0);
+        }
+        100% {
+          box-shadow: 0 0 16px rgba(56, 189, 248, 0.55);
+        }
+      }
+
+      @keyframes glowPulseWarn {
+        0% {
+          box-shadow: 0 0 0 rgba(251, 191, 36, 0);
+        }
+        100% {
+          box-shadow: 0 0 16px rgba(251, 191, 36, 0.5);
+        }
+      }
+
       @keyframes orbitIn {
         0% {
           transform: rotate(-25deg) scale(0.8);
@@ -293,6 +331,8 @@ export class ToastContainerComponent implements OnInit {
     if (this.esSave(m)) return 'cine-save';
     if (this.esDelete(m)) return 'cine-delete';
     if (this.esSession(m)) return 'cine-session';
+    if (this.esExport(m)) return 'cine-export';
+    if (this.esNetwork(m)) return 'cine-network';
     return '';
   }
 
@@ -301,6 +341,8 @@ export class ToastContainerComponent implements OnInit {
     if (this.esSave(m)) return 'toast-icon-cine-save';
     if (this.esDelete(m)) return 'toast-icon-cine-delete';
     if (this.esSession(m)) return 'toast-icon-cine-session';
+    if (this.esExport(m)) return 'toast-icon-cine-export';
+    if (this.esNetwork(m)) return 'toast-icon-cine-network';
     return '';
   }
 
@@ -309,6 +351,8 @@ export class ToastContainerComponent implements OnInit {
     if (this.esSave(m)) return 'shadow-[0_0_10px_rgba(16,185,129,0.85)]';
     if (this.esDelete(m)) return 'shadow-[0_0_10px_rgba(251,113,133,0.85)]';
     if (this.esSession(m)) return 'shadow-[0_0_10px_rgba(167,139,250,0.9)]';
+    if (this.esExport(m)) return 'shadow-[0_0_10px_rgba(56,189,248,0.9)]';
+    if (this.esNetwork(m)) return 'shadow-[0_0_10px_rgba(251,191,36,0.85)]';
     return '';
   }
 
@@ -329,5 +373,13 @@ export class ToastContainerComponent implements OnInit {
 
   private esSession(m: string): boolean {
     return m.includes('sesion') || m.includes('logout');
+  }
+
+  private esExport(m: string): boolean {
+    return m.includes('pdf') || m.includes('export') || m.includes('descarg');
+  }
+
+  private esNetwork(m: string): boolean {
+    return m.includes('conexion') || m.includes('servidor') || m.includes('red') || m.includes('internet');
   }
 }

@@ -1,14 +1,14 @@
-<div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 sm:py-6 md:px-8 lg:px-10 xl:px-12">
+<div class="sid-page sid-licencias-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 sm:py-6 md:px-8 lg:px-10 xl:px-12">
   <section
     class="relative overflow-hidden rounded-2xl border border-fuchsia-900/40 bg-[radial-gradient(circle_at_0%_0%,rgba(59,130,246,0.28),transparent_42%),radial-gradient(circle_at_100%_0%,rgba(192,38,211,0.22),transparent_40%),#0a0a0a] p-5 sm:p-6"
   >
     <div class="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div>
-        <p class="mb-2 inline-flex items-center gap-2 rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-3 py-1 text-xs text-fuchsia-200">
+        <p class="sid-page-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-3 py-1 text-xs text-fuchsia-200">
           Salud y disponibilidad operativa
         </p>
-        <h1 class="text-2xl font-bold sm:text-3xl">Licencias</h1>
-        <p class="mt-1 text-sm text-gray-300 sm:text-base">
+        <h1 class="sid-page-hero-title text-2xl font-bold sm:text-3xl">Licencias</h1>
+        <p class="sid-page-hero-subtitle mt-1 text-sm text-gray-300 sm:text-base">
           Envía solicitudes de permiso, revisa tu historial y gestiona estados desde oficialidad.
         </p>
       </div>
@@ -24,42 +24,128 @@
   </section>
 
   @if (puedeGestionar) {
-    <section class="grid grid-cols-1 gap-3 md:grid-cols-3">
-      <article class="rounded-xl border border-amber-700/35 bg-gradient-to-br from-amber-950/30 to-transparent p-4">
+    <section class="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <article class="rounded-xl border border-amber-700/35 bg-gradient-to-br from-amber-950/30 to-transparent p-5">
         <p class="text-xs uppercase tracking-wide text-amber-200/80">Pendientes</p>
-        <p class="mt-1 text-3xl font-bold text-amber-300">{{ totalPendientes }}</p>
+        <p class="mt-2 text-3xl font-bold text-amber-300">{{ totalPendientes }}</p>
       </article>
-      <article class="rounded-xl border border-emerald-700/35 bg-gradient-to-br from-emerald-950/30 to-transparent p-4">
+      <article class="rounded-xl border border-emerald-700/35 bg-gradient-to-br from-emerald-950/30 to-transparent p-5">
         <p class="text-xs uppercase tracking-wide text-emerald-200/80">Aprobadas</p>
-        <p class="mt-1 text-3xl font-bold text-emerald-300">{{ totalAprobadas }}</p>
+        <p class="mt-2 text-3xl font-bold text-emerald-300">{{ totalAprobadas }}</p>
       </article>
-      <article class="rounded-xl border border-red-700/35 bg-gradient-to-br from-red-950/30 to-transparent p-4">
+      <article class="rounded-xl border border-red-700/35 bg-gradient-to-br from-red-950/30 to-transparent p-5">
         <p class="text-xs uppercase tracking-wide text-red-200/80">Rechazadas</p>
-        <p class="mt-1 text-3xl font-bold text-red-300">{{ totalRechazadas }}</p>
+        <p class="mt-2 text-3xl font-bold text-red-300">{{ totalRechazadas }}</p>
       </article>
     </section>
   }
 
   @if (error) {
-    <div class="rounded-lg border border-red-800 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+    <div class="sid-feedback rounded-lg border border-red-800 bg-red-950/30 px-4 py-3 text-sm text-red-200">
       <p class="font-semibold">No se pudo completar la acción.</p>
       <p class="mt-1">{{ error }}</p>
     </div>
   }
   @if (okMsg) {
-    <div class="rounded-lg border border-emerald-800 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
+    <div class="sid-feedback rounded-lg border border-emerald-800 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
       {{ okMsg }}
     </div>
   }
 
-  <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_1.45fr]">
-    <section class="rounded-2xl border border-blue-900/40 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+  <div class="sid-section-divider" data-title="Resumen diario"></div>
+
+  @if (puedeGestionar) {
+    <section class="rounded-2xl border border-fuchsia-900/35 bg-[#121212] p-5 sm:p-6">
+      <div class="mb-4 flex items-center justify-between gap-2">
+        <h2 class="flex items-center gap-2 text-lg font-semibold">
+          <lucide-icon name="users" class="h-5 w-5 text-fuchsia-300" [size]="20" color="currentColor"></lucide-icon>
+          Resumen diario de permisos (hoy)
+        </h2>
+        <div class="flex items-center gap-2">
+          <p class="text-xs text-gray-500">Fecha: {{ fecha(resumen.fecha || hoyIso) }}</p>
+          <button
+            type="button"
+            class="sid-btn sid-btn-neutral inline-flex min-h-[34px] items-center justify-center gap-2 rounded-lg border-slate-600 bg-[#0a0a0a] px-3 py-1.5 text-xs text-slate-200"
+            (click)="toggleResumenVisible()"
+          >
+            <lucide-icon
+              [name]="resumenVisible ? 'chevron-up' : 'chevron-down'"
+              class="h-4 w-4"
+              [size]="16"
+              color="currentColor"
+            ></lucide-icon>
+            {{ resumenVisible ? 'Ocultar' : 'Mostrar' }}
+          </button>
+        </div>
+      </div>
+      <div class="mb-4 flex flex-wrap gap-2">
+        <span class="rounded-full border border-emerald-700/45 bg-emerald-950/20 px-2.5 py-1 text-xs text-emerald-200">
+          Con licencia: {{ resumen.conLicencia.length }}
+        </span>
+        <span class="rounded-full border border-amber-700/45 bg-amber-950/20 px-2.5 py-1 text-xs text-amber-200">
+          Mandaron permiso: {{ resumen.mandoPermiso.length }}
+        </span>
+        <span class="rounded-full border border-red-700/45 bg-red-950/20 px-2.5 py-1 text-xs text-red-200">
+          Sin permiso: {{ resumen.sinPermiso.length }}
+        </span>
+      </div>
+      @if (resumenDiarioVacio && totalGestion > 0) {
+        <p class="mb-3 text-xs text-amber-200">
+          No hay licencias activas para hoy, pero sí existen solicitudes en gestión.
+        </p>
+      }
+      @if (resumenVisible) {
+      <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <article class="rounded-xl border border-emerald-900/50 bg-emerald-950/20 p-4 sm:p-5">
+          <p class="mb-2 text-sm font-semibold text-emerald-200">Con licencia médica</p>
+          <div class="sid-scroll-dark max-h-56 space-y-1.5 overflow-auto pr-1">
+            @for (u of resumen.conLicencia; track u.id) {
+              <p class="rounded-md bg-black/20 px-2 py-1 text-sm text-emerald-100">{{ u.nombre }}</p>
+            }
+          </div>
+          @if (resumen.conLicencia.length === 0) {
+            <p class="text-sm text-emerald-200/70">Sin registros para hoy.</p>
+          }
+        </article>
+        <article class="rounded-xl border border-amber-900/50 bg-amber-950/20 p-4 sm:p-5">
+          <p class="mb-2 text-sm font-semibold text-amber-200">Mandaron permiso</p>
+          <div class="sid-scroll-dark max-h-56 space-y-1.5 overflow-auto pr-1">
+            @for (u of resumen.mandoPermiso; track u.id) {
+              <p class="rounded-md bg-black/20 px-2 py-1 text-sm text-amber-100">{{ u.nombre }}</p>
+            }
+          </div>
+          @if (resumen.mandoPermiso.length === 0) {
+            <p class="text-sm text-amber-200/70">Sin registros para hoy.</p>
+          }
+        </article>
+        <article class="rounded-xl border border-red-900/50 bg-red-950/20 p-4 sm:p-5">
+          <p class="mb-2 text-sm font-semibold text-red-200">Sin permiso</p>
+          <div class="sid-scroll-dark max-h-56 space-y-1.5 overflow-auto pr-1">
+            @for (u of resumen.sinPermiso; track u.id) {
+              <p class="rounded-md bg-black/20 px-2 py-1 text-sm text-red-100">{{ u.nombre }}</p>
+            }
+          </div>
+          @if (resumen.sinPermiso.length === 0) {
+            <p class="text-sm text-red-200/70">Sin registros para hoy.</p>
+          }
+        </article>
+      </div>
+      } @else {
+        <p class="text-xs text-slate-400">Resumen detallado oculto para mantener la pantalla limpia.</p>
+      }
+    </section>
+  }
+
+  <div class="sid-section-divider" data-title="Nueva solicitud y gestión"></div>
+
+  <div class="sid-licencias-top-grid grid grid-cols-1 gap-7 xl:grid-cols-[1.02fr_1.48fr]">
+    <section class="sid-licencias-solicitud rounded-2xl border border-blue-900/40 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
       <h2 class="mb-1 flex items-center gap-2 text-lg font-semibold">
         <lucide-icon name="file-plus-2" class="h-5 w-5 text-blue-300" [size]="20" color="currentColor"></lucide-icon>
         Nueva solicitud
       </h2>
       <p class="mb-4 text-sm text-gray-500">Completa fechas y motivo. Puedes adjuntar documento o imagen de respaldo (opcional).</p>
-      <div class="grid gap-3 md:grid-cols-2">
+      <div class="grid gap-4 md:grid-cols-2">
         <label class="text-sm">
           <span class="mb-1 block text-gray-400">Fecha inicio</span>
           <input [(ngModel)]="form.fechaInicio" [max]="form.fechaTermino || ''" type="date" lang="es-CL" class="sid-input w-full" />
@@ -125,7 +211,7 @@
           }
         </label>
       </div>
-      <div class="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+      <div class="mt-4 flex flex-wrap items-center gap-2 text-xs text-gray-500">
         <span class="rounded-full border border-gray-700 px-2 py-1">Días solicitados: {{ diasSolicitados }}</span>
         <span class="rounded-full border border-gray-700 px-2 py-1">Mínimo motivo: 8 caracteres</span>
         <span class="rounded-full border border-gray-700 px-2 py-1">Hoy: {{ fecha(hoyIso) }}</span>
@@ -146,7 +232,7 @@
       }
       <button
         type="button"
-        class="sid-btn sid-btn-primary mt-4 inline-flex w-full items-center justify-center gap-2 sm:w-auto"
+        class="sid-btn sid-btn-primary mt-5 inline-flex w-full items-center justify-center gap-2 sm:w-auto"
         [disabled]="guardando || formInvalido"
         (click)="crearLicencia()"
       >
@@ -155,143 +241,9 @@
       </button>
     </section>
 
-    <section class="sid-history-card p-5 sm:p-6">
-      <h2 class="sid-history-title mb-1 flex items-center gap-2">
-        <lucide-icon name="history" class="h-5 w-5 text-fuchsia-300" [size]="20" color="currentColor"></lucide-icon>
-        Historial general de licencias
-      </h2>
-      <p class="sid-history-subtitle mb-4">Seguimiento de solicitudes y su estado de resolución.</p>
-
-      <div class="space-y-3 lg:hidden">
-        @for (l of misLicencias; track l.id) {
-          <article class="rounded-xl border border-gray-800 bg-[#0a0a0a] p-4">
-            <div class="mb-2 flex items-center justify-between gap-2">
-              <p class="text-sm font-medium text-gray-100">{{ fecha(l.fechaInicio) }} - {{ fecha(l.fechaTermino) }}</p>
-              <span class="sid-status-chip" [ngClass]="l.estado === 'APROBADA' ? 'sid-status-chip-ok' : l.estado === 'RECHAZADA' ? 'sid-status-chip-danger' : l.estado === 'ANULADA' ? 'sid-status-chip-neutral' : 'sid-status-chip-warn'">
-                {{ etiquetaEstado(l.estado) }}
-              </span>
-            </div>
-            <p class="text-sm text-gray-300">{{ l.motivo }}</p>
-            <p class="mt-1 text-xs text-gray-500">Resolución: {{ l.observacionResolucion || '—' }}</p>
-            @if (tieneAdjunto(l.archivoUrl)) {
-              <a class="mt-2 inline-flex text-xs text-cyan-300 hover:text-cyan-200" [href]="l.archivoUrl" target="_blank" rel="noopener noreferrer">
-                Ver adjunto
-              </a>
-            }
-            <button
-              type="button"
-              class="mt-2 inline-flex rounded-md border border-fuchsia-700/70 bg-fuchsia-900/20 px-2 py-1 text-xs text-fuchsia-200"
-              (click)="descargarLicenciaPdf(l)"
-            >
-              Exportar PDF
-            </button>
-          </article>
-        }
-      </div>
-
-      <div class="sid-history-wrap hidden overflow-x-auto lg:block">
-        <table class="sid-history-table min-w-full text-sm">
-          <thead>
-            <tr>
-              <th>Período</th>
-              <th>Motivo</th>
-              <th>Estado</th>
-              <th>Resolución</th>
-              <th>Adjunto</th>
-              <th>PDF</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (l of misLicencias; track l.id) {
-              <tr>
-                <td class="text-gray-200">{{ fecha(l.fechaInicio) }} - {{ fecha(l.fechaTermino) }}</td>
-                <td class="max-w-[24rem] text-gray-300">{{ l.motivo }}</td>
-                <td>
-                  <span class="sid-status-chip" [ngClass]="l.estado === 'APROBADA' ? 'sid-status-chip-ok' : l.estado === 'RECHAZADA' ? 'sid-status-chip-danger' : l.estado === 'ANULADA' ? 'sid-status-chip-neutral' : 'sid-status-chip-warn'">
-                    {{ etiquetaEstado(l.estado) }}
-                  </span>
-                </td>
-                <td class="text-gray-400">{{ l.observacionResolucion || '—' }}</td>
-                <td class="text-gray-400">
-                  @if (tieneAdjunto(l.archivoUrl)) {
-                    <a class="text-cyan-300 hover:text-cyan-200" [href]="l.archivoUrl" target="_blank" rel="noopener noreferrer">Adjunto</a>
-                  } @else {
-                    —
-                  }
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    class="rounded-md border border-fuchsia-700/70 bg-fuchsia-900/20 px-2 py-1 text-xs text-fuchsia-200"
-                    (click)="descargarLicenciaPdf(l)"
-                  >
-                    PDF
-                  </button>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-      @if (!loading && misLicencias.length === 0) {
-        <p class="mt-3 text-sm text-gray-500">Sin solicitudes aún.</p>
-      }
-    </section>
-  </div>
-
-  @if (puedeGestionar) {
-    <section class="rounded-2xl border border-fuchsia-900/35 bg-[#121212] p-5 sm:p-6">
-      <div class="mb-4 flex items-center justify-between gap-2">
-        <h2 class="flex items-center gap-2 text-lg font-semibold">
-          <lucide-icon name="users" class="h-5 w-5 text-fuchsia-300" [size]="20" color="currentColor"></lucide-icon>
-          Resumen diario de permisos (hoy)
-        </h2>
-        <p class="text-xs text-gray-500">Fecha: {{ fecha(resumen.fecha || hoyIso) }}</p>
-      </div>
-      @if (resumenDiarioVacio && totalGestion > 0) {
-        <p class="mb-3 text-xs text-amber-200">
-          No hay licencias activas para hoy, pero sí existen solicitudes en gestión.
-        </p>
-      }
-      <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <article class="rounded-xl border border-emerald-900/50 bg-emerald-950/20 p-4">
-          <p class="mb-2 text-sm font-semibold text-emerald-200">Con licencia médica</p>
-          <div class="max-h-52 space-y-1 overflow-auto pr-1">
-            @for (u of resumen.conLicencia; track u.id) {
-              <p class="text-sm text-emerald-100">{{ u.nombre }}</p>
-            }
-          </div>
-          @if (resumen.conLicencia.length === 0) {
-            <p class="text-sm text-emerald-200/70">Sin registros para hoy.</p>
-          }
-        </article>
-        <article class="rounded-xl border border-amber-900/50 bg-amber-950/20 p-4">
-          <p class="mb-2 text-sm font-semibold text-amber-200">Mandaron permiso</p>
-          <div class="max-h-52 space-y-1 overflow-auto pr-1">
-            @for (u of resumen.mandoPermiso; track u.id) {
-              <p class="text-sm text-amber-100">{{ u.nombre }}</p>
-            }
-          </div>
-          @if (resumen.mandoPermiso.length === 0) {
-            <p class="text-sm text-amber-200/70">Sin registros para hoy.</p>
-          }
-        </article>
-        <article class="rounded-xl border border-red-900/50 bg-red-950/20 p-4">
-          <p class="mb-2 text-sm font-semibold text-red-200">Sin permiso</p>
-          <div class="max-h-52 space-y-1 overflow-auto pr-1">
-            @for (u of resumen.sinPermiso; track u.id) {
-              <p class="text-sm text-red-100">{{ u.nombre }}</p>
-            }
-          </div>
-          @if (resumen.sinPermiso.length === 0) {
-            <p class="text-sm text-red-200/70">Sin registros para hoy.</p>
-          }
-        </article>
-      </div>
-    </section>
-
-    <section class="rounded-2xl border border-cyan-900/35 bg-[#121212] p-5 sm:p-6">
-      <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+    @if (puedeGestionar) {
+    <section class="sid-licencias-gestion rounded-2xl border border-cyan-900/35 bg-[#121212] p-5 sm:p-6">
+      <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 class="flex items-center gap-2 text-lg font-semibold">
             <lucide-icon name="shield-check" class="h-5 w-5 text-cyan-300" [size]="20" color="currentColor"></lucide-icon>
@@ -304,7 +256,7 @@
         </div>
       </div>
 
-      <div class="mb-4 flex flex-wrap gap-2">
+      <div class="mb-5 flex flex-wrap gap-2">
         <button
           type="button"
           class="rounded-lg border px-3 py-1.5 text-xs font-medium transition"
@@ -347,18 +299,45 @@
         </button>
       </div>
 
+      <div class="mb-4 grid grid-cols-1 gap-2 md:grid-cols-4">
+        <input
+          type="search"
+          [(ngModel)]="filtroGestionTexto"
+          placeholder="Buscar por nombre o motivo"
+          class="sid-history-filter text-sm md:col-span-2"
+        />
+        <select [(ngModel)]="filtroGestionEstado" class="sid-history-filter text-sm">
+          <option value="">Todos los estados</option>
+          <option value="PENDIENTE">Pendiente</option>
+          <option value="APROBADA">Aprobada</option>
+          <option value="RECHAZADA">Rechazada</option>
+          <option value="ANULADA">Anulada</option>
+        </select>
+        <div class="flex items-center gap-2">
+          <input type="date" [(ngModel)]="filtroGestionDesde" class="sid-history-filter dark-date-input w-full text-sm" />
+          <input type="date" [(ngModel)]="filtroGestionHasta" class="sid-history-filter dark-date-input w-full text-sm" />
+        </div>
+        <button
+          type="button"
+          class="sid-btn sid-btn-neutral inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-sm text-white md:col-span-4 md:justify-self-end"
+          (click)="limpiarFiltrosGestion()"
+        >
+          Limpiar filtros
+        </button>
+      </div>
+
       @if (errorGestion) {
-        <div class="mb-4 rounded-lg border border-amber-800/60 bg-amber-950/20 px-4 py-3 text-sm text-amber-200">
+        <div class="sid-feedback mb-4 rounded-lg border border-amber-800/60 bg-amber-950/20 px-4 py-3 text-sm text-amber-200">
           {{ errorGestion }}
         </div>
       }
 
-      <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        @for (l of gestionLicencias; track l.id) {
-          <article class="rounded-xl border border-slate-800 bg-gradient-to-br from-[#0d1016] to-[#0a0a0a] p-4 shadow-lg shadow-black/20">
+      <div class="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        @for (l of gestionLicenciasPaginadas; track l.id) {
+          <article class="sid-licencias-gestion-card overflow-hidden rounded-xl border border-slate-800 bg-gradient-to-br from-[#0d1016] to-[#0a0a0a] p-4 shadow-lg shadow-black/20 sm:p-5">
             <div class="mb-3 flex items-start justify-between gap-2">
               <div class="min-w-0">
-                <p class="truncate font-semibold text-gray-100">#{{ l.id }} · {{ l.usuario?.nombre || ('Usuario #' + l.usuarioId) }}</p>
+                <p class="truncate text-sm font-semibold text-gray-100">#{{ l.id }} · {{ l.usuario?.nombre || ('Usuario #' + l.usuarioId) }}</p>
                 <p class="mt-1 text-xs text-gray-500">{{ l.usuario?.rol || '—' }} · {{ fecha(l.fechaInicio) }} - {{ fecha(l.fechaTermino) }}</p>
               </div>
               <span class="sid-status-chip" [ngClass]="l.estado === 'APROBADA' ? 'sid-status-chip-ok' : l.estado === 'RECHAZADA' ? 'sid-status-chip-danger' : l.estado === 'ANULADA' ? 'sid-status-chip-neutral' : 'sid-status-chip-warn'">
@@ -366,7 +345,7 @@
               </span>
             </div>
 
-            <p class="rounded-lg border border-slate-800 bg-black/30 px-3 py-2 text-sm text-gray-300">
+            <p class="rounded-lg border border-slate-800 bg-black/30 px-3 py-2 text-sm leading-relaxed text-gray-300">
               {{ l.motivo }}
             </p>
 
@@ -385,28 +364,177 @@
               </button>
             </div>
 
-            <div class="mt-3 space-y-2">
+            <div class="mt-4 space-y-2">
               <label class="block text-xs text-gray-500">Estado y resolución</label>
-              <div class="grid gap-2 md:grid-cols-[170px_1fr_auto]">
-                <select [(ngModel)]="estadoEdicion[l.id]" class="sid-input">
+              <div class="grid gap-2 sm:grid-cols-[minmax(140px,170px)_minmax(0,1fr)_44px]">
+                <select [(ngModel)]="estadoEdicion[l.id]" class="sid-input min-w-0">
                   <option value="PENDIENTE">Pendiente</option>
                   <option value="APROBADA">Aprobada</option>
                   <option value="RECHAZADA">Rechazada</option>
                   <option value="ANULADA">Anulada</option>
                 </select>
-                <input [(ngModel)]="observacionEdicion[l.id]" class="sid-input" placeholder="Observación de resolución" />
-                <button type="button" class="sid-btn sid-btn-info inline-flex items-center justify-center gap-2" (click)="guardarEstado(l)">
+                <input [(ngModel)]="observacionEdicion[l.id]" class="sid-input min-w-0" placeholder="Observación de resolución" />
+                <button
+                  type="button"
+                  class="sid-btn sid-btn-info inline-flex h-11 w-11 items-center justify-center justify-self-end"
+                  title="Guardar cambios"
+                  (click)="guardarEstado(l)"
+                >
                   <lucide-icon name="save" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-                  Guardar
                 </button>
               </div>
             </div>
           </article>
         }
       </div>
-      @if (!errorGestion && gestionLicencias.length === 0) {
+      @if (!errorGestion && gestionLicenciasFiltradas.length > 0) {
+        <div class="mt-4 flex flex-col gap-2 border-t border-slate-800/80 pt-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+          <span>Página {{ paginaGestionVista }} de {{ totalPaginasGestion }} · {{ gestionLicenciasFiltradas.length }} registro(s)</span>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              class="sid-btn sid-btn-neutral rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-white transition-colors hover:bg-slate-800 disabled:opacity-40"
+              [disabled]="paginaGestion <= 1"
+              (click)="cambiarPaginaGestion(-1)"
+            >
+              Anterior
+            </button>
+            <button
+              type="button"
+              class="sid-btn sid-btn-neutral rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-white transition-colors hover:bg-slate-800 disabled:opacity-40"
+              [disabled]="paginaGestionVista >= totalPaginasGestion"
+              (click)="cambiarPaginaGestion(1)"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      }
+      @if (!errorGestion && gestionLicenciasFiltradas.length === 0) {
         <p class="mt-3 text-sm text-gray-500">No hay licencias para el filtro seleccionado.</p>
       }
     </section>
-  }
+    } @else {
+      <section class="sid-history-card p-5 sm:p-6">
+        <h2 class="sid-history-title mb-1 flex items-center gap-2">
+          <lucide-icon name="history" class="h-5 w-5 text-fuchsia-300" [size]="20" color="currentColor"></lucide-icon>
+          Historial general de licencias
+        </h2>
+        <p class="sid-history-subtitle mb-4">Seguimiento de solicitudes y su estado de resolución.</p>
+        <p class="text-sm text-gray-500">El historial está disponible en esta vista.</p>
+      </section>
+    }
+  </div>
+
+  <div class="sid-section-divider" data-title="Historial"></div>
+
+  <section class="sid-licencias-historial sid-history-card p-5 sm:p-6">
+    <h2 class="sid-history-title mb-1 flex items-center gap-2">
+      <lucide-icon name="history" class="h-5 w-5 text-fuchsia-300" [size]="20" color="currentColor"></lucide-icon>
+      Historial general de licencias
+    </h2>
+    <p class="sid-history-subtitle mb-4">Seguimiento de solicitudes y su estado de resolución.</p>
+
+    <div class="mb-4 grid grid-cols-1 gap-2 md:grid-cols-4">
+      <input
+        type="search"
+        [(ngModel)]="filtroHistorialTexto"
+        placeholder="Buscar por nombre o motivo"
+        class="sid-history-filter text-sm md:col-span-2"
+      />
+      <select [(ngModel)]="filtroHistorialEstado" class="sid-history-filter text-sm">
+        <option value="">Todos los estados</option>
+        <option value="PENDIENTE">Pendiente</option>
+        <option value="APROBADA">Aprobada</option>
+        <option value="RECHAZADA">Rechazada</option>
+        <option value="ANULADA">Anulada</option>
+      </select>
+      <div class="flex items-center gap-2">
+        <input type="date" [(ngModel)]="filtroHistorialDesde" class="sid-history-filter dark-date-input w-full text-sm" />
+        <input type="date" [(ngModel)]="filtroHistorialHasta" class="sid-history-filter dark-date-input w-full text-sm" />
+      </div>
+      <button
+        type="button"
+        class="sid-btn sid-btn-neutral inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-sm text-white md:col-span-4 md:justify-self-end"
+        (click)="limpiarFiltrosHistorial()"
+      >
+        Limpiar filtros
+      </button>
+    </div>
+
+    <div class="space-y-4 lg:hidden">
+      @for (l of historialFiltrado; track l.id) {
+        <article class="rounded-xl border border-gray-800 bg-[#0a0a0a] p-4 sm:p-5">
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <p class="text-sm font-medium text-gray-100">{{ fecha(l.fechaInicio) }} - {{ fecha(l.fechaTermino) }}</p>
+            <span class="sid-status-chip" [ngClass]="l.estado === 'APROBADA' ? 'sid-status-chip-ok' : l.estado === 'RECHAZADA' ? 'sid-status-chip-danger' : l.estado === 'ANULADA' ? 'sid-status-chip-neutral' : 'sid-status-chip-warn'">
+              {{ etiquetaEstado(l.estado) }}
+            </span>
+          </div>
+          <p class="text-sm leading-relaxed text-gray-300">{{ l.motivo }}</p>
+          <p class="mt-2 text-xs text-gray-500">Resolución: {{ l.observacionResolucion || '—' }}</p>
+          @if (tieneAdjunto(l.archivoUrl)) {
+            <a class="mt-2 inline-flex text-xs text-cyan-300 hover:text-cyan-200" [href]="l.archivoUrl" target="_blank" rel="noopener noreferrer">
+              Ver adjunto
+            </a>
+          }
+          <button
+            type="button"
+            class="mt-2 inline-flex rounded-md border border-fuchsia-700/70 bg-fuchsia-900/20 px-2 py-1 text-xs text-fuchsia-200"
+            (click)="descargarLicenciaPdf(l)"
+          >
+            Exportar PDF
+          </button>
+        </article>
+      }
+    </div>
+
+    <div class="sid-history-wrap hidden overflow-x-auto lg:block">
+      <table class="sid-history-table min-w-full text-sm">
+        <thead>
+          <tr>
+            <th>Período</th>
+            <th>Motivo</th>
+            <th>Estado</th>
+            <th>Resolución</th>
+            <th>Adjunto</th>
+            <th>PDF</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (l of historialFiltrado; track l.id) {
+            <tr>
+              <td class="text-gray-200">{{ fecha(l.fechaInicio) }} - {{ fecha(l.fechaTermino) }}</td>
+              <td class="max-w-[24rem] leading-relaxed text-gray-300">{{ l.motivo }}</td>
+              <td>
+                <span class="sid-status-chip" [ngClass]="l.estado === 'APROBADA' ? 'sid-status-chip-ok' : l.estado === 'RECHAZADA' ? 'sid-status-chip-danger' : l.estado === 'ANULADA' ? 'sid-status-chip-neutral' : 'sid-status-chip-warn'">
+                  {{ etiquetaEstado(l.estado) }}
+                </span>
+              </td>
+              <td class="text-gray-400">{{ l.observacionResolucion || '—' }}</td>
+              <td class="text-gray-400">
+                @if (tieneAdjunto(l.archivoUrl)) {
+                  <a class="text-cyan-300 hover:text-cyan-200" [href]="l.archivoUrl" target="_blank" rel="noopener noreferrer">Adjunto</a>
+                } @else {
+                  —
+                }
+              </td>
+              <td>
+                <button
+                  type="button"
+                  class="rounded-md border border-fuchsia-700/70 bg-fuchsia-900/20 px-2 py-1 text-xs text-fuchsia-200"
+                  (click)="descargarLicenciaPdf(l)"
+                >
+                  PDF
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if (!loading && historialFiltrado.length === 0) {
+      <p class="mt-3 text-sm text-gray-500">Sin solicitudes aún.</p>
+    }
+  </section>
 </div>

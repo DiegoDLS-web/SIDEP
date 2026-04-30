@@ -5,16 +5,16 @@
       <p class="text-sm">Cargando partes…</p>
     </div>
   } @else if (error) {
-    <div class="rounded-2xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ error }}</div>
+    <div class="sid-feedback rounded-2xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ error }}</div>
   } @else {
     <section
       class="relative overflow-hidden rounded-2xl border border-rose-900/40 bg-[radial-gradient(circle_at_0%_0%,rgba(244,63,94,0.14),transparent_50%),radial-gradient(circle_at_100%_0%,rgba(59,130,246,0.1),transparent_45%),#0a0a0a] p-5 sm:p-6"
     >
       <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p class="mb-2 inline-flex rounded-full border border-rose-500/35 bg-rose-500/10 px-3 py-1 text-xs text-rose-200">Gestión operativa</p>
-          <h1 class="text-2xl font-bold tracking-tight text-white sm:text-3xl">Partes de emergencia</h1>
-          <p class="mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">Historial, filtros y exportación de partes</p>
+          <p class="sid-page-hero-badge mb-2 inline-flex rounded-full border border-rose-500/35 bg-rose-500/10 px-3 py-1 text-xs text-rose-200">Gestión operativa</p>
+          <h1 class="sid-page-hero-title text-2xl font-bold tracking-tight text-white sm:text-3xl">Partes de emergencia</h1>
+          <p class="sid-page-hero-subtitle mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">Historial, filtros y exportación de partes</p>
         </div>
         <a
           routerLink="/partes/nuevo"

@@ -4,6 +4,7 @@ import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router
 import { AuthService } from '../services/auth.service';
 import { ConfirmDialogService } from '../services/confirm-dialog.service';
 import { MotionProfileService } from '../services/motion-profile.service';
+import { UiDensityService } from '../services/ui-density.service';
 import { SidepIconsModule } from '../shared/sidep-icons.module';
 import { ConfirmDialogComponent } from '../shared/confirm-dialog.component';
 
@@ -30,6 +31,7 @@ export class MainLayoutComponent {
   private readonly auth = inject(AuthService);
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly motionProfile = inject(MotionProfileService);
+  private readonly uiDensity = inject(UiDensityService);
   sidebarAbierto = false;
   routeTransitioning = false;
 
@@ -68,6 +70,7 @@ export class MainLayoutComponent {
 
   constructor() {
     this.motionProfile.aplicar();
+    this.uiDensity.aplicar();
     this.router.events.subscribe((ev) => {
       if (ev instanceof NavigationEnd) {
         this.routeTransitioning = true;
@@ -114,7 +117,7 @@ export class MainLayoutComponent {
   navClasses(active: boolean): string {
     return active
       ? 'bg-red-600 text-white shadow-sm shadow-black/30 ring-1 ring-red-400/35'
-      : 'border border-slate-700/70 bg-[#141414] text-gray-200 hover:border-slate-500/80 hover:bg-[#1b1b1b] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-red-500/40';
+      : 'border border-transparent bg-transparent text-gray-200 hover:border-slate-700/60 hover:bg-white/5 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-red-500/40';
   }
 
   toggleSidebar(): void {

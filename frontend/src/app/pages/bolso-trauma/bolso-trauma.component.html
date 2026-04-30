@@ -5,17 +5,17 @@
       <p class="text-sm">Cargando bolsos de trauma…</p>
     </div>
   } @else if (error) {
-    <div class="rounded-2xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ error }}</div>
+    <div class="sid-feedback rounded-2xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ error }}</div>
   } @else {
     <section
       class="relative overflow-hidden rounded-2xl border border-cyan-900/35 bg-[radial-gradient(circle_at_0%_0%,rgba(6,182,212,0.14),transparent_50%),radial-gradient(circle_at_100%_0%,rgba(225,29,72,0.14),transparent_45%),#0a0a0a] p-5 sm:p-6"
     >
-      <p class="mb-2 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-200">
+      <p class="sid-page-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-200">
         <lucide-icon name="heart-pulse" class="h-3.5 w-3.5" [size]="14" color="currentColor" />
         Kit de trauma · inventario
       </p>
-      <h1 class="text-2xl font-bold text-white sm:text-3xl">Bolsos de trauma</h1>
-      <p class="mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">Elige unidad y bolso para revisar mínimos, óptimos y faltantes antes del servicio</p>
+      <h1 class="sid-page-hero-title text-2xl font-bold text-white sm:text-3xl">Bolsos de trauma</h1>
+      <p class="sid-page-hero-subtitle mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">Elige unidad y bolso para revisar mínimos, óptimos y faltantes antes del servicio</p>
     </section>
 
     @let s = stats();
@@ -255,7 +255,7 @@
           Cargando historial…
         </div>
       } @else if (historialError) {
-        <p class="rounded-xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ historialError }}</p>
+        <p class="sid-feedback rounded-xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ historialError }}</p>
       } @else {
         <div class="space-y-3 md:hidden">
           @for (h of historialPaginado(); track h.id) {
@@ -298,32 +298,38 @@
                 <button
                   type="button"
                   (click)="abrirDetalle(h)"
-                  class="sid-btn sid-btn-info inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                  class="sid-btn sid-btn-info inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg bg-blue-600 px-0 text-white hover:bg-blue-700 md:w-auto md:gap-2 md:px-3"
                   title="Ver detalle"
                 >
                   <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                  <span class="hidden md:inline">Ver</span>
                 </button>
                 <button
                   type="button"
                   (click)="editarRegistro(h)"
-                  class="sid-btn sid-btn-neutral inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
+                  class="sid-btn sid-btn-neutral inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg border border-gray-600 bg-[#242833] px-0 text-white hover:bg-gray-700 md:w-auto md:gap-2 md:px-3"
                   title="Editar registro"
                 >
                   <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                  <span class="hidden md:inline">Editar</span>
                 </button>
                 <button
                   type="button"
                   (click)="descargarRegistroPdf(h)"
                   [disabled]="descargandoRegistroId === h.id"
-                  class="sid-btn sid-btn-primary inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  class="sid-btn sid-btn-primary inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg bg-red-600 px-0 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto md:gap-2 md:px-3"
                   title="Descargar PDF"
                 >
                   <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                  <span class="hidden md:inline">PDF</span>
                 </button>
               </div>
             </div>
           } @empty {
-            <p class="rounded-xl border border-slate-800 bg-[#0a0a0a] px-4 py-6 text-center text-sm text-slate-500">Sin registros.</p>
+            <div class="sid-empty-state">
+              <lucide-icon name="archive-x" class="sid-empty-icon h-6 w-6 text-slate-500" [size]="22" color="currentColor"></lucide-icon>
+              <p class="text-sm text-slate-400">Sin registros.</p>
+            </div>
           }
         </div>
         <div class="sid-history-wrap hidden overflow-x-auto md:block">
@@ -371,27 +377,30 @@
                       <button
                         type="button"
                         (click)="abrirDetalle(h)"
-                        class="sid-btn sid-btn-info inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                        class="sid-btn sid-btn-info inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg bg-blue-600 px-0 text-white hover:bg-blue-700 md:w-auto md:gap-2 md:px-3"
                         title="Ver detalle"
                       >
                         <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                        <span class="hidden md:inline">Ver</span>
                       </button>
                       <button
                         type="button"
                         (click)="editarRegistro(h)"
-                        class="sid-btn sid-btn-neutral inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
+                        class="sid-btn sid-btn-neutral inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg border border-gray-600 bg-[#242833] px-0 text-white hover:bg-gray-700 md:w-auto md:gap-2 md:px-3"
                         title="Editar registro"
                       >
                         <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                        <span class="hidden md:inline">Editar</span>
                       </button>
                       <button
                         type="button"
                         (click)="descargarRegistroPdf(h)"
                         [disabled]="descargandoRegistroId === h.id"
-                        class="sid-btn sid-btn-primary inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        class="sid-btn sid-btn-primary inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg bg-red-600 px-0 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto md:gap-2 md:px-3"
                         title="Descargar PDF"
                       >
                         <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                        <span class="hidden md:inline">PDF</span>
                       </button>
                     </div>
                   </td>

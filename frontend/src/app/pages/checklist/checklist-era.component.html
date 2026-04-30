@@ -23,11 +23,11 @@
     </section>
 
     @if (error) {
-      <p class="rounded-xl border border-red-800/60 bg-red-950/30 px-4 py-3 text-sm text-red-300">{{ error }}</p>
+      <p class="sid-feedback rounded-xl border border-red-800/60 bg-red-950/30 px-4 py-3 text-sm text-red-300">{{ error }}</p>
     }
     @if (mensajeFlash) {
       <div
-        class="mb-4 rounded-xl border border-amber-600/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100"
+        class="sid-feedback mb-4 rounded-xl border border-amber-600/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100"
         role="status"
       >
         {{ mensajeFlash }}
@@ -792,7 +792,7 @@
           Cargando historial…
         </div>
       } @else if (historialGeneralError) {
-        <p class="rounded-xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ historialGeneralError }}</p>
+        <p class="sid-feedback rounded-xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ historialGeneralError }}</p>
       } @else {
         <div class="space-y-3 md:hidden">
           @for (h of historialGeneralPaginado(); track h.id) {
@@ -831,24 +831,38 @@
               <div class="mt-3 flex items-center gap-2">
                 <button
                   type="button"
+                  (click)="verRegistroEra(h)"
+                  class="sid-btn sid-btn-info inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg bg-blue-600 px-0 text-white hover:bg-blue-700 md:w-auto md:gap-2 md:px-3"
+                  title="Ver detalle"
+                >
+                  <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                  <span class="hidden md:inline">Ver</span>
+                </button>
+                <button
+                  type="button"
                   (click)="editarRegistroEra(h)"
-                  class="sid-btn sid-btn-neutral inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
+                  class="sid-btn sid-btn-neutral inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg border border-gray-600 bg-[#242833] px-0 text-white hover:bg-gray-700 md:w-auto md:gap-2 md:px-3"
                   title="Editar registro"
                 >
                   <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                  <span class="hidden md:inline">Editar</span>
                 </button>
                 <button
                   type="button"
                   (click)="descargarRegistroEraPdf(h)"
-                  class="sid-btn sid-btn-primary inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
+                  class="sid-btn sid-btn-primary inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg bg-red-600 px-0 text-white hover:bg-red-700 md:w-auto md:gap-2 md:px-3"
                   title="Descargar PDF"
                 >
                   <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                  <span class="hidden md:inline">PDF</span>
                 </button>
               </div>
             </div>
           } @empty {
-            <p class="rounded-xl border border-slate-800 bg-[#0a0a0a] px-4 py-6 text-center text-sm text-slate-500">Sin registros.</p>
+            <div class="sid-empty-state">
+              <lucide-icon name="archive-x" class="sid-empty-icon h-6 w-6 text-slate-500" [size]="22" color="currentColor"></lucide-icon>
+              <p class="text-sm text-slate-400">Sin registros.</p>
+            </div>
           }
         </div>
         <div class="sid-history-wrap hidden overflow-x-auto md:block">
@@ -888,19 +902,30 @@
                     <div class="flex items-center gap-2">
                       <button
                         type="button"
+                        (click)="verRegistroEra(h)"
+                        class="sid-btn sid-btn-info inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg bg-blue-600 px-0 text-white hover:bg-blue-700 md:w-auto md:gap-2 md:px-3"
+                        title="Ver detalle"
+                      >
+                        <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                        <span class="hidden md:inline">Ver</span>
+                      </button>
+                      <button
+                        type="button"
                         (click)="editarRegistroEra(h)"
-                        class="sid-btn sid-btn-neutral inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
+                        class="sid-btn sid-btn-neutral inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg border border-gray-600 bg-[#242833] px-0 text-white hover:bg-gray-700 md:w-auto md:gap-2 md:px-3"
                         title="Editar registro"
                       >
                         <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                        <span class="hidden md:inline">Editar</span>
                       </button>
                       <button
                         type="button"
                         (click)="descargarRegistroEraPdf(h)"
-                        class="sid-btn sid-btn-primary inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
+                        class="sid-btn sid-btn-primary inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg bg-red-600 px-0 text-white hover:bg-red-700 md:w-auto md:gap-2 md:px-3"
                         title="Descargar PDF"
                       >
                         <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                        <span class="hidden md:inline">PDF</span>
                       </button>
                     </div>
                   </td>

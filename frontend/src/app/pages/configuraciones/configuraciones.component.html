@@ -3,21 +3,21 @@
     class="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-[radial-gradient(circle_at_0%_0%,rgba(59,130,246,0.2),transparent_45%),radial-gradient(circle_at_100%_0%,rgba(220,38,38,0.12),transparent_42%),#0a0a0a] p-5 sm:p-6"
   >
     <div class="relative z-10">
-      <p class="mb-2 inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs text-blue-200">
+      <p class="sid-page-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs text-blue-200">
         Sistema · preferencias
       </p>
-      <h1 class="text-2xl font-bold sm:text-3xl">Configuraciones del sistema</h1>
-      <p class="mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">Ajustes de compañía, notificaciones, reportes y roles en SIDEP</p>
+      <h1 class="sid-page-hero-title text-2xl font-bold sm:text-3xl">Configuraciones del sistema</h1>
+      <p class="sid-page-hero-subtitle mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">Ajustes de compañía, notificaciones, reportes y roles en SIDEP</p>
     </div>
   </section>
 
   @if (error) {
-    <div class="rounded-xl border border-red-800/60 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+    <div class="sid-feedback rounded-xl border border-red-800/60 bg-red-950/30 px-4 py-3 text-sm text-red-200">
       {{ error }}
     </div>
   }
   @if (exito) {
-    <div class="rounded-xl border border-emerald-800/60 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
+    <div class="sid-feedback rounded-xl border border-emerald-800/60 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
       {{ exito }}
     </div>
   }
@@ -178,6 +178,44 @@
             </div>
           </div>
         </section>
+
+        <section class="rounded-2xl border border-slate-800 bg-[#121212] p-5 sm:p-6 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
+          <div class="mb-4 flex items-start gap-3">
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 ring-1 ring-violet-500/35">
+              <lucide-icon name="shield" class="h-5 w-5 text-violet-300" [size]="20" color="currentColor" />
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-white sm:text-xl">Roles de usuario</h2>
+              <p class="text-sm text-slate-500">Roles fijos: CAPITAN, TENIENTE, VOLUNTARIOS, ADMIN</p>
+            </div>
+          </div>
+          <div class="max-h-[min(70vh,32rem)] space-y-2 overflow-y-auto pr-1">
+            @for (rol of roles; track rol.id) {
+              <div
+                class="flex flex-col gap-2 rounded-xl border border-slate-800/90 bg-[#0a0a0a] p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div class="flex min-w-0 items-center gap-2">
+                  <span class="truncate font-medium text-slate-200">{{ rol.nombre }}</span>
+                  <span
+                    class="shrink-0 rounded-full px-2 py-0.5 text-xs"
+                    [class]="rol.activo ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-600/25 text-slate-400'"
+                    >{{ rol.activo ? 'Activo' : 'Inactivo' }}</span
+                  >
+                </div>
+                <button
+                  type="button"
+                  class="w-full rounded-lg px-3 py-2 text-sm font-medium transition-colors sm:w-auto"
+                  [class]="rol.activo ? 'bg-amber-600/90 text-white hover:bg-amber-500' : 'bg-emerald-600/90 text-white hover:bg-emerald-500'"
+                  (click)="cambiarEstadoRol(rol)"
+                >
+                  {{ rol.activo ? 'Desactivar' : 'Activar' }}
+                </button>
+              </div>
+            } @empty {
+              <p class="text-sm text-slate-500">No hay roles cargados.</p>
+            }
+          </div>
+        </section>
       </div>
 
       <div class="lg:col-span-4">
@@ -219,45 +257,44 @@
           </div>
         </section>
 
-        <section
-          class="sticky top-4 rounded-2xl border border-slate-800 bg-[#121212] p-5 sm:p-6 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5"
-        >
+        <section class="mb-6 rounded-2xl border border-slate-800 bg-[#121212] p-5 sm:p-6 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
           <div class="mb-4 flex items-start gap-3">
-            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 ring-1 ring-violet-500/35">
-              <lucide-icon name="shield" class="h-5 w-5 text-violet-300" [size]="20" color="currentColor" />
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/35">
+              <lucide-icon name="panel-top" class="h-5 w-5 text-emerald-300" [size]="20" color="currentColor" />
             </div>
             <div>
-              <h2 class="text-lg font-bold text-white sm:text-xl">Roles de usuario</h2>
-              <p class="text-sm text-slate-500">Roles fijos: CAPITAN, TENIENTE, VOLUNTARIOS, ADMIN</p>
+              <h2 class="text-lg font-bold text-white sm:text-xl">Densidad de interfaz</h2>
+              <p class="text-sm text-slate-500">Ajusta espacios y altura de controles para tu tipo de pantalla</p>
             </div>
           </div>
-          <div class="max-h-[min(70vh,32rem)] space-y-2 overflow-y-auto pr-1">
-            @for (rol of roles; track rol.id) {
-              <div
-                class="flex flex-col gap-2 rounded-xl border border-slate-800/90 bg-[#0a0a0a] p-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div class="flex min-w-0 items-center gap-2">
-                  <span class="truncate font-medium text-slate-200">{{ rol.nombre }}</span>
-                  <span
-                    class="shrink-0 rounded-full px-2 py-0.5 text-xs"
-                    [class]="rol.activo ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-600/25 text-slate-400'"
-                    >{{ rol.activo ? 'Activo' : 'Inactivo' }}</span
-                  >
-                </div>
-                <button
-                  type="button"
-                  class="w-full rounded-lg px-3 py-2 text-sm font-medium transition-colors sm:w-auto"
-                  [class]="rol.activo ? 'bg-amber-600/90 text-white hover:bg-amber-500' : 'bg-emerald-600/90 text-white hover:bg-emerald-500'"
-                  (click)="cambiarEstadoRol(rol)"
-                >
-                  {{ rol.activo ? 'Desactivar' : 'Activar' }}
-                </button>
-              </div>
-            } @empty {
-              <p class="text-sm text-slate-500">No hay roles cargados.</p>
-            }
+          <div class="space-y-2">
+            <button
+              type="button"
+              class="w-full rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors"
+              [class]="densidadUi === 'COMPACTO' ? 'border-emerald-400/50 bg-emerald-500/15 text-emerald-100' : 'border-slate-700 bg-[#0a0a0a] text-slate-300 hover:border-slate-600'"
+              (click)="cambiarDensidad('COMPACTO')"
+            >
+              Compacto
+            </button>
+            <button
+              type="button"
+              class="w-full rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors"
+              [class]="densidadUi === 'NORMAL' ? 'border-emerald-400/50 bg-emerald-500/15 text-emerald-100' : 'border-slate-700 bg-[#0a0a0a] text-slate-300 hover:border-slate-600'"
+              (click)="cambiarDensidad('NORMAL')"
+            >
+              Normal
+            </button>
+            <button
+              type="button"
+              class="w-full rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors"
+              [class]="densidadUi === 'COMODO' ? 'border-emerald-400/50 bg-emerald-500/15 text-emerald-100' : 'border-slate-700 bg-[#0a0a0a] text-slate-300 hover:border-slate-600'"
+              (click)="cambiarDensidad('COMODO')"
+            >
+              Cómodo
+            </button>
           </div>
         </section>
+
       </div>
     </div>
 

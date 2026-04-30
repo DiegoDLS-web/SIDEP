@@ -28,6 +28,15 @@ export class LicenciasPageComponent implements OnInit {
   misLicencias: LicenciaMedicaDto[] = [];
   gestionLicencias: LicenciaMedicaDto[] = [];
   filtroGestion: '' | LicenciaEstado = '';
+  filtroGestionTexto = '';
+  filtroGestionEstado: '' | LicenciaEstado = '';
+  filtroGestionDesde = '';
+  filtroGestionHasta = '';
+
+  filtroHistorialTexto = '';
+  filtroHistorialEstado: '' | LicenciaEstado = '';
+  filtroHistorialDesde = '';
+  filtroHistorialHasta = '';
   resumen: LicenciasResumenDto = { fecha: '', mandoPermiso: [], sinPermiso: [], conLicencia: [] };
 
   form = {
@@ -45,6 +54,9 @@ export class LicenciasPageComponent implements OnInit {
 
   estadoEdicion: Record<number, LicenciaEstado> = {};
   observacionEdicion: Record<number, string> = {};
+  resumenVisible = false;
+  paginaGestion = 1;
+  readonly tamanioPaginaGestion = 6;
 
   get hoyIso(): string {
     return new Date().toISOString().slice(0, 10);
@@ -97,6 +109,52 @@ export class LicenciasPageComponent implements OnInit {
     return this.gestionLicencias.length;
   }
 
+  get totalPaginasGestion(): number {
+    return Math.max(1, Math.ceil(this.gestionLicenciasFiltradas.length / this.tamanioPaginaGestion));
+  }
+
+  get paginaGestionVista(): number {
+    return Math.min(this.paginaGestion, this.totalPaginasGestion);
+  }
+
+  get gestionLicenciasPaginadas(): LicenciaMedicaDto[] {
+    const paginaActiva = Math.min(this.paginaGestion, this.totalPaginasGestion);
+    const inicio = (paginaActiva - 1) * this.tamanioPaginaGestion;
+    return this.gestionLicenciasFiltradas.slice(inicio, inicio + this.tamanioPaginaGestion);
+  }
+
+  get gestionLicenciasFiltradas(): LicenciaMedicaDto[] {
+    return this.gestionLicencias.filter((l) => {
+      const nombre = (l.usuario?.nombre || '').toLowerCase();
+      const motivo = (l.motivo || '').toLowerCase();
+      const estado = l.estado;
+      const txt = this.filtroGestionTexto.trim().toLowerCase();
+
+      const matchTexto = !txt || nombre.includes(txt) || motivo.includes(txt);
+      const matchEstado = !this.filtroGestionEstado || estado === this.filtroGestionEstado;
+      const matchDesde = !this.filtroGestionDesde || l.fechaInicio >= this.filtroGestionDesde;
+      const matchHasta = !this.filtroGestionHasta || l.fechaInicio <= this.filtroGestionHasta;
+
+      return matchTexto && matchEstado && matchDesde && matchHasta;
+    });
+  }
+
+  get historialFiltrado(): LicenciaMedicaDto[] {
+    return this.misLicencias.filter((l) => {
+      const nombre = (l.usuario?.nombre || '').toLowerCase();
+      const motivo = (l.motivo || '').toLowerCase();
+      const estado = l.estado;
+      const txt = this.filtroHistorialTexto.trim().toLowerCase();
+
+      const matchTexto = !txt || nombre.includes(txt) || motivo.includes(txt);
+      const matchEstado = !this.filtroHistorialEstado || estado === this.filtroHistorialEstado;
+      const matchDesde = !this.filtroHistorialDesde || l.fechaInicio >= this.filtroHistorialDesde;
+      const matchHasta = !this.filtroHistorialHasta || l.fechaInicio <= this.filtroHistorialHasta;
+
+      return matchTexto && matchEstado && matchDesde && matchHasta;
+    });
+  }
+
   get resumenDiarioVacio(): boolean {
     return (
       this.resumen.conLicencia.length === 0 &&
@@ -147,6 +205,7 @@ export class LicenciasPageComponent implements OnInit {
       )
       .subscribe((rows) => {
         this.gestionLicencias = rows;
+        this.paginaGestion = 1;
         for (const l of rows) {
           this.estadoEdicion[l.id] = l.estado;
           this.observacionEdicion[l.id] = l.observacionResolucion ?? '';
@@ -226,7 +285,35 @@ export class LicenciasPageComponent implements OnInit {
 
   setFiltro(estado: '' | LicenciaEstado): void {
     this.filtroGestion = estado;
+    this.paginaGestion = 1;
     this.cargarGestion();
+  }
+
+  limpiarFiltrosGestion(): void {
+    this.filtroGestionTexto = '';
+    this.filtroGestionEstado = '';
+    this.filtroGestionDesde = '';
+    this.filtroGestionHasta = '';
+    this.paginaGestion = 1;
+  }
+
+  limpiarFiltrosHistorial(): void {
+    this.filtroHistorialTexto = '';
+    this.filtroHistorialEstado = '';
+    this.filtroHistorialDesde = '';
+    this.filtroHistorialHasta = '';
+  }
+
+  cambiarPaginaGestion(delta: number): void {
+    const next = this.paginaGestion + delta;
+    if (next < 1 || next > this.totalPaginasGestion) {
+      return;
+    }
+    this.paginaGestion = next;
+  }
+
+  toggleResumenVisible(): void {
+    this.resumenVisible = !this.resumenVisible;
   }
 
   setEstadoRapido(item: LicenciaMedicaDto, estado: LicenciaEstado): void {

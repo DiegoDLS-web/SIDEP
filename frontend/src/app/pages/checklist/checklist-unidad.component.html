@@ -13,7 +13,7 @@
     </a>
   } @else {
   @if (error && !saving) {
-    <p class="rounded-2xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ error }}</p>
+    <p class="sid-feedback rounded-2xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ error }}</p>
   }
 
   <a
@@ -44,7 +44,7 @@
 
   @if (mensajeFlash) {
     <div
-      class="mb-4 rounded-xl border border-amber-600/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100"
+      class="sid-feedback mb-4 rounded-xl border border-amber-600/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100"
       role="status"
     >
       {{ mensajeFlash }}

@@ -789,6 +789,10 @@ export class ChecklistEraComponent implements OnInit {
     this.flash(`Registro ${h.id} cargado para edición.`);
   }
 
+  verRegistroEra(h: ChecklistRegistroDto): void {
+    this.editarRegistroEra(h);
+  }
+
   descargarRegistroEraPdf(h: ChecklistRegistroDto): void {
     const det = (h.detalle ?? {}) as {
       fechaInspeccion?: string;
