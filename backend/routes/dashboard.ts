@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
+import { sendApiError } from '../lib/apiError.js';
 
 export const dashboardRouter = Router();
 
@@ -94,7 +95,7 @@ dashboardRouter.get('/resumen', async (req, res) => {
       ? Number(String(anioRaw).trim())
       : new Date().getFullYear();
   if (!Number.isFinite(anio) || anio < 2000 || anio > 2100) {
-    res.status(400).json({ error: 'año inválido' });
+    sendApiError(res, 400, 'DASHBOARD_ANIO', 'año inválido');
     return;
   }
 
@@ -102,7 +103,7 @@ dashboardRouter.get('/resumen', async (req, res) => {
   if (carroIdRaw != null && String(carroIdRaw).trim() !== '' && String(carroIdRaw) !== 'todas') {
     const n = Number(carroIdRaw);
     if (!Number.isFinite(n) || n <= 0) {
-      res.status(400).json({ error: 'carroId inválido' });
+      sendApiError(res, 400, 'DASHBOARD_CARRO_ID', 'carroId inválido');
       return;
     }
     carroIdFilter = n;
@@ -398,6 +399,6 @@ dashboardRouter.get('/resumen', async (req, res) => {
     });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'No se pudo cargar el dashboard' });
+    sendApiError(res, 500, 'DASHBOARD_RESUMEN', 'No se pudo cargar el dashboard');
   }
 });

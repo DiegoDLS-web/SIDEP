@@ -4,6 +4,8 @@ exports.checklistsRouter = void 0;
 const express_1 = require("express");
 const prisma_js_1 = require("../lib/prisma.js");
 const roles_js_1 = require("../middleware/roles.js");
+const apiError_js_1 = require("../lib/apiError.js");
+const httpQuery_js_1 = require("../lib/httpQuery.js");
 exports.checklistsRouter = (0, express_1.Router)();
 const includeChecklist = {
     carro: { select: { id: true, nomenclatura: true, nombre: true } },
@@ -30,6 +32,29 @@ function enrichVigencia(items) {
         vigente: row.id === latestId,
         obsoleto: row.id !== latestId,
     }));
+}
+function buildEraListWhere(query) {
+    const where = { tipo: 'ERA' };
+    const unidad = (0, httpQuery_js_1.firstQueryString)(query.unidad)?.trim();
+    if (unidad) {
+        where.carro = { nomenclatura: unidad };
+    }
+    const desde = (0, httpQuery_js_1.firstQueryString)(query.desde);
+    const hasta = (0, httpQuery_js_1.firstQueryString)(query.hasta);
+    const desdeOk = Boolean(desde && !Number.isNaN(Date.parse(desde)));
+    const hastaOk = Boolean(hasta && !Number.isNaN(Date.parse(hasta)));
+    if (desdeOk || hastaOk) {
+        const fechaFilter = {};
+        if (desdeOk)
+            fechaFilter.gte = new Date(desde);
+        if (hastaOk) {
+            const d = new Date(hasta);
+            d.setHours(23, 59, 59, 999);
+            fechaFilter.lte = d;
+        }
+        where.fecha = fechaFilter;
+    }
+    return where;
 }
 function enrichVigenciaPor(items, keyFn) {
     const latestByKey = new Map();
@@ -165,7 +190,7 @@ exports.checklistsRouter.get('/plantillas/:tipo/:unidad', async (req, res) => {
     const tipo = String(req.params.tipo ?? '');
     const unidad = String(req.params.unidad ?? '').trim();
     if (!unidad) {
-        res.status(400).json({ error: 'Unidad requerida' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'CHECKLIST_UNIDAD_REQUERIDA', 'Unidad requerida');
         return;
     }
     try {
@@ -174,23 +199,23 @@ exports.checklistsRouter.get('/plantillas/:tipo/:unidad', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al cargar plantilla' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'CHECKLIST_PLANTILLA_CARGA', 'Error al cargar plantilla');
     }
 });
 exports.checklistsRouter.put('/plantillas/:tipo/:unidad', (0, roles_js_1.requireRoles)('ADMIN', 'CAPITAN', 'TENIENTE'), async (req, res) => {
     const tipo = String(req.params.tipo ?? '').trim().toUpperCase();
     const unidad = String(req.params.unidad ?? '').trim();
     if (!unidad) {
-        res.status(400).json({ error: 'Unidad requerida' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'CHECKLIST_UNIDAD_REQUERIDA', 'Unidad requerida');
         return;
     }
     if (tipo !== 'TRAUMA' && tipo !== 'ERA') {
-        res.status(400).json({ error: 'Solo se pueden guardar plantillas TRAUMA o ERA' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'CHECKLIST_PLANTILLA_TIPO', 'Solo se pueden guardar plantillas TRAUMA o ERA');
         return;
     }
     const plantilla = req.body?.plantilla;
     if (plantilla === undefined || plantilla === null) {
-        res.status(400).json({ error: 'Cuerpo inválido' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'CHECKLIST_PLANTILLA_CUERPO', 'Cuerpo inválido');
         return;
     }
     try {
@@ -204,15 +229,13 @@ exports.checklistsRouter.put('/plantillas/:tipo/:unidad', (0, roles_js_1.require
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({
-            error: tipo === 'TRAUMA' ? 'Error al guardar plantilla trauma' : 'Error al guardar plantilla ERA',
-        });
+        (0, apiError_js_1.sendApiError)(res, 500, tipo === 'TRAUMA' ? 'CHECKLIST_PLANTILLA_TRAUMA_GUARDAR' : 'CHECKLIST_PLANTILLA_ERA_GUARDAR', tipo === 'TRAUMA' ? 'Error al guardar plantilla trauma' : 'Error al guardar plantilla ERA');
     }
 });
 exports.checklistsRouter.get('/unidad/:unidad/plantilla', async (req, res) => {
     const unidad = String(req.params.unidad ?? '').trim();
     if (!unidad) {
-        res.status(400).json({ error: 'Unidad requerida' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'CHECKLIST_UNIDAD_REQUERIDA', 'Unidad requerida');
         return;
     }
     try {
@@ -221,18 +244,18 @@ exports.checklistsRouter.get('/unidad/:unidad/plantilla', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al cargar plantilla de checklist unidad' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'CHECKLIST_UNIDAD_PLANTILLA_CARGA', 'Error al cargar plantilla de checklist unidad');
     }
 });
 exports.checklistsRouter.put('/unidad/:unidad/plantilla', (0, roles_js_1.requireRoles)('ADMIN', 'CAPITAN', 'TENIENTE'), async (req, res) => {
     const unidad = String(req.params.unidad ?? '').trim();
     if (!unidad) {
-        res.status(400).json({ error: 'Unidad requerida' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'CHECKLIST_UNIDAD_REQUERIDA', 'Unidad requerida');
         return;
     }
     const ubicaciones = normalizarPlantillaUnidad(req.body?.ubicaciones);
     if (ubicaciones.length === 0) {
-        res.status(400).json({ error: 'La plantilla debe incluir al menos un compartimiento con materiales.' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'CHECKLIST_UNIDAD_PLANTILLA_VACIA', 'La plantilla debe incluir al menos un compartimiento con materiales.');
         return;
     }
     try {
@@ -251,19 +274,19 @@ exports.checklistsRouter.put('/unidad/:unidad/plantilla', (0, roles_js_1.require
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al guardar plantilla de checklist unidad' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'CHECKLIST_UNIDAD_PLANTILLA_GUARDAR', 'Error al guardar plantilla de checklist unidad');
     }
 });
 exports.checklistsRouter.get('/unidad/:unidad/historial', async (req, res) => {
     const unidad = req.params.unidad;
     if (!unidad) {
-        res.status(400).json({ error: 'Unidad requerida' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'CHECKLIST_UNIDAD_REQUERIDA', 'Unidad requerida');
         return;
     }
     try {
         const carro = await prisma_js_1.prisma.carro.findUnique({ where: { nomenclatura: unidad } });
         if (!carro) {
-            res.status(404).json({ error: 'Unidad no encontrada' });
+            (0, apiError_js_1.sendApiError)(res, 404, 'CHECKLIST_UNIDAD_NO_ENCONTRADA', 'Unidad no encontrada');
             return;
         }
         const items = await prisma_js_1.prisma.checklistCarro.findMany({
@@ -280,19 +303,19 @@ exports.checklistsRouter.get('/unidad/:unidad/historial', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al cargar historial de checklist' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'CHECKLIST_HISTORIAL_UNIDAD', 'Error al cargar historial de checklist');
     }
 });
 exports.checklistsRouter.get('/unidad/:unidad/historial-era', async (req, res) => {
     const unidad = req.params.unidad;
     if (!unidad) {
-        res.status(400).json({ error: 'Unidad requerida' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'CHECKLIST_UNIDAD_REQUERIDA', 'Unidad requerida');
         return;
     }
     try {
         const carro = await prisma_js_1.prisma.carro.findUnique({ where: { nomenclatura: unidad } });
         if (!carro) {
-            res.status(404).json({ error: 'Unidad no encontrada' });
+            (0, apiError_js_1.sendApiError)(res, 404, 'CHECKLIST_UNIDAD_NO_ENCONTRADA', 'Unidad no encontrada');
             return;
         }
         const items = await prisma_js_1.prisma.checklistCarro.findMany({
@@ -309,7 +332,7 @@ exports.checklistsRouter.get('/unidad/:unidad/historial-era', async (req, res) =
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al cargar historial ERA' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'CHECKLIST_HISTORIAL_ERA_UNIDAD', 'Error al cargar historial ERA');
     }
 });
 exports.checklistsRouter.get('/selector', async (_req, res) => {
@@ -355,19 +378,19 @@ exports.checklistsRouter.get('/selector', async (_req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al cargar resumen checklist' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'CHECKLIST_SELECTOR', 'Error al cargar resumen checklist');
     }
 });
 exports.checklistsRouter.get('/unidad/:unidad', async (req, res) => {
     const unidad = req.params.unidad;
     if (!unidad) {
-        res.status(400).json({ error: 'Unidad requerida' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'CHECKLIST_UNIDAD_REQUERIDA', 'Unidad requerida');
         return;
     }
     try {
         const carro = await prisma_js_1.prisma.carro.findUnique({ where: { nomenclatura: unidad } });
         if (!carro) {
-            res.status(404).json({ error: 'Unidad no encontrada' });
+            (0, apiError_js_1.sendApiError)(res, 404, 'CHECKLIST_UNIDAD_NO_ENCONTRADA', 'Unidad no encontrada');
             return;
         }
         const checklist = await prisma_js_1.prisma.checklistCarro.findFirst({
@@ -388,7 +411,7 @@ exports.checklistsRouter.get('/unidad/:unidad', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al obtener checklist de unidad' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'CHECKLIST_UNIDAD_OBTENER', 'Error al obtener checklist de unidad');
     }
 });
 exports.checklistsRouter.post('/unidad/:unidad', async (req, res) => {
@@ -396,13 +419,13 @@ exports.checklistsRouter.post('/unidad/:unidad', async (req, res) => {
     const body = req.body;
     const cuarteleroUnidadId = body.cuarteleroId;
     if (!unidad || typeof cuarteleroUnidadId !== 'number') {
-        res.status(400).json({ error: 'Unidad y cuarteleroId son requeridos' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'CHECKLIST_UNIDAD_CUARTELERO', 'Unidad y cuarteleroId son requeridos');
         return;
     }
     try {
         const carro = await prisma_js_1.prisma.carro.findUnique({ where: { nomenclatura: unidad } });
         if (!carro) {
-            res.status(404).json({ error: 'Unidad no encontrada' });
+            (0, apiError_js_1.sendApiError)(res, 404, 'CHECKLIST_UNIDAD_NO_ENCONTRADA', 'Unidad no encontrada');
             return;
         }
         const totalItems = typeof body.totalItems === 'number' ? body.totalItems : null;
@@ -449,7 +472,58 @@ exports.checklistsRouter.post('/unidad/:unidad', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al guardar checklist de unidad' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'CHECKLIST_UNIDAD_GUARDAR', 'Error al guardar checklist de unidad');
+    }
+});
+exports.checklistsRouter.get('/era/ultimos-por-unidad', async (_req, res) => {
+    try {
+        const carros = await prisma_js_1.prisma.carro.findMany({
+            select: { id: true },
+            orderBy: { nomenclatura: 'asc' },
+        });
+        const rowList = await Promise.all(carros.map((c) => prisma_js_1.prisma.checklistCarro.findFirst({
+            where: { carroId: c.id, tipo: 'ERA' },
+            orderBy: { fecha: 'desc' },
+            include: includeChecklist,
+        })));
+        const rows = rowList.filter((r) => r != null);
+        const enriched = enrichVigenciaPor(rows, (r) => r.carroId).map((row) => ({
+            ...row,
+            estadoChecklist: estadoChecklistDesdeTotalesYObs(row.totalItems, row.itemsOk, row.observaciones),
+        }));
+        res.json(enriched);
+    }
+    catch (e) {
+        console.error(e);
+        (0, apiError_js_1.sendApiError)(res, 500, 'CHECKLIST_ERA_ULTIMOS', 'Error al cargar últimos ERA por unidad.');
+    }
+});
+exports.checklistsRouter.get('/era/pagina', async (req, res) => {
+    const page = Math.max(1, parseInt(String((0, httpQuery_js_1.firstQueryString)(req.query.page) ?? '1'), 10) || 1);
+    const rawSize = parseInt(String((0, httpQuery_js_1.firstQueryString)(req.query.pageSize) ?? '10'), 10) || 10;
+    const pageSize = Math.min(100, Math.max(1, rawSize));
+    const where = buildEraListWhere(req.query);
+    try {
+        const [total, checks] = await Promise.all([
+            prisma_js_1.prisma.checklistCarro.count({ where }),
+            prisma_js_1.prisma.checklistCarro.findMany({
+                where,
+                orderBy: { fecha: 'desc' },
+                skip: (page - 1) * pageSize,
+                take: pageSize,
+                include: includeChecklist,
+            }),
+        ]);
+        const enriched = enrichVigenciaPor(checks, (r) => r.carroId).map((row) => ({
+            ...row,
+            estadoChecklist: estadoChecklistDesdeTotalesYObs(row.totalItems, row.itemsOk, row.observaciones),
+        }));
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        res.json({ items: enriched, total, page, pageSize, totalPages });
+    }
+    catch (e) {
+        console.error(e);
+        (0, apiError_js_1.sendApiError)(res, 500, 'CHECKLIST_ERA_PAGINA', 'Error al listar checklist ERA paginado.');
     }
 });
 exports.checklistsRouter.get('/era', async (_req, res) => {
@@ -468,19 +542,19 @@ exports.checklistsRouter.get('/era', async (_req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al listar checklist ERA' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'CHECKLIST_ERA_LIST', 'Error al listar checklist ERA');
     }
 });
 exports.checklistsRouter.post('/era', async (req, res) => {
     const body = req.body;
     if (!body.unidad || typeof body.cuarteleroId !== 'number') {
-        res.status(400).json({ error: 'unidad y cuarteleroId son requeridos' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'CHECKLIST_ERA_CUARTELERO', 'unidad y cuarteleroId son requeridos');
         return;
     }
     try {
         const carro = await prisma_js_1.prisma.carro.findUnique({ where: { nomenclatura: body.unidad } });
         if (!carro) {
-            res.status(404).json({ error: 'Unidad no encontrada' });
+            (0, apiError_js_1.sendApiError)(res, 404, 'CHECKLIST_UNIDAD_NO_ENCONTRADA', 'Unidad no encontrada');
             return;
         }
         const totalItems = typeof body.totalItems === 'number' ? body.totalItems : null;
@@ -512,7 +586,7 @@ exports.checklistsRouter.post('/era', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al guardar checklist ERA' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'CHECKLIST_ERA_GUARDAR', 'Error al guardar checklist ERA');
     }
 });
 //# sourceMappingURL=checklists.js.map

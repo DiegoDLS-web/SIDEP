@@ -21,6 +21,8 @@ describe('ChecklistEraComponent (estado)', () => {
           useValue: {
             historialEraUnidad: () => of([]),
             listarChecklistEra: () => of([]),
+            eraUltimosPorUnidad: () => of([]),
+            eraPagina: () => of({ items: [], total: 0, page: 1, pageSize: 10, totalPages: 1 }),
             obtenerPlantilla: () => of(null),
           } as Partial<ChecklistsService>,
         },

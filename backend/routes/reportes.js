@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.reportesRouter = void 0;
 const express_1 = require("express");
 const prisma_js_1 = require("../lib/prisma.js");
+const apiError_js_1 = require("../lib/apiError.js");
 exports.reportesRouter = (0, express_1.Router)();
 function esTipoExcluidoAsistencia(tipo) {
     const t = String(tipo ?? '')
@@ -88,11 +89,11 @@ exports.reportesRouter.get('/emergencias', async (req, res) => {
     const desde = req.query.desde ? new Date(String(req.query.desde)) : undefined;
     const hasta = req.query.hasta ? new Date(String(req.query.hasta)) : undefined;
     if (desde && Number.isNaN(desde.getTime())) {
-        res.status(400).json({ error: 'desde inválido' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'REPORTE_DESDE', 'desde inválido');
         return;
     }
     if (hasta && Number.isNaN(hasta.getTime())) {
-        res.status(400).json({ error: 'hasta inválido' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'REPORTE_HASTA', 'hasta inválido');
         return;
     }
     try {
@@ -145,7 +146,7 @@ exports.reportesRouter.get('/emergencias', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'No se pudo generar reporte de emergencias' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'REPORTE_EMERGENCIAS', 'No se pudo generar reporte de emergencias');
     }
 });
 exports.reportesRouter.get('/analitica-operacional', async (req, res) => {
@@ -153,7 +154,7 @@ exports.reportesRouter.get('/analitica-operacional', async (req, res) => {
     const anio = Number(req.query.anio) || hoy.getFullYear();
     const mes = Number(req.query.mes) || hoy.getMonth() + 1;
     if (!Number.isFinite(anio) || !Number.isFinite(mes) || mes < 1 || mes > 12) {
-        res.status(400).json({ error: 'anio/mes inválidos' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'REPORTE_ANIO_MES', 'anio/mes inválidos');
         return;
     }
     const inicio = new Date(anio, mes - 1, 1, 0, 0, 0, 0);
@@ -419,7 +420,7 @@ exports.reportesRouter.get('/analitica-operacional', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'No se pudo generar analítica operacional' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'REPORTE_ANALITICA', 'No se pudo generar analítica operacional');
     }
 });
 exports.reportesRouter.get('/cuadro-honor', async (req, res) => {
@@ -427,7 +428,7 @@ exports.reportesRouter.get('/cuadro-honor', async (req, res) => {
     const anio = Number(req.query.anio) || hoy.getFullYear();
     const mes = Number(req.query.mes) || hoy.getMonth() + 1;
     if (!Number.isFinite(anio) || !Number.isFinite(mes) || mes < 1 || mes > 12) {
-        res.status(400).json({ error: 'anio/mes inválidos' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'REPORTE_ANIO_MES', 'anio/mes inválidos');
         return;
     }
     const inicioMes = new Date(anio, mes - 1, 1);
@@ -513,7 +514,7 @@ exports.reportesRouter.get('/cuadro-honor', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'No se pudo generar cuadro de honor' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'REPORTE_CUADRO_HONOR', 'No se pudo generar cuadro de honor');
     }
 });
 //# sourceMappingURL=reportes.js.map

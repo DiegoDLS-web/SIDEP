@@ -3,10 +3,11 @@
     routerLink="/"
     class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212]/90 px-3 py-2 text-sm text-slate-300 shadow-sm ring-1 ring-white/5 transition-colors hover:border-slate-600 hover:text-white"
   >
-    <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+    <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
     Volver al inicio
   </a>
   <section
+    sidScrollReveal
     class="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-[radial-gradient(circle_at_0%_0%,rgba(59,130,246,0.2),transparent_45%),radial-gradient(circle_at_100%_0%,rgba(220,38,38,0.15),transparent_42%),#0a0a0a] p-5 sm:p-6"
   >
     <div class="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -22,19 +23,19 @@
         class="inline-flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-red-900/20 transition-all hover:bg-red-700 hover:shadow-red-900/30 sm:w-auto"
         (click)="abrirNuevo()"
       >
-        <lucide-icon name="plus" class="h-5 w-5" [size]="20" color="currentColor" />
+        <lucide-icon name="plus" class="h-5 w-5" [size]="20" color="currentColor" aria-hidden="true" />
         Nuevo usuario
       </button>
     </div>
   </section>
 
-  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+  <div sidScrollReveal class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
     <div class="rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-800/40 to-transparent p-4 ring-1 ring-inset ring-white/5">
       <div class="mb-2 flex items-center justify-between">
         <lucide-icon name="users" class="h-6 w-6 text-blue-400" [size]="24" color="currentColor" />
         <span class="text-xs uppercase tracking-wide text-slate-500">Total</span>
       </div>
-      <p class="text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ usuarios.length }}</p>
+      <p class="text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ metricas?.totalSistema ?? totalLista }}</p>
       <p class="text-sm text-slate-400">Usuarios</p>
     </div>
     <div class="rounded-xl border border-emerald-800/40 bg-gradient-to-br from-emerald-950/30 to-transparent p-4 ring-1 ring-inset ring-white/5">
@@ -42,7 +43,7 @@
         <lucide-icon name="circle-check" class="h-6 w-6 text-emerald-400" [size]="24" color="currentColor" />
         <span class="text-xs uppercase tracking-wide text-slate-500">Activo</span>
       </div>
-      <p class="text-2xl font-bold tabular-nums text-emerald-300 sm:text-3xl">{{ totalActivos() }}</p>
+      <p class="text-2xl font-bold tabular-nums text-emerald-300 sm:text-3xl">{{ metricas?.activos ?? '—' }}</p>
       <p class="text-sm text-slate-400">Vigentes / activos</p>
     </div>
     <div class="rounded-xl border border-amber-800/40 bg-gradient-to-br from-amber-950/25 to-transparent p-4 ring-1 ring-inset ring-white/5">
@@ -50,7 +51,7 @@
         <lucide-icon name="heart-pulse" class="h-6 w-6 text-amber-400" [size]="24" color="currentColor" />
         <span class="text-xs uppercase tracking-wide text-slate-500">Licencia</span>
       </div>
-      <p class="text-2xl font-bold tabular-nums text-amber-200 sm:text-3xl">{{ totalConLicencia() }}</p>
+      <p class="text-2xl font-bold tabular-nums text-amber-200 sm:text-3xl">{{ metricas?.conLicencia ?? '—' }}</p>
       <p class="text-sm text-slate-400">Con licencia</p>
     </div>
     <div class="rounded-xl border border-red-900/40 bg-gradient-to-br from-red-950/30 to-transparent p-4 ring-1 ring-inset ring-white/5">
@@ -58,12 +59,12 @@
         <lucide-icon name="triangle-alert" class="h-6 w-6 text-red-400" [size]="24" color="currentColor" />
         <span class="text-xs uppercase tracking-wide text-slate-500">Susp.</span>
       </div>
-      <p class="text-2xl font-bold tabular-nums text-red-200 sm:text-3xl">{{ totalConSuspension() }}</p>
+      <p class="text-2xl font-bold tabular-nums text-red-200 sm:text-3xl">{{ metricas?.suspension ?? '—' }}</p>
       <p class="text-sm text-slate-400">Suspensión / alerta</p>
     </div>
   </div>
 
-  <div class="rounded-2xl border border-gray-800 bg-[#121212] p-4 sm:p-5 shadow-lg shadow-black/20">
+  <div sidScrollReveal class="rounded-2xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-4 sm:p-5 shadow-lg shadow-black/20">
     <div class="relative">
       <span class="pointer-events-none absolute inset-y-0 left-0 flex w-12 items-center justify-center text-slate-400 md:w-14">
         <lucide-icon name="search" class="h-5 w-5 shrink-0" [size]="20" color="currentColor" aria-hidden="true" />
@@ -411,7 +412,7 @@
     </div>
   } @else {
     <div class="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3">
-      @for (usuario of filtradosPagina; track usuario.id) {
+      @for (usuario of usuariosPagina; track usuario.id) {
         <div
           class="sid-list-item-enter group relative overflow-hidden rounded-2xl border border-gray-800/90 bg-[#121212] p-5 pt-12 transition-all duration-200 hover:border-red-900/45 hover:shadow-xl hover:shadow-red-950/25 sm:pt-8"
         >
@@ -505,12 +506,12 @@
         </div>
       }
     </div>
-    @if (!loading && filtrados.length > 0 && totalPaginas > 1) {
+    @if (!loading && totalLista > 0 && totalPaginas > 1) {
       <div class="mt-6 flex flex-col items-center justify-center gap-3 border-t border-gray-800/80 pt-4 sm:flex-row sm:justify-between">
         <p class="text-sm text-slate-400">
           Página <span class="tabular-nums text-slate-200">{{ paginaLista }}</span> de
           <span class="tabular-nums text-slate-200">{{ totalPaginas }}</span>
-          <span class="text-slate-500"> · {{ filtrados.length }} usuarios</span>
+          <span class="text-slate-500"> · {{ totalLista }} usuarios</span>
         </p>
         <div class="flex flex-wrap items-center justify-center gap-2">
           <button
@@ -518,6 +519,7 @@
             class="rounded-xl border border-slate-600 bg-slate-800/80 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
             (click)="cambiarPagina(-1)"
             [disabled]="paginaLista <= 1"
+            aria-label="Ir a la página anterior del listado"
           >
             Anterior
           </button>
@@ -526,6 +528,7 @@
             class="rounded-xl border border-slate-600 bg-slate-800/80 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
             (click)="cambiarPagina(1)"
             [disabled]="paginaLista >= totalPaginas"
+            aria-label="Ir a la página siguiente del listado"
           >
             Siguiente
           </button>
@@ -534,7 +537,7 @@
     }
   }
 
-  @if (!loading && filtrados.length === 0) {
+  @if (!loading && totalLista === 0) {
     <div class="rounded-2xl border border-dashed border-slate-700 bg-[#121212]/80 p-12 text-center">
       <lucide-icon name="users" class="sid-empty-icon mx-auto mb-3 h-12 w-12 text-slate-600" [size]="48" color="currentColor" />
       <p class="text-slate-400">No se encontraron usuarios</p>

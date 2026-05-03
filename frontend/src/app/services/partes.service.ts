@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable, catchError, of } from 'rxjs';
 import type {
@@ -36,6 +36,20 @@ export type CrearPartePayload = {
 export type ActualizarPartePayload = Partial<
   Omit<CrearPartePayload, 'borrador'>
 >;
+
+export type PartesPaginaResp = {
+  items: ParteEmergenciaDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export type PartesMetricasResp = {
+  totalSistema: number;
+  enAnioActual: number;
+  enMesActual: number;
+};
 
 @Injectable({ providedIn: 'root' })
 export class PartesService {
@@ -141,6 +155,82 @@ export class PartesService {
 
   listar(): Observable<ParteEmergenciaDto[]> {
     return this.http.get<ParteEmergenciaDto[]>('/api/partes').pipe(catchError(() => of(this.demoPartes)));
+  }
+
+  /** Listado paginado con filtros (servidor). */
+  listarPagina(opts: {
+    page: number;
+    pageSize: number;
+    tipo?: string;
+    q?: string;
+    desde?: string;
+    hasta?: string;
+  }): Observable<PartesPaginaResp> {
+    let p = new HttpParams().set('page', String(opts.page)).set('pageSize', String(opts.pageSize));
+    if (opts.tipo) {
+      p = p.set('tipo', opts.tipo);
+    }
+    if (opts.q) {
+      p = p.set('q', opts.q);
+    }
+    if (opts.desde) {
+      p = p.set('desde', opts.desde);
+    }
+    if (opts.hasta) {
+      p = p.set('hasta', opts.hasta);
+    }
+    return this.http.get<PartesPaginaResp>('/api/partes/pagina', { params: p }).pipe(
+      catchError(() => of(this.demoPagina(opts))),
+    );
+  }
+
+  /** Totales globales para tarjetas del listado de partes. */
+  metricas(): Observable<PartesMetricasResp> {
+    return this.http.get<PartesMetricasResp>('/api/partes/metricas').pipe(catchError(() => of(this.demoMetricas())));
+  }
+
+  private demoPagina(opts: {
+    page: number;
+    pageSize: number;
+    tipo?: string;
+    q?: string;
+    desde?: string;
+    hasta?: string;
+  }): PartesPaginaResp {
+    let rows = [...this.demoPartes];
+    if (opts.tipo) {
+      rows = rows.filter((p) => p.claveEmergencia === opts.tipo);
+    }
+    if (opts.q) {
+      const qq = opts.q.toLowerCase();
+      rows = rows.filter((p) => p.direccion.toLowerCase().includes(qq));
+    }
+    if (opts.desde) {
+      const d0 = new Date(opts.desde).getTime();
+      rows = rows.filter((p) => new Date(p.fecha).getTime() >= d0);
+    }
+    if (opts.hasta) {
+      const d1 = new Date(opts.hasta).getTime();
+      rows = rows.filter((p) => new Date(p.fecha).getTime() <= d1);
+    }
+    const total = rows.length;
+    const i = (opts.page - 1) * opts.pageSize;
+    const items = rows.slice(i, i + opts.pageSize);
+    const totalPages = Math.max(1, Math.ceil(total / opts.pageSize));
+    return { items, total, page: opts.page, pageSize: opts.pageSize, totalPages };
+  }
+
+  private demoMetricas(): PartesMetricasResp {
+    const y = new Date().getFullYear();
+    const m = new Date().getMonth();
+    return {
+      totalSistema: this.demoPartes.length,
+      enAnioActual: this.demoPartes.filter((p) => new Date(p.fecha).getFullYear() === y).length,
+      enMesActual: this.demoPartes.filter((p) => {
+        const d = new Date(p.fecha);
+        return d.getFullYear() === y && d.getMonth() === m;
+      }).length,
+    };
   }
 
   obtener(id: number): Observable<ParteEmergenciaDto> {

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { sendApiError } from '../lib/apiError.js';
 
 export const reportesRouter = Router();
 
@@ -95,11 +96,11 @@ reportesRouter.get('/emergencias', async (req, res) => {
   const desde = req.query.desde ? new Date(String(req.query.desde)) : undefined;
   const hasta = req.query.hasta ? new Date(String(req.query.hasta)) : undefined;
   if (desde && Number.isNaN(desde.getTime())) {
-    res.status(400).json({ error: 'desde inválido' });
+    sendApiError(res, 400, 'REPORTE_DESDE', 'desde inválido');
     return;
   }
   if (hasta && Number.isNaN(hasta.getTime())) {
-    res.status(400).json({ error: 'hasta inválido' });
+    sendApiError(res, 400, 'REPORTE_HASTA', 'hasta inválido');
     return;
   }
   try {
@@ -152,7 +153,7 @@ reportesRouter.get('/emergencias', async (req, res) => {
     });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'No se pudo generar reporte de emergencias' });
+    sendApiError(res, 500, 'REPORTE_EMERGENCIAS', 'No se pudo generar reporte de emergencias');
   }
 });
 
@@ -161,7 +162,7 @@ reportesRouter.get('/analitica-operacional', async (req, res) => {
   const anio = Number(req.query.anio) || hoy.getFullYear();
   const mes = Number(req.query.mes) || hoy.getMonth() + 1;
   if (!Number.isFinite(anio) || !Number.isFinite(mes) || mes < 1 || mes > 12) {
-    res.status(400).json({ error: 'anio/mes inválidos' });
+    sendApiError(res, 400, 'REPORTE_ANIO_MES', 'anio/mes inválidos');
     return;
   }
 
@@ -447,7 +448,7 @@ reportesRouter.get('/analitica-operacional', async (req, res) => {
     });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'No se pudo generar analítica operacional' });
+    sendApiError(res, 500, 'REPORTE_ANALITICA', 'No se pudo generar analítica operacional');
   }
 });
 
@@ -456,7 +457,7 @@ reportesRouter.get('/cuadro-honor', async (req, res) => {
   const anio = Number(req.query.anio) || hoy.getFullYear();
   const mes = Number(req.query.mes) || hoy.getMonth() + 1;
   if (!Number.isFinite(anio) || !Number.isFinite(mes) || mes < 1 || mes > 12) {
-    res.status(400).json({ error: 'anio/mes inválidos' });
+    sendApiError(res, 400, 'REPORTE_ANIO_MES', 'anio/mes inválidos');
     return;
   }
   const inicioMes = new Date(anio, mes - 1, 1);
@@ -548,6 +549,6 @@ reportesRouter.get('/cuadro-honor', async (req, res) => {
     });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'No se pudo generar cuadro de honor' });
+    sendApiError(res, 500, 'REPORTE_CUADRO_HONOR', 'No se pudo generar cuadro de honor');
   }
 });

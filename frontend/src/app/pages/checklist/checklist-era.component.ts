@@ -184,6 +184,10 @@ export class ChecklistEraComponent implements OnInit {
   historialEra: ChecklistRegistroDto[] = [];
   historialLoading = false;
   historialGeneral: ChecklistRegistroDto[] = [];
+  /** Último ERA por unidad (métricas y tarjetas por carro). */
+  historialUltimosPorUnidad: ChecklistRegistroDto[] = [];
+  /** Total de registros ERA que cumplen filtros de la tabla (servidor). */
+  totalHistorialEra = 0;
   historialGeneralLoading = false;
   historialGeneralError: string | null = null;
   filtroUnidad = '';
@@ -466,7 +470,9 @@ export class ChecklistEraComponent implements OnInit {
     registros: number;
   } {
     const ultimaPorUnidad = new Map<string, ChecklistRegistroDto>();
-    for (const row of [...this.historialGeneral].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())) {
+    for (const row of [...this.historialUltimosPorUnidad].sort(
+      (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
+    )) {
       const key = row.carro?.nomenclatura ?? '';
       if (!key || ultimaPorUnidad.has(key)) continue;
       ultimaPorUnidad.set(key, row);
@@ -489,7 +495,7 @@ export class ChecklistEraComponent implements OnInit {
       operativos,
       noOperativos,
       equiposPorUnidad,
-      registros: this.historialGeneral.length,
+      registros: this.totalHistorialEra,
     };
   }
 
@@ -503,7 +509,7 @@ export class ChecklistEraComponent implements OnInit {
     ultimaObac: string;
     faltantes: number;
   } {
-    const rows = this.historialGeneral
+    const rows = this.historialUltimosPorUnidad
       .filter((h) => h.carro?.nomenclatura === carro.nomenclatura)
       .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
     const ultimo = rows[0];
@@ -809,62 +815,73 @@ export class ChecklistEraComponent implements OnInit {
     });
   }
 
-  cargarHistorialGeneral(): void {
-    this.historialGeneralLoading = true;
-    this.historialGeneralError = null;
-    this.checklistsApi.listarChecklistEra().subscribe({
+  private cargarUltimosEraPorUnidad(): void {
+    this.checklistsApi.eraUltimosPorUnidad().subscribe({
       next: (rows) => {
-        this.historialGeneral = rows ?? [];
-        this.paginaHistorial = 1;
-        this.historialGeneralLoading = false;
+        this.historialUltimosPorUnidad = rows ?? [];
       },
       error: () => {
-        this.historialGeneral = [];
-        this.historialGeneralLoading = false;
-        this.historialGeneralError = 'No se pudo cargar el historial ERA.';
+        this.historialUltimosPorUnidad = [];
       },
     });
   }
 
-  historialGeneralFiltrado(): ChecklistRegistroDto[] {
-    return this.historialGeneral.filter((h) => {
-      const unidad = h.carro?.nomenclatura ?? '';
-      if (this.filtroUnidad && unidad !== this.filtroUnidad) {
-        return false;
-      }
-      const ts = new Date(h.fecha).getTime();
-      if (Number.isNaN(ts)) {
-        return false;
-      }
-      if (this.filtroDesde) {
-        const desdeTs = new Date(`${this.filtroDesde}T00:00:00`).getTime();
-        if (!Number.isNaN(desdeTs) && ts < desdeTs) return false;
-      }
-      if (this.filtroHasta) {
-        const hastaTs = new Date(`${this.filtroHasta}T23:59:59`).getTime();
-        if (!Number.isNaN(hastaTs) && ts > hastaTs) return false;
-      }
-      return true;
-    });
+  private cargarTablaHistorialEra(): void {
+    this.historialGeneralLoading = true;
+    this.historialGeneralError = null;
+    this.checklistsApi
+      .eraPagina({
+        page: this.paginaHistorial,
+        pageSize: this.tamanioPaginaHistorial,
+        unidad: this.filtroUnidad || undefined,
+        desde: this.filtroDesde || undefined,
+        hasta: this.filtroHasta || undefined,
+      })
+      .subscribe({
+        next: (p) => {
+          if (p.totalPages > 0 && this.paginaHistorial > p.totalPages) {
+            this.paginaHistorial = p.totalPages;
+            this.cargarTablaHistorialEra();
+            return;
+          }
+          this.historialGeneral = p.items ?? [];
+          this.totalHistorialEra = p.total ?? 0;
+          this.historialGeneralLoading = false;
+        },
+        error: () => {
+          this.historialGeneral = [];
+          this.totalHistorialEra = 0;
+          this.historialGeneralLoading = false;
+          this.historialGeneralError = 'No se pudo cargar el historial ERA.';
+        },
+      });
+  }
+
+  cargarHistorialGeneral(): void {
+    this.cargarUltimosEraPorUnidad();
+    this.cargarTablaHistorialEra();
   }
 
   totalPaginasHistorial(): number {
-    return Math.max(1, Math.ceil(this.historialGeneralFiltrado().length / this.tamanioPaginaHistorial));
+    return Math.max(1, Math.ceil(this.totalHistorialEra / this.tamanioPaginaHistorial));
   }
 
   historialGeneralPaginado(): ChecklistRegistroDto[] {
-    const inicio = (this.paginaHistorial - 1) * this.tamanioPaginaHistorial;
-    return this.historialGeneralFiltrado().slice(inicio, inicio + this.tamanioPaginaHistorial);
+    return this.historialGeneral;
   }
 
   cambiarPaginaHistorial(delta: number): void {
     const next = this.paginaHistorial + delta;
     const total = this.totalPaginasHistorial();
-    this.paginaHistorial = Math.min(Math.max(next, 1), total);
+    const clamped = Math.min(Math.max(next, 1), total);
+    if (clamped === this.paginaHistorial) return;
+    this.paginaHistorial = clamped;
+    this.cargarTablaHistorialEra();
   }
 
   aplicarFiltrosHistorialEra(): void {
     this.paginaHistorial = 1;
+    this.cargarTablaHistorialEra();
   }
 
   fechaHoraCard(iso: string | null | undefined): { fecha: string; hora: string } {
@@ -895,8 +912,8 @@ export class ChecklistEraComponent implements OnInit {
   }
 
   ultimaRevisionGeneralTexto(): string {
-    if (this.historialGeneral.length === 0) return '—';
-    const ultima = [...this.historialGeneral].sort(
+    if (this.historialUltimosPorUnidad.length === 0) return '—';
+    const ultima = [...this.historialUltimosPorUnidad].sort(
       (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
     )[0];
     if (!ultima?.fecha) return '—';

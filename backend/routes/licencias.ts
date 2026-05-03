@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import multer from 'multer';
 import { prisma } from '../lib/prisma.js';
+import { sendApiError } from '../lib/apiError.js';
 
 export const licenciasRouter = Router();
 
@@ -71,7 +72,7 @@ async function puedeRevisar(uid: number, rolRaw: string | undefined): Promise<bo
 licenciasRouter.get('/activas', async (req, res) => {
   const fecha = parseDate(req.query.fecha);
   if (!fecha) {
-    res.status(400).json({ error: 'fecha inválida (YYYY-MM-DD)' });
+    sendApiError(res, 400, 'LICENCIAS_FECHA', 'fecha inválida (YYYY-MM-DD)');
     return;
   }
   const base = new Date(fecha);
@@ -94,25 +95,25 @@ licenciasRouter.get('/activas', async (req, res) => {
     res.json(rows);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'No se pudo listar licencias activas' });
+    sendApiError(res, 500, 'LICENCIAS_ACTIVAS', 'No se pudo listar licencias activas');
   }
 });
 
 licenciasRouter.get('/resumen', async (req, res) => {
   const uid = req.user?.uid;
   if (!uid) {
-    res.status(401).json({ error: 'No autorizado' });
+    sendApiError(res, 401, 'LICENCIAS_UNAUTHORIZED', 'No autorizado');
     return;
   }
   const fecha = req.query.fecha ? parseDate(req.query.fecha) : new Date();
   if (!fecha) {
-    res.status(400).json({ error: 'fecha inválida (YYYY-MM-DD)' });
+    sendApiError(res, 400, 'LICENCIAS_FECHA', 'fecha inválida (YYYY-MM-DD)');
     return;
   }
   try {
     const ok = await puedeRevisar(uid, req.user?.rol);
     if (!ok) {
-      res.status(403).json({ error: 'Acceso denegado por rol/cargo' });
+      sendApiError(res, 403, 'LICENCIAS_FORBIDDEN_ROL', 'Acceso denegado por rol/cargo');
       return;
     }
     const base = new Date(fecha);
@@ -157,14 +158,14 @@ licenciasRouter.get('/resumen', async (req, res) => {
     });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'No se pudo cargar resumen de licencias' });
+    sendApiError(res, 500, 'LICENCIAS_RESUMEN', 'No se pudo cargar resumen de licencias');
   }
 });
 
 licenciasRouter.get('/mis', async (req, res) => {
   const uid = req.user?.uid;
   if (!uid) {
-    res.status(401).json({ error: 'No autorizado' });
+    sendApiError(res, 401, 'LICENCIAS_UNAUTHORIZED', 'No autorizado');
     return;
   }
   try {
@@ -179,19 +180,19 @@ licenciasRouter.get('/mis', async (req, res) => {
     res.json(rows);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'No se pudo listar historial de licencias' });
+    sendApiError(res, 500, 'LICENCIAS_HISTORIAL', 'No se pudo listar historial de licencias');
   }
 });
 
 licenciasRouter.get('/adjuntos/:filename', async (req, res) => {
   const uid = req.user?.uid;
   if (!uid) {
-    res.status(401).json({ error: 'No autorizado' });
+    sendApiError(res, 401, 'LICENCIAS_UNAUTHORIZED', 'No autorizado');
     return;
   }
   const filename = path.basename(String(req.params.filename || ''));
   if (!filename) {
-    res.status(400).json({ error: 'Archivo inválido' });
+    sendApiError(res, 400, 'LICENCIAS_ARCHIVO', 'Archivo inválido');
     return;
   }
   try {
@@ -200,36 +201,36 @@ licenciasRouter.get('/adjuntos/:filename', async (req, res) => {
       select: { usuarioId: true },
     });
     if (!row) {
-      res.status(404).json({ error: 'Adjunto no encontrado' });
+      sendApiError(res, 404, 'LICENCIAS_ADJUNTO_NO', 'Adjunto no encontrado');
       return;
     }
     const puedeVer = row.usuarioId === uid || (await puedeRevisar(uid, req.user?.rol));
     if (!puedeVer) {
-      res.status(403).json({ error: 'No autorizado para ver este adjunto' });
+      sendApiError(res, 403, 'LICENCIAS_ADJUNTO_FORBIDDEN', 'No autorizado para ver este adjunto');
       return;
     }
     const abs = path.resolve(uploadsLicenciasDir, filename);
     if (!abs.startsWith(uploadsLicenciasDir) || !fs.existsSync(abs)) {
-      res.status(404).json({ error: 'Adjunto no encontrado' });
+      sendApiError(res, 404, 'LICENCIAS_ADJUNTO_NO', 'Adjunto no encontrado');
       return;
     }
     res.sendFile(abs);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'No se pudo descargar adjunto' });
+    sendApiError(res, 500, 'LICENCIAS_ADJUNTO_DESCARGA', 'No se pudo descargar adjunto');
   }
 });
 
 licenciasRouter.get('/', async (req, res) => {
   const uid = req.user?.uid;
   if (!uid) {
-    res.status(401).json({ error: 'No autorizado' });
+    sendApiError(res, 401, 'LICENCIAS_UNAUTHORIZED', 'No autorizado');
     return;
   }
   try {
     const ok = await puedeRevisar(uid, req.user?.rol);
     if (!ok) {
-      res.status(403).json({ error: 'Acceso denegado por rol/cargo' });
+      sendApiError(res, 403, 'LICENCIAS_FORBIDDEN_ROL', 'Acceso denegado por rol/cargo');
       return;
     }
     const estadoRaw = String(req.query.estado ?? '').trim().toUpperCase();
@@ -248,14 +249,14 @@ licenciasRouter.get('/', async (req, res) => {
     res.json(rows);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'No se pudo listar licencias' });
+    sendApiError(res, 500, 'LICENCIAS_LIST', 'No se pudo listar licencias');
   }
 });
 
 licenciasRouter.post('/', uploadLicencia.single('adjunto'), async (req, res) => {
   const uid = req.user?.uid;
   if (!uid) {
-    res.status(401).json({ error: 'No autorizado' });
+    sendApiError(res, 401, 'LICENCIAS_UNAUTHORIZED', 'No autorizado');
     return;
   }
   const fechaInicio = parseDate(req.body?.fechaInicio);
@@ -263,11 +264,11 @@ licenciasRouter.post('/', uploadLicencia.single('adjunto'), async (req, res) => 
   const motivo = String(req.body?.motivo ?? '').trim();
   const archivoUrl = req.file ? `/api/licencias/adjuntos/${req.file.filename}` : null;
   if (!fechaInicio || !fechaTermino || !motivo) {
-    res.status(400).json({ error: 'fechaInicio, fechaTermino y motivo son obligatorios' });
+    sendApiError(res, 400, 'LICENCIAS_CREAR_CAMPOS', 'fechaInicio, fechaTermino y motivo son obligatorios');
     return;
   }
   if (fechaTermino.getTime() < fechaInicio.getTime()) {
-    res.status(400).json({ error: 'fechaTermino no puede ser menor a fechaInicio' });
+    sendApiError(res, 400, 'LICENCIAS_FECHAS_ORDEN', 'fechaTermino no puede ser menor a fechaInicio');
     return;
   }
   try {
@@ -287,7 +288,7 @@ licenciasRouter.post('/', uploadLicencia.single('adjunto'), async (req, res) => 
     res.status(201).json(created);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'No se pudo crear licencia médica' });
+    sendApiError(res, 500, 'LICENCIAS_CREAR', 'No se pudo crear licencia médica');
   }
 });
 
@@ -295,32 +296,32 @@ licenciasRouter.patch('/:id', async (req, res) => {
   const uid = req.user?.uid;
   const id = Number(req.params.id);
   if (!uid) {
-    res.status(401).json({ error: 'No autorizado' });
+    sendApiError(res, 401, 'LICENCIAS_UNAUTHORIZED', 'No autorizado');
     return;
   }
   if (!Number.isFinite(id) || id <= 0) {
-    res.status(400).json({ error: 'id inválido' });
+    sendApiError(res, 400, 'LICENCIAS_ID', 'id inválido');
     return;
   }
   try {
     const row = await prisma.licenciaMedica.findUnique({ where: { id } });
     if (!row) {
-      res.status(404).json({ error: 'Licencia no encontrada' });
+      sendApiError(res, 404, 'LICENCIAS_NO_ENCONTRADA', 'Licencia no encontrada');
       return;
     }
     if (row.usuarioId !== uid) {
-      res.status(403).json({ error: 'Solo puedes editar tus propias licencias' });
+      sendApiError(res, 403, 'LICENCIAS_EDITAR_PROPIA', 'Solo puedes editar tus propias licencias');
       return;
     }
     if (row.estado !== 'PENDIENTE') {
-      res.status(400).json({ error: 'Solo se puede editar una licencia PENDIENTE' });
+      sendApiError(res, 400, 'LICENCIAS_EDITAR_ESTADO', 'Solo se puede editar una licencia PENDIENTE');
       return;
     }
     const data: Record<string, unknown> = {};
     if (req.body?.fechaInicio !== undefined) {
       const d = parseDate(req.body.fechaInicio);
       if (!d) {
-        res.status(400).json({ error: 'fechaInicio inválida' });
+        sendApiError(res, 400, 'LICENCIAS_FECHA_INICIO', 'fechaInicio inválida');
         return;
       }
       data.fechaInicio = d;
@@ -328,7 +329,7 @@ licenciasRouter.patch('/:id', async (req, res) => {
     if (req.body?.fechaTermino !== undefined) {
       const d = parseDate(req.body.fechaTermino);
       if (!d) {
-        res.status(400).json({ error: 'fechaTermino inválida' });
+        sendApiError(res, 400, 'LICENCIAS_FECHA_TERMINO', 'fechaTermino inválida');
         return;
       }
       data.fechaTermino = d;
@@ -336,7 +337,7 @@ licenciasRouter.patch('/:id', async (req, res) => {
     if (req.body?.motivo !== undefined) {
       const m = String(req.body.motivo ?? '').trim();
       if (!m) {
-        res.status(400).json({ error: 'motivo no puede ir vacío' });
+        sendApiError(res, 400, 'LICENCIAS_MOTIVO', 'motivo no puede ir vacío');
         return;
       }
       data.motivo = m;
@@ -347,7 +348,7 @@ licenciasRouter.patch('/:id', async (req, res) => {
     const fi = (data.fechaInicio as Date | undefined) ?? row.fechaInicio;
     const ft = (data.fechaTermino as Date | undefined) ?? row.fechaTermino;
     if (ft.getTime() < fi.getTime()) {
-      res.status(400).json({ error: 'fechaTermino no puede ser menor a fechaInicio' });
+      sendApiError(res, 400, 'LICENCIAS_FECHAS_ORDEN', 'fechaTermino no puede ser menor a fechaInicio');
       return;
     }
     const updated = await prisma.licenciaMedica.update({
@@ -357,7 +358,7 @@ licenciasRouter.patch('/:id', async (req, res) => {
     res.json(updated);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'No se pudo actualizar licencia médica' });
+    sendApiError(res, 500, 'LICENCIAS_ACTUALIZAR', 'No se pudo actualizar licencia médica');
   }
 });
 
@@ -365,22 +366,22 @@ licenciasRouter.patch('/:id/estado', async (req, res) => {
   const uid = req.user?.uid;
   const id = Number(req.params.id);
   if (!uid) {
-    res.status(401).json({ error: 'No autorizado' });
+    sendApiError(res, 401, 'LICENCIAS_UNAUTHORIZED', 'No autorizado');
     return;
   }
   if (!Number.isFinite(id) || id <= 0) {
-    res.status(400).json({ error: 'id inválido' });
+    sendApiError(res, 400, 'LICENCIAS_ID', 'id inválido');
     return;
   }
   const estado = String(req.body?.estado ?? '').trim().toUpperCase();
   if (!ESTADOS_VALIDOS.has(estado)) {
-    res.status(400).json({ error: 'estado inválido' });
+    sendApiError(res, 400, 'LICENCIAS_ESTADO', 'estado inválido');
     return;
   }
   try {
     const ok = await puedeRevisar(uid, req.user?.rol);
     if (!ok) {
-      res.status(403).json({ error: 'Acceso denegado por rol/cargo' });
+      sendApiError(res, 403, 'LICENCIAS_FORBIDDEN_ROL', 'Acceso denegado por rol/cargo');
       return;
     }
     const updated = await prisma.licenciaMedica.update({
@@ -399,21 +400,26 @@ licenciasRouter.patch('/:id/estado', async (req, res) => {
     res.json(updated);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'No se pudo cambiar estado de licencia' });
+    sendApiError(res, 500, 'LICENCIAS_ESTADO_UPDATE', 'No se pudo cambiar estado de licencia');
   }
 });
 
 licenciasRouter.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      res.status(400).json({ error: 'El archivo supera 8 MB' });
+      sendApiError(res, 400, 'LICENCIAS_ADJUNTO_TAMANO', 'El archivo supera 8 MB');
       return;
     }
-    res.status(400).json({ error: 'Adjunto inválido' });
+    sendApiError(res, 400, 'LICENCIAS_ADJUNTO_INVALIDO', 'Adjunto inválido');
     return;
   }
   if (err instanceof Error && err.message.includes('Formato de archivo no permitido')) {
-    res.status(400).json({ error: 'Formato no permitido. Usa PDF o imagen (PNG/JPG/WEBP/GIF).' });
+    sendApiError(
+      res,
+      400,
+      'LICENCIAS_ADJUNTO_FORMATO',
+      'Formato no permitido. Usa PDF o imagen (PNG/JPG/WEBP/GIF).',
+    );
     return;
   }
   next(err);

@@ -222,11 +222,13 @@ import { Component, input } from '@angular/core';
     .sid-lockup-sub {
       margin: 0.45rem 0 0;
       padding: 0 0.15rem;
+      width: 100%;
+      box-sizing: border-box;
       font-size: 0.7rem;
       font-weight: 500;
       letter-spacing: 0.06em;
       color: #94a3b8;
-      text-align: left;
+      text-align: center;
       line-height: 1.25;
       max-width: 100%;
       overflow: hidden;
@@ -234,7 +236,6 @@ import { Component, input } from '@angular/core';
       white-space: nowrap;
     }
     :host(.sid-lockup--hero) .sid-lockup-sub {
-      text-align: center;
       font-size: 0.9rem;
       margin-top: 0.65rem;
       color: #cbd5e1;

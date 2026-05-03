@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.bolsosTraumaRouter = void 0;
 const express_1 = require("express");
 const prisma_js_1 = require("../lib/prisma.js");
+const apiError_js_1 = require("../lib/apiError.js");
 exports.bolsosTraumaRouter = (0, express_1.Router)();
 const includeChecklist = {
     carro: { select: { id: true, nomenclatura: true, nombre: true } },
@@ -69,7 +70,7 @@ exports.bolsosTraumaRouter.get('/historial', async (req, res) => {
     if (desdeRaw) {
         const d = new Date(desdeRaw);
         if (Number.isNaN(d.getTime())) {
-            res.status(400).json({ error: 'Fecha "desde" inválida' });
+            (0, apiError_js_1.sendApiError)(res, 400, 'BOLSO_HISTORIAL_DESDE', 'Fecha "desde" inválida');
             return;
         }
         fechaFilter.gte = d;
@@ -77,7 +78,7 @@ exports.bolsosTraumaRouter.get('/historial', async (req, res) => {
     if (hastaRaw) {
         const h = new Date(hastaRaw);
         if (Number.isNaN(h.getTime())) {
-            res.status(400).json({ error: 'Fecha "hasta" inválida' });
+            (0, apiError_js_1.sendApiError)(res, 400, 'BOLSO_HISTORIAL_HASTA', 'Fecha "hasta" inválida');
             return;
         }
         h.setHours(23, 59, 59, 999);
@@ -118,13 +119,13 @@ exports.bolsosTraumaRouter.get('/historial', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al cargar historial de bolsos de trauma' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'BOLSO_HISTORIAL', 'Error al cargar historial de bolsos de trauma');
     }
 });
 exports.bolsosTraumaRouter.get('/historial/:id', async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isFinite(id) || id <= 0) {
-        res.status(400).json({ error: 'Id inválido' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'BOLSO_ID', 'Id inválido');
         return;
     }
     try {
@@ -133,7 +134,7 @@ exports.bolsosTraumaRouter.get('/historial/:id', async (req, res) => {
             include: includeChecklist,
         });
         if (!row) {
-            res.status(404).json({ error: 'Registro no encontrado' });
+            (0, apiError_js_1.sendApiError)(res, 404, 'BOLSO_NO_ENCONTRADO', 'Registro no encontrado');
             return;
         }
         res.json({
@@ -143,7 +144,7 @@ exports.bolsosTraumaRouter.get('/historial/:id', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al cargar registro de bolso trauma' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'BOLSO_DETALLE', 'Error al cargar registro de bolso trauma');
     }
 });
 exports.bolsosTraumaRouter.get('/selector', async (_req, res) => {
@@ -183,19 +184,19 @@ exports.bolsosTraumaRouter.get('/selector', async (_req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al cargar resumen de bolsos de trauma' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'BOLSO_RESUMEN', 'Error al cargar resumen de bolsos de trauma');
     }
 });
 exports.bolsosTraumaRouter.get('/:unidad', async (req, res) => {
     const unidad = req.params.unidad;
     if (!unidad) {
-        res.status(400).json({ error: 'Unidad requerida' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'BOLSO_UNIDAD_REQUERIDA', 'Unidad requerida');
         return;
     }
     try {
         const carro = await prisma_js_1.prisma.carro.findUnique({ where: { nomenclatura: unidad } });
         if (!carro) {
-            res.status(404).json({ error: 'Unidad no encontrada' });
+            (0, apiError_js_1.sendApiError)(res, 404, 'BOLSO_UNIDAD_NO_ENCONTRADA', 'Unidad no encontrada');
             return;
         }
         const checklist = await prisma_js_1.prisma.checklistCarro.findFirst({
@@ -216,20 +217,20 @@ exports.bolsosTraumaRouter.get('/:unidad', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al obtener registro bolso trauma' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'BOLSO_UNIDAD_OBTENER', 'Error al obtener registro bolso trauma');
     }
 });
 exports.bolsosTraumaRouter.post('/:unidad', async (req, res) => {
     const unidad = req.params.unidad;
     const body = req.body;
     if (!unidad || typeof body.cuarteleroId !== 'number') {
-        res.status(400).json({ error: 'Unidad y cuarteleroId son requeridos' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'BOLSO_UNIDAD_CUARTELERO', 'Unidad y cuarteleroId son requeridos');
         return;
     }
     try {
         const carro = await prisma_js_1.prisma.carro.findUnique({ where: { nomenclatura: unidad } });
         if (!carro) {
-            res.status(404).json({ error: 'Unidad no encontrada' });
+            (0, apiError_js_1.sendApiError)(res, 404, 'BOLSO_UNIDAD_NO_ENCONTRADA', 'Unidad no encontrada');
             return;
         }
         const created = await prisma_js_1.prisma.checklistCarro.create({
@@ -255,7 +256,7 @@ exports.bolsosTraumaRouter.post('/:unidad', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al guardar bolso trauma' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'BOLSO_GUARDAR', 'Error al guardar bolso trauma');
     }
 });
 //# sourceMappingURL=bolsos-trauma.js.map

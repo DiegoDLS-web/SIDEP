@@ -1,8 +1,9 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable, catchError, map, of } from 'rxjs';
 import type {
   EstadoChecklist,
+  ChecklistEraPaginaDto,
   ChecklistPlantillaUnidadResponseDto,
   ChecklistRegistroDto,
   ChecklistResumenUnidadDto,
@@ -227,6 +228,40 @@ export class ChecklistsService {
 
   listarChecklistEra(): Observable<ChecklistRegistroDto[]> {
     return this.http.get<ChecklistRegistroDto[]>('/api/checklists/era').pipe(catchError(() => of([])));
+  }
+
+  /** Último checklist ERA por cada unidad (resúmenes / tarjetas). */
+  eraUltimosPorUnidad(): Observable<ChecklistRegistroDto[]> {
+    return this.http
+      .get<ChecklistRegistroDto[]>('/api/checklists/era/ultimos-por-unidad')
+      .pipe(catchError(() => of([])));
+  }
+
+  eraPagina(opts: {
+    page: number;
+    pageSize: number;
+    unidad?: string;
+    desde?: string;
+    hasta?: string;
+  }): Observable<ChecklistEraPaginaDto> {
+    let params = new HttpParams().set('page', String(opts.page)).set('pageSize', String(opts.pageSize));
+    const u = opts.unidad?.trim();
+    if (u) params = params.set('unidad', u);
+    const desde = opts.desde?.trim();
+    if (desde) params = params.set('desde', desde);
+    const hasta = opts.hasta?.trim();
+    if (hasta) params = params.set('hasta', hasta);
+    return this.http.get<ChecklistEraPaginaDto>('/api/checklists/era/pagina', { params }).pipe(
+      catchError(() =>
+        of({
+          items: [],
+          total: 0,
+          page: 1,
+          pageSize: opts.pageSize,
+          totalPages: 1,
+        }),
+      ),
+    );
   }
 
   guardarChecklistEra(payload: ChecklistEraPayload): Observable<ChecklistRegistroDto> {

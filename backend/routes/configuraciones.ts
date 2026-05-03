@@ -6,6 +6,7 @@ import multer from 'multer';
 import { prisma } from '../lib/prisma.js';
 import { mergeNavegacionPorRol } from '../lib/nav-por-rol.js';
 import { requireRoles } from '../middleware/roles.js';
+import { sendApiError } from '../lib/apiError.js';
 
 const CLAVE = 'SISTEMA_GENERAL';
 
@@ -155,7 +156,7 @@ function manejarMulterLogo(
   uploadLogoCompania.single('file')(req, res, (err: unknown) => {
     if (err) {
       const msg = err instanceof Error ? err.message : 'Archivo inválido';
-      res.status(400).json({ error: msg });
+      sendApiError(res, 400, 'CONFIG_LOGO_UPLOAD', msg);
       return;
     }
     next();
@@ -168,7 +169,7 @@ configuracionesRouter.post(
   manejarMulterLogo,
   (req, res) => {
     if (!req.file) {
-      res.status(400).json({ error: 'Adjunta un archivo PNG o JPEG (máx. 2 MB)' });
+      sendApiError(res, 400, 'CONFIG_LOGO_ARCHIVO', 'Adjunta un archivo PNG o JPEG (máx. 2 MB)');
       return;
     }
     try {
@@ -191,14 +192,14 @@ configuracionesRouter.get('/', async (_req, res) => {
     res.json(merged);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Error al obtener configuraciones' });
+    sendApiError(res, 500, 'CONFIG_GET', 'Error al obtener configuraciones');
   }
 });
 
 configuracionesRouter.put('/', requireRoles('ADMIN'), async (req, res) => {
   const body = req.body as ConfigPayload;
   if (!body?.compania || !body?.notificaciones || !body?.reportes) {
-    res.status(400).json({ error: 'Payload de configuraciones inválido' });
+    sendApiError(res, 400, 'CONFIG_PAYLOAD', 'Payload de configuraciones inválido');
     return;
   }
   const sanitized = mergeConfig(body);
@@ -212,6 +213,6 @@ configuracionesRouter.put('/', requireRoles('ADMIN'), async (req, res) => {
     res.json(sanitized);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Error al guardar configuraciones' });
+    sendApiError(res, 500, 'CONFIG_SAVE', 'Error al guardar configuraciones');
   }
 });

@@ -16,6 +16,7 @@ const mailer_js_1 = require("../lib/mailer.js");
 const configuraciones_js_1 = require("./configuraciones.js");
 const nav_por_rol_js_1 = require("../lib/nav-por-rol.js");
 const usuario_perfil_js_1 = require("../lib/usuario-perfil.js");
+const apiError_js_1 = require("../lib/apiError.js");
 exports.authRouter = (0, express_1.Router)();
 const selectMiPerfil = {
     id: true,
@@ -51,7 +52,7 @@ exports.authRouter.post('/login', async (req, res) => {
     const email = String(req.body?.email ?? '').trim().toLowerCase();
     const password = String(req.body?.password ?? '');
     if (!email || !password) {
-        res.status(400).json({ error: 'Email y contraseña son requeridos' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'AUTH_LOGIN_BODY', 'Email y contraseña son requeridos');
         return;
     }
     try {
@@ -84,7 +85,7 @@ exports.authRouter.post('/login', async (req, res) => {
             });
         }
         if (!usuario) {
-            res.status(401).json({ error: 'Credenciales inválidas' });
+            (0, apiError_js_1.sendApiError)(res, 401, 'AUTH_INVALID_CREDENTIALS', 'Credenciales inválidas');
             return;
         }
         let ok = false;
@@ -96,7 +97,7 @@ exports.authRouter.post('/login', async (req, res) => {
         }
         const okPlano = password === usuario.password;
         if (!ok && !okPlano) {
-            res.status(401).json({ error: 'Credenciales inválidas' });
+            (0, apiError_js_1.sendApiError)(res, 401, 'AUTH_INVALID_CREDENTIALS', 'Credenciales inválidas');
             return;
         }
         // Si venía legacy en texto plano, migra a hash en el primer login exitoso.
@@ -134,7 +135,7 @@ exports.authRouter.post('/login', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'No se pudo iniciar sesión' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'AUTH_LOGIN', 'No se pudo iniciar sesión');
     }
 });
 exports.authRouter.post('/login-demo', async (_req, res) => {
@@ -185,29 +186,29 @@ exports.authRouter.post('/login-demo', async (_req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'No se pudo iniciar sesión demo' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'AUTH_LOGIN_DEMO', 'No se pudo iniciar sesión demo');
     }
 });
 exports.authRouter.post('/cambiar-password-sesion', auth_js_2.requireAuth, async (req, res) => {
     const uid = req.user?.uid;
     if (!uid) {
-        res.status(401).json({ error: 'No autorizado' });
+        (0, apiError_js_1.sendApiError)(res, 401, 'AUTH_UNAUTHORIZED', 'No autorizado');
         return;
     }
     const passwordActual = String(req.body?.passwordActual ?? '');
     const passwordNueva = String(req.body?.passwordNueva ?? '');
     if (!passwordActual || !passwordNueva) {
-        res.status(400).json({ error: 'Contraseña actual y nueva son requeridas' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'AUTH_PASSWORD_BODY', 'Contraseña actual y nueva son requeridas');
         return;
     }
     if (passwordNueva.length < 6) {
-        res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'AUTH_PASSWORD_SHORT', 'La nueva contraseña debe tener al menos 6 caracteres');
         return;
     }
     try {
         const usuario = await prisma_js_1.prisma.usuario.findUnique({ where: { id: uid } });
         if (!usuario) {
-            res.status(401).json({ error: 'No autorizado' });
+            (0, apiError_js_1.sendApiError)(res, 401, 'AUTH_UNAUTHORIZED', 'No autorizado');
             return;
         }
         let ok = false;
@@ -219,7 +220,7 @@ exports.authRouter.post('/cambiar-password-sesion', auth_js_2.requireAuth, async
         }
         const okPlano = passwordActual === usuario.password;
         if (!ok && !okPlano) {
-            res.status(400).json({ error: 'La contraseña actual no es correcta' });
+            (0, apiError_js_1.sendApiError)(res, 400, 'AUTH_PASSWORD_ACTUAL', 'La contraseña actual no es correcta');
             return;
         }
         const hash = await bcryptjs_1.default.hash(passwordNueva, 10);
@@ -237,7 +238,7 @@ exports.authRouter.post('/cambiar-password-sesion', auth_js_2.requireAuth, async
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'No se pudo cambiar la contraseña' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'AUTH_PASSWORD_CHANGE', 'No se pudo cambiar la contraseña');
     }
 });
 function uidAutenticado(req) {
@@ -250,7 +251,7 @@ function uidAutenticado(req) {
 exports.authRouter.get('/me', auth_js_2.requireAuth, async (req, res) => {
     const uid = uidAutenticado(req);
     if (!uid) {
-        res.status(401).json({ error: 'No autorizado' });
+        (0, apiError_js_1.sendApiError)(res, 401, 'AUTH_UNAUTHORIZED', 'No autorizado');
         return;
     }
     try {
@@ -267,20 +268,20 @@ exports.authRouter.get('/me', auth_js_2.requireAuth, async (req, res) => {
             },
         });
         if (!usuario || !usuario.activo) {
-            res.status(401).json({ error: 'No autorizado' });
+            (0, apiError_js_1.sendApiError)(res, 401, 'AUTH_UNAUTHORIZED', 'No autorizado');
             return;
         }
         res.json(usuario);
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'No se pudo obtener sesión' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'AUTH_SESSION', 'No se pudo obtener sesión');
     }
 });
 exports.authRouter.get('/mi-perfil', auth_js_2.requireAuth, async (req, res) => {
     const uid = uidAutenticado(req);
     if (!uid) {
-        res.status(401).json({ error: 'No autorizado' });
+        (0, apiError_js_1.sendApiError)(res, 401, 'AUTH_UNAUTHORIZED', 'No autorizado');
         return;
     }
     try {
@@ -289,14 +290,14 @@ exports.authRouter.get('/mi-perfil', auth_js_2.requireAuth, async (req, res) => 
             select: selectMiPerfil,
         });
         if (!usuario || !usuario.activo) {
-            res.status(401).json({ error: 'No autorizado' });
+            (0, apiError_js_1.sendApiError)(res, 401, 'AUTH_UNAUTHORIZED', 'No autorizado');
             return;
         }
         res.json(usuario);
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'No se pudo cargar el perfil' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'AUTH_PERFIL_LOAD', 'No se pudo cargar el perfil');
     }
 });
 function telefonoChileEsValido(value) {
@@ -311,7 +312,7 @@ function emailFormatoValido(email) {
 exports.authRouter.patch('/mi-perfil', auth_js_2.requireAuth, async (req, res) => {
     const uid = uidAutenticado(req);
     if (!uid) {
-        res.status(401).json({ error: 'No autorizado' });
+        (0, apiError_js_1.sendApiError)(res, 401, 'AUTH_UNAUTHORIZED', 'No autorizado');
         return;
     }
     const body = req.body;
@@ -327,7 +328,7 @@ exports.authRouter.patch('/mi-perfil', auth_js_2.requireAuth, async (req, res) =
     ]);
     const extranos = Object.keys(body).filter((k) => !permitidos.has(k));
     if (extranos.length > 0) {
-        res.status(400).json({ error: 'Campos no permitidos en esta acción.' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'AUTH_PERFIL_CAMPOS', 'Campos no permitidos en esta acción.');
         return;
     }
     try {
@@ -343,7 +344,7 @@ exports.authRouter.patch('/mi-perfil', auth_js_2.requireAuth, async (req, res) =
             },
         });
         if (!actual?.activo) {
-            res.status(401).json({ error: 'No autorizado' });
+            (0, apiError_js_1.sendApiError)(res, 401, 'AUTH_UNAUTHORIZED', 'No autorizado');
             return;
         }
         const data = {};
@@ -355,7 +356,7 @@ exports.authRouter.patch('/mi-perfil', auth_js_2.requireAuth, async (req, res) =
             else {
                 const gs = String(g).trim();
                 if (!usuario_perfil_js_1.GRUPOS_SANGUINEOS.includes(gs)) {
-                    res.status(400).json({ error: 'Grupo sanguíneo no válido.' });
+                    (0, apiError_js_1.sendApiError)(res, 400, 'AUTH_PERFIL_GRUPO_SANGUINEO', 'Grupo sanguíneo no válido.');
                     return;
                 }
                 data.grupoSanguineo = gs;
@@ -395,7 +396,7 @@ exports.authRouter.patch('/mi-perfil', auth_js_2.requireAuth, async (req, res) =
                     fotoParche = (0, usuario_perfil_js_1.normalizarFotoPerfil)(String(raw));
                 }
                 catch (e) {
-                    res.status(400).json({ error: e instanceof Error ? e.message : 'Foto de perfil inválida' });
+                    (0, apiError_js_1.sendApiError)(res, 400, 'AUTH_PERFIL_FOTO', e instanceof Error ? e.message : 'Foto de perfil inválida');
                     return;
                 }
             }
@@ -411,24 +412,24 @@ exports.authRouter.patch('/mi-perfil', auth_js_2.requireAuth, async (req, res) =
             ? String(body.comuna ?? '').trim()
             : (actual.comuna?.trim() ?? '');
         if (tocaDom && (!dirEff || !regEff || !comEff)) {
-            res.status(400).json({ error: 'Completa dirección, región y comuna.' });
+            (0, apiError_js_1.sendApiError)(res, 400, 'AUTH_PERFIL_DIRECCION', 'Completa dirección, región y comuna.');
             return;
         }
         const emailEff = body.email !== undefined ? data.email : actual.email;
         const emailStr = String(emailEff ?? '').trim();
         if (!emailStr) {
-            res.status(400).json({ error: 'Indica un correo electrónico.' });
+            (0, apiError_js_1.sendApiError)(res, 400, 'AUTH_PERFIL_EMAIL_VACIO', 'Indica un correo electrónico.');
             return;
         }
         if (!emailFormatoValido(emailStr)) {
-            res.status(400).json({ error: 'El correo electrónico no tiene formato válido.' });
+            (0, apiError_js_1.sendApiError)(res, 400, 'AUTH_PERFIL_EMAIL_FORMATO', 'El correo electrónico no tiene formato válido.');
             return;
         }
         const telEff = body.telefono !== undefined
             ? String(data.telefono ?? '').trim()
             : (actual.telefono?.trim() ?? '');
         if (!telefonoChileEsValido(telEff)) {
-            res.status(400).json({ error: 'El teléfono debe ser un celular chileno válido (9 dígitos, comenzando en 9).' });
+            (0, apiError_js_1.sendApiError)(res, 400, 'AUTH_PERFIL_TELEFONO', 'El teléfono debe ser un celular chileno válido (9 dígitos, comenzando en 9).');
             return;
         }
         if (fotoParche !== undefined) {
@@ -437,7 +438,7 @@ exports.authRouter.patch('/mi-perfil', auth_js_2.requireAuth, async (req, res) =
         if (Object.keys(data).length === 0) {
             const u = await prisma_js_1.prisma.usuario.findUnique({ where: { id: uid }, select: selectMiPerfil });
             if (!u) {
-                res.status(401).json({ error: 'No autorizado' });
+                (0, apiError_js_1.sendApiError)(res, 401, 'AUTH_UNAUTHORIZED', 'No autorizado');
                 return;
             }
             res.json(u);
@@ -458,17 +459,17 @@ exports.authRouter.patch('/mi-perfil', auth_js_2.requireAuth, async (req, res) =
     }
     catch (e) {
         if (e instanceof client_1.Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-            res.status(400).json({ error: 'El correo ya está registrado en otra cuenta.' });
+            (0, apiError_js_1.sendApiError)(res, 400, 'AUTH_PERFIL_EMAIL_DUPLICADO', 'El correo ya está registrado en otra cuenta.');
             return;
         }
         console.error(e);
-        res.status(500).json({ error: 'No se pudo actualizar tu perfil' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'AUTH_PERFIL_UPDATE', 'No se pudo actualizar tu perfil');
     }
 });
 exports.authRouter.get('/mi-navegacion', auth_js_2.requireAuth, async (req, res) => {
     const uid = uidAutenticado(req);
     if (!uid) {
-        res.status(401).json({ error: 'No autorizado' });
+        (0, apiError_js_1.sendApiError)(res, 401, 'AUTH_UNAUTHORIZED', 'No autorizado');
         return;
     }
     try {
@@ -477,7 +478,7 @@ exports.authRouter.get('/mi-navegacion', auth_js_2.requireAuth, async (req, res)
             select: { activo: true, rol: true },
         });
         if (!usuario?.activo) {
-            res.status(401).json({ error: 'No autorizado' });
+            (0, apiError_js_1.sendApiError)(res, 401, 'AUTH_UNAUTHORIZED', 'No autorizado');
             return;
         }
         const cfg = await (0, configuraciones_js_1.obtenerConfigSistema)();
@@ -486,7 +487,7 @@ exports.authRouter.get('/mi-navegacion', auth_js_2.requireAuth, async (req, res)
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'No se pudo obtener la configuración de menú' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'AUTH_MENU_CONFIG', 'No se pudo obtener la configuración de menú');
     }
 });
 exports.authRouter.post('/logout', auth_js_2.requireAuth, async (req, res) => {
@@ -501,7 +502,7 @@ exports.authRouter.post('/logout', auth_js_2.requireAuth, async (req, res) => {
 exports.authRouter.post('/recuperar-password', async (req, res) => {
     const email = String(req.body?.email ?? '').trim().toLowerCase();
     if (!email) {
-        res.status(400).json({ error: 'Email requerido' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'AUTH_RECOVERY_EMAIL', 'Email requerido');
         return;
     }
     try {
@@ -530,24 +531,24 @@ exports.authRouter.post('/recuperar-password', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'No se pudo procesar recuperación' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'AUTH_RECOVERY', 'No se pudo procesar recuperación');
     }
 });
 exports.authRouter.post('/restablecer-password', async (req, res) => {
     const token = String(req.body?.token ?? '').trim();
     const password = String(req.body?.password ?? '');
     if (!token || !password) {
-        res.status(400).json({ error: 'token y password son requeridos' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'AUTH_RESET_BODY', 'token y password son requeridos');
         return;
     }
     if (password.length < 6) {
-        res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'AUTH_RESET_PASSWORD_SHORT', 'La contraseña debe tener al menos 6 caracteres');
         return;
     }
     try {
         const reset = await prisma_js_1.prisma.passwordResetToken.findUnique({ where: { token } });
         if (!reset || reset.usedAt || reset.expiresAt < new Date()) {
-            res.status(400).json({ error: 'Token inválido o expirado' });
+            (0, apiError_js_1.sendApiError)(res, 400, 'AUTH_RESET_TOKEN', 'Token inválido o expirado');
             return;
         }
         const hash = await bcryptjs_1.default.hash(password, 10);
@@ -568,7 +569,7 @@ exports.authRouter.post('/restablecer-password', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'No se pudo restablecer la contraseña' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'AUTH_RESET', 'No se pudo restablecer la contraseña');
     }
 });
 //# sourceMappingURL=auth.js.map

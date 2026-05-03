@@ -98,10 +98,18 @@ select.sid-input:-webkit-autofill,
 
 /* Sistema visual reutilizable (web/tablet/móvil). Tokens en :root para shell, tablas e inputs. */
 :root {
+  --sid-font-sans:
+    'DM Sans', ui-sans-serif, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  --sid-text: #f9fafb;
+  --sid-text-muted: #9ca3af;
+  --sid-text-subtle: #6b7280;
   --sid-shell-bg: #0a0a0a;
   --sid-shell-aside: #121212;
+  --sid-surface-card: #121212;
+  --sid-surface-inset: #0a0a0a;
   --sid-border: #2f2f2f;
   --sid-border-strong: #454545;
+  --sid-focus-ring: 0 0 0 2px rgba(239, 68, 68, 0.45);
   --sid-motion-speed: 1;
   --sid-motion-intensity: 1;
   --sid-nav-section-gap: 0.95rem;
@@ -114,6 +122,12 @@ select.sid-input:-webkit-autofill,
   --sid-control-pad-x: 0.75rem;
   --sid-card-gap: 1rem;
   --sid-heading-h2-size: 1.1rem;
+  --sid-radius-card: 0.75rem;
+}
+
+body {
+  font-family: var(--sid-font-sans);
+  color: var(--sid-text);
 }
 
 .sid-page {
@@ -247,7 +261,58 @@ select.sid-input:-webkit-autofill,
 }
 
 .sid-muted {
-  color: #9ca3af;
+  color: var(--sid-text-muted);
+}
+
+/* Entrada al scroll (dashboard y bloques con `sidScrollReveal`) */
+.sid-scroll-reveal--hidden {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+}
+.sid-scroll-reveal--visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition:
+    opacity 0.55s ease,
+    transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sid-scroll-reveal--hidden,
+  .sid-scroll-reveal--visible {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* Carga tipo “skeleton” (listas, dashboard) */
+@keyframes sid-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.sid-skeleton {
+  border-radius: var(--sid-radius-card);
+  background: linear-gradient(90deg, #141414 0%, #1a1a1a 40%, #141414 80%);
+  background-size: 200% 100%;
+  animation: sid-skeleton-pulse 1.15s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sid-skeleton {
+    animation: none;
+    opacity: 0.85;
+    background: #161616;
+  }
+}
+
+/* Foco visible genérico en páginas de contenido (no sustituye focos específicos de componentes) */
+.sid-page :where(a, button, summary):not(:disabled):focus-visible {
+  outline: 2px solid rgba(239, 68, 68, 0.55);
+  outline-offset: 2px;
 }
 
 /*

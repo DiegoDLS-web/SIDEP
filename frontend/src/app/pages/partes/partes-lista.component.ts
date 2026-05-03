@@ -2,19 +2,34 @@ import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import type { ParteEmergenciaDto } from '../../models/parte.dto';
 import { PartesExportService } from '../../services/partes-export.service';
+import type { PartesMetricasResp } from '../../services/partes.service';
 import { PartesService } from '../../services/partes.service';
 import { ToastService } from '../../services/toast.service';
+import { SidCardComponent } from '../../shared/sid-card.component';
+import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
+import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
+import { mensajeApiError } from '../../utils/api-error.util';
 import { CLAVES_COMPANIA_SERVICIOS, CLAVES_OPERATIVAS, etiquetaClave } from './partes.constants';
 import { ParteVistaSoloLecturaComponent } from './parte-vista-solo-lectura.component';
 
 @Component({
   selector: 'app-partes-lista',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, ParteVistaSoloLecturaComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    SidepIconsModule,
+    ParteVistaSoloLecturaComponent,
+    SidScrollRevealDirective,
+    SidCardComponent,
+    SidEmptyStateComponent,
+  ],
   templateUrl: './partes-lista.component.html',
 })
 export class PartesListaComponent implements OnInit {
@@ -26,6 +41,9 @@ export class PartesListaComponent implements OnInit {
   readonly clavesCompaniaFiltro = CLAVES_COMPANIA_SERVICIOS;
 
   partes: ParteEmergenciaDto[] = [];
+  metricas: PartesMetricasResp | null = null;
+  totalFiltrado = 0;
+  totalPagesPartes = 1;
   loading = true;
   error: string | null = null;
 
@@ -43,79 +61,128 @@ export class PartesListaComponent implements OnInit {
   vistaModalParte: ParteEmergenciaDto | null = null;
 
   ngOnInit(): void {
-    this.partesApi.listar().subscribe({
-      next: (data) => {
-        this.partes = data;
+    forkJoin({
+      metricas: this.partesApi.metricas(),
+      pagina: this.partesApi.listarPagina({
+        page: 1,
+        pageSize: this.tamanioPaginaPartes,
+        ...this.filtrosApi(),
+      }),
+    }).subscribe({
+      next: ({ metricas, pagina }) => {
+        this.metricas = metricas;
+        this.partes = pagina.items;
+        this.totalFiltrado = pagina.total;
+        this.totalPagesPartes = pagina.totalPages;
+        this.paginaPartes = pagina.page;
         this.loading = false;
+        this.error = null;
       },
-      error: () => {
-        this.error = 'No se pudieron cargar los partes. Verifica que el backend esté en ejecución.';
+      error: (err) => {
         this.loading = false;
+        this.error = mensajeApiError(err, 'No se pudieron cargar los partes. Verifica la conexión o el backend.');
       },
     });
   }
 
   etiquetaClave = etiquetaClave;
 
+  private filtrosApi(): { tipo?: string; q?: string; desde?: string; hasta?: string } {
+    const o: { tipo?: string; q?: string; desde?: string; hasta?: string } = {};
+    if (this.filtroTipo !== 'todos') {
+      o.tipo = this.filtroTipo;
+    }
+    const q = this.filtroDireccion.trim();
+    if (q) {
+      o.q = q;
+    }
+    const r = this.rangoFechasParaApi();
+    if (r.desde) {
+      o.desde = r.desde;
+    }
+    if (r.hasta) {
+      o.hasta = r.hasta;
+    }
+    return o;
+  }
+
+  /** Rango ISO para filtro por fecha exacta (dd/MM/yyyy) o por período rápido. */
+  private rangoFechasParaApi(): { desde?: string; hasta?: string } {
+    const fd = this.filtroFecha.trim();
+    if (fd) {
+      const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(fd);
+      if (m) {
+        const d = Number(m[1]);
+        const mo = Number(m[2]);
+        const y = Number(m[3]);
+        const start = new Date(y, mo - 1, d, 0, 0, 0, 0);
+        const end = new Date(y, mo - 1, d, 23, 59, 59, 999);
+        return { desde: start.toISOString(), hasta: end.toISOString() };
+      }
+    }
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    if (this.filtroPeriodo === 'hoy') {
+      const end = new Date(hoy);
+      end.setHours(23, 59, 59, 999);
+      return { desde: hoy.toISOString(), hasta: end.toISOString() };
+    }
+    if (this.filtroPeriodo === 'semana') {
+      const desde = new Date(hoy);
+      desde.setDate(desde.getDate() - 7);
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      return { desde: desde.toISOString(), hasta: end.toISOString() };
+    }
+    if (this.filtroPeriodo === 'mes') {
+      const desde = new Date(hoy);
+      desde.setMonth(desde.getMonth() - 1);
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      return { desde: desde.toISOString(), hasta: end.toISOString() };
+    }
+    return {};
+  }
+
   alCambiarFiltroPartes(): void {
     this.paginaPartes = 1;
+    this.recargarPagina();
+  }
+
+  private recargarPagina(): void {
+    this.partesApi
+      .listarPagina({
+        page: this.paginaPartes,
+        pageSize: this.tamanioPaginaPartes,
+        ...this.filtrosApi(),
+      })
+      .subscribe({
+        next: (pagina) => {
+          this.partes = pagina.items;
+          this.totalFiltrado = pagina.total;
+          this.totalPagesPartes = pagina.totalPages;
+          this.paginaPartes = pagina.page;
+          this.error = null;
+        },
+        error: (err) => {
+          this.error = mensajeApiError(err, 'No se pudo actualizar el listado.');
+        },
+      });
   }
 
   totalPaginasPartes(): number {
-    return Math.max(1, Math.ceil(this.filtrados.length / this.tamanioPaginaPartes));
+    return this.totalPagesPartes;
   }
 
   filtradosPaginados(): ParteEmergenciaDto[] {
-    const f = this.filtrados;
-    const i = (this.paginaPartes - 1) * this.tamanioPaginaPartes;
-    return f.slice(i, i + this.tamanioPaginaPartes);
+    return this.partes;
   }
 
   cambiarPaginaPartes(delta: number): void {
     const next = this.paginaPartes + delta;
     const total = this.totalPaginasPartes();
     this.paginaPartes = Math.min(Math.max(next, 1), total);
-  }
-
-  get filtrados(): ParteEmergenciaDto[] {
-    return this.partes.filter((p) => {
-      if (this.filtroTipo !== 'todos' && p.claveEmergencia !== this.filtroTipo) {
-        return false;
-      }
-      if (this.filtroDireccion && !p.direccion.toLowerCase().includes(this.filtroDireccion.toLowerCase())) {
-        return false;
-      }
-      const fd = this.splitFechaHora(p.fecha);
-      if (this.filtroFecha && fd.fecha !== this.filtroFecha.trim()) {
-        return false;
-      }
-      const d = new Date(p.fecha);
-      if (Number.isNaN(d.getTime())) {
-        return false;
-      }
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-      if (this.filtroPeriodo === 'hoy') {
-        const x = new Date(d);
-        x.setHours(0, 0, 0, 0);
-        if (x.getTime() !== hoy.getTime()) {
-          return false;
-        }
-      } else if (this.filtroPeriodo === 'semana') {
-        const desde = new Date(hoy);
-        desde.setDate(desde.getDate() - 7);
-        if (d < desde) {
-          return false;
-        }
-      } else if (this.filtroPeriodo === 'mes') {
-        const desde = new Date(hoy);
-        desde.setMonth(desde.getMonth() - 1);
-        if (d < desde) {
-          return false;
-        }
-      }
-      return true;
-    });
+    this.recargarPagina();
   }
 
   splitFechaHora(fechaIso: string): { fecha: string; hora: string } {
@@ -137,20 +204,37 @@ export class PartesListaComponent implements OnInit {
   }
 
   statsAnio(): number {
-    const y = new Date().getFullYear();
-    return this.partes.filter((p) => new Date(p.fecha).getFullYear() === y).length;
+    return this.metricas?.enAnioActual ?? 0;
   }
 
   statsMes(): number {
-    const now = new Date();
-    return this.partes.filter((p) => {
-      const d = new Date(p.fecha);
-      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-    }).length;
+    return this.metricas?.enMesActual ?? 0;
+  }
+
+  totalSistema(): number {
+    return this.metricas?.totalSistema ?? 0;
   }
 
   exportarExcel(): void {
-    this.exportador.exportarExcelListado(this.filtrados);
+    const cap = 2000;
+    const pageSize = Math.min(cap, Math.max(this.totalFiltrado, this.tamanioPaginaPartes));
+    this.partesApi
+      .listarPagina({
+        page: 1,
+        pageSize,
+        ...this.filtrosApi(),
+      })
+      .subscribe({
+        next: (pagina) => {
+          if (this.totalFiltrado > pagina.items.length) {
+            this.toast.info(`Se exportan ${pagina.items.length} de ${this.totalFiltrado} registros (máx. ${cap} por archivo).`);
+          }
+          this.exportador.exportarExcelListado(pagina.items);
+        },
+        error: (err) => {
+          this.toast.error(mensajeApiError(err, 'No se pudo preparar la exportación.'));
+        },
+      });
   }
 
   exportarPdfParte(parte: ParteEmergenciaDto): void {
@@ -167,9 +251,9 @@ export class PartesListaComponent implements OnInit {
         this.vistaModalCargando = false;
         this.vistaModalParte = p;
       },
-      error: () => {
+      error: (err) => {
         this.vistaModalCargando = false;
-        this.vistaModalError = 'No se pudo cargar el parte completo.';
+        this.vistaModalError = mensajeApiError(err, 'No se pudo cargar el parte completo.');
         this.toast.error('No se pudo cargar el parte.');
       },
     });

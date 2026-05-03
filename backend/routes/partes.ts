@@ -4,6 +4,8 @@ import { prisma } from '../lib/prisma.js';
 import { siguienteCorrelativo } from '../lib/correlativo.js';
 import { requireRoles } from '../middleware/roles.js';
 import { registrarActividad } from '../lib/auditoria.js';
+import { sendApiError } from '../lib/apiError.js';
+import { formatFechaHoraChile } from '../lib/fechaChile.js';
 
 export const partesRouter = Router();
 
@@ -17,6 +19,87 @@ const includeParte = {
   pacientes: true,
 } as const;
 
+function firstQueryString(q: unknown): string | undefined {
+  if (typeof q === 'string') return q;
+  if (Array.isArray(q) && typeof q[0] === 'string') return q[0];
+  return undefined;
+}
+
+function buildParteListWhere(query: Record<string, unknown>): Prisma.ParteEmergenciaWhereInput {
+  const where: Prisma.ParteEmergenciaWhereInput = {};
+  const tipo = firstQueryString(query.tipo);
+  if (tipo && tipo !== 'todos') {
+    where.claveEmergencia = tipo;
+  }
+  const q = firstQueryString(query.q);
+  if (q && q.trim()) {
+    where.direccion = { contains: q.trim(), mode: 'insensitive' };
+  }
+  const desde = firstQueryString(query.desde);
+  const hasta = firstQueryString(query.hasta);
+  const desdeOk = Boolean(desde && !Number.isNaN(Date.parse(desde)));
+  const hastaOk = Boolean(hasta && !Number.isNaN(Date.parse(hasta)));
+  if (desdeOk || hastaOk) {
+    const fechaFilter: Prisma.DateTimeFilter = {};
+    if (desdeOk) fechaFilter.gte = new Date(desde!);
+    if (hastaOk) fechaFilter.lte = new Date(hasta!);
+    where.fecha = fechaFilter;
+  }
+  return where;
+}
+
+/** Listado paginado (filtros opcionales). Debe declararse antes de `/:id`. */
+partesRouter.get('/pagina', async (req, res) => {
+  const page = Math.max(1, parseInt(String(firstQueryString(req.query.page) ?? '1'), 10) || 1);
+  const rawSize = parseInt(String(firstQueryString(req.query.pageSize) ?? '10'), 10) || 10;
+  const pageSize = Math.min(200, Math.max(1, rawSize));
+  const where = buildParteListWhere(req.query as Record<string, unknown>);
+  try {
+    const [total, rows] = await Promise.all([
+      prisma.parteEmergencia.count({ where }),
+      prisma.parteEmergencia.findMany({
+        where,
+        orderBy: { fecha: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: includeParte,
+      }),
+    ]);
+    const items = rows.map((p) => ({
+      ...p,
+      fechaLegible: formatFechaHoraChile(p.fecha),
+    }));
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    res.json({ items, total, page, pageSize, totalPages });
+  } catch (e) {
+    console.error(e);
+    sendApiError(res, 500, 'PARTES_LIST_PAGINA', 'Error al listar partes con paginaciÃ³n.');
+  }
+});
+
+/** Totales globales para tarjetas del listado (sin filtros de bÃºsqueda). */
+partesRouter.get('/metricas', async (_req, res) => {
+  try {
+    const now = new Date();
+    const y = now.getUTCFullYear();
+    const m = now.getUTCMonth();
+    const startYear = new Date(Date.UTC(y, 0, 1, 0, 0, 0, 0));
+    const startMonth = new Date(Date.UTC(y, m, 1, 0, 0, 0, 0));
+    const endMonth = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999));
+    const [totalSistema, enAnioActual, enMesActual] = await Promise.all([
+      prisma.parteEmergencia.count(),
+      prisma.parteEmergencia.count({ where: { fecha: { gte: startYear } } }),
+      prisma.parteEmergencia.count({
+        where: { fecha: { gte: startMonth, lte: endMonth } },
+      }),
+    ]);
+    res.json({ totalSistema, enAnioActual, enMesActual });
+  } catch (e) {
+    console.error(e);
+    sendApiError(res, 500, 'PARTES_METRICAS', 'Error al obtener indicadores de partes.');
+  }
+});
+
 partesRouter.get('/', async (_req, res) => {
   try {
     const partes = await prisma.parteEmergencia.findMany({
@@ -26,14 +109,14 @@ partesRouter.get('/', async (_req, res) => {
     res.json(partes);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Error al listar partes' });
+    sendApiError(res, 500, 'PARTES_LIST', 'Error al listar partes.');
   }
 });
 
 partesRouter.get('/:id', async (req, res) => {
   const id = Number(req.params.id);
-  if (Number.isNaN(id) || !Number.isFinite(id)) {
-    res.status(400).json({ error: 'ID inv?lido' });
+  if (Number.isNaN(id) || !Number.isFinite(id) || id <= 0) {
+    sendApiError(res, 400, 'PARTES_ID_INVALIDO', 'Identificador de parte invï¿½lido.');
     return;
   }
   try {
@@ -42,13 +125,13 @@ partesRouter.get('/:id', async (req, res) => {
       include: includeParte,
     });
     if (!parte) {
-      res.status(404).json({ error: 'Parte no encontrado' });
+      sendApiError(res, 404, 'PARTES_NOT_FOUND', 'Parte no encontrado.');
       return;
     }
-    res.json(parte);
+    res.json({ ...parte, fechaLegible: formatFechaHoraChile(parte.fecha) });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Error al obtener parte' });
+    sendApiError(res, 500, 'PARTES_GET', 'Error al obtener el parte.');
   }
 });
 
@@ -133,17 +216,17 @@ partesRouter.post('/', requireRoles('TENIENTE', 'CAPITAN', 'ADMIN'), async (req,
   const esBorrador = body.estado === 'BORRADOR' || body.borrador === true;
 
   if (body.obacId === undefined || typeof body.obacId !== 'number' || !Number.isFinite(body.obacId)) {
-    res.status(400).json({ error: 'obacId es requerido' });
+    sendApiError(res, 400, 'PARTES_OBAC_REQUERIDO', 'obacId es requerido.');
     return;
   }
 
   const unidadesParsed = parseUnidades(body.unidades, esBorrador);
   if (unidadesParsed === null) {
-    res.status(400).json({ error: 'Datos de unidad inv?lidos' });
+    sendApiError(res, 400, 'PARTES_UNIDAD_INVALIDA', 'Datos de unidad invï¿½lidos.');
     return;
   }
   if (!esBorrador && unidadesParsed.length === 0) {
-    res.status(400).json({ error: 'Debe incluir al menos una unidad' });
+    sendApiError(res, 400, 'PARTES_UNIDAD_VACIA', 'Debe incluir al menos una unidad.');
     return;
   }
 
@@ -152,29 +235,29 @@ partesRouter.post('/', requireRoles('TENIENTE', 'CAPITAN', 'ADMIN'), async (req,
 
   if (!esBorrador) {
     if (!claveEmergencia) {
-      res.status(400).json({ error: 'claveEmergencia es requerida' });
+      sendApiError(res, 400, 'PARTES_CLAVE_REQUERIDA', 'claveEmergencia es requerida.');
       return;
     }
     if (!direccion) {
-      res.status(400).json({ error: 'direccion es requerida' });
+      sendApiError(res, 400, 'PARTES_DIRECCION_REQUERIDA', 'direccion es requerida.');
       return;
     }
   } else {
     if (!claveEmergencia) claveEmergencia = '10-9';
-    if (!direccion) direccion = 'ÿÿÿ Borrador (sin direcci?n)';
+    if (!direccion) direccion = 'ï¿½ï¿½ï¿½ Borrador (sin direcci?n)';
   }
 
   const pacientes = Array.isArray(body.pacientes) ? body.pacientes : [];
   for (const p of pacientes) {
     if (typeof p.nombre !== 'string' || typeof p.triage !== 'string') {
-      res.status(400).json({ error: 'Datos de paciente inv?lidos' });
+      sendApiError(res, 400, 'PARTES_PACIENTE_INVALIDO', 'Datos de paciente invï¿½lidos.');
       return;
     }
   }
 
   const fecha = body.fecha ? new Date(body.fecha) : new Date();
   if (Number.isNaN(fecha.getTime())) {
-    res.status(400).json({ error: 'fecha inv?lida' });
+    sendApiError(res, 400, 'PARTES_FECHA_INVALIDA', 'fecha invï¿½lida.');
     return;
   }
 
@@ -251,14 +334,14 @@ partesRouter.post('/', requireRoles('TENIENTE', 'CAPITAN', 'ADMIN'), async (req,
     res.status(201).json(parte);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Error al crear parte' });
+    sendApiError(res, 500, 'PARTES_CREATE', 'Error al crear parte.');
   }
 });
 
 partesRouter.patch('/:id', requireRoles('TENIENTE', 'CAPITAN', 'ADMIN'), async (req, res) => {
   const id = Number(req.params.id);
   if (Number.isNaN(id) || !Number.isFinite(id) || id <= 0) {
-    res.status(400).json({ error: 'ID inv?lido' });
+    sendApiError(res, 400, 'PARTES_ID_INVALIDO', 'Identificador de parte invï¿½lido.');
     return;
   }
   const body = req.body as {
@@ -286,21 +369,21 @@ partesRouter.patch('/:id', requireRoles('TENIENTE', 'CAPITAN', 'ADMIN'), async (
   } = {};
   if (body.claveEmergencia !== undefined) {
     if (typeof body.claveEmergencia !== 'string' || !body.claveEmergencia.trim()) {
-      res.status(400).json({ error: 'claveEmergencia inv?lida' });
+      sendApiError(res, 400, 'PARTES_CLAVE_INVALIDA', 'claveEmergencia invï¿½lida.');
       return;
     }
     data.claveEmergencia = body.claveEmergencia.trim();
   }
   if (body.direccion !== undefined) {
     if (typeof body.direccion !== 'string' || !body.direccion.trim()) {
-      res.status(400).json({ error: 'direccion inv?lida' });
+      sendApiError(res, 400, 'PARTES_DIRECCION_INVALIDA', 'direccion invï¿½lida.');
       return;
     }
     data.direccion = body.direccion.trim();
   }
   if (body.estado !== undefined) {
     if (typeof body.estado !== 'string' || !body.estado.trim()) {
-      res.status(400).json({ error: 'estado inv?lido' });
+      sendApiError(res, 400, 'PARTES_ESTADO_INVALIDO', 'estado invï¿½lido.');
       return;
     }
     data.estado = body.estado.trim().toUpperCase();
@@ -308,14 +391,14 @@ partesRouter.patch('/:id', requireRoles('TENIENTE', 'CAPITAN', 'ADMIN'), async (
   if (body.fecha !== undefined) {
     const fecha = new Date(body.fecha);
     if (Number.isNaN(fecha.getTime())) {
-      res.status(400).json({ error: 'fecha inv?lida' });
+      sendApiError(res, 400, 'PARTES_FECHA_INVALIDA', 'fecha invï¿½lida.');
       return;
     }
     data.fecha = fecha;
   }
   if (body.obacId !== undefined) {
     if (typeof body.obacId !== 'number' || !Number.isFinite(body.obacId) || body.obacId <= 0) {
-      res.status(400).json({ error: 'obacId inv?lido' });
+      sendApiError(res, 400, 'PARTES_OBAC_INVALIDO', 'obacId invï¿½lido.');
       return;
     }
     data.obac = { connect: { id: body.obacId } };
@@ -326,7 +409,7 @@ partesRouter.patch('/:id', requireRoles('TENIENTE', 'CAPITAN', 'ADMIN'), async (
     } else if (typeof body.metadata === 'object' && !Array.isArray(body.metadata)) {
       data.metadata = body.metadata as Prisma.InputJsonValue;
     } else {
-      res.status(400).json({ error: 'metadata inv?lida' });
+      sendApiError(res, 400, 'PARTES_METADATA_INVALIDA', 'metadata invï¿½lida.');
       return;
     }
   }
@@ -335,11 +418,11 @@ partesRouter.patch('/:id', requireRoles('TENIENTE', 'CAPITAN', 'ADMIN'), async (
     const esBorrador = estadoEvaluado === 'BORRADOR';
     const unidadesParsed = parseUnidades(body.unidades, esBorrador);
     if (unidadesParsed === null) {
-      res.status(400).json({ error: 'Datos de unidad inv?lidos' });
+      sendApiError(res, 400, 'PARTES_UNIDAD_INVALIDA', 'Datos de unidad invï¿½lidos.');
       return;
     }
     if (!esBorrador && unidadesParsed.length === 0) {
-      res.status(400).json({ error: 'Debe incluir al menos una unidad' });
+      sendApiError(res, 400, 'PARTES_UNIDAD_VACIA', 'Debe incluir al menos una unidad.');
       return;
     }
     data.unidades = {
@@ -349,12 +432,12 @@ partesRouter.patch('/:id', requireRoles('TENIENTE', 'CAPITAN', 'ADMIN'), async (
   }
   if (body.pacientes !== undefined) {
     if (!Array.isArray(body.pacientes)) {
-      res.status(400).json({ error: 'pacientes inv?lidos' });
+      sendApiError(res, 400, 'PARTES_PACIENTES_INVALIDOS', 'pacientes invï¿½lidos.');
       return;
     }
     for (const p of body.pacientes) {
       if (typeof p.nombre !== 'string' || typeof p.triage !== 'string') {
-        res.status(400).json({ error: 'Datos de paciente inv?lidos' });
+        sendApiError(res, 400, 'PARTES_PACIENTE_INVALIDO', 'Datos de paciente invï¿½lidos.');
         return;
       }
     }
@@ -370,7 +453,7 @@ partesRouter.patch('/:id', requireRoles('TENIENTE', 'CAPITAN', 'ADMIN'), async (
     };
   }
   if (Object.keys(data).length === 0) {
-    res.status(400).json({ error: 'No se enviaron cambios' });
+    sendApiError(res, 400, 'PARTES_PATCH_VACIO', 'No se enviaron cambios.');
     return;
   }
   try {
@@ -388,6 +471,6 @@ partesRouter.patch('/:id', requireRoles('TENIENTE', 'CAPITAN', 'ADMIN'), async (
     res.json(parte);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Error al actualizar parte' });
+    sendApiError(res, 500, 'PARTES_PATCH', 'Error al actualizar parte.');
   }
 });

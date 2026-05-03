@@ -29,6 +29,23 @@ export interface UsuarioListaDto {
   updatedAt: string;
 }
 
+export interface UsuariosPaginaDto {
+  items: UsuarioListaDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface UsuariosMetricasDto {
+  totalSistema: number;
+  activos: number;
+  inactivos: number;
+  conLicencia: number;
+  suspension: number;
+  totalRoles: number;
+}
+
 export interface UsuarioCrearDto {
   nombres: string;
   apellidoPaterno: string;

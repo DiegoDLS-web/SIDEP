@@ -8,7 +8,7 @@
     aria-controls="side-navigation"
     aria-label="Abrir o cerrar menú de navegación"
   >
-    <lucide-icon [name]="sidebarAbierto ? 'x' : 'menu'" class="h-5 w-5" />
+    <lucide-icon [name]="sidebarAbierto ? 'x' : 'menu'" class="h-5 w-5" aria-hidden="true" />
   </button>
 
   @if (sidebarAbierto) {

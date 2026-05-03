@@ -114,6 +114,8 @@ export interface ParteEmergenciaDto {
   claveEmergencia: string;
   direccion: string;
   fecha: string;
+  /** Opcional: texto en zona Chile (API paginada / detalle). */
+  fechaLegible?: string;
   estado: string;
   metadata?: ParteMetadataDto | null;
   obacId: number;

@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import type { Prisma } from '@prisma/client';
 import { prisma } from './lib/prisma.js';
+import { sendApiError } from './lib/apiError.js';
 import { partesRouter } from './routes/partes.js';
 import { checklistsRouter } from './routes/checklists.js';
 import { bolsosTraumaRouter } from './routes/bolsos-trauma.js';
@@ -126,7 +127,7 @@ app.get('/api/carros', requireAuth, async (_req, res) => {
     res.json(carros);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Error al listar carros' });
+    sendApiError(res, 500, 'CARROS_LIST', 'Error al listar carros');
   }
 });
 
@@ -173,7 +174,7 @@ app.get('/api/carros/historial-general', requireAuth, async (req, res) => {
     res.json(rows);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Error al listar historial general de carros' });
+    sendApiError(res, 500, 'CARROS_HISTORIAL_GENERAL', 'Error al listar historial general de carros');
   }
 });
 
@@ -181,7 +182,7 @@ app.get('/api/carros/:id', requireAuth, async (req, res) => {
   const rawParam = req.params.id;
   const param = Array.isArray(rawParam) ? rawParam[0] : rawParam;
   if (!param) {
-    res.status(400).json({ error: 'Parámetro requerido' });
+    sendApiError(res, 400, 'CARROS_PARAM', 'Parámetro requerido');
     return;
   }
   try {
@@ -199,13 +200,13 @@ app.get('/api/carros/:id', requireAuth, async (req, res) => {
         });
 
     if (!carro) {
-      res.status(404).json({ error: 'Carro no encontrado' });
+      sendApiError(res, 404, 'CARRO_NO_ENCONTRADO', 'Carro no encontrado');
       return;
     }
     res.json(carro);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Error al obtener carro' });
+    sendApiError(res, 500, 'CARRO_GET', 'Error al obtener carro');
   }
 });
 
@@ -213,19 +214,19 @@ app.patch('/api/carros/:id', requireAuth, async (req, res) => {
   const rawParam = req.params.id;
   const param = Array.isArray(rawParam) ? rawParam[0] : rawParam;
   if (!param) {
-    res.status(400).json({ error: 'Parámetro requerido' });
+    sendApiError(res, 400, 'CARROS_PARAM', 'Parámetro requerido');
     return;
   }
   try {
     const carroId = await resolverCarroId(param);
     if (carroId == null) {
-      res.status(404).json({ error: 'Carro no encontrado' });
+      sendApiError(res, 404, 'CARRO_NO_ENCONTRADO', 'Carro no encontrado');
       return;
     }
 
     const updateData = buildCarroPatch(req.body);
     if (Object.keys(updateData).length === 0) {
-      res.status(400).json({ error: 'Sin campos para actualizar' });
+      sendApiError(res, 400, 'CARRO_PATCH_VACIO', 'Sin campos para actualizar');
       return;
     }
 
@@ -257,7 +258,7 @@ app.patch('/api/carros/:id', requireAuth, async (req, res) => {
     res.json(resultado);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Error al actualizar carro' });
+    sendApiError(res, 500, 'CARRO_UPDATE', 'Error al actualizar carro');
   }
 });
 

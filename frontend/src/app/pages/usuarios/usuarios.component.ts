@@ -2,13 +2,15 @@ import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import type { UsuarioActualizarDto, UsuarioCrearDto, UsuarioListaDto } from '../../models/usuario.dto';
+import type { UsuarioActualizarDto, UsuarioCrearDto, UsuarioListaDto, UsuariosMetricasDto } from '../../models/usuario.dto';
+import { mensajeApiError } from '../../utils/api-error.util';
 import type { RolUsuarioDto } from '../../models/rol.dto';
 import { AuthService } from '../../services/auth.service';
 import { RolesService } from '../../services/roles.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { ToastService } from '../../services/toast.service';
 import { UsuariosService } from '../../services/usuarios.service';
+import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import {
   CARGOS_OFICIALIDAD_ORDEN,
@@ -50,7 +52,7 @@ type FormUsuario = {
 @Component({
   selector: 'app-usuarios',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidScrollRevealDirective],
   templateUrl: './usuarios.component.html',
 })
 export class UsuariosComponent implements OnInit {
@@ -70,7 +72,12 @@ export class UsuariosComponent implements OnInit {
   readonly regionesComunas = REGIONES_COMUNAS_CHILE;
   readonly rolesFallback = ROLES_SISTEMA_FALLBACK;
 
-  usuarios: UsuarioListaDto[] = [];
+  /** Filas de la página actual (servidor). */
+  usuariosPagina: UsuarioListaDto[] = [];
+  metricas: UsuariosMetricasDto | null = null;
+  /** Total de registros que cumplen la búsqueda actual. */
+  totalLista = 0;
+  totalPages = 1;
   loading = true;
   guardando = false;
   error: string | null = null;
@@ -79,6 +86,7 @@ export class UsuariosComponent implements OnInit {
   /** Página visible del directorio tras filtro (1-based). */
   paginaLista = 1;
   readonly tamanioPagina = 9;
+  private busquedaDebounce: ReturnType<typeof setTimeout> | null = null;
 
   mostrandoFormulario = false;
   editandoId: number | null = null;
@@ -95,7 +103,8 @@ export class UsuariosComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargarRoles();
-    this.cargarUsuarios();
+    this.cargarMetricas();
+    this.cargarPagina();
   }
 
   get puedeEditarRol(): boolean {
@@ -251,23 +260,50 @@ export class UsuariosComponent implements OnInit {
     return /^9\d{8}$/.test(local);
   }
 
-  cargarUsuarios(): void {
-    this.loading = true;
-    this.error = null;
-    this.usuariosApi.listar().subscribe({
-        next: (data) => {
-        this.usuarios = data;
-        this.fotosListaFallidas.clear();
-        this.paginaLista = 1;
-        this.loading = false;
-        this.abrirEdicionPorQuerySiAplica();
+  cargarMetricas(): void {
+    this.usuariosApi.metricas().subscribe({
+      next: (m) => {
+        this.metricas = m;
       },
       error: () => {
-        this.error = 'No se pudieron cargar los usuarios.';
-        this.toast.error('No se pudieron cargar los usuarios.');
+        this.metricas = null;
+      },
+    });
+  }
+
+  cargarPagina(): void {
+    this.loading = true;
+    this.error = null;
+    this.usuariosApi.listarPagina(this.paginaLista, this.tamanioPagina, this.busqueda).subscribe({
+      next: (resp) => {
+        if (resp.totalPages > 0 && this.paginaLista > resp.totalPages) {
+          this.paginaLista = resp.totalPages;
+          this.cargarPagina();
+          return;
+        }
+        this.usuariosPagina = resp.items;
+        this.totalLista = resp.total;
+        this.totalPages = resp.totalPages;
+        this.fotosListaFallidas.clear();
+        this.loading = false;
+        this.syncPagina();
+        this.abrirEdicionPorQuerySiAplica();
+      },
+      error: (err) => {
+        const msg = mensajeApiError(err, 'No se pudieron cargar los usuarios.');
+        this.error = msg;
+        this.toast.error(msg);
+        this.usuariosPagina = [];
+        this.totalLista = 0;
+        this.totalPages = 1;
         this.loading = false;
       },
     });
+  }
+
+  private recargarTrasMutacion(): void {
+    this.cargarMetricas();
+    this.cargarPagina();
   }
 
   abrirNuevo(): void {
@@ -340,6 +376,13 @@ export class UsuariosComponent implements OnInit {
     const next = typeof v === 'string' ? v : '';
     this.busqueda = next;
     this.paginaLista = 1;
+    if (this.busquedaDebounce) {
+      clearTimeout(this.busquedaDebounce);
+    }
+    this.busquedaDebounce = setTimeout(() => {
+      this.busquedaDebounce = null;
+      this.cargarPagina();
+    }, 320);
   }
 
   etiquetaChipOficialidad(usuario: UsuarioListaDto): string {
@@ -368,16 +411,25 @@ export class UsuariosComponent implements OnInit {
       this.limpiarQueryEditId();
       return;
     }
-    const u = this.usuarios.find((x) => x.id === editId);
-    if (!u) {
+    const u = this.usuariosPagina.find((x) => x.id === editId);
+    if (u) {
+      this.editar(u);
+      this.limpiarQueryEditId();
       return;
     }
-    this.editar(u);
-    this.limpiarQueryEditId();
+    this.usuariosApi.obtener(editId).subscribe({
+      next: (user) => {
+        this.editar(user);
+        this.limpiarQueryEditId();
+      },
+      error: () => {
+        this.limpiarQueryEditId();
+      },
+    });
   }
 
   get totalPaginas(): number {
-    return Math.max(1, Math.ceil(this.filtrados.length / this.tamanioPagina));
+    return Math.max(1, this.totalPages);
   }
 
   /** Asegura que la página actual exista después de filtros con menos ítems. */
@@ -390,16 +442,11 @@ export class UsuariosComponent implements OnInit {
     }
   }
 
-  get filtradosPagina(): UsuarioListaDto[] {
-    this.syncPagina();
-    const start = (this.paginaLista - 1) * this.tamanioPagina;
-    return this.filtrados.slice(start, start + this.tamanioPagina);
-  }
-
   cambiarPagina(delta: number): void {
     const nueva = this.paginaLista + delta;
     if (nueva >= 1 && nueva <= this.totalPaginas) {
       this.paginaLista = nueva;
+      this.cargarPagina();
     }
   }
 
@@ -642,11 +689,11 @@ export class UsuariosComponent implements OnInit {
           this.editandoId = null;
           this.exito = 'Usuario actualizado correctamente.';
           this.toast.exito('Usuario actualizado correctamente.');
-          this.cargarUsuarios();
+          this.recargarTrasMutacion();
         },
         error: (err) => {
           this.guardando = false;
-          const msg = err?.error?.error ?? 'No se pudo actualizar el usuario.';
+          const msg = mensajeApiError(err, 'No se pudo actualizar el usuario.');
           this.error = msg;
           this.toast.error(msg);
         },
@@ -693,11 +740,11 @@ export class UsuariosComponent implements OnInit {
         this.mostrandoFormulario = false;
         this.exito = 'Usuario creado correctamente.';
         this.toast.exito('Usuario creado correctamente.');
-        this.cargarUsuarios();
+        this.recargarTrasMutacion();
       },
       error: (err) => {
         this.guardando = false;
-        const msg = err?.error?.error ?? 'No se pudo crear el usuario (revisa RUT/email únicos).';
+        const msg = mensajeApiError(err, 'No se pudo crear el usuario (revisa RUT/email únicos).');
         this.error = msg;
         this.toast.error(msg);
       },
@@ -716,11 +763,12 @@ export class UsuariosComponent implements OnInit {
           this.toast.exito(
             siguiente === 'VIGENTE' ? 'Usuario activado en el listado.' : 'Usuario marcado como inactivo.',
           );
-          this.cargarUsuarios();
+          this.recargarTrasMutacion();
         },
-        error: () => {
-          this.error = 'No se pudo cambiar el estado del usuario.';
-          this.toast.error('No se pudo cambiar el estado del usuario.');
+        error: (err) => {
+          const msg = mensajeApiError(err, 'No se pudo cambiar el estado del usuario.');
+          this.error = msg;
+          this.toast.error(msg);
         },
       });
   }
@@ -738,59 +786,6 @@ export class UsuariosComponent implements OnInit {
     }
     const u = tipo.trim().toUpperCase();
     return this.etiquetasTipoVoluntario[u] ?? tipo;
-  }
-
-  get filtrados(): UsuarioListaDto[] {
-    const term = this.busqueda.trim().toLowerCase();
-    if (!term) {
-      return this.usuarios;
-    }
-    return this.usuarios.filter((u) => {
-      const cargo = this.etiquetaCargo(u.cargoOficialidad).toLowerCase();
-      const oficialidad = etiquetaOficialidadCargo(u.cargoOficialidad, u.rol).toLowerCase();
-      const tipoVol = this.etiquetaTipoVoluntario(u.tipoVoluntario).toLowerCase();
-      return (
-        u.nombre.toLowerCase().includes(term) ||
-        (u.nombres ?? '').toLowerCase().includes(term) ||
-        (u.apellidoPaterno ?? '').toLowerCase().includes(term) ||
-        (u.apellidoMaterno ?? '').toLowerCase().includes(term) ||
-        u.rut.toLowerCase().includes(term) ||
-        (u.email ?? '').toLowerCase().includes(term) ||
-        (u.compania ?? '').toLowerCase().includes(term) ||
-        (u.rol ?? '').toLowerCase().includes(term) ||
-        cargo.includes(term) ||
-        oficialidad.includes(term) ||
-        tipoVol.includes(term) ||
-        (u.tipoVoluntario ?? '').toLowerCase().includes(term)
-      );
-    });
-  }
-
-  totalActivos(): number {
-    return this.usuarios.filter((u) => u.activo).length;
-  }
-
-  totalInactivos(): number {
-    return this.usuarios.filter((u) => !u.activo).length;
-  }
-
-  totalRoles(): number {
-    return new Set(this.usuarios.map((u) => u.rol)).size;
-  }
-
-  totalConLicencia(): number {
-    return this.usuarios.filter((u) => {
-      const tipo = (u.tipoVoluntario ?? '').toUpperCase();
-      return tipo.includes('LICENCIA');
-    }).length;
-  }
-
-  totalConSuspension(): number {
-    return this.usuarios.filter((u) => {
-      const tipo = (u.tipoVoluntario ?? '').toUpperCase();
-      const estado = (u.estadoVoluntario ?? '').toUpperCase();
-      return tipo.includes('SUSP') || estado.includes('SUSP');
-    }).length;
   }
 
   async eliminar(usuario: UsuarioListaDto): Promise<void> {
@@ -819,10 +814,10 @@ export class UsuariosComponent implements OnInit {
         } else {
           this.toast.exito('Usuario eliminado correctamente.');
         }
-        this.cargarUsuarios();
+        this.recargarTrasMutacion();
       },
       error: (err) => {
-        const msg = err?.error?.error ?? 'No se pudo eliminar el usuario.';
+        const msg = mensajeApiError(err, 'No se pudo eliminar el usuario.');
         this.error = msg;
         this.toast.error(msg);
       },

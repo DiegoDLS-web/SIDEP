@@ -12,6 +12,7 @@ const multer_1 = __importDefault(require("multer"));
 const prisma_js_1 = require("../lib/prisma.js");
 const nav_por_rol_js_1 = require("../lib/nav-por-rol.js");
 const roles_js_1 = require("../middleware/roles.js");
+const apiError_js_1 = require("../lib/apiError.js");
 const CLAVE = 'SISTEMA_GENERAL';
 const defaultConfig = {
     compania: {
@@ -121,7 +122,7 @@ function manejarMulterLogo(req, res, next) {
     uploadLogoCompania.single('file')(req, res, (err) => {
         if (err) {
             const msg = err instanceof Error ? err.message : 'Archivo inválido';
-            res.status(400).json({ error: msg });
+            (0, apiError_js_1.sendApiError)(res, 400, 'CONFIG_LOGO_UPLOAD', msg);
             return;
         }
         next();
@@ -129,7 +130,7 @@ function manejarMulterLogo(req, res, next) {
 }
 exports.configuracionesRouter.post('/logo-compania', (0, roles_js_1.requireRoles)('ADMIN'), manejarMulterLogo, (req, res) => {
     if (!req.file) {
-        res.status(400).json({ error: 'Adjunta un archivo PNG o JPEG (máx. 2 MB)' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'CONFIG_LOGO_ARCHIVO', 'Adjunta un archivo PNG o JPEG (máx. 2 MB)');
         return;
     }
     try {
@@ -152,13 +153,13 @@ exports.configuracionesRouter.get('/', async (_req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al obtener configuraciones' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'CONFIG_GET', 'Error al obtener configuraciones');
     }
 });
 exports.configuracionesRouter.put('/', (0, roles_js_1.requireRoles)('ADMIN'), async (req, res) => {
     const body = req.body;
     if (!body?.compania || !body?.notificaciones || !body?.reportes) {
-        res.status(400).json({ error: 'Payload de configuraciones inválido' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'CONFIG_PAYLOAD', 'Payload de configuraciones inválido');
         return;
     }
     const sanitized = mergeConfig(body);
@@ -173,7 +174,7 @@ exports.configuracionesRouter.put('/', (0, roles_js_1.requireRoles)('ADMIN'), as
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al guardar configuraciones' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'CONFIG_SAVE', 'Error al guardar configuraciones');
     }
 });
 //# sourceMappingURL=configuraciones.js.map

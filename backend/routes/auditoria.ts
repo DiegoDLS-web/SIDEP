@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { sendApiError } from '../lib/apiError.js';
 
 export const auditoriaRouter = Router();
 
@@ -18,6 +19,6 @@ auditoriaRouter.get('/', async (req, res) => {
     res.json(items);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'No se pudo listar la auditoría' });
+    sendApiError(res, 500, 'AUDITORIA_LIST', 'No se pudo listar la auditoría');
   }
 });

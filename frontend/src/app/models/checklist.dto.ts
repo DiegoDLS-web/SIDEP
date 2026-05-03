@@ -44,6 +44,14 @@ export interface ChecklistRegistroDto {
   cuartelero: { id: number; nombre: string; rol: string };
 }
 
+export interface ChecklistEraPaginaDto {
+  items: ChecklistRegistroDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export interface ChecklistUnidadResponseDto {
   unidad: string;
   carro: { id: number; nomenclatura: string; nombre: string | null };

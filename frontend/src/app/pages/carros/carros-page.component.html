@@ -27,10 +27,11 @@
       routerLink="/"
       class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212]/90 px-3 py-2 text-sm text-slate-300 ring-1 ring-white/5 transition-colors hover:border-slate-600 hover:text-white"
     >
-      <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+      <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
       Volver al inicio
     </a>
     <section
+      sidScrollReveal
       class="sid-morph-item sid-hero-premium relative overflow-hidden rounded-2xl border border-red-900/40 bg-[radial-gradient(circle_at_0%_0%,rgba(220,38,38,0.18),transparent_45%),radial-gradient(circle_at_100%_0%,rgba(59,130,246,0.1),transparent_42%),#0a0a0a] p-5 sm:p-6"
     >
       <p class="sid-page-hero-badge mb-2 inline-flex rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs text-red-200">Flota operativa</p>
@@ -38,7 +39,7 @@
       <p class="sid-page-hero-subtitle sid-hero-subtitle mt-1 max-w-2xl text-sm text-slate-300 md:text-base">Control de unidades, mantención e historial en una sola vista</p>
     </section>
 
-    <div class="mb-2 grid w-full grid-cols-1 gap-3 min-[480px]:grid-cols-3 min-[480px]:gap-4">
+    <div sidScrollReveal class="mb-2 grid w-full grid-cols-1 gap-3 min-[480px]:grid-cols-3 min-[480px]:gap-4">
       @for (t of tarjetasResumenFleet(s); track t.key) {
         <div
           class="sid-morph-item flex min-h-[4.5rem] min-w-0 items-center gap-4 rounded-2xl border border-slate-800/80 bg-[#121212] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5"
@@ -350,7 +351,7 @@
       class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212] px-4 py-2.5 text-sm text-slate-300 shadow-sm ring-1 ring-inset ring-white/5 transition-all hover:border-slate-600 hover:text-white"
       (click)="volverLista()"
     >
-      <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+      <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
       Volver a carros
     </button>
 

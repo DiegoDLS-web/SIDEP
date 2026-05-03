@@ -8,6 +8,7 @@ import { ASISTENCIA_CONTEXTO_OPCIONES, ASISTENCIA_ITEM_LABELS } from '../pages/p
 import type { LogosPdfCabecera } from '../models/configuracion.dto';
 import { ConfiguracionesService } from './configuraciones.service';
 import { logosActivosPorConfig } from '../utils/reportes-logos.util';
+import { lineaPieParteOperativoPdf, lineaSubtituloPartePdf, nombreOrganizacionPdf } from '../utils/pdf-branding-text.util';
 import { COMPANIA_LOGO_TRY_PATHS, SIDEP_MARK_PNG_ABSOLUTE } from '../shared/sidep-branding';
 
 type DocWithLast = jsPDF & { lastAutoTable?: { finalY: number } };
@@ -78,7 +79,12 @@ function ensureSpace(doc: jsPDF, y: number, minBottom: number): number {
 
 function fmtFechaHora(iso: string): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('es-CL');
+  if (Number.isNaN(d.getTime())) return '—';
+  return new Intl.DateTimeFormat('es-CL', {
+    timeZone: 'America/Santiago',
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(d);
 }
 
 function fmtKm(km: number): string {
@@ -224,7 +230,7 @@ export class PartesExportService {
     return 'AMBOS';
   }
 
-  private dibujarPieProfesional(doc: jsPDF): void {
+  private dibujarPieProfesional(doc: jsPDF, nombreOrganizacion: string): void {
     const total = doc.getNumberOfPages();
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
@@ -236,7 +242,7 @@ export class PartesExportService {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
       doc.setTextColor(...C_TEXT_MUTED);
-      doc.text(`SIDEP · Parte operativo · ${generado}`, M, pageH - 7);
+      doc.text(lineaPieParteOperativoPdf(nombreOrganizacion, generado), M, pageH - 7);
       doc.text(`Página ${page} de ${total}`, pageW - M, pageH - 7, { align: 'right' });
     }
     doc.setTextColor(0, 0, 0);
@@ -249,7 +255,12 @@ export class PartesExportService {
   private async exportarPdfAsync(parte: ParteEmergenciaDto): Promise<void> {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const m = parte.metadata;
-    const [logos, modoPdf] = await Promise.all([this.getLogos(), this.modoLogosPdf()]);
+    const [logos, modoPdf, brandingPub] = await Promise.all([
+      this.getLogos(),
+      this.modoLogosPdf(),
+      firstValueFrom(this.configApi.brandingPublic().pipe(catchError(() => of({ nombreCompania: '' })))),
+    ]);
+    const nombreOrg = nombreOrganizacionPdf(brandingPub?.nombreCompania);
     const activos = logosActivosPorConfig(modoPdf);
 
     // ——— Cabecera principal ———
@@ -258,7 +269,7 @@ export class PartesExportService {
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.text('SIDEP · Parte de emergencia', M + 4, M + 7);
+    doc.text(lineaSubtituloPartePdf(nombreOrg), M + 4, M + 7);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(17);
     doc.text('Registro operativo', M + 4, M + 16);
@@ -575,7 +586,7 @@ export class PartesExportService {
     y += boxH + 12;
     doc.setTextColor(0, 0, 0);
 
-    this.dibujarPieProfesional(doc);
+    this.dibujarPieProfesional(doc, nombreOrg);
     doc.save(`SIDEP-parte-${parte.correlativo}-${stampFechaArchivo()}.pdf`);
   }
 

@@ -11,7 +11,7 @@ import { CarrosService } from '../../services/carros.service';
 import { DashboardService } from '../../services/dashboard.service';
 import { ReportesService } from '../../services/reportes.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
-import { SidepWordmarkChipComponent } from '../../shared/sidep-wordmark-chip.component';
+import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
 import { CLAVES_EMERGENCIA } from '../partes/partes.constants';
 import type { CuadroHonorDto } from '../../models/reportes.dto';
 
@@ -27,7 +27,7 @@ type StatCard = {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidepWordmarkChipComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidScrollRevealDirective],
   templateUrl: './dashboard.component.html',
 })
 export class DashboardComponent implements OnInit, OnDestroy {
@@ -197,6 +197,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
   maxPorTipo(): number {
     const t = this.tiposEmergenciaTop();
     return Math.max(...t.map((x) => x.cantidad), 1);
+  }
+
+  /** Color de la barra según el número de llamados (volumen alto = rojo / anaranjado). */
+  clasesBarraPorLlamados(cantidad: number): string {
+    if (cantidad >= 8) return 'bg-red-500 shadow-[0_0_14px_rgba(239,68,68,0.35)]';
+    if (cantidad >= 6) return 'bg-orange-500';
+    if (cantidad >= 5) return 'bg-amber-400';
+    if (cantidad >= 4) return 'bg-yellow-400';
+    if (cantidad >= 3) return 'bg-sky-500';
+    if (cantidad >= 2) return 'bg-teal-500';
+    return 'bg-emerald-500';
   }
 
   tiposEmergenciaTop(): Array<{ claveEmergencia: string; cantidad: number }> {

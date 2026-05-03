@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.rolesRouter = void 0;
 const express_1 = require("express");
 const prisma_js_1 = require("../lib/prisma.js");
+const apiError_js_1 = require("../lib/apiError.js");
 exports.rolesRouter = (0, express_1.Router)();
 const ROLES_PERMITIDOS = ['CAPITAN', 'TENIENTE', 'VOLUNTARIOS', 'ADMIN'];
 async function sincronizarRolesPermitidos() {
@@ -35,18 +36,16 @@ exports.rolesRouter.get('/', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al listar roles' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'ROLES_LIST', 'Error al listar roles');
     }
 });
 exports.rolesRouter.post('/', async (req, res) => {
-    res.status(400).json({
-        error: 'No se pueden crear más roles. Solo se permiten: CAPITAN, TENIENTE, VOLUNTARIOS y ADMIN.',
-    });
+    (0, apiError_js_1.sendApiError)(res, 400, 'ROLES_CREATE_DISABLED', 'No se pueden crear más roles. Solo se permiten: CAPITAN, TENIENTE, VOLUNTARIOS y ADMIN.');
 });
 exports.rolesRouter.patch('/:id', async (req, res) => {
     const id = Number(req.params.id);
     if (Number.isNaN(id) || id <= 0) {
-        res.status(400).json({ error: 'ID inválido' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'ROLES_ID_INVALIDO', 'ID inválido');
         return;
     }
     const nombre = req.body?.nombre !== undefined ? String(req.body.nombre).trim().toUpperCase() : undefined;
@@ -54,11 +53,11 @@ exports.rolesRouter.patch('/:id', async (req, res) => {
     try {
         const rolActual = await prisma_js_1.prisma.rolUsuario.findUnique({ where: { id } });
         if (!rolActual || !ROLES_PERMITIDOS.includes(rolActual.nombre)) {
-            res.status(400).json({ error: 'Solo se pueden editar los 4 roles permitidos.' });
+            (0, apiError_js_1.sendApiError)(res, 400, 'ROLES_EDITAR_NO_PERMITIDO', 'Solo se pueden editar los 4 roles permitidos.');
             return;
         }
         if (nombre !== undefined && nombre !== rolActual.nombre) {
-            res.status(400).json({ error: 'No se puede renombrar roles.' });
+            (0, apiError_js_1.sendApiError)(res, 400, 'ROLES_RENAME_DISABLED', 'No se puede renombrar roles.');
             return;
         }
         const actualizado = await prisma_js_1.prisma.rolUsuario.update({
@@ -71,7 +70,7 @@ exports.rolesRouter.patch('/:id', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'No se pudo actualizar rol' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'ROLES_UPDATE', 'No se pudo actualizar rol');
     }
 });
 //# sourceMappingURL=roles.js.map

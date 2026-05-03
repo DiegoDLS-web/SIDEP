@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { sendApiError } from '../lib/apiError.js';
 
 export const bolsosTraumaRouter = Router();
 
@@ -92,7 +93,7 @@ bolsosTraumaRouter.get('/historial', async (req, res) => {
   if (desdeRaw) {
     const d = new Date(desdeRaw);
     if (Number.isNaN(d.getTime())) {
-      res.status(400).json({ error: 'Fecha "desde" inválida' });
+      sendApiError(res, 400, 'BOLSO_HISTORIAL_DESDE', 'Fecha "desde" inválida');
       return;
     }
     fechaFilter.gte = d;
@@ -100,7 +101,7 @@ bolsosTraumaRouter.get('/historial', async (req, res) => {
   if (hastaRaw) {
     const h = new Date(hastaRaw);
     if (Number.isNaN(h.getTime())) {
-      res.status(400).json({ error: 'Fecha "hasta" inválida' });
+      sendApiError(res, 400, 'BOLSO_HISTORIAL_HASTA', 'Fecha "hasta" inválida');
       return;
     }
     h.setHours(23, 59, 59, 999);
@@ -148,14 +149,14 @@ bolsosTraumaRouter.get('/historial', async (req, res) => {
     res.json(out);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Error al cargar historial de bolsos de trauma' });
+    sendApiError(res, 500, 'BOLSO_HISTORIAL', 'Error al cargar historial de bolsos de trauma');
   }
 });
 
 bolsosTraumaRouter.get('/historial/:id', async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id) || id <= 0) {
-    res.status(400).json({ error: 'Id inválido' });
+    sendApiError(res, 400, 'BOLSO_ID', 'Id inválido');
     return;
   }
   try {
@@ -164,7 +165,7 @@ bolsosTraumaRouter.get('/historial/:id', async (req, res) => {
       include: includeChecklist,
     });
     if (!row) {
-      res.status(404).json({ error: 'Registro no encontrado' });
+      sendApiError(res, 404, 'BOLSO_NO_ENCONTRADO', 'Registro no encontrado');
       return;
     }
     res.json({
@@ -173,7 +174,7 @@ bolsosTraumaRouter.get('/historial/:id', async (req, res) => {
     });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Error al cargar registro de bolso trauma' });
+    sendApiError(res, 500, 'BOLSO_DETALLE', 'Error al cargar registro de bolso trauma');
   }
 });
 
@@ -215,20 +216,20 @@ bolsosTraumaRouter.get('/selector', async (_req, res) => {
     res.json(out);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Error al cargar resumen de bolsos de trauma' });
+    sendApiError(res, 500, 'BOLSO_RESUMEN', 'Error al cargar resumen de bolsos de trauma');
   }
 });
 
 bolsosTraumaRouter.get('/:unidad', async (req, res) => {
   const unidad = req.params.unidad;
   if (!unidad) {
-    res.status(400).json({ error: 'Unidad requerida' });
+    sendApiError(res, 400, 'BOLSO_UNIDAD_REQUERIDA', 'Unidad requerida');
     return;
   }
   try {
     const carro = await prisma.carro.findUnique({ where: { nomenclatura: unidad } });
     if (!carro) {
-      res.status(404).json({ error: 'Unidad no encontrada' });
+      sendApiError(res, 404, 'BOLSO_UNIDAD_NO_ENCONTRADA', 'Unidad no encontrada');
       return;
     }
     const checklist = await prisma.checklistCarro.findFirst({
@@ -252,7 +253,7 @@ bolsosTraumaRouter.get('/:unidad', async (req, res) => {
     });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Error al obtener registro bolso trauma' });
+    sendApiError(res, 500, 'BOLSO_UNIDAD_OBTENER', 'Error al obtener registro bolso trauma');
   }
 });
 
@@ -270,13 +271,13 @@ bolsosTraumaRouter.post('/:unidad', async (req, res) => {
     detalle?: unknown;
   };
   if (!unidad || typeof body.cuarteleroId !== 'number') {
-    res.status(400).json({ error: 'Unidad y cuarteleroId son requeridos' });
+    sendApiError(res, 400, 'BOLSO_UNIDAD_CUARTELERO', 'Unidad y cuarteleroId son requeridos');
     return;
   }
   try {
     const carro = await prisma.carro.findUnique({ where: { nomenclatura: unidad } });
     if (!carro) {
-      res.status(404).json({ error: 'Unidad no encontrada' });
+      sendApiError(res, 404, 'BOLSO_UNIDAD_NO_ENCONTRADA', 'Unidad no encontrada');
       return;
     }
     const created = await prisma.checklistCarro.create({
@@ -301,6 +302,6 @@ bolsosTraumaRouter.post('/:unidad', async (req, res) => {
     });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Error al guardar bolso trauma' });
+    sendApiError(res, 500, 'BOLSO_GUARDAR', 'Error al guardar bolso trauma');
   }
 });

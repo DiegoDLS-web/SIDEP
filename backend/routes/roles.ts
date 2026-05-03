@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
+import { sendApiError } from '../lib/apiError.js';
 
 export const rolesRouter = Router();
 const ROLES_PERMITIDOS = ['CAPITAN', 'TENIENTE', 'VOLUNTARIOS', 'ADMIN'] as const;
@@ -34,20 +35,23 @@ rolesRouter.get('/', async (req, res) => {
     res.json(roles);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Error al listar roles' });
+    sendApiError(res, 500, 'ROLES_LIST', 'Error al listar roles');
   }
 });
 
 rolesRouter.post('/', async (req, res) => {
-  res.status(400).json({
-    error: 'No se pueden crear más roles. Solo se permiten: CAPITAN, TENIENTE, VOLUNTARIOS y ADMIN.',
-  });
+  sendApiError(
+    res,
+    400,
+    'ROLES_CREATE_DISABLED',
+    'No se pueden crear más roles. Solo se permiten: CAPITAN, TENIENTE, VOLUNTARIOS y ADMIN.',
+  );
 });
 
 rolesRouter.patch('/:id', async (req, res) => {
   const id = Number(req.params.id);
   if (Number.isNaN(id) || id <= 0) {
-    res.status(400).json({ error: 'ID inválido' });
+    sendApiError(res, 400, 'ROLES_ID_INVALIDO', 'ID inválido');
     return;
   }
   const nombre = req.body?.nombre !== undefined ? String(req.body.nombre).trim().toUpperCase() : undefined;
@@ -55,11 +59,11 @@ rolesRouter.patch('/:id', async (req, res) => {
   try {
     const rolActual = await prisma.rolUsuario.findUnique({ where: { id } });
     if (!rolActual || !ROLES_PERMITIDOS.includes(rolActual.nombre as (typeof ROLES_PERMITIDOS)[number])) {
-      res.status(400).json({ error: 'Solo se pueden editar los 4 roles permitidos.' });
+      sendApiError(res, 400, 'ROLES_EDITAR_NO_PERMITIDO', 'Solo se pueden editar los 4 roles permitidos.');
       return;
     }
     if (nombre !== undefined && nombre !== rolActual.nombre) {
-      res.status(400).json({ error: 'No se puede renombrar roles.' });
+      sendApiError(res, 400, 'ROLES_RENAME_DISABLED', 'No se puede renombrar roles.');
       return;
     }
     const actualizado = await prisma.rolUsuario.update({
@@ -71,6 +75,6 @@ rolesRouter.patch('/:id', async (req, res) => {
     res.json(actualizado);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'No se pudo actualizar rol' });
+    sendApiError(res, 500, 'ROLES_UPDATE', 'No se pudo actualizar rol');
   }
 });

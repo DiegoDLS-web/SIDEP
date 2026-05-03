@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.dashboardRouter = void 0;
 const express_1 = require("express");
 const prisma_js_1 = require("../lib/prisma.js");
+const apiError_js_1 = require("../lib/apiError.js");
 exports.dashboardRouter = (0, express_1.Router)();
 function parseHoraEnFecha(base, hhmm) {
     const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
@@ -82,14 +83,14 @@ exports.dashboardRouter.get('/resumen', async (req, res) => {
         ? Number(String(anioRaw).trim())
         : new Date().getFullYear();
     if (!Number.isFinite(anio) || anio < 2000 || anio > 2100) {
-        res.status(400).json({ error: 'año inválido' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'DASHBOARD_ANIO', 'año inválido');
         return;
     }
     let carroIdFilter;
     if (carroIdRaw != null && String(carroIdRaw).trim() !== '' && String(carroIdRaw) !== 'todas') {
         const n = Number(carroIdRaw);
         if (!Number.isFinite(n) || n <= 0) {
-            res.status(400).json({ error: 'carroId inválido' });
+            (0, apiError_js_1.sendApiError)(res, 400, 'DASHBOARD_CARRO_ID', 'carroId inválido');
             return;
         }
         carroIdFilter = n;
@@ -350,7 +351,7 @@ exports.dashboardRouter.get('/resumen', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'No se pudo cargar el dashboard' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'DASHBOARD_RESUMEN', 'No se pudo cargar el dashboard');
     }
 });
 //# sourceMappingURL=dashboard.js.map

@@ -6,13 +6,14 @@ import { catchError, forkJoin, of } from 'rxjs';
 import type { ChecklistRegistroDto, ChecklistResumenUnidadDto, EstadoChecklist } from '../../models/checklist.dto';
 import { ChecklistsService } from '../../services/checklists.service';
 import { PdfExportService } from '../../services/pdf-export.service';
+import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 
 @Component({
   selector: 'app-checklist-selector',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidScrollRevealDirective],
   templateUrl: './checklist-selector.component.html',
 })
 export class ChecklistSelectorComponent implements OnInit {

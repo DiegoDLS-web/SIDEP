@@ -11,6 +11,7 @@ import type { CarroDto } from '../../models/carro.dto';
 import { CarrosService } from '../../services/carros.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { ToastService } from '../../services/toast.service';
+import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
@@ -24,7 +25,7 @@ type CarrosView =
 @Component({
   selector: 'app-carros-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidScrollRevealDirective],
   templateUrl: './carros-page.component.html',
 })
 export class CarrosPageComponent {

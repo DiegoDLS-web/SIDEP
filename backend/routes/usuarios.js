@@ -10,6 +10,8 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const prisma_js_1 = require("../lib/prisma.js");
 const auditoria_js_1 = require("../lib/auditoria.js");
 const usuario_perfil_js_1 = require("../lib/usuario-perfil.js");
+const apiError_js_1 = require("../lib/apiError.js");
+const httpQuery_js_1 = require("../lib/httpQuery.js");
 exports.usuariosRouter = (0, express_1.Router)();
 const ROLES_PUEDEN_ASIGNAR = new Set(['ADMIN', 'CAPITAN', 'TENIENTE']);
 const selectUsuario = {
@@ -43,6 +45,26 @@ const selectUsuario = {
     createdAt: true,
     updatedAt: true,
 };
+function buildUsuarioListWhere(qRaw) {
+    const q = qRaw?.trim();
+    if (!q)
+        return {};
+    const ic = { contains: q, mode: 'insensitive' };
+    return {
+        OR: [
+            { nombre: ic },
+            { nombres: ic },
+            { apellidoPaterno: ic },
+            { apellidoMaterno: ic },
+            { rut: ic },
+            { email: ic },
+            { compania: ic },
+            { rol: ic },
+            { tipoVoluntario: ic },
+            { cargoOficialidad: ic },
+        ],
+    };
+}
 function puedeAsignarRol(req) {
     const r = req.user?.rol?.trim().toUpperCase();
     return r ? ROLES_PUEDEN_ASIGNAR.has(r) : false;
@@ -81,18 +103,76 @@ function validarCreacionCompleta(body) {
         }
     }
     if (!parseDate(body.fechaNacimiento))
-        return 'fechaNacimiento inv?lida';
+        return 'fechaNacimiento inválida';
     if (!parseDate(body.fechaIngreso))
-        return 'fechaIngreso inv?lida';
+        return 'fechaIngreso inválida';
     if (!(0, usuario_perfil_js_1.esTipoVoluntarioValido)(String(body.tipoVoluntario)))
-        return 'tipoVoluntario inv?lido';
+        return 'tipoVoluntario inválido';
     if (!(0, usuario_perfil_js_1.esCargoValido)(String(body.cargoOficialidad)))
-        return 'cargoOficialidad inv?lido';
+        return 'cargoOficialidad inválido';
     const ev = String(body.estadoVoluntario).toUpperCase();
     if (ev !== 'VIGENTE' && ev !== 'INACTIVO')
         return 'estadoVoluntario debe ser VIGENTE o INACTIVO';
     return null;
 }
+exports.usuariosRouter.get('/metricas', async (_req, res) => {
+    try {
+        const [totalSistema, activos, inactivos, conLicencia, suspension, rolesRows] = await Promise.all([
+            prisma_js_1.prisma.usuario.count(),
+            prisma_js_1.prisma.usuario.count({ where: { activo: true } }),
+            prisma_js_1.prisma.usuario.count({ where: { activo: false } }),
+            prisma_js_1.prisma.usuario.count({
+                where: { tipoVoluntario: { contains: 'LICENCIA', mode: 'insensitive' } },
+            }),
+            prisma_js_1.prisma.usuario.count({
+                where: {
+                    OR: [
+                        { tipoVoluntario: { contains: 'SUSP', mode: 'insensitive' } },
+                        { estadoVoluntario: { contains: 'SUSP', mode: 'insensitive' } },
+                    ],
+                },
+            }),
+            prisma_js_1.prisma.usuario.groupBy({ by: ['rol'], _count: { _all: true } }),
+        ]);
+        res.json({
+            totalSistema,
+            activos,
+            inactivos,
+            conLicencia,
+            suspension,
+            totalRoles: rolesRows.length,
+        });
+    }
+    catch (e) {
+        console.error(e);
+        (0, apiError_js_1.sendApiError)(res, 500, 'USUARIOS_METRICAS', 'Error al obtener métricas de usuarios.');
+    }
+});
+exports.usuariosRouter.get('/pagina', async (req, res) => {
+    const page = Math.max(1, parseInt(String((0, httpQuery_js_1.firstQueryString)(req.query.page) ?? '1'), 10) || 1);
+    const rawSize = parseInt(String((0, httpQuery_js_1.firstQueryString)(req.query.pageSize) ?? '9'), 10) || 9;
+    const pageSize = Math.min(100, Math.max(1, rawSize));
+    const q = (0, httpQuery_js_1.firstQueryString)(req.query.q);
+    const where = buildUsuarioListWhere(q);
+    try {
+        const [total, rows] = await Promise.all([
+            prisma_js_1.prisma.usuario.count({ where }),
+            prisma_js_1.prisma.usuario.findMany({
+                where,
+                select: selectUsuario,
+                orderBy: { nombre: 'asc' },
+                skip: (page - 1) * pageSize,
+                take: pageSize,
+            }),
+        ]);
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        res.json({ items: rows, total, page, pageSize, totalPages });
+    }
+    catch (e) {
+        console.error(e);
+        (0, apiError_js_1.sendApiError)(res, 500, 'USUARIOS_LIST_PAGINA', 'Error al listar usuarios con paginación.');
+    }
+});
 exports.usuariosRouter.get('/', async (_req, res) => {
     try {
         const usuarios = await prisma_js_1.prisma.usuario.findMany({
@@ -103,21 +183,40 @@ exports.usuariosRouter.get('/', async (_req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al listar usuarios' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'USUARIOS_LIST', 'Error al listar usuarios');
+    }
+});
+exports.usuariosRouter.get('/:id', async (req, res) => {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id) || id <= 0) {
+        (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_ID_INVALIDO', 'ID inválido.');
+        return;
+    }
+    try {
+        const u = await prisma_js_1.prisma.usuario.findUnique({ where: { id }, select: selectUsuario });
+        if (!u) {
+            (0, apiError_js_1.sendApiError)(res, 404, 'USUARIO_NO_ENCONTRADO', 'Usuario no encontrado.');
+            return;
+        }
+        res.json(u);
+    }
+    catch (e) {
+        console.error(e);
+        (0, apiError_js_1.sendApiError)(res, 500, 'USUARIO_DETALLE', 'Error al obtener usuario.');
     }
 });
 exports.usuariosRouter.post('/', async (req, res) => {
     const body = req.body;
     const err = validarCreacionCompleta(body);
     if (err) {
-        res.status(400).json({ error: err });
+        (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_VALIDACION', err);
         return;
     }
     const bodyRol = String(body.rol ?? '').trim().toUpperCase();
     try {
         const rol = await prisma_js_1.prisma.rolUsuario.findFirst({ where: { nombre: bodyRol, activo: true } });
         if (!rol) {
-            res.status(400).json({ error: 'El rol indicado no existe o est? inactivo' });
+            (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_ROL_INVALIDO', 'El rol indicado no existe o está inactivo');
             return;
         }
         let firma = null;
@@ -126,7 +225,7 @@ exports.usuariosRouter.post('/', async (req, res) => {
                 firma = (0, usuario_perfil_js_1.normalizarFirmaDataUrl)(String(body.firmaImagen));
             }
             catch (e) {
-                res.status(400).json({ error: e instanceof Error ? e.message : 'Firma inv?lida' });
+                (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_FIRMA_INVALIDA', e instanceof Error ? e.message : 'Firma inválida');
                 return;
             }
         }
@@ -136,7 +235,7 @@ exports.usuariosRouter.post('/', async (req, res) => {
                 fotoPerfil = (0, usuario_perfil_js_1.normalizarFotoPerfil)(String(body.fotoPerfil));
             }
             catch (e) {
-                res.status(400).json({ error: e instanceof Error ? e.message : 'Foto de perfil inv?lida' });
+                (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_FOTO_INVALIDA', e instanceof Error ? e.message : 'Foto de perfil inválida');
                 return;
             }
         }
@@ -195,18 +294,18 @@ exports.usuariosRouter.post('/', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al crear usuario (revisa rut/email ?nicos)' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'USUARIOS_CREAR', 'Error al crear usuario (revisa rut/email únicos)');
     }
 });
 exports.usuariosRouter.patch('/:id', async (req, res) => {
     const id = Number(req.params.id);
     if (Number.isNaN(id) || id <= 0) {
-        res.status(400).json({ error: 'ID inv?lido' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_ID_INVALIDO', 'ID inválido');
         return;
     }
     const body = req.body;
     if (body.rol !== undefined && !puedeAsignarRol(req)) {
-        res.status(403).json({ error: 'No autorizado a modificar el rol' });
+        (0, apiError_js_1.sendApiError)(res, 403, 'USUARIOS_ROL_SIN_PERMISO', 'No autorizado a modificar el rol');
         return;
     }
     try {
@@ -214,7 +313,7 @@ exports.usuariosRouter.patch('/:id', async (req, res) => {
             const rolNormalizado = String(body.rol).trim().toUpperCase();
             const rol = await prisma_js_1.prisma.rolUsuario.findFirst({ where: { nombre: rolNormalizado, activo: true } });
             if (!rol) {
-                res.status(400).json({ error: 'El rol indicado no existe o est? inactivo' });
+                (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_ROL_INVALIDO', 'El rol indicado no existe o está inactivo');
                 return;
             }
         }
@@ -229,7 +328,7 @@ exports.usuariosRouter.patch('/:id', async (req, res) => {
                     firma = (0, usuario_perfil_js_1.normalizarFirmaDataUrl)(String(raw));
                 }
                 catch (e) {
-                    res.status(400).json({ error: e instanceof Error ? e.message : 'Firma inv?lida' });
+                    (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_FIRMA_INVALIDA', e instanceof Error ? e.message : 'Firma inválida');
                     return;
                 }
             }
@@ -245,7 +344,7 @@ exports.usuariosRouter.patch('/:id', async (req, res) => {
                     fotoPerfilParche = (0, usuario_perfil_js_1.normalizarFotoPerfil)(String(rawFoto));
                 }
                 catch (e) {
-                    res.status(400).json({ error: e instanceof Error ? e.message : 'Foto de perfil inv?lida' });
+                    (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_FOTO_INVALIDA', e instanceof Error ? e.message : 'Foto de perfil inválida');
                     return;
                 }
             }
@@ -285,7 +384,7 @@ exports.usuariosRouter.patch('/:id', async (req, res) => {
         if (body.tipoVoluntario !== undefined) {
             const t = String(body.tipoVoluntario).trim();
             if (!(0, usuario_perfil_js_1.esTipoVoluntarioValido)(t)) {
-                res.status(400).json({ error: 'tipoVoluntario inv?lido' });
+                (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_TIPO_VOLUNTARIO', 'tipoVoluntario inválido');
                 return;
             }
             data.tipoVoluntario = t;
@@ -297,7 +396,7 @@ exports.usuariosRouter.patch('/:id', async (req, res) => {
         if (body.cargoOficialidad !== undefined) {
             const c = String(body.cargoOficialidad).trim();
             if (!(0, usuario_perfil_js_1.esCargoValido)(c)) {
-                res.status(400).json({ error: 'cargoOficialidad inv?lido' });
+                (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_CARGO', 'cargoOficialidad inválido');
                 return;
             }
             data.cargoOficialidad = c;
@@ -328,7 +427,7 @@ exports.usuariosRouter.patch('/:id', async (req, res) => {
         if (body.estadoVoluntario !== undefined) {
             const ev = String(body.estadoVoluntario).toUpperCase();
             if (ev !== 'VIGENTE' && ev !== 'INACTIVO') {
-                res.status(400).json({ error: 'estadoVoluntario inv?lido' });
+                (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_ESTADO_VOLUNTARIO', 'estadoVoluntario inválido');
                 return;
             }
             data.estadoVoluntario = ev;
@@ -342,7 +441,7 @@ exports.usuariosRouter.patch('/:id', async (req, res) => {
         }
         const actual = await prisma_js_1.prisma.usuario.findUnique({ where: { id } });
         if (!actual) {
-            res.status(404).json({ error: 'Usuario no encontrado' });
+            (0, apiError_js_1.sendApiError)(res, 404, 'USUARIO_NO_ENCONTRADO', 'Usuario no encontrado');
             return;
         }
         const nombres = data.nombres ?? actual.nombres;
@@ -359,7 +458,7 @@ exports.usuariosRouter.patch('/:id', async (req, res) => {
         if (Object.keys(data).length === 0) {
             const u = await prisma_js_1.prisma.usuario.findUnique({ where: { id }, select: selectUsuario });
             if (!u) {
-                res.status(404).json({ error: 'Usuario no encontrado' });
+                (0, apiError_js_1.sendApiError)(res, 404, 'USUARIO_NO_ENCONTRADO', 'Usuario no encontrado');
                 return;
             }
             res.json(u);
@@ -380,32 +479,32 @@ exports.usuariosRouter.patch('/:id', async (req, res) => {
     }
     catch (e) {
         if (e instanceof client_1.Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-            res.status(400).json({ error: 'El correo o RUT ya está registrado en otra cuenta.' });
+            (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_DUPLICADO', 'El correo o RUT ya está registrado en otra cuenta.');
             return;
         }
         console.error(e);
-        res.status(500).json({ error: 'Error al actualizar usuario' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'USUARIOS_ACTUALIZAR', 'Error al actualizar usuario');
     }
 });
 exports.usuariosRouter.delete('/:id', async (req, res) => {
     const id = Number(req.params.id);
     if (Number.isNaN(id) || id <= 0) {
-        res.status(400).json({ error: 'ID inválido' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_ID_INVALIDO', 'ID inválido');
         return;
     }
     const rol = req.user?.rol?.trim().toUpperCase();
     if (rol !== 'ADMIN') {
-        res.status(403).json({ error: 'Solo ADMIN puede eliminar usuarios' });
+        (0, apiError_js_1.sendApiError)(res, 403, 'USUARIOS_DELETE_ROL', 'Solo ADMIN puede eliminar usuarios');
         return;
     }
     if (req.user?.uid === id) {
-        res.status(400).json({ error: 'No puedes eliminar tu propio usuario' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_DELETE_SELF', 'No puedes eliminar tu propio usuario');
         return;
     }
     try {
         const existe = await prisma_js_1.prisma.usuario.findUnique({ where: { id }, select: { id: true } });
         if (!existe) {
-            res.status(404).json({ error: 'Usuario no encontrado' });
+            (0, apiError_js_1.sendApiError)(res, 404, 'USUARIO_NO_ENCONTRADO', 'Usuario no encontrado');
             return;
         }
         await prisma_js_1.prisma.usuario.delete({ where: { id } });
@@ -426,7 +525,7 @@ exports.usuariosRouter.delete('/:id', async (req, res) => {
                 select: { observacionesRegistro: true },
             });
             if (!prev) {
-                res.status(404).json({ error: 'Usuario no encontrado' });
+                (0, apiError_js_1.sendApiError)(res, 404, 'USUARIO_NO_ENCONTRADO', 'Usuario no encontrado');
                 return;
             }
             const nota = `[${now}] Baja automática: no se pudo eliminar físicamente el usuario.`;
@@ -455,7 +554,7 @@ exports.usuariosRouter.delete('/:id', async (req, res) => {
         }
         catch (softErr) {
             console.error(softErr);
-            res.status(500).json({ error: 'No se pudo eliminar ni dar de baja automáticamente al usuario.' });
+            (0, apiError_js_1.sendApiError)(res, 500, 'USUARIOS_DELETE_FALLBACK', 'No se pudo eliminar ni dar de baja automáticamente al usuario.');
         }
     }
 });

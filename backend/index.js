@@ -8,6 +8,7 @@ const node_path_1 = __importDefault(require("node:path"));
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const prisma_js_1 = require("./lib/prisma.js");
+const apiError_js_1 = require("./lib/apiError.js");
 const partes_js_1 = require("./routes/partes.js");
 const checklists_js_1 = require("./routes/checklists.js");
 const bolsos_trauma_js_1 = require("./routes/bolsos-trauma.js");
@@ -85,6 +86,17 @@ async function resolverCarroId(param) {
     return c?.id ?? null;
 }
 app.use('/api/auth', auth_js_1.authRouter);
+/** Nombre de compañía para UI pública (login, lockup) sin sesión. */
+app.get('/api/branding-public', async (_req, res) => {
+    try {
+        const c = await (0, configuraciones_js_1.obtenerConfigSistema)();
+        res.json({ nombreCompania: c.compania.nombreCompania?.trim() || 'Compañía' });
+    }
+    catch (e) {
+        console.error(e);
+        res.json({ nombreCompania: '1ª Compañía Santa Juana' });
+    }
+});
 app.get('/api/status', (req, res) => {
     res.json({ mensaje: 'Backend de SIDEP 100% operativo' });
 });
@@ -106,7 +118,7 @@ app.get('/api/carros', auth_js_2.requireAuth, async (_req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al listar carros' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'CARROS_LIST', 'Error al listar carros');
     }
 });
 /** Historial de snapshots de mantención de todos los carros (filtros opcionales por query). */
@@ -149,14 +161,14 @@ app.get('/api/carros/historial-general', auth_js_2.requireAuth, async (req, res)
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al listar historial general de carros' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'CARROS_HISTORIAL_GENERAL', 'Error al listar historial general de carros');
     }
 });
 app.get('/api/carros/:id', auth_js_2.requireAuth, async (req, res) => {
     const rawParam = req.params.id;
     const param = Array.isArray(rawParam) ? rawParam[0] : rawParam;
     if (!param) {
-        res.status(400).json({ error: 'Parámetro requerido' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'CARROS_PARAM', 'Parámetro requerido');
         return;
     }
     try {
@@ -172,32 +184,32 @@ app.get('/api/carros/:id', auth_js_2.requireAuth, async (req, res) => {
                 include: { historialRegistros: { orderBy: { creadoEn: 'desc' }, take: 100 } },
             });
         if (!carro) {
-            res.status(404).json({ error: 'Carro no encontrado' });
+            (0, apiError_js_1.sendApiError)(res, 404, 'CARRO_NO_ENCONTRADO', 'Carro no encontrado');
             return;
         }
         res.json(carro);
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al obtener carro' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'CARRO_GET', 'Error al obtener carro');
     }
 });
 app.patch('/api/carros/:id', auth_js_2.requireAuth, async (req, res) => {
     const rawParam = req.params.id;
     const param = Array.isArray(rawParam) ? rawParam[0] : rawParam;
     if (!param) {
-        res.status(400).json({ error: 'Parámetro requerido' });
+        (0, apiError_js_1.sendApiError)(res, 400, 'CARROS_PARAM', 'Parámetro requerido');
         return;
     }
     try {
         const carroId = await resolverCarroId(param);
         if (carroId == null) {
-            res.status(404).json({ error: 'Carro no encontrado' });
+            (0, apiError_js_1.sendApiError)(res, 404, 'CARRO_NO_ENCONTRADO', 'Carro no encontrado');
             return;
         }
         const updateData = buildCarroPatch(req.body);
         if (Object.keys(updateData).length === 0) {
-            res.status(400).json({ error: 'Sin campos para actualizar' });
+            (0, apiError_js_1.sendApiError)(res, 400, 'CARRO_PATCH_VACIO', 'Sin campos para actualizar');
             return;
         }
         const resultado = await prisma_js_1.prisma.$transaction(async (tx) => {
@@ -228,7 +240,7 @@ app.patch('/api/carros/:id', auth_js_2.requireAuth, async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'Error al actualizar carro' });
+        (0, apiError_js_1.sendApiError)(res, 500, 'CARRO_UPDATE', 'Error al actualizar carro');
     }
 });
 app.listen(PORT, () => {

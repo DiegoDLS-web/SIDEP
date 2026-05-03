@@ -1,13 +1,23 @@
 <div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 sm:py-5 md:px-8 lg:px-10 xl:px-12 lg:py-6">
   @if (loading) {
-    <div class="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-slate-400">
-      <lucide-icon name="file-text" class="h-10 w-10 animate-pulse text-red-400/90" [size]="40" color="currentColor" />
-      <p class="text-sm">Cargando partes…</p>
+    <div class="space-y-6" role="status" aria-live="polite" aria-busy="true">
+      <span class="sr-only">Cargando listado de partes…</span>
+      <div class="h-10 max-w-md sid-skeleton rounded-xl"></div>
+      <div class="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-4">
+        @for (sk of [1, 2, 3, 4]; track sk) {
+          <div class="h-28 rounded-2xl border border-[var(--sid-border)] sid-skeleton"></div>
+        }
+      </div>
+      <div class="h-64 rounded-2xl border border-[var(--sid-border)] sid-skeleton"></div>
     </div>
   } @else if (error) {
-    <div class="sid-feedback rounded-2xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ error }}</div>
+    <div class="sid-feedback rounded-2xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-200" role="alert">
+      <p class="font-medium">Error al cargar partes</p>
+      <p class="mt-1 text-red-300/90">{{ error }}</p>
+    </div>
   } @else {
     <section
+      sidScrollReveal
       class="relative overflow-hidden rounded-2xl border border-rose-900/40 bg-[radial-gradient(circle_at_0%_0%,rgba(244,63,94,0.14),transparent_50%),radial-gradient(circle_at_100%_0%,rgba(59,130,246,0.1),transparent_45%),#0a0a0a] p-5 sm:p-6"
     >
       <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -20,48 +30,48 @@
           routerLink="/partes/nuevo"
           class="sid-btn sid-btn-primary inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-900/30 transition-all hover:bg-red-500 sm:px-6 sm:py-3 sm:text-base"
         >
-          <lucide-icon name="plus" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
+          <lucide-icon name="plus" class="h-5 w-5" [size]="20" color="currentColor" aria-hidden="true"></lucide-icon>
           Nuevo parte
         </a>
       </div>
     </section>
 
-    <div class="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-4">
-      <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-5">
+    <div sidScrollReveal class="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-4">
+      <div class="rounded-2xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-5">
         <div class="mb-1.5 flex items-center justify-between">
-          <lucide-icon name="file-text" class="h-7 w-7 text-sky-400" [size]="28" color="currentColor"></lucide-icon>
+          <lucide-icon name="file-text" class="h-7 w-7 text-sky-400" [size]="28" color="currentColor" aria-hidden="true"></lucide-icon>
         </div>
         <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ statsAnio() }}</p>
         <p class="text-xs font-medium text-slate-400 sm:text-sm">Partes año actual</p>
       </div>
-      <div class="rounded-2xl border border-slate-800/90 bg-gradient-to-br from-rose-950/40 to-transparent p-4 ring-1 ring-inset ring-rose-500/10 sm:p-5">
+      <div class="rounded-2xl border border-[var(--sid-border)] bg-gradient-to-br from-rose-950/40 to-transparent p-4 ring-1 ring-inset ring-rose-500/10 sm:p-5">
         <div class="mb-1.5 flex items-center justify-between">
-          <lucide-icon name="flame" class="h-7 w-7 text-rose-400" [size]="28" color="currentColor"></lucide-icon>
+          <lucide-icon name="flame" class="h-7 w-7 text-rose-400" [size]="28" color="currentColor" aria-hidden="true"></lucide-icon>
         </div>
         <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ statsMes() }}</p>
         <p class="text-xs font-medium text-slate-400 sm:text-sm">Este mes</p>
       </div>
-      <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-5">
+      <div class="rounded-2xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-5">
         <div class="mb-1.5 flex items-center justify-between">
-          <lucide-icon name="clock" class="h-7 w-7 text-amber-400" [size]="28" color="currentColor"></lucide-icon>
+          <lucide-icon name="clock" class="h-7 w-7 text-amber-400" [size]="28" color="currentColor" aria-hidden="true"></lucide-icon>
         </div>
-        <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ partes.length }}</p>
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ totalSistema() }}</p>
         <p class="text-xs font-medium text-slate-400 sm:text-sm">Total registrados</p>
       </div>
       <div
         class="min-[420px]:col-span-2 rounded-2xl border border-emerald-900/50 bg-gradient-to-br from-emerald-950/35 to-transparent p-4 ring-1 ring-inset ring-emerald-500/15 sm:p-5 lg:col-span-1"
       >
         <div class="mb-1.5 flex items-center justify-between">
-          <lucide-icon name="users" class="h-7 w-7 text-emerald-400" [size]="28" color="currentColor"></lucide-icon>
+          <lucide-icon name="users" class="h-7 w-7 text-emerald-400" [size]="28" color="currentColor" aria-hidden="true"></lucide-icon>
         </div>
-        <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ filtrados.length }}</p>
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ totalFiltrado }}</p>
         <p class="text-xs font-medium text-slate-300 sm:text-sm">Con filtros actuales</p>
       </div>
     </div>
 
-    <div class="rounded-2xl border border-slate-800 bg-[#121212] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-5">
+    <app-sid-card sidScrollReveal [pad]="'md'">
       <div class="mb-4 flex flex-wrap items-center gap-2 border-b border-slate-800/80 pb-3">
-        <lucide-icon name="funnel" class="h-5 w-5 text-red-500" [size]="20" color="currentColor"></lucide-icon>
+        <lucide-icon name="funnel" class="h-5 w-5 text-red-500" [size]="20" color="currentColor" aria-hidden="true"></lucide-icon>
         <h3 class="text-lg font-bold text-white">Filtros de búsqueda</h3>
         <span class="text-sm text-slate-500">Por tipo, dirección o fecha</span>
       </div>
@@ -94,6 +104,7 @@
               class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
               [size]="16"
               color="currentColor"
+              aria-hidden="true"
             ></lucide-icon>
             <input
               type="text"
@@ -177,7 +188,7 @@
           </button>
         </div>
       </div>
-    </div>
+    </app-sid-card>
 
     <div class="mb-3 flex justify-end md:hidden">
       <button
@@ -243,15 +254,16 @@
           </div>
         </div>
       } @empty {
-        <p class="rounded-xl border border-dashed border-gray-700 bg-[#0a0a0a] p-6 text-center text-sm text-gray-400">
-          No hay partes con estos filtros.
-        </p>
+        <app-sid-empty-state
+          title="Sin resultados"
+          description="No hay partes que coincidan con los filtros. Prueba otro tipo, dirección o período."
+        />
       }
     </div>
-    @if (filtrados.length > 0) {
+    @if (totalFiltrado > 0) {
       <div class="mb-6 flex flex-col gap-2 px-1 md:hidden sm:flex-row sm:items-center sm:justify-between">
         <span class="text-sm text-gray-400">
-          Página {{ paginaPartes }} de {{ totalPaginasPartes() }} · {{ filtrados.length }} resultado(s)
+          Página {{ paginaPartes }} de {{ totalPaginasPartes() }} · {{ totalFiltrado }} resultado(s)
         </span>
         <div class="flex gap-2">
           <button
@@ -274,12 +286,15 @@
       </div>
     }
 
-    <div class="hidden overflow-hidden rounded-2xl border border-slate-800 bg-[#121212] shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 md:block">
+    <div
+      sidScrollReveal
+      class="hidden overflow-hidden rounded-2xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 md:block"
+    >
       <div class="sid-history-head !mb-0 border-b border-slate-800/80 p-4 sm:p-5">
         <div>
           <h2 class="text-lg font-bold text-white sm:text-xl">
             Historial de partes
-            <span class="ml-2 text-sm font-normal text-slate-500 sm:text-base">({{ filtrados.length }})</span>
+            <span class="ml-2 text-sm font-normal text-slate-500 sm:text-base">({{ totalFiltrado }})</span>
           </h2>
           <p class="text-xs text-slate-500 sm:text-sm">Listado con paginación; exporta el conjunto filtrado a Excel</p>
         </div>
@@ -298,13 +313,13 @@
         <table class="sid-history-table min-w-[48rem] text-sm">
           <thead>
             <tr>
-              <th>Fecha / hora</th>
-              <th class="min-w-[10rem]">Tipo</th>
-              <th class="min-w-[12rem]">Dirección</th>
-              <th>Unidad</th>
-              <th class="min-w-[8rem]">OBAC</th>
-              <th>Estado</th>
-              <th class="text-right">Acciones</th>
+              <th scope="col">Fecha / hora</th>
+              <th scope="col" class="min-w-[10rem]">Tipo</th>
+              <th scope="col" class="min-w-[12rem]">Dirección</th>
+              <th scope="col">Unidad</th>
+              <th scope="col" class="min-w-[8rem]">OBAC</th>
+              <th scope="col">Estado</th>
+              <th scope="col" class="text-right">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -380,10 +395,10 @@
           </tbody>
         </table>
       </div>
-      @if (filtrados.length > 0) {
+      @if (totalFiltrado > 0) {
         <div class="flex flex-col gap-3 border-t border-slate-800/80 p-4 sm:flex-row sm:items-center sm:justify-between">
           <span class="text-sm text-slate-500">
-            Página {{ paginaPartes }} de {{ totalPaginasPartes() }} · {{ filtrados.length }} resultado(s)
+            Página {{ paginaPartes }} de {{ totalPaginasPartes() }} · {{ totalFiltrado }} resultado(s)
           </span>
           <div class="flex gap-2">
             <button
