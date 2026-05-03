@@ -4,9 +4,11 @@ exports.GRUPOS_SANGUINEOS = exports.TIPOS_VOLUNTARIO = exports.CARGOS_OFICIALIDA
 exports.esCargoValido = esCargoValido;
 exports.esTipoVoluntarioValido = esTipoVoluntarioValido;
 exports.nombreCompletoDesdePartes = nombreCompletoDesdePartes;
+exports.normalizarFotoPerfil = normalizarFotoPerfil;
 exports.normalizarFirmaDataUrl = normalizarFirmaDataUrl;
 /** Cargos institucionales (un valor por persona). */
 exports.CARGOS_OFICIALIDAD = [
+    'VOLUNTARIO',
     'DIRECTOR_COMPANIA',
     'SECRETARIO_COMPANIA',
     'TESORERO_COMPANIA',
@@ -53,6 +55,32 @@ function nombreCompletoDesdePartes(p) {
     return partes.join(' ').trim();
 }
 const MAX_FIRMA_CHARS = 2_800_000;
+/** Fotos adjuntas (data URL tras compresión en cliente); algo mayor que la firma. */
+const MAX_FOTO_PERFIL_CHARS = 12_000_000;
+/** Rutas públicas sirven ficheros en `frontend/src/assets/perfiles/`. */
+const RUTA_ASSETS_SEGURA = /^\/assets\/perfiles\/[a-zA-Z0-9._-]+\.(png|jpg|jpeg|webp)$/;
+function normalizarFotoPerfil(raw) {
+    if (raw == null || raw === '')
+        return null;
+    const s = raw.trim();
+    if (s.startsWith('/assets/')) {
+        if (!RUTA_ASSETS_SEGURA.test(s)) {
+            throw new Error('Ruta de foto de perfil no permitida');
+        }
+        return s;
+    }
+    if (!s.startsWith('data:image/')) {
+        throw new Error('La foto debe ser una imagen (data:image/…) o una ruta bajo /assets/perfiles/');
+    }
+    if (s.length > MAX_FOTO_PERFIL_CHARS) {
+        throw new Error('La foto de perfil es demasiado grande; reduce resolución o calidad.');
+    }
+    const lower = s.slice(0, 48).toLowerCase();
+    if (!lower.includes('png') && !lower.includes('jpeg') && !lower.includes('jpg') && !lower.includes('webp')) {
+        throw new Error('Solo se permiten imágenes PNG, JPEG o WebP');
+    }
+    return s;
+}
 function normalizarFirmaDataUrl(raw) {
     if (raw == null || raw === '')
         return null;

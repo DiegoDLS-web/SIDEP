@@ -40,6 +40,62 @@ input[type='datetime-local']::-webkit-calendar-picker-indicator {
   opacity: 0.95;
 }
 
+/* Checkboxes nativos visibles sobre fondo oscuro (no afecta `.peer.sr-only` custom). */
+input[type='checkbox']:not(.peer):not(.sr-only) {
+  accent-color: #dc2626;
+  vertical-align: middle;
+  border-radius: 0.28rem;
+  background-color: #151a21;
+  border: 1px solid #526077;
+}
+
+/* Panel Notificaciones (configuración): menos brillo, rojo más profundo al marcar */
+.sid-notif-checkboxes input[type='checkbox']:not(.peer):not(.sr-only) {
+  accent-color: #7f1d1d;
+  background-color: #05070b;
+  border-color: #2a3544;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.72);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.2s ease;
+}
+.sid-notif-checkboxes input[type='checkbox']:not(.peer):not(.sr-only):hover {
+  border-color: #3d4d61;
+}
+.sid-notif-checkboxes input[type='checkbox']:not(.peer):not(.sr-only):focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.72),
+    0 0 0 2px rgba(127, 29, 29, 0.45);
+}
+
+/* Autocompletado Chrome/Edge/Safari: sin “caja blanca” sobre tema oscuro */
+input.sid-input:-webkit-autofill,
+input.sid-input:-webkit-autofill:hover,
+input.sid-input:-webkit-autofill:focus,
+textarea.sid-input:-webkit-autofill,
+textarea.sid-input:-webkit-autofill:hover,
+select.sid-input:-webkit-autofill,
+.sid-history-filter:-webkit-autofill,
+.sid-history-filter:-webkit-autofill:hover,
+.sid-history-filter:-webkit-autofill:focus {
+  -webkit-text-fill-color: #e5e7eb !important;
+  caret-color: #e5e7eb;
+  box-shadow: 0 0 0 1000px #121212 inset !important;
+}
+
+/* Inputs comunes fuera de .sid-input (p. ej. partes/login) */
+.sid-page input[type='text']:-webkit-autofill,
+.sid-page input[type='email']:-webkit-autofill,
+.sid-page input[type='tel']:-webkit-autofill,
+.sid-page input[type='password']:-webkit-autofill,
+.sid-page input[type='search']:-webkit-autofill,
+.sid-page textarea:-webkit-autofill {
+  -webkit-text-fill-color: #e5e7eb !important;
+  caret-color: #e5e7eb;
+  box-shadow: 0 0 0 1000px #121212 inset !important;
+}
+
 /* Sistema visual reutilizable (web/tablet/móvil). Tokens en :root para shell, tablas e inputs. */
 :root {
   --sid-shell-bg: #0a0a0a;
@@ -229,6 +285,103 @@ input[type='datetime-local']::-webkit-calendar-picker-indicator {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
   backdrop-filter: blur(8px) saturate(1.06);
   box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.11) inset;
+}
+
+.sid-brand-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+  min-width: 0;
+}
+
+/** Marca SIDEP animada en sidebar */
+.sid-brand-mark-slot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: sidBrandSlotFloat 5.75s ease-in-out infinite;
+}
+
+@keyframes sidBrandSlotFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.sid-brand-wordmark {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  font-size: 1.32rem;
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+  color: #e2e8f0;
+  text-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
+}
+
+.sid-brand-letter {
+  color: #c7d5f7;
+}
+
+.sid-brand-e-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  margin: 0 2px;
+  vertical-align: middle;
+  transform: translateY(1px);
+}
+
+.sid-brand-e-bar {
+  display: block;
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #fca5a5, #ef4444 50%, #b91c1c);
+  transform-origin: center left;
+  animation: sidBrandEBar 3.8s ease-in-out infinite;
+}
+
+.sid-brand-e-bar:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.sid-brand-e-bar:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes sidBrandEBar {
+  0%,
+  100% {
+    transform: scaleX(0.86);
+    opacity: 0.82;
+    filter: brightness(0.92);
+    box-shadow: none;
+  }
+  50% {
+    transform: scaleX(1);
+    opacity: 1;
+    filter: brightness(1.2);
+    box-shadow: 0 0 10px rgba(248, 113, 113, 0.55);
+  }
+}
+
+body.motion-suave .sid-brand-mark-slot {
+  animation-duration: 11s !important;
+}
+
+body.motion-suave .sid-brand-e-bar {
+  animation-duration: 8s !important;
 }
 
 .sid-nav-glass {
@@ -857,6 +1010,15 @@ textarea:focus-visible,
     --sid-motion-speed: 0.65;
   }
 
+  .sid-brand-mark-slot,
+  .sid-brand-e-bar {
+    animation: none !important;
+  }
+
+  .sid-brand-mark-slot {
+    transform: none !important;
+  }
+
   .sid-carro-card::before,
   .sid-nav-glass::after,
   .sidep-logo-orb::before,
@@ -1184,4 +1346,25 @@ textarea:focus-visible,
   .sid-licencias-page .sid-licencias-gestion-card {
     padding: 1.2rem;
   }
+}
+
+/* Scrollbars oscuros en modales/overlays (evita riel blanco en tema oscuro) */
+.sid-modal-scroll {
+  scrollbar-color: rgba(71, 85, 105, 0.9) rgba(15, 23, 42, 0.45);
+}
+
+.sid-modal-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.sid-modal-scroll::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.55);
+  border-radius: 8px;
+}
+
+.sid-modal-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(71, 85, 105, 0.95);
+  border-radius: 8px;
+  border: 2px solid rgba(15, 23, 42, 0.55);
 }

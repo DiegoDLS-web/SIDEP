@@ -7,6 +7,13 @@
   } @else if (error) {
     <div class="sid-feedback rounded-2xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ error }}</div>
   } @else {
+    <a
+      routerLink="/"
+      class="mb-3 inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212]/90 px-3 py-2 text-sm text-slate-300 ring-1 ring-white/5 transition-colors hover:border-slate-600 hover:text-white"
+    >
+      <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+      Volver al inicio
+    </a>
     <section
       class="relative overflow-hidden rounded-2xl border border-cyan-900/35 bg-[radial-gradient(circle_at_0%_0%,rgba(6,182,212,0.14),transparent_50%),radial-gradient(circle_at_100%_0%,rgba(225,29,72,0.14),transparent_45%),#0a0a0a] p-5 sm:p-6"
     >
@@ -15,7 +22,10 @@
         Kit de trauma · inventario
       </p>
       <h1 class="sid-page-hero-title text-2xl font-bold text-white sm:text-3xl">Bolsos de trauma</h1>
-      <p class="sid-page-hero-subtitle mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">Elige unidad y bolso para revisar mínimos, óptimos y faltantes antes del servicio</p>
+      <p class="sid-page-hero-subtitle mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">Elige unidad y bolso para revisar mínimos, óptimos y faltantes antes del servicio.</p>
+      <p class="mt-2 max-w-2xl text-xs text-slate-500">
+        Las tarjetas usan la foto del carro por unidad.
+      </p>
     </section>
 
     @let s = stats();
@@ -43,24 +53,32 @@
         <div
           class="group overflow-hidden rounded-2xl border border-slate-800/90 bg-[#121212] shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 transition-all duration-200 hover:border-rose-800/50 hover:shadow-rose-950/15"
         >
-          <div class="bg-gradient-to-br from-rose-700 via-rose-800 to-rose-950 p-4 sm:p-5">
-            <div class="mb-3 flex items-center justify-between">
-              <div class="relative z-10 min-w-0">
-                <h3 class="text-2xl font-bold text-white drop-shadow-sm">{{ unidad.unidad }}</h3>
-                <p class="truncate text-sm text-rose-100/95">{{ unidad.nombre }}</p>
+          <div class="relative min-h-[10rem] overflow-hidden sm:min-h-[10.5rem]">
+            <div
+              class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-[1.03]"
+              [style.background-image]="'url(' + imagenCabeceraUnidad(unidad.unidad) + ')'"
+              aria-hidden="true"
+            ></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/92 via-black/48 to-rose-950/35" aria-hidden="true"></div>
+            <div class="relative z-10 p-4 sm:p-5">
+              <div class="mb-3 flex items-center justify-between">
+                <div class="min-w-0">
+                  <h3 class="text-2xl font-bold text-white drop-shadow">{{ unidad.unidad }}</h3>
+                  <p class="truncate text-sm text-white/90">{{ unidad.nombre }}</p>
+                </div>
+                <div class="shrink-0 text-right">
+                  <p class="text-3xl font-bold tabular-nums text-white drop-shadow">{{ unidad.cantidadBolsos }}</p>
+                  <p class="text-xs font-medium text-white/85">Bolsos</p>
+                </div>
               </div>
-              <div class="shrink-0 text-right">
-                <p class="text-3xl font-bold tabular-nums text-white">{{ unidad.cantidadBolsos }}</p>
-                <p class="text-xs font-medium text-rose-200">Bolsos</p>
-              </div>
-            </div>
-            <div class="space-y-2">
-              <div class="flex items-center justify-between text-sm">
-                <span class="text-rose-100/90">Completitud general</span>
-                <span class="font-bold text-white tabular-nums">{{ promedioCompletitud(unidad) }}%</span>
-              </div>
-              <div class="h-2 w-full rounded-full bg-black/30">
-                <div class="h-2 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.45)]" [style.width.%]="promedioCompletitud(unidad)"></div>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-white/90">Completitud general</span>
+                  <span class="font-bold text-white tabular-nums">{{ promedioCompletitud(unidad) }}%</span>
+                </div>
+                <div class="h-2 w-full rounded-full bg-black/35">
+                  <div class="h-2 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.45)]" [style.width.%]="promedioCompletitud(unidad)"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -174,7 +192,67 @@
           <h2 class="sid-history-title">Historial de registros</h2>
           <p class="sid-history-subtitle">Filtros locales sobre la carga; exporta el listado filtrado a PDF</p>
         </div>
-        <div class="sid-history-actions w-full sm:w-auto">
+      </div>
+
+      <div class="mb-4 flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-end xl:justify-between">
+        <div
+          class="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 xl:items-end"
+        >
+          <div>
+            <label class="mb-1 block text-xs text-gray-400">Unidad</label>
+            <select
+              [(ngModel)]="filtroUnidad"
+              class="sid-history-filter w-full text-sm"
+            >
+              <option value="">Todas</option>
+              @for (u of unidades; track u.id) {
+                <option [value]="u.unidad">{{ u.unidad }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="mb-1 block text-xs text-gray-400">Estado</label>
+            <select
+              [(ngModel)]="filtroEstado"
+              (ngModelChange)="aplicarFiltrosLocalesHistorial()"
+              class="sid-history-filter w-full text-sm"
+            >
+              <option [ngValue]="'TODOS'">Todos</option>
+              <option [ngValue]="'COMPLETADO'">Completado</option>
+              <option [ngValue]="'PENDIENTE'">Pendiente</option>
+              <option [ngValue]="'CON_OBSERVACION'">Con observación</option>
+            </select>
+          </div>
+          <div class="sm:col-span-2 lg:col-span-1 xl:col-span-2">
+            <label class="mb-1 block text-xs text-gray-400">Inspector u OBAC</label>
+            <input
+              type="search"
+              [(ngModel)]="filtroInspectorObac"
+              (ngModelChange)="aplicarFiltrosLocalesHistorial()"
+              placeholder="Nombre parcial…"
+              class="sid-history-filter w-full text-sm placeholder:text-gray-600"
+            />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs text-gray-400">Desde</label>
+            <input
+              type="date"
+              [(ngModel)]="filtroDesde"
+              class="sid-history-filter dark-date-input w-full text-sm"
+            />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs text-gray-400">Hasta</label>
+            <input
+              type="date"
+              [(ngModel)]="filtroHasta"
+              class="sid-history-filter dark-date-input w-full text-sm"
+            />
+          </div>
+        </div>
+        <div
+          class="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end max-xl:border-t max-xl:border-slate-800/80 max-xl:pt-3"
+        >
           <button
             type="button"
             (click)="cargarHistorial()"
@@ -195,60 +273,6 @@
         </div>
       </div>
 
-      <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 xl:items-end">
-        <div>
-          <label class="mb-1 block text-xs text-gray-400">Unidad</label>
-          <select
-            [(ngModel)]="filtroUnidad"
-            class="sid-history-filter w-full text-sm"
-          >
-            <option value="">Todas</option>
-            @for (u of unidades; track u.id) {
-              <option [value]="u.unidad">{{ u.unidad }}</option>
-            }
-          </select>
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-gray-400">Estado</label>
-          <select
-            [(ngModel)]="filtroEstado"
-            (ngModelChange)="aplicarFiltrosLocalesHistorial()"
-            class="sid-history-filter w-full text-sm"
-          >
-            <option [ngValue]="'TODOS'">Todos</option>
-            <option [ngValue]="'COMPLETADO'">Completado</option>
-            <option [ngValue]="'PENDIENTE'">Pendiente</option>
-            <option [ngValue]="'CON_OBSERVACION'">Con observación</option>
-          </select>
-        </div>
-        <div class="sm:col-span-2 xl:col-span-2">
-          <label class="mb-1 block text-xs text-gray-400">Inspector u OBAC</label>
-          <input
-            type="search"
-            [(ngModel)]="filtroInspectorObac"
-            (ngModelChange)="aplicarFiltrosLocalesHistorial()"
-            placeholder="Nombre parcial…"
-            class="sid-history-filter w-full text-sm placeholder:text-gray-600"
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-gray-400">Desde</label>
-          <input
-            type="date"
-            [(ngModel)]="filtroDesde"
-            class="sid-history-filter dark-date-input w-full text-sm"
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-gray-400">Hasta</label>
-          <input
-            type="date"
-            [(ngModel)]="filtroHasta"
-            class="sid-history-filter dark-date-input w-full text-sm"
-          />
-        </div>
-      </div>
-
       @if (loadingHistorial) {
         <div class="flex items-center gap-3 rounded-xl border border-slate-800/80 bg-[#0a0a0a] px-4 py-6 text-sm text-slate-400">
           <lucide-icon name="clipboard-list" class="h-5 w-5 animate-pulse text-cyan-500" [size]="20" color="currentColor"></lucide-icon>
@@ -262,8 +286,10 @@
             <div class="rounded-xl border border-slate-800 bg-[#0a0a0a] p-3">
               <div class="mb-2 flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                  <p class="text-xs text-slate-400">{{ fechaHoraHist(h.fecha) }}</p>
-                  <p class="font-mono text-sm font-semibold text-white">{{ h.unidad }} · Bolso {{ h.bolsoNumero ?? '—' }}</p>
+                  @let fhb = fechaHora(h.fecha);
+                  <p class="text-sm font-medium text-white">{{ fhb.fecha }}</p>
+                  <p class="text-xs text-slate-500">{{ fhb.hora }}</p>
+                  <p class="mt-1 font-mono text-sm font-semibold text-white">{{ h.unidad }} · Bolso {{ h.bolsoNumero ?? '—' }}</p>
                 </div>
                 <span class="sid-status-chip shrink-0" [ngClass]="claseEstado(h)">
                   {{ etiquetaEstado(h) }}
@@ -298,30 +324,27 @@
                 <button
                   type="button"
                   (click)="abrirDetalle(h)"
-                  class="sid-btn sid-btn-info inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg bg-blue-600 px-0 text-white hover:bg-blue-700 md:w-auto md:gap-2 md:px-3"
+                  class="sid-btn sid-btn-info inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
                   title="Ver detalle"
                 >
                   <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-                  <span class="hidden md:inline">Ver</span>
                 </button>
                 <button
                   type="button"
                   (click)="editarRegistro(h)"
-                  class="sid-btn sid-btn-neutral inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg border border-gray-600 bg-[#242833] px-0 text-white hover:bg-gray-700 md:w-auto md:gap-2 md:px-3"
+                  class="sid-btn sid-btn-neutral inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
                   title="Editar registro"
                 >
                   <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-                  <span class="hidden md:inline">Editar</span>
                 </button>
                 <button
                   type="button"
                   (click)="descargarRegistroPdf(h)"
                   [disabled]="descargandoRegistroId === h.id"
-                  class="sid-btn sid-btn-primary inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg bg-red-600 px-0 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto md:gap-2 md:px-3"
+                  class="sid-btn sid-btn-primary inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                   title="Descargar PDF"
                 >
                   <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-                  <span class="hidden md:inline">PDF</span>
                 </button>
               </div>
             </div>
@@ -336,7 +359,7 @@
           <table class="sid-history-table w-full">
             <thead>
               <tr>
-                <th>Fecha</th>
+                <th>Fecha / hora</th>
                 <th>Unidad</th>
                 <th>Bolso</th>
                 <th>Estado</th>
@@ -345,13 +368,17 @@
                 <th>Guardia</th>
                 <th>Cumplimiento</th>
                 <th>Obs.</th>
-                <th>Acciones</th>
+                <th class="text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
               @for (h of historialPaginado(); track h.id) {
                 <tr>
-                  <td>{{ fechaHoraHist(h.fecha) }}</td>
+                  <td class="align-top whitespace-nowrap">
+                    @let fhbt = fechaHora(h.fecha);
+                    <p class="font-medium text-white">{{ fhbt.fecha }}</p>
+                    <p class="text-xs text-slate-500">{{ fhbt.hora }}</p>
+                  </td>
                   <td class="font-mono">{{ h.unidad }}</td>
                   <td>{{ h.bolsoNumero ?? '—' }}</td>
                   <td>
@@ -372,35 +399,32 @@
                   <td class="max-w-[200px] truncate text-gray-300">
                     {{ h.observaciones || '—' }}
                   </td>
-                  <td>
-                    <div class="flex items-center gap-2">
+                  <td class="text-right">
+                    <div class="inline-flex items-center justify-end gap-2">
                       <button
                         type="button"
                         (click)="abrirDetalle(h)"
-                        class="sid-btn sid-btn-info inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg bg-blue-600 px-0 text-white hover:bg-blue-700 md:w-auto md:gap-2 md:px-3"
+                        class="sid-btn sid-btn-info inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
                         title="Ver detalle"
                       >
                         <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-                        <span class="hidden md:inline">Ver</span>
                       </button>
                       <button
                         type="button"
                         (click)="editarRegistro(h)"
-                        class="sid-btn sid-btn-neutral inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg border border-gray-600 bg-[#242833] px-0 text-white hover:bg-gray-700 md:w-auto md:gap-2 md:px-3"
+                        class="sid-btn sid-btn-neutral inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
                         title="Editar registro"
                       >
                         <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-                        <span class="hidden md:inline">Editar</span>
                       </button>
                       <button
                         type="button"
                         (click)="descargarRegistroPdf(h)"
                         [disabled]="descargandoRegistroId === h.id"
-                        class="sid-btn sid-btn-primary inline-flex h-9 w-9 items-center justify-center gap-0 rounded-lg bg-red-600 px-0 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto md:gap-2 md:px-3"
+                        class="sid-btn sid-btn-primary inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                         title="Descargar PDF"
                       >
                         <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-                        <span class="hidden md:inline">PDF</span>
                       </button>
                     </div>
                   </td>
@@ -451,7 +475,7 @@
       aria-labelledby="detalle-bolso-titulo"
     >
       <div
-        class="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-700/80 bg-[#121212] shadow-2xl shadow-cyan-950/20 ring-1 ring-inset ring-white/5"
+        class="sid-modal-scroll max-h-[90vh] w-full max-w-4xl overflow-y-auto overscroll-contain rounded-2xl border border-slate-700/80 bg-[#121212] shadow-2xl shadow-cyan-950/20 ring-1 ring-inset ring-white/5"
       >
         <div
           class="border-b border-slate-800/80 bg-gradient-to-r from-cyan-950/30 to-rose-950/20 px-6 py-4 sm:px-8"
@@ -480,7 +504,12 @@
           @let r = detalleRegistro;
           <div class="mb-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
             <p><span class="text-gray-500">Unidad:</span> {{ r.carro.nomenclatura }}</p>
-            <p><span class="text-gray-500">Fecha:</span> {{ fechaHoraHist(r.fecha) }}</p>
+            @let fbd = fechaHora(r.fecha);
+            <p>
+              <span class="text-gray-500">Fecha:</span><br />
+              <span class="font-medium text-gray-100">{{ fbd.fecha }}</span><br />
+              <span class="text-xs text-gray-500">{{ fbd.hora }}</span>
+            </p>
             <p><span class="text-gray-500">Inspector:</span> {{ r.inspector || '—' }}</p>
             <p><span class="text-gray-500">OBAC:</span> {{ r.cuartelero.nombre }} ({{ r.cuartelero.rol }})</p>
             <p class="sm:col-span-2"><span class="text-gray-500">Observaciones:</span> {{ r.observaciones || '—' }}</p>

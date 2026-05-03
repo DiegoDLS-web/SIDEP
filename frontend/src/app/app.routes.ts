@@ -18,6 +18,7 @@ import {
   loadLoginComponent,
   loadMainLayoutComponent,
   loadLicenciasPageComponent,
+  loadMiPerfilComponent,
   loadParteDetalleComponent,
   loadParteNuevoComponent,
   loadPartesListaComponent,
@@ -124,6 +125,11 @@ export const routes: Routes = [
         canActivate: [adminGuard],
         title: 'Configuraciones · SIDEP',
         loadComponent: loadConfiguracionesComponent,
+      },
+      {
+        path: 'perfil',
+        title: 'Mi perfil · SIDEP',
+        loadComponent: loadMiPerfilComponent,
       },
       {
         path: 'cambiar-password-inicial',

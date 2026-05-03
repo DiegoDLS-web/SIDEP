@@ -1,22 +1,26 @@
-import { CommonModule, formatDate } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import type { ParteEmergenciaDto } from '../../models/parte.dto';
 import { PartesExportService } from '../../services/partes-export.service';
 import { PartesService } from '../../services/partes.service';
+import { ToastService } from '../../services/toast.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
+import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
 import { CLAVES_COMPANIA_SERVICIOS, CLAVES_OPERATIVAS, etiquetaClave } from './partes.constants';
+import { ParteVistaSoloLecturaComponent } from './parte-vista-solo-lectura.component';
 
 @Component({
   selector: 'app-partes-lista',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, ParteVistaSoloLecturaComponent],
   templateUrl: './partes-lista.component.html',
 })
 export class PartesListaComponent implements OnInit {
   private readonly partesApi = inject(PartesService);
   private readonly exportador = inject(PartesExportService);
+  private readonly toast = inject(ToastService);
 
   readonly clavesOperativasFiltro = CLAVES_OPERATIVAS;
   readonly clavesCompaniaFiltro = CLAVES_COMPANIA_SERVICIOS;
@@ -32,6 +36,11 @@ export class PartesListaComponent implements OnInit {
 
   paginaPartes = 1;
   readonly tamanioPaginaPartes = 10;
+
+  vistaModalAbierta = false;
+  vistaModalCargando = false;
+  vistaModalError: string | null = null;
+  vistaModalParte: ParteEmergenciaDto | null = null;
 
   ngOnInit(): void {
     this.partesApi.listar().subscribe({
@@ -110,18 +119,7 @@ export class PartesListaComponent implements OnInit {
   }
 
   splitFechaHora(fechaIso: string): { fecha: string; hora: string } {
-    const d = new Date(fechaIso);
-    if (Number.isNaN(d.getTime())) {
-      return { fecha: '—', hora: '—' };
-    }
-    return {
-      fecha: formatDate(d, 'dd/MM/yyyy', 'es-CL'),
-      hora: formatDate(d, 'HH:mm', 'es-CL'),
-    };
-  }
-
-  idDisplay(correlativo: string): string {
-    return `P-${correlativo}`;
+    return splitFechaHoraEsCl(fechaIso);
   }
 
   estadoClase(estado: string): string {
@@ -157,5 +155,37 @@ export class PartesListaComponent implements OnInit {
 
   exportarPdfParte(parte: ParteEmergenciaDto): void {
     this.exportador.exportarPdf(parte);
+  }
+
+  abrirVistaSoloLectura(parte: ParteEmergenciaDto): void {
+    this.vistaModalAbierta = true;
+    this.vistaModalCargando = true;
+    this.vistaModalError = null;
+    this.vistaModalParte = null;
+    this.partesApi.obtener(parte.id).subscribe({
+      next: (p) => {
+        this.vistaModalCargando = false;
+        this.vistaModalParte = p;
+      },
+      error: () => {
+        this.vistaModalCargando = false;
+        this.vistaModalError = 'No se pudo cargar el parte completo.';
+        this.toast.error('No se pudo cargar el parte.');
+      },
+    });
+  }
+
+  cerrarVistaModal(): void {
+    this.vistaModalAbierta = false;
+    this.vistaModalCargando = false;
+    this.vistaModalError = null;
+    this.vistaModalParte = null;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeCerrarVistaModal(): void {
+    if (this.vistaModalAbierta) {
+      this.cerrarVistaModal();
+    }
   }
 }

@@ -1,7 +1,7 @@
 import { CommonModule, formatDate } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, map, of, startWith, switchMap, tap, type Observable } from 'rxjs';
 import type {
   CarroHistorialGeneralFila,
@@ -13,6 +13,7 @@ import { PdfExportService } from '../../services/pdf-export.service';
 import { ToastService } from '../../services/toast.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
+import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
 
 type CarrosView =
   | { status: 'loading' }
@@ -23,7 +24,7 @@ type CarrosView =
 @Component({
   selector: 'app-carros-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidepIconsModule, SignaturePadComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent],
   templateUrl: './carros-page.component.html',
 })
 export class CarrosPageComponent {
@@ -42,19 +43,19 @@ export class CarrosPageComponent {
 
   readonly imagenFallback =
     'https://images.unsplash.com/photo-1588662880295-13d2b28127c6?w=1080&q=80&fm=jpg';
+  readonly splitFh = splitFechaHoraEsCl;
+
   hoveredCarroId: number | null = null;
   private readonly carroGlow = new Map<number, { x: number; y: number }>();
   editando = false;
   guardando = false;
   mensajeEdicion = '';
   errorValidacion: string | null = null;
-  historialExpandidoId: number | null = null;
-  paginaHistorialDetalle = 1;
-  readonly tamanioHistorialDetalle = 10;
-
   /** Solo en vista lista: historial global de mantenciones. */
   historialGeneralFilas: CarroHistorialGeneralFila[] = [];
   historialGeneralLoading = false;
+  /** Visor modal solo lectura desde historial global. */
+  historialGeneralVistaFila: CarroHistorialGeneralFila | null = null;
   filtroUnidadHistorial: number | 'TODAS' = 'TODAS';
   filtroHistorialDesde = '';
   filtroHistorialHasta = '';
@@ -104,11 +105,11 @@ export class CarrosPageComponent {
         );
       }
       return this.carrosApi.obtener(id).pipe(
+        switchMap((carro) => this.hidratarDetalleDesdeHistorialSiFalta(carro)),
         map((carro): CarrosView => ({ status: 'detail', carro })),
         tap(() => {
           this.historialGeneralFilas = [];
           this.historialGeneralLoading = false;
-          this.paginaHistorialDetalle = 1;
         }),
         catchError(
           (): Observable<CarrosView> =>
@@ -152,6 +153,13 @@ export class CarrosPageComponent {
     this.cargarHistorialGeneral();
   }
 
+  limpiarFiltrosHistorialGeneral(): void {
+    this.filtroUnidadHistorial = 'TODAS';
+    this.filtroHistorialDesde = '';
+    this.filtroHistorialHasta = '';
+    this.cargarHistorialGeneral();
+  }
+
   totalPaginasHistorialGeneral(): number {
     return Math.max(1, Math.ceil(this.historialGeneralFilas.length / this.tamanioPaginaHistorialGeneral));
   }
@@ -169,6 +177,18 @@ export class CarrosPageComponent {
 
   irADetalleCarro(carroId: number): void {
     void this.router.navigate(['/carros', carroId]);
+  }
+
+  abrirVistaHistorialGeneral(row: CarroHistorialGeneralFila): void {
+    this.historialGeneralVistaFila = row;
+  }
+
+  cerrarVistaHistorialGeneral(): void {
+    this.historialGeneralVistaFila = null;
+  }
+
+  cerrarVistaHistorialBackdrop(ev: MouseEvent): void {
+    if (ev.target === ev.currentTarget) this.cerrarVistaHistorialGeneral();
   }
 
   pdfHistorialGeneral(row: CarroHistorialGeneralFila): void {
@@ -272,30 +292,59 @@ export class CarrosPageComponent {
     return new URL(path, document.baseURI).toString();
   }
 
+  /**
+   * Algunos despliegues devuelven el carro sin campos de mantención en el GET de detalle;
+   * el último snapshot de `historial-general` sí los tiene. Rellena solo huecos (no pisa datos).
+   */
+  private hidratarDetalleDesdeHistorialSiFalta(carro: CarroDto): Observable<CarroDto> {
+    const t = (v: string | null | undefined) => (v ?? '').trim();
+    /** Evita llamadas si el GET ya trajo el núcleo; el historial rellena huecos típicos del detalle incompleto. */
+    const incompleto =
+      !t(carro.ultimoMantenimiento) ||
+      !t(carro.proximoMantenimiento) ||
+      !t(carro.descripcionUltimoMantenimiento ?? '') ||
+      !t(carro.ultimoInspector ?? '') ||
+      !t(carro.firmaUltimoInspector ?? '') ||
+      !t(carro.fechaUltimaInspeccion ?? '');
+    if (!incompleto) {
+      return of(carro);
+    }
+    return this.carrosApi.historialGeneral({ carroId: carro.id }).pipe(
+      map((rows): CarroDto => {
+        const snap = rows[0];
+        if (!snap) {
+          return carro;
+        }
+        const out: CarroDto = { ...carro };
+        const pegarSiHueco = (campo: keyof CarroHistorialGeneralFila): void => {
+          const valorSnap = snap[campo];
+          if (valorSnap == null || String(valorSnap).trim() === '') {
+            return;
+          }
+          const claveDto = campo as keyof CarroDto;
+          const actual = out[claveDto];
+          if (actual != null && String(actual).trim() !== '') {
+            return;
+          }
+          (out as unknown as Record<string, unknown>)[claveDto as string] = valorSnap;
+        };
+        pegarSiHueco('ultimoMantenimiento');
+        pegarSiHueco('proximoMantenimiento');
+        pegarSiHueco('proximaRevisionTecnica');
+        pegarSiHueco('ultimaRevisionBombaAgua');
+        pegarSiHueco('descripcionUltimoMantenimiento');
+        pegarSiHueco('ultimoInspector');
+        pegarSiHueco('firmaUltimoInspector');
+        pegarSiHueco('fechaUltimaInspeccion');
+        pegarSiHueco('ultimoConductor');
+        return out;
+      }),
+    );
+  }
+
   /** Firma guardada como PNG en base64 (data URL). */
   esFirmaImagen(val: string | null | undefined): boolean {
     return !!val?.trim().startsWith('data:image');
-  }
-
-  trackHistorial(_i: number, h: CarroRegistroHistorialDto): number {
-    return h.id;
-  }
-
-  historialDetallePaginado(c: CarroDto): CarroRegistroHistorialDto[] {
-    const rows = c.historialRegistros ?? [];
-    const i = (this.paginaHistorialDetalle - 1) * this.tamanioHistorialDetalle;
-    return rows.slice(i, i + this.tamanioHistorialDetalle);
-  }
-
-  totalPaginasHistorialDetalle(c: CarroDto): number {
-    const n = c.historialRegistros?.length ?? 0;
-    return Math.max(1, Math.ceil(n / this.tamanioHistorialDetalle));
-  }
-
-  cambiarPaginaHistorialDetalle(delta: number, c: CarroDto): void {
-    const total = this.totalPaginasHistorialDetalle(c);
-    const next = this.paginaHistorialDetalle + delta;
-    this.paginaHistorialDetalle = Math.min(Math.max(next, 1), total);
   }
 
   descargarPdfHistorial(carro: CarroDto, registro: CarroRegistroHistorialDto): void {
@@ -323,33 +372,6 @@ export class CarrosPageComponent {
       ultimoConductor: carro.ultimoConductor ?? carro.conductorAsignado ?? null,
     };
     this.descargarPdfHistorial(carro, registro);
-  }
-
-  verHistorial(registro: CarroRegistroHistorialDto): void {
-    this.historialExpandidoId = this.historialExpandidoId === registro.id ? null : registro.id;
-  }
-
-  historialEstaExpandido(registro: CarroRegistroHistorialDto): boolean {
-    return this.historialExpandidoId === registro.id;
-  }
-
-  editarDesdeHistorial(carro: CarroDto, registro: CarroRegistroHistorialDto): void {
-    this.historialExpandidoId = registro.id;
-    this.editando = true;
-    this.errorValidacion = null;
-    this.mensajeEdicion = 'Registro cargado desde historial para edición.';
-    this.editForm.ultimoConductor = registro.ultimoConductor ?? '';
-    this.editForm.ultimoMantenimiento = this.fechaInput(registro.ultimoMantenimiento);
-    this.editForm.proximoMantenimiento = this.fechaInput(registro.proximoMantenimiento);
-    this.editForm.proximaRevisionTecnica = this.fechaInput(registro.proximaRevisionTecnica);
-    this.editForm.ultimaRevisionBombaAgua = this.fechaInput(registro.ultimaRevisionBombaAgua);
-    this.editForm.descripcionUltimoMantenimiento = registro.descripcionUltimoMantenimiento ?? '';
-    this.editForm.ultimoInspector = registro.ultimoInspector ?? '';
-    this.editForm.firmaUltimoInspector = registro.firmaUltimoInspector ?? '';
-    this.editForm.fechaUltimaInspeccion = this.fechaInput(registro.fechaUltimaInspeccion);
-    this.editForm.ultimoConductor = registro.ultimoConductor ?? '';
-    // Sincroniza dato visible inmediatamente en ficha sin guardar.
-    carro.ultimoConductor = this.editForm.ultimoConductor || null;
   }
 
   estadoEtiqueta(c: CarroDto): string {
@@ -504,7 +526,6 @@ export class CarrosPageComponent {
         Object.assign(carro, actualizado);
         this.guardando = false;
         this.editando = false;
-        this.paginaHistorialDetalle = 1;
         this.mensajeEdicion = 'Datos del carro actualizados correctamente.';
         this.toast.exito('Datos del carro actualizados correctamente.');
       },

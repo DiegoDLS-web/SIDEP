@@ -1,4 +1,11 @@
 <div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 sm:py-6 md:px-8 lg:px-10 xl:px-12">
+  <a
+    routerLink="/"
+    class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212]/90 px-3 py-2 text-sm text-slate-300 shadow-sm ring-1 ring-white/5 transition-colors hover:border-slate-600 hover:text-white"
+  >
+    <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+    Volver al inicio
+  </a>
   <section
     class="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-[radial-gradient(circle_at_0%_0%,rgba(59,130,246,0.2),transparent_45%),radial-gradient(circle_at_100%_0%,rgba(220,38,38,0.15),transparent_42%),#0a0a0a] p-5 sm:p-6"
   >
@@ -58,17 +65,16 @@
 
   <div class="rounded-2xl border border-gray-800 bg-[#121212] p-4 sm:p-5 shadow-lg shadow-black/20">
     <div class="relative">
-      <lucide-icon
-        name="search"
-        class="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500"
-        [size]="20"
-        color="currentColor"
-      />
+      <span class="pointer-events-none absolute inset-y-0 left-0 flex w-12 items-center justify-center text-slate-400 md:w-14">
+        <lucide-icon name="search" class="h-5 w-5 shrink-0" [size]="20" color="currentColor" aria-hidden="true" />
+      </span>
       <input
-        type="text"
-        [(ngModel)]="busqueda"
+        type="search"
+        [ngModel]="busqueda"
+        (ngModelChange)="setBusqueda($event)"
         placeholder="Buscar por nombre, RUT, email, compañía u oficialidad…"
-        class="sid-input w-full rounded-xl border-slate-700 bg-[#0a0a0a] py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 focus:border-red-500/60 focus:ring-2 focus:ring-red-600/20"
+        autocomplete="off"
+        class="sid-input w-full rounded-xl border-slate-700 bg-[#0a0a0a] py-3 pl-12 pr-4 text-sm text-white placeholder:text-slate-500 focus:border-red-500/60 focus:ring-2 focus:ring-red-600/20 md:pl-14 md:text-[0.9375rem]"
       />
     </div>
   </div>
@@ -85,28 +91,68 @@
   }
 
   @if (mostrandoFormulario) {
-    <div class="rounded-2xl border border-gray-800 bg-[#121212] p-5 sm:p-7 shadow-xl shadow-black/25 [&_.sid-input]:px-3 [&_.sid-input]:py-2.5">
-      <div class="mb-6 border-b border-gray-800/80 pb-4">
-        <h2 class="text-xl font-bold text-white sm:text-2xl">{{ editandoId ? 'Editar usuario' : 'Nuevo usuario' }}</h2>
+    <div
+      class="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/70 px-3 py-6 backdrop-blur-sm sm:px-4 sm:py-10"
+      (click)="cerrarSiBackdrop($event)"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-labelledby]="'titulo-form-usuario'"
+    >
+      <div
+        class="sid-modal-scroll relative max-h-[min(90vh,calc(100dvh-4rem))] w-full max-w-4xl overflow-y-auto overscroll-contain rounded-2xl border border-gray-800 bg-[#121212] p-5 shadow-2xl shadow-black/40 sm:p-7 [&_.sid-input]:px-3 [&_.sid-input]:py-2.5"
+        (click)="$event.stopPropagation()"
+      >
+        <button
+          type="button"
+          class="absolute right-3 top-3 rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+          (click)="cancelarForm()"
+          aria-label="Cerrar"
+        >
+          <lucide-icon name="x" class="h-5 w-5" [size]="20" color="currentColor" />
+        </button>
+      <div class="mb-6 border-b border-gray-800/80 pb-4 pr-10">
+        <h2 id="titulo-form-usuario" class="text-xl font-bold text-white sm:text-2xl">
+          {{ editandoId ? 'Editar usuario' : 'Nuevo usuario' }}
+        </h2>
         <p class="mt-1 text-sm text-slate-500"><span class="text-red-400">*</span> Campos obligatorios</p>
       </div>
 
       <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-red-400/95">Identidad</h3>
       <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         <div>
-          <label class="mb-2 block text-sm font-medium text-slate-300">Nombres <span class="text-red-400">*</span></label>
-          <input [(ngModel)]="form.nombres" type="text" class="sid-input w-full" />
+          <label class="mb-2 block text-sm font-medium text-slate-300">
+            Nombres
+            @if (!editandoId) {
+              <span class="text-red-400">*</span>
+            }
+          </label>
+          <input [(ngModel)]="form.nombres" type="text" class="sid-input w-full" [disabled]="!!editandoId" />
         </div>
         <div>
-          <label class="mb-2 block text-sm font-medium text-slate-300">Apellido paterno <span class="text-red-400">*</span></label>
-          <input [(ngModel)]="form.apellidoPaterno" type="text" class="sid-input w-full" />
+          <label class="mb-2 block text-sm font-medium text-slate-300">
+            Apellido paterno
+            @if (!editandoId) {
+              <span class="text-red-400">*</span>
+            }
+          </label>
+          <input [(ngModel)]="form.apellidoPaterno" type="text" class="sid-input w-full" [disabled]="!!editandoId" />
         </div>
         <div>
-          <label class="mb-2 block text-sm font-medium text-slate-300">Apellido materno <span class="text-red-400">*</span></label>
-          <input [(ngModel)]="form.apellidoMaterno" type="text" class="sid-input w-full" />
+          <label class="mb-2 block text-sm font-medium text-slate-300">
+            Apellido materno
+            @if (!editandoId) {
+              <span class="text-red-400">*</span>
+            }
+          </label>
+          <input [(ngModel)]="form.apellidoMaterno" type="text" class="sid-input w-full" [disabled]="!!editandoId" />
         </div>
         <div>
-          <label class="mb-2 block text-sm font-medium text-slate-300">RUT <span class="text-red-400">*</span></label>
+          <label class="mb-2 block text-sm font-medium text-slate-300">
+            RUT
+            @if (!editandoId) {
+              <span class="text-red-400">*</span>
+            }
+          </label>
           <input
             [(ngModel)]="form.rut"
             (ngModelChange)="onRutInput($event)"
@@ -114,11 +160,17 @@
             inputmode="text"
             placeholder="12.345.678-9"
             class="sid-input w-full"
+            [disabled]="!!editandoId"
           />
         </div>
         <div>
-          <label class="mb-2 block text-sm font-medium text-slate-300">Nacionalidad <span class="text-red-400">*</span></label>
-          <input [(ngModel)]="form.nacionalidad" type="text" class="sid-input w-full" />
+          <label class="mb-2 block text-sm font-medium text-slate-300">
+            Nacionalidad
+            @if (!editandoId) {
+              <span class="text-red-400">*</span>
+            }
+          </label>
+          <input [(ngModel)]="form.nacionalidad" type="text" class="sid-input w-full" [disabled]="!!editandoId" />
         </div>
         <div>
           <label class="mb-2 block text-sm font-medium text-slate-300">Grupo sanguíneo (opcional)</label>
@@ -129,6 +181,36 @@
             }
           </select>
         </div>
+      </div>
+
+      <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-red-400/95">Foto de perfil (opcional)</h3>
+      <div class="mb-6 flex flex-col gap-3 rounded-xl border border-slate-800 bg-[#0a0a0a]/50 p-4 sm:flex-row sm:items-start">
+        <div class="flex flex-col gap-2">
+          <input
+            type="file"
+            accept="image/jpeg,image/jpg,image/png,image/webp"
+            class="text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white file:transition-colors hover:file:bg-slate-600"
+            (change)="onFotoPerfilArchivo($event)"
+          />
+          <p class="text-[11px] leading-relaxed text-slate-500">
+            Orientación retrato recomendada. Se comprime automáticamente al guardar. También puedes usar rutas
+            <span class="font-mono text-slate-400">/assets/perfiles/…</span> vía script de importación.
+          </p>
+          @if (form.fotoPerfil) {
+            <button type="button" class="text-left text-sm text-red-400 hover:underline" (click)="quitarFotoPerfil()">
+              Quitar foto
+            </button>
+          }
+        </div>
+        @if (form.fotoPerfil) {
+          <div class="shrink-0 overflow-hidden rounded-xl border border-slate-700 bg-black/30 p-1">
+            <img
+              [src]="form.fotoPerfil"
+              alt="Vista previa foto de perfil"
+              class="mx-auto block max-h-40 w-[120px] object-cover object-top"
+            />
+          </div>
+        }
       </div>
 
       <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-red-400/95">Domicilio</h3>
@@ -164,11 +246,21 @@
           <input [(ngModel)]="form.actividad" type="text" class="sid-input w-full" />
         </div>
         <div>
-          <label class="mb-2 block text-sm font-medium text-slate-300">Fecha de nacimiento <span class="text-red-400">*</span></label>
+          <label class="mb-2 block text-sm font-medium text-slate-300">
+            Fecha de nacimiento
+            @if (!editandoId) {
+              <span class="text-red-400">*</span>
+            }
+          </label>
           <input [(ngModel)]="form.fechaNacimiento" type="date" class="sid-input dark-date-input w-full" />
         </div>
         <div>
-          <label class="mb-2 block text-sm font-medium text-slate-300">Fecha de ingreso <span class="text-red-400">*</span></label>
+          <label class="mb-2 block text-sm font-medium text-slate-300">
+            Fecha de ingreso
+            @if (!editandoId) {
+              <span class="text-red-400">*</span>
+            }
+          </label>
           <input [(ngModel)]="form.fechaIngreso" type="date" class="sid-input dark-date-input w-full" />
         </div>
         <div>
@@ -221,7 +313,6 @@
         <div class="md:col-span-2">
           <label class="mb-2 block text-sm font-medium text-slate-300">Oficialidad (cargo) <span class="text-red-400">*</span></label>
           <select [(ngModel)]="form.cargoOficialidad" class="sid-input w-full">
-            <option [ngValue]="'VOLUNTARIO'">Voluntario</option>
             @for (c of cargosOrden; track c) {
               <option [ngValue]="c">{{ etiquetasCargo[c] || c }}</option>
             }
@@ -293,6 +384,7 @@
           Cancelar
         </button>
       </div>
+      </div>
     </div>
   }
 
@@ -319,47 +411,56 @@
     </div>
   } @else {
     <div class="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3">
-      @for (usuario of filtrados; track usuario.id) {
+      @for (usuario of filtradosPagina; track usuario.id) {
         <div
-          class="sid-list-item-enter group rounded-2xl border border-gray-800/90 bg-[#121212] p-5 transition-all duration-200 hover:border-red-900/50 hover:shadow-lg hover:shadow-red-950/20"
+          class="sid-list-item-enter group relative overflow-hidden rounded-2xl border border-gray-800/90 bg-[#121212] p-5 pt-12 transition-all duration-200 hover:border-red-900/45 hover:shadow-xl hover:shadow-red-950/25 sm:pt-8"
         >
-          <div class="mb-4 flex items-start justify-between gap-3">
-            <div class="flex min-w-0 items-center gap-3">
+          <span
+            class="absolute right-4 top-4 shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+            [class]="
+              usuario.estadoVoluntario === 'VIGENTE' || usuario.activo
+                ? 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/35'
+                : 'bg-slate-600/20 text-slate-400 ring-1 ring-slate-600/40'
+            "
+          >
+            {{ usuario.estadoVoluntario === 'INACTIVO' ? 'Inactivo' : 'Vigente' }}
+          </span>
+          <div class="mb-5 flex flex-col gap-5 sm:flex-row sm:items-start">
+            @if (fotoListaVisible(usuario)) {
+              <img
+                [src]="usuario.fotoPerfil!"
+                alt=""
+                width="128"
+                height="128"
+                class="mx-auto aspect-square h-28 w-28 shrink-0 rounded-3xl object-cover object-top shadow-lg shadow-black/50 ring-[3px] ring-red-500/35 sm:mx-0 sm:h-32 sm:w-32"
+                (error)="onFotoListaError(usuario.id)"
+              />
+            } @else {
               <div
-                class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-red-600 to-red-800 text-sm font-bold text-white shadow-md ring-2 ring-red-500/20"
+                class="mx-auto flex aspect-square h-28 w-28 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-red-600 to-red-900 text-2xl font-bold text-white shadow-lg shadow-black/50 ring-[3px] ring-red-500/30 sm:mx-0 sm:h-32 sm:w-32"
               >
                 {{ iniciales(usuario.nombre) }}
               </div>
-              <div class="min-w-0">
-                <h3 class="truncate font-bold text-white">{{ usuario.nombre }}</h3>
-                <p class="text-sm text-slate-500">{{ usuario.rut }}</p>
-                <p class="mt-0.5 truncate text-xs text-slate-500">{{ etiquetaCargo(usuario.cargoOficialidad) }}</p>
-              </div>
+            }
+            <div class="min-w-0 flex-1 text-center sm:pt-1 sm:text-left">
+              <h3 class="break-words text-lg font-bold leading-snug text-white">{{ usuario.nombre }}</h3>
+              <p class="mt-2 text-sm text-slate-500">{{ usuario.rut }}</p>
+              <p class="mt-1.5 text-sm font-medium text-slate-300">{{ etiquetaTipoVoluntario(usuario.tipoVoluntario) }}</p>
             </div>
-            <span
-              class="shrink-0 rounded-full px-2.5 py-1 text-xs font-medium"
-              [class]="
-                usuario.estadoVoluntario === 'VIGENTE' || usuario.activo
-                  ? 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30'
-                  : 'bg-slate-600/20 text-slate-400 ring-1 ring-slate-600/40'
-              "
-            >
-              {{ usuario.estadoVoluntario === 'INACTIVO' ? 'Inactivo' : 'Vigente' }}
-            </span>
           </div>
+
           <div class="mb-4 border-b border-gray-800/80 pb-4">
-            <div class="flex items-center gap-2">
-              <lucide-icon name="shield" class="h-4 w-4 text-amber-500" [size]="16" color="currentColor" />
-              <span class="text-sm font-medium text-amber-400/95">{{ usuario.rol }}</span>
-            </div>
-            <div class="mt-2 flex flex-wrap items-center gap-2">
-              <span class="rounded-full bg-blue-500/15 px-2 py-0.5 text-[11px] font-medium text-blue-300 ring-1 ring-blue-500/30">
-                {{ etiquetaTipoVoluntario(usuario.tipoVoluntario) }}
-              </span>
-              <span class="rounded-full bg-slate-700/40 px-2 py-0.5 text-[11px] font-medium text-slate-300 ring-1 ring-slate-600/50">
-                Compañía: {{ usuario.compania || '—' }}
+            <div class="mb-3 flex flex-wrap items-center gap-2">
+              <span
+                class="inline-flex max-w-full items-center gap-1.5 rounded-full bg-amber-500/12 px-2.5 py-1 text-[11px] font-semibold leading-snug text-amber-200 ring-1 ring-amber-500/35 sm:text-xs"
+              >
+                <lucide-icon name="shield" class="h-3.5 w-3.5 shrink-0" [size]="14" color="currentColor" />
+                <span class="normal-case tracking-normal">{{ etiquetaChipOficialidad(usuario) }}</span>
               </span>
             </div>
+            <span class="inline-flex rounded-full bg-slate-800/80 px-2.5 py-1 text-[11px] font-medium text-slate-400 ring-1 ring-slate-600/50">
+              Compañía · {{ usuario.compania || '—' }}
+            </span>
           </div>
           <div class="space-y-2">
             <div class="flex min-w-0 items-center gap-2">
@@ -404,6 +505,33 @@
         </div>
       }
     </div>
+    @if (!loading && filtrados.length > 0 && totalPaginas > 1) {
+      <div class="mt-6 flex flex-col items-center justify-center gap-3 border-t border-gray-800/80 pt-4 sm:flex-row sm:justify-between">
+        <p class="text-sm text-slate-400">
+          Página <span class="tabular-nums text-slate-200">{{ paginaLista }}</span> de
+          <span class="tabular-nums text-slate-200">{{ totalPaginas }}</span>
+          <span class="text-slate-500"> · {{ filtrados.length }} usuarios</span>
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-2">
+          <button
+            type="button"
+            class="rounded-xl border border-slate-600 bg-slate-800/80 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+            (click)="cambiarPagina(-1)"
+            [disabled]="paginaLista <= 1"
+          >
+            Anterior
+          </button>
+          <button
+            type="button"
+            class="rounded-xl border border-slate-600 bg-slate-800/80 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+            (click)="cambiarPagina(1)"
+            [disabled]="paginaLista >= totalPaginas"
+          >
+            Siguiente
+          </button>
+        </div>
+      </div>
+    }
   }
 
   @if (!loading && filtrados.length === 0) {

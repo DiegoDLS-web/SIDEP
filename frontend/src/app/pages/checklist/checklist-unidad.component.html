@@ -58,7 +58,7 @@
         <div class="min-w-0">
           <p class="mb-2 inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200">Unidad en servicio</p>
           <h1 class="mb-1 break-words text-2xl font-bold text-white md:text-3xl">Checklist · {{ tituloChecklist() }}</h1>
-          <p class="text-sm text-slate-300">Control de materiales por ubicación; firma OBAC al final</p>
+          <p class="text-sm text-slate-300">Control de materiales por ubicación; firmas de inspector y OBAC al final</p>
         </div>
         <div class="flex w-full flex-col gap-2 sm:items-end md:w-auto">
           <button
@@ -68,7 +68,7 @@
             [title]="
               checklistCompletoParaPdf()
                 ? 'Generar PDF del checklist'
-                : 'Termina el checklist (materiales y firma OBAC) para generar el PDF'
+                : 'Termina el checklist (materiales, firma inspector y OBAC) para generar el PDF'
             "
             class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-md transition-colors sm:w-auto"
             [ngClass]="
@@ -81,7 +81,7 @@
             Generar PDF
           </button>
           @if (!checklistCompletoParaPdf()) {
-            <p class="max-w-sm text-right text-xs text-slate-500">Completa materiales y firma OBAC para descargar el PDF</p>
+            <p class="max-w-sm text-right text-xs text-slate-500">Completa materiales y ambas firmas para descargar el PDF</p>
           }
         </div>
       </div>
@@ -95,7 +95,7 @@
         [title]="
           checklistCompletoParaPdf()
             ? 'Generar PDF del checklist'
-            : 'Termina el checklist (materiales y firma OBAC) para generar el PDF'
+            : 'Termina el checklist (materiales, firma inspector y OBAC) para generar el PDF'
         "
         class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-md transition-colors"
         [ngClass]="
@@ -108,7 +108,7 @@
         Generar PDF
       </button>
       @if (!checklistCompletoParaPdf()) {
-        <p class="text-center text-xs text-slate-500 sm:text-left">Completa todos los materiales y la firma del OBAC para el PDF</p>
+        <p class="text-center text-xs text-slate-500 sm:text-left">Completa materiales y las firmas del inspector y del OBAC para el PDF</p>
       }
     </div>
 
@@ -458,29 +458,62 @@
     </div>
 
     <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/15 ring-1 ring-inset ring-white/5 md:p-6">
-      <h2 class="mb-2 text-lg font-bold tracking-tight text-white">
-        Firma oficial a cargo (OBAC) <span class="text-red-400">*</span>
+      <h2 class="mb-1 text-lg font-bold tracking-tight text-white">
+        Firmas de cierre <span class="text-red-400">*</span>
       </h2>
-      <p class="mb-5 text-sm leading-relaxed text-slate-500">
-        Firma con el dedo o el mouse sobre el área oscura. La fecha del cierre se muestra arriba en
-        <span class="font-medium text-slate-300">“Fecha de cierre / firma”</span>.
+      <p class="mb-6 text-sm leading-relaxed text-slate-500">
+        Inspector y OBAC en la misma fila en pantallas anchas; ambas obligatorias. La fecha de cierre del OBAC aparece arriba en
+        <span class="font-medium text-slate-300">«Fecha de cierre / firma»</span>.
       </p>
-      <div class="overflow-hidden rounded-xl border border-slate-700 bg-[#0a0a0a]">
-        <canvas
-          #firmaCanvas
-          width="560"
-          height="180"
-          class="mx-auto block h-[180px] w-full max-w-full touch-none cursor-crosshair"
-        ></canvas>
-      </div>
-      <div class="mt-4 flex justify-start">
-        <button
-          type="button"
-          (click)="limpiarFirma()"
-          class="rounded-xl border border-slate-600 bg-[#0a0a0a] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-900"
-        >
-          Limpiar firma
-        </button>
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
+        <div>
+          <h3 class="mb-1 text-base font-semibold text-white">
+            Inspector <span class="text-red-400">*</span>
+          </h3>
+          <p class="mb-3 text-xs leading-relaxed text-slate-500 sm:text-sm">Ejecuta la inspección en campo.</p>
+          <div class="overflow-hidden rounded-xl border border-slate-700 bg-[#0a0a0a]">
+            <canvas
+              #firmaCanvasInspector
+              width="560"
+              height="180"
+              class="mx-auto block h-[180px] w-full max-w-full touch-none cursor-crosshair"
+            ></canvas>
+          </div>
+          <div class="mt-3 flex justify-start">
+            <button
+              type="button"
+              (click)="limpiarFirmaInspector()"
+              class="rounded-xl border border-amber-500/55 bg-[#0a0a0a] px-4 py-2 text-sm font-medium text-amber-300 transition-colors hover:bg-slate-900"
+            >
+              Limpiar firma inspector
+            </button>
+          </div>
+        </div>
+        <div>
+          <h3 class="mb-1 text-base font-semibold text-white">
+            OBAC a cargo <span class="text-red-400">*</span>
+          </h3>
+          <p class="mb-3 text-xs leading-relaxed text-slate-500 sm:text-sm">
+            Firma oficial de la guardia respecto al checklist cerrado.
+          </p>
+          <div class="overflow-hidden rounded-xl border border-slate-700 bg-[#0a0a0a]">
+            <canvas
+              #firmaCanvas
+              width="560"
+              height="180"
+              class="mx-auto block h-[180px] w-full max-w-full touch-none cursor-crosshair"
+            ></canvas>
+          </div>
+          <div class="mt-3 flex justify-start">
+            <button
+              type="button"
+              (click)="limpiarFirma()"
+              class="rounded-xl border border-slate-600 bg-[#0a0a0a] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-900"
+            >
+              Limpiar firma OBAC
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -495,6 +528,7 @@
           <ul class="space-y-1 text-xs">
             <li>Inspector: <strong>{{ nombreInspector.trim() ? 'OK' : 'Pendiente' }}</strong></li>
             <li>Guardia: <strong>{{ grupoGuardia.trim() ? 'OK' : 'Pendiente' }}</strong></li>
+            <li>Firma inspector: <strong>{{ firmaResueltaInspector() ? 'OK' : 'Pendiente' }}</strong></li>
             <li>Firma OBAC: <strong>{{ firmaResueltaObac() ? 'OK' : 'Pendiente' }}</strong></li>
             <li>Fecha cierre: <strong>{{ fechaCierreChecklist ? 'OK' : 'Pendiente' }}</strong></li>
           </ul>

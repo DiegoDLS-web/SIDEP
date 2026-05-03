@@ -1,12 +1,15 @@
-import { Component, HostListener, inject } from '@angular/core';
+import { Component, HostListener, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { AuthService } from '../services/auth.service';
+import { NavegacionUiService } from '../services/navegacion-ui.service';
 import { ConfirmDialogService } from '../services/confirm-dialog.service';
 import { MotionProfileService } from '../services/motion-profile.service';
 import { UiDensityService } from '../services/ui-density.service';
 import { SidepIconsModule } from '../shared/sidep-icons.module';
 import { ConfirmDialogComponent } from '../shared/confirm-dialog.component';
+import { ConfiguracionesService } from '../services/configuraciones.service';
+import { SidepBrandLockupComponent } from '../shared/sidep-brand-lockup.component';
 
 type NavItem = {
   routerLink: string;
@@ -23,15 +26,26 @@ type NavSection = { title: string; items: NavItem[] };
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, SidepIconsModule, ConfirmDialogComponent],
+  imports: [
+    CommonModule,
+    RouterOutlet,
+    RouterLink,
+    SidepIconsModule,
+    ConfirmDialogComponent,
+    SidepBrandLockupComponent,
+  ],
   templateUrl: './main-layout.component.html',
 })
 export class MainLayoutComponent {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
+  private readonly navUi = inject(NavegacionUiService);
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly motionProfile = inject(MotionProfileService);
   private readonly uiDensity = inject(UiDensityService);
+  private readonly configApi = inject(ConfiguracionesService);
+  /** Subtítulo del lockup desde configuración del sistema. */
+  readonly nombreCompaniaTag = signal<string | null>(null);
   sidebarAbierto = false;
   routeTransitioning = false;
 
@@ -68,9 +82,26 @@ export class MainLayoutComponent {
     },
   ];
 
+  /**
+   * Secciones visibles según `/api/auth/mi-navegacion` (configurable en Administración · Configuraciones).
+   */
+  readonly sectionesSidebar = computed(() => {
+    if (!this.navUi.cargada()) {
+      return this.seccionesFallbackLegacy(this.auth.usuarioActual?.rol);
+    }
+    return this.filtrarSeccionesPorRutas(this.navUi.permitidasSet());
+  });
+
   constructor() {
     this.motionProfile.aplicar();
     this.uiDensity.aplicar();
+    this.auth.usuario$.subscribe((u) => {
+      if (u) {
+        this.navUi.refrescar();
+      } else {
+        this.navUi.limpiar();
+      }
+    });
     this.router.events.subscribe((ev) => {
       if (ev instanceof NavigationEnd) {
         this.routeTransitioning = true;
@@ -79,10 +110,14 @@ export class MainLayoutComponent {
         }, 220);
       }
     });
+    this.configApi.brandingPublic().subscribe({
+      next: (b) => this.nombreCompaniaTag.set(b.nombreCompania?.trim() || null),
+      error: () => this.nombreCompaniaTag.set('1ª Compañía Santa Juana'),
+    });
   }
 
-  get sections(): NavSection[] {
-    const rol = this.auth.usuarioActual?.rol?.toUpperCase();
+  private seccionesFallbackLegacy(rolRaw: string | undefined): NavSection[] {
+    const rol = rolRaw?.toUpperCase();
     if (rol === 'ADMIN') {
       return this.baseSections;
     }
@@ -98,6 +133,20 @@ export class MainLayoutComponent {
       });
     }
     return this.baseSections.filter((section) => section.title !== 'SISTEMA');
+  }
+
+  private filtrarSeccionesPorRutas(allowed: ReadonlySet<string>): NavSection[] {
+    const out: NavSection[] = [];
+    for (const section of this.baseSections) {
+      const items = section.items.filter((item) => {
+        const clave = item.activePrefix ?? item.routerLink;
+        return allowed.has(clave);
+      });
+      if (items.length > 0) {
+        out.push({ ...section, items });
+      }
+    }
+    return out;
   }
 
   navActive(item: NavItem): boolean {

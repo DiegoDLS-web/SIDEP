@@ -24,6 +24,7 @@ export interface UsuarioListaDto {
   cargoOficialidad: string | null;
   observacionesRegistro: string | null;
   firmaImagen: string | null;
+  fotoPerfil?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -51,6 +52,7 @@ export interface UsuarioCrearDto {
   rol: string;
   observacionesRegistro?: string | null;
   firmaImagen?: string | null;
+  fotoPerfil?: string | null;
 }
 
 export interface UsuarioActualizarDto {
@@ -78,4 +80,5 @@ export interface UsuarioActualizarDto {
   activo?: boolean;
   observacionesRegistro?: string | null;
   firmaImagen?: string | null;
+  fotoPerfil?: string | null;
 }

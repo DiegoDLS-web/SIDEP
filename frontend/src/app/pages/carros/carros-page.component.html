@@ -23,6 +23,13 @@
 } @else if (vm.status === 'list') {
   @let s = stats(vm.carros);
   <div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 sm:py-6 md:px-8 lg:px-10 xl:px-12 md:py-6">
+    <a
+      routerLink="/"
+      class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212]/90 px-3 py-2 text-sm text-slate-300 ring-1 ring-white/5 transition-colors hover:border-slate-600 hover:text-white"
+    >
+      <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+      Volver al inicio
+    </a>
     <section
       class="sid-morph-item sid-hero-premium relative overflow-hidden rounded-2xl border border-red-900/40 bg-[radial-gradient(circle_at_0%_0%,rgba(220,38,38,0.18),transparent_45%),radial-gradient(circle_at_100%_0%,rgba(59,130,246,0.1),transparent_42%),#0a0a0a] p-5 sm:p-6"
     >
@@ -140,51 +147,66 @@
             Registros archivados al guardar cambios (todas las unidades). Usa filtros para acotar por fechas o unidad.
           </p>
         </div>
-        <button
-          type="button"
-          class="sid-btn sid-btn-neutral shrink-0 rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-gray-100 hover:bg-gray-700"
-          (click)="cargarHistorialGeneral()"
-        >
-          Actualizar
-        </button>
       </div>
 
-      <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
-        <label class="flex min-w-[10rem] flex-col gap-1 text-sm">
-          <span class="text-xs text-gray-500">Unidad</span>
-          <select
-            [(ngModel)]="filtroUnidadHistorial"
-            class="sid-history-filter"
+      <div
+        class="mb-4 flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-end xl:justify-between"
+      >
+        <div class="flex min-w-0 flex-1 flex-wrap items-end gap-3">
+          <label class="flex min-w-[10rem] flex-col gap-1 text-sm xl:min-w-[11rem]">
+            <span class="text-xs text-gray-500">Unidad</span>
+            <select
+              [(ngModel)]="filtroUnidadHistorial"
+              class="sid-history-filter min-w-[10rem]"
+            >
+              <option [ngValue]="'TODAS'">Todas</option>
+              @for (c of vm.carros; track c.id) {
+                <option [ngValue]="c.id">{{ c.nomenclatura }} — {{ c.nombre || c.patente }}</option>
+              }
+            </select>
+          </label>
+          <label class="flex min-w-[10rem] flex-col gap-1 text-sm">
+            <span class="text-xs text-gray-500">Desde</span>
+            <input
+              type="date"
+              [(ngModel)]="filtroHistorialDesde"
+              class="sid-history-filter dark-date-input"
+            />
+          </label>
+          <label class="flex min-w-[10rem] flex-col gap-1 text-sm">
+            <span class="text-xs text-gray-500">Hasta</span>
+            <input
+              type="date"
+              [(ngModel)]="filtroHistorialHasta"
+              class="sid-history-filter dark-date-input"
+            />
+          </label>
+          <button
+            type="button"
+            class="sid-btn sid-btn-primary rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+            (click)="aplicarFiltrosHistorialGeneral()"
           >
-            <option [ngValue]="'TODAS'">Todas</option>
-            @for (c of vm.carros; track c.id) {
-              <option [ngValue]="c.id">{{ c.nomenclatura }} — {{ c.nombre || c.patente }}</option>
-            }
-          </select>
-        </label>
-        <label class="flex min-w-[10rem] flex-col gap-1 text-sm">
-          <span class="text-xs text-gray-500">Desde</span>
-          <input
-            type="date"
-            [(ngModel)]="filtroHistorialDesde"
-            class="sid-history-filter dark-date-input"
-          />
-        </label>
-        <label class="flex min-w-[10rem] flex-col gap-1 text-sm">
-          <span class="text-xs text-gray-500">Hasta</span>
-          <input
-            type="date"
-            [(ngModel)]="filtroHistorialHasta"
-            class="sid-history-filter dark-date-input"
-          />
-        </label>
-        <button
-          type="button"
-          class="sid-btn sid-btn-primary rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-          (click)="aplicarFiltrosHistorialGeneral()"
-        >
-          Aplicar filtros
-        </button>
+            Aplicar filtros
+          </button>
+        </div>
+        <div class="flex shrink-0 flex-wrap items-center justify-end gap-2 max-xl:border-t max-xl:border-slate-800/80 max-xl:pt-3">
+          <button
+            type="button"
+            class="sid-btn sid-btn-neutral rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-gray-100 hover:bg-gray-700"
+            title="Limpiar filtros y recargar"
+            (click)="limpiarFiltrosHistorialGeneral()"
+          >
+            Limpiar filtros
+          </button>
+          <button
+            type="button"
+            class="sid-btn sid-btn-neutral rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-gray-100 hover:bg-gray-700"
+            title="Actualizar datos"
+            (click)="cargarHistorialGeneral()"
+          >
+            Actualizar
+          </button>
+        </div>
       </div>
 
       @if (historialGeneralLoading) {
@@ -199,8 +221,10 @@
             <div class="rounded-xl border border-slate-800 bg-[#0a0a0a] p-3">
               <div class="mb-2 flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                  <p class="text-xs text-slate-400">{{ fechaHora(row.creadoEn) }}</p>
-                  <p class="font-mono text-sm font-semibold text-white">{{ row.carro.nomenclatura }}</p>
+                  @let g = splitFh(row.creadoEn);
+                  <p class="text-sm font-medium text-white">{{ g.fecha }}</p>
+                  <p class="text-xs text-slate-500">{{ g.hora }}</p>
+                  <p class="mt-1 font-mono text-sm font-semibold text-white">{{ row.carro.nomenclatura }}</p>
                   <p class="text-xs text-slate-500">{{ row.carro.nombre || '—' }}</p>
                 </div>
               </div>
@@ -213,17 +237,13 @@
                   <p class="text-slate-500">Inspección</p>
                   <p class="font-semibold text-white">{{ fechaCorta(row.fechaUltimaInspeccion) }}</p>
                 </div>
-                <div class="col-span-2">
-                  <p class="text-slate-500">Próx. mantención</p>
-                  <p class="font-semibold text-white">{{ fechaCorta(row.proximoMantenimiento) }}</p>
-                </div>
               </div>
               <div class="mt-3 flex items-center gap-2">
                 <button
                   type="button"
                   class="sid-btn sid-btn-info inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-                  title="Ver"
-                  (click)="irADetalleCarro(row.carro.id)"
+                  title="Ver registro completo"
+                  (click)="abrirVistaHistorialGeneral(row)"
                 >
                   <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
                 </button>
@@ -249,14 +269,19 @@
                 <th>Unidad</th>
                 <th>Inspector</th>
                 <th class="hidden md:table-cell">Inspección</th>
-                <th class="hidden lg:table-cell">Próx. mant.</th>
-                <th class="text-center">Acciones</th>
+                <th class="text-right">Acciones</th>
               </tr>
             </thead>
             <tbody class="bg-[#121212]">
               @for (row of historialGeneralPaginado(); track row.id) {
                 <tr>
-                  <td class="whitespace-nowrap text-gray-300">{{ fechaHora(row.creadoEn) }}</td>
+                  <td class="align-top whitespace-nowrap text-gray-300">
+                    @let cg = splitFh(row.creadoEn);
+                    <div>
+                      <p class="font-medium text-white">{{ cg.fecha }}</p>
+                      <p class="text-xs text-gray-500">{{ cg.hora }}</p>
+                    </div>
+                  </td>
                   <td class="font-medium text-white">
                     {{ row.carro.nomenclatura }}
                     <span class="block text-xs font-normal text-gray-500">{{ row.carro.nombre || '—' }}</span>
@@ -265,19 +290,15 @@
                   <td class="hidden whitespace-nowrap text-gray-400 md:table-cell">
                     {{ fechaCorta(row.fechaUltimaInspeccion) }}
                   </td>
-                  <td class="hidden whitespace-nowrap text-gray-400 lg:table-cell">
-                    {{ fechaCorta(row.proximoMantenimiento) }}
-                  </td>
-                  <td class="text-center">
-                    <div class="inline-flex items-center justify-center gap-2">
+                  <td class="text-right">
+                    <div class="inline-flex items-center justify-end gap-2">
                       <button
                         type="button"
-                        class="sid-btn sid-btn-info inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 text-xs text-white hover:bg-blue-700"
-                        title="Ver"
-                        (click)="irADetalleCarro(row.carro.id)"
+                        class="sid-btn sid-btn-info inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                        title="Ver registro completo"
+                        (click)="abrirVistaHistorialGeneral(row)"
                       >
                         <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-                        Ver
                       </button>
                       <button
                         type="button"
@@ -642,128 +663,69 @@
               </div>
             }
           </div>
-
-          <h2 class="mb-2 mt-8 text-lg font-bold md:text-xl">Historial de registros</h2>
-          <p class="mb-4 text-xs text-gray-500 sm:text-sm">
-            Cada vez que guardas cambios se archiva una copia con fecha y responsables (auditoría).
-          </p>
-          @if ((c.historialRegistros?.length ?? 0) > 0) {
-            <div class="space-y-3 rounded-xl border border-gray-800 bg-[#0a0a0a] p-3 sm:p-4">
-              @for (h of historialDetallePaginado(c); track trackHistorial($index, h)) {
-                <div class="rounded-lg border border-gray-800 bg-[#121212] p-3 sm:p-4">
-                  <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                    <div class="min-w-0 flex-1">
-                      <p class="text-xs text-gray-400">Guardado el {{ fechaHora(h.creadoEn) }}</p>
-                      <p class="mt-1 text-sm font-semibold text-gray-200">
-                        Inspector: {{ h.ultimoInspector || '—' }}
-                      </p>
-                    </div>
-                    <div class="flex shrink-0 items-center gap-2">
-                      <button
-                        type="button"
-                        class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700 sm:py-1.5"
-                        (click)="verHistorial(h)"
-                      >
-                        <lucide-icon name="eye" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
-                        Ver
-                      </button>
-                      <button
-                        type="button"
-                        class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-gray-500 bg-gray-700 px-3 py-2 text-xs font-medium text-gray-100 transition-colors hover:bg-gray-600 sm:py-1.5"
-                        (click)="editarDesdeHistorial(c, h)"
-                      >
-                        <lucide-icon name="pencil" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-red-700 sm:py-1.5"
-                        (click)="descargarPdfHistorial(c, h)"
-                      >
-                        <lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
-                        PDF
-                      </button>
-                    </div>
-                  </div>
-                  @if (historialEstaExpandido(h)) {
-                    <div class="grid grid-cols-2 gap-2 gap-y-1 text-xs sm:grid-cols-3 md:gap-3">
-                      <div>
-                        <span class="text-gray-500">Últ. mant.</span>
-                        <p class="font-medium">{{ fechaCorta(h.ultimoMantenimiento) }}</p>
-                      </div>
-                      <div>
-                        <span class="text-gray-500">Próx. mant.</span>
-                        <p class="font-medium">{{ fechaCorta(h.proximoMantenimiento) }}</p>
-                      </div>
-                      <div>
-                        <span class="text-gray-500">Próx. rev. técnica</span>
-                        <p class="font-medium">{{ fechaCorta(h.proximaRevisionTecnica ?? null) }}</p>
-                      </div>
-                      <div>
-                        <span class="text-gray-500">Últ. rev. bomba</span>
-                        <p class="font-medium">{{ fechaCorta(h.ultimaRevisionBombaAgua ?? null) }}</p>
-                      </div>
-                      <div>
-                        <span class="text-gray-500">Fecha inspección</span>
-                        <p class="font-medium">{{ fechaCorta(h.fechaUltimaInspeccion ?? null) }}</p>
-                      </div>
-                      <div>
-                        <span class="text-gray-500">Últ. conductor</span>
-                        <p class="font-medium">{{ h.ultimoConductor || '—' }}</p>
-                      </div>
-                    </div>
-                    @if (h.descripcionUltimoMantenimiento) {
-                      <p class="mt-3 border-t border-gray-800 pt-3 text-sm text-gray-300">
-                        {{ h.descripcionUltimoMantenimiento }}
-                      </p>
-                    }
-                    @if (esFirmaImagen(h.firmaUltimoInspector)) {
-                      <div class="mt-3 border-t border-gray-800 pt-3">
-                        <p class="mb-1 text-xs text-gray-500">Firma</p>
-                        <img
-                          [src]="h.firmaUltimoInspector!"
-                          alt="Firma"
-                          class="max-h-20 max-w-full rounded border border-gray-700 bg-[#1a1a1a] object-contain"
-                        />
-                      </div>
-                    }
-                  }
-                </div>
-              }
-            </div>
-            <div
-              class="mt-4 flex flex-col gap-2 border-t border-gray-800 pt-3 text-xs text-gray-500 sm:flex-row sm:items-center sm:justify-between sm:text-sm"
-            >
-              <span
-                >Página {{ paginaHistorialDetalle }} de {{ totalPaginasHistorialDetalle(c) }} ·
-                {{ c.historialRegistros!.length }} registro(s)</span
-              >
-              <div class="flex gap-2">
-                <button
-                  type="button"
-                  class="rounded-lg border border-gray-600 bg-gray-800 px-3 py-1.5 text-xs text-white disabled:opacity-40 sm:text-sm"
-                  [disabled]="paginaHistorialDetalle <= 1"
-                  (click)="cambiarPaginaHistorialDetalle(-1, c)"
-                >
-                  Anterior
-                </button>
-                <button
-                  type="button"
-                  class="rounded-lg border border-gray-600 bg-gray-800 px-3 py-1.5 text-xs text-white disabled:opacity-40 sm:text-sm"
-                  [disabled]="paginaHistorialDetalle >= totalPaginasHistorialDetalle(c)"
-                  (click)="cambiarPaginaHistorialDetalle(1, c)"
-                >
-                  Siguiente
-                </button>
-              </div>
-            </div>
-          } @else {
-            <p class="rounded-lg border border-dashed border-gray-600 bg-[#121212] p-4 text-sm leading-relaxed text-gray-300">
-              No hay registros archivados aún: el historial se crea cuando pulsas
-              <span class="font-medium text-gray-200">Guardar cambios</span> en el registro de mantención (cada guardado deja una copia).
-            </p>
-          }
         </div>
+      </div>
+    </div>
+  </div>
+}
+
+@if (historialGeneralVistaFila) {
+  <div
+    class="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="carro-hist-ver-titulo"
+    (click)="cerrarVistaHistorialBackdrop($event)"
+  >
+    @let mh = historialGeneralVistaFila!;
+    <div
+      class="sid-modal-scroll max-h-[min(92vh,920px)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-2xl border border-slate-700/90 bg-[#121212] shadow-2xl ring-1 ring-inset ring-white/5 sm:max-w-xl"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-slate-800/90 bg-[#121212]/95 px-5 py-4 backdrop-blur-sm">
+        <div class="min-w-0">
+          <p class="mb-1 text-[11px] font-medium uppercase tracking-wide text-red-400/90">Historial de mantención</p>
+          <h3 id="carro-hist-ver-titulo" class="truncate text-lg font-bold text-white">{{ mh.carro.nomenclatura }}</h3>
+          <p class="truncate text-sm text-slate-400">{{ mh.carro.nombre || '—' }} · {{ mh.carro.patente || 'Sin patente' }}</p>
+        </div>
+        <button
+          type="button"
+          (click)="cerrarVistaHistorialGeneral()"
+          class="sid-btn sid-btn-neutral shrink-0 rounded-xl border border-slate-600 bg-[#0a0a0a] px-3 py-2 text-sm text-slate-200 hover:bg-slate-800"
+        >
+          Cerrar
+        </button>
+      </div>
+      <div class="space-y-4 p-5 text-sm text-gray-200">
+        <p><span class="text-gray-500">Guardado en historial:</span> {{ fechaHora(mh.creadoEn) }}</p>
+        <p><span class="text-gray-500">Último mantenimiento:</span> {{ fechaMantenimiento(mh.ultimoMantenimiento) }}</p>
+        <p><span class="text-gray-500">Próximo mantenimiento:</span> {{ fechaMantenimiento(mh.proximoMantenimiento) }}</p>
+        <p><span class="text-gray-500">Próxima rev. técnica:</span> {{ fechaMantenimiento(mh.proximaRevisionTecnica) }}</p>
+        <p><span class="text-gray-500">Última rev. bomba agua:</span> {{ fechaMantenimiento(mh.ultimaRevisionBombaAgua) }}</p>
+        <p><span class="text-gray-500">Fecha inspección:</span> {{ fechaCorta(mh.fechaUltimaInspeccion) }}</p>
+        <p><span class="text-gray-500">Último inspector:</span> {{ mh.ultimoInspector || '—' }}</p>
+        <p><span class="text-gray-500">Último conductor:</span> {{ mh.ultimoConductor || '—' }}</p>
+        <div class="rounded-xl border border-slate-800/80 bg-[#0a0a0a]/40 p-3">
+          <p class="mb-1 text-xs font-medium uppercase text-slate-500">Descripción última mantención</p>
+          <p class="whitespace-pre-wrap text-slate-200">{{ mh.descripcionUltimoMantenimiento?.trim() || '—' }}</p>
+        </div>
+        @if (mh.firmaUltimoInspector?.startsWith('data:image')) {
+          <div>
+            <p class="mb-2 text-xs font-medium uppercase text-slate-500">Firma inspector</p>
+            <img
+              [src]="mh.firmaUltimoInspector!"
+              alt=""
+              class="max-h-52 w-full rounded-lg border border-slate-700 bg-black/40 object-contain p-2"
+            />
+          </div>
+        }
+        <button
+          type="button"
+          class="sid-btn sid-btn-neutral w-full rounded-xl border border-slate-600 bg-slate-900/50 py-2.5 text-sm text-slate-200 hover:bg-slate-800"
+          (click)="cerrarVistaHistorialGeneral(); irADetalleCarro(mh.carro.id)"
+        >
+          Abrir ficha de la unidad
+        </button>
       </div>
     </div>
   </div>

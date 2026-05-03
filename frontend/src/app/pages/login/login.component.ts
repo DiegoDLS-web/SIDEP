@@ -1,39 +1,39 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
+import { ConfiguracionesService } from '../../services/configuraciones.service';
 import { ToastService } from '../../services/toast.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
+import { SidepBrandLockupComponent } from '../../shared/sidep-brand-lockup.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidepBrandLockupComponent],
   templateUrl: './login.component.html',
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly configApi = inject(ConfiguracionesService);
+
+  readonly nombreCompaniaTag = signal<string | null>(null);
 
   email = '';
   password = '';
   recordarme = false;
   loading = false;
   error: string | null = null;
-  logoSrc = this.assetUrl('assets/logos/sidep-logo.png');
-  private logoFallbackIntentado = false;
 
-  onLogoError(): void {
-    if (this.logoFallbackIntentado) return;
-    this.logoFallbackIntentado = true;
-    this.logoSrc = this.assetUrl('assets/logos/compania-logo.png');
-  }
-
-  private assetUrl(path: string): string {
-    return new URL(path, document.baseURI).toString();
+  ngOnInit(): void {
+    this.configApi.brandingPublic().subscribe({
+      next: (b) => this.nombreCompaniaTag.set(b.nombreCompania?.trim() || null),
+      error: () => this.nombreCompaniaTag.set('1ª Compañía Santa Juana'),
+    });
   }
 
   submit(): void {

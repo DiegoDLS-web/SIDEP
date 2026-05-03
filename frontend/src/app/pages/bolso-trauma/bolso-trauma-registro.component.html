@@ -80,7 +80,7 @@
             [title]="
               checklistCompletoParaPdf()
                 ? 'Generar PDF del checklist de bolso de trauma'
-                : 'Completa datos, firma OBAC e ítems para generar el PDF'
+                : 'Completa datos, firmas del inspector y OBAC e ítems para generar el PDF'
             "
             class="sid-btn inline-flex min-h-[44px] w-full shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors sm:w-auto"
             [ngClass]="
@@ -234,15 +234,25 @@
                 [readonly]="!editandoPlantilla"
                 class="mb-3 w-full rounded-lg border border-slate-600/80 bg-[#0f0f0f] px-3 py-2 text-sm text-white placeholder:text-gray-600"
               />
-              <div class="grid grid-cols-2 gap-2">
+              <div class="grid grid-cols-3 gap-2">
                 <div>
-                  <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Requerido</label>
+                  <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Mínimo</label>
                   <input
                     type="number"
                     [(ngModel)]="material.cantidadMinima"
                     [name]="'mm_mob_' + ui + '_' + mi"
                     [disabled]="!editandoPlantilla"
                     class="w-full rounded-lg border border-slate-600/80 bg-[#0f0f0f] px-3 py-2 text-center text-sm tabular-nums text-white"
+                  />
+                </div>
+                <div>
+                  <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Óptimo</label>
+                  <input
+                    type="number"
+                    [(ngModel)]="material.cantidadOptima"
+                    [name]="'mo_mob_' + ui + '_' + mi"
+                    [disabled]="!editandoPlantilla"
+                    class="w-full rounded-lg border border-slate-600/80 bg-[#0f0f0f]/80 px-3 py-2 text-center text-sm tabular-nums text-slate-200"
                   />
                 </div>
                 <div>
@@ -257,7 +267,9 @@
               </div>
               <div class="mt-3 flex items-center justify-between gap-2">
                 <div>
-                  <p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Estado automático</p>
+                  <p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    Estado (según actual vs mín./ópt.)
+                  </p>
                   @if (material.cantidadActual >= material.cantidadOptima) {
                     <span class="inline-flex rounded-md bg-sky-950/90 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-sky-100">Óptimo</span>
                   } @else if (material.cantidadActual >= material.cantidadMinima) {
@@ -287,13 +299,16 @@
                   Nombre material
                 </th>
                 <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Requerido
+                  Mínimo
+                </th>
+                <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Óptimo
                 </th>
                 <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
                   Actual
                 </th>
                 <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Estado automático
+                  Estado (mín./ópt.)
                 </th>
                 <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">Acción</th>
               </tr>
@@ -316,6 +331,15 @@
                       [name]="'mm_' + ui + '_' + mi"
                       [disabled]="!editandoPlantilla"
                       class="w-[4.75rem] rounded-lg border border-slate-600/80 bg-[#0f0f0f] px-3 py-2 text-center text-sm tabular-nums text-white"
+                    />
+                  </td>
+                  <td class="px-4 py-3 text-center">
+                    <input
+                      type="number"
+                      [(ngModel)]="material.cantidadOptima"
+                      [name]="'mo_' + ui + '_' + mi"
+                      [disabled]="!editandoPlantilla"
+                      class="w-[4.75rem] rounded-lg border border-slate-600/80 bg-[#0f0f0f]/80 px-3 py-2 text-center text-sm tabular-nums text-slate-200"
                     />
                   </td>
                   <td class="px-4 py-3 text-center">
@@ -373,20 +397,36 @@
     </div>
 
     <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
-      <h2 class="mb-2 text-lg font-bold text-white sm:text-xl">
-        Firma oficial a cargo (OBAC) <span class="text-red-400">*</span>
+      <h2 class="mb-1 text-lg font-bold text-white sm:text-xl">
+        Firmas de cierre <span class="text-red-400">*</span>
       </h2>
-      <p class="mb-4 text-sm text-slate-500">
-        Firma con el dedo o el mouse sobre el área oscura. La fecha del cierre se muestra arriba en «Fecha de cierre /
-        firma».
+      <p class="mb-6 text-xs text-slate-500 sm:text-sm">
+        Inspector junto al OBAC (en paralelo en pantallas anchas). La fecha del cierre del OBAC está arriba en «Fecha de cierre / firma».
       </p>
-      <app-signature-pad
-        [dark]="true"
-        [canvasWidth]="560"
-        [canvasHeight]="160"
-        [value]="firmaDataUrl"
-        (valueChange)="onFirmaChange($event)"
-      />
+      <div class="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-10">
+        <div>
+          <h3 class="mb-2 text-sm font-semibold text-white">Inspector <span class="text-red-400">*</span></h3>
+          <p class="mb-3 text-xs text-slate-500">Revisión física del bolso.</p>
+          <app-signature-pad
+            [dark]="true"
+            [canvasWidth]="560"
+            [canvasHeight]="150"
+            [value]="firmaInspectorDataUrl"
+            (valueChange)="onFirmaInspectorChange($event)"
+          />
+        </div>
+        <div>
+          <h3 class="mb-2 text-sm font-semibold text-white">OBAC a cargo <span class="text-red-400">*</span></h3>
+          <p class="mb-3 text-xs text-slate-500">Cierra formalmente la revisión.</p>
+          <app-signature-pad
+            [dark]="true"
+            [canvasWidth]="560"
+            [canvasHeight]="150"
+            [value]="firmaDataUrl"
+            (valueChange)="onFirmaChange($event)"
+          />
+        </div>
+      </div>
     </div>
 
     <div class="flex flex-col gap-3 pb-2 sm:flex-row sm:gap-4">

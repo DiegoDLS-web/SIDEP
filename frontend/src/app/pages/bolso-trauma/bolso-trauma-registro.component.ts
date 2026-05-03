@@ -154,6 +154,8 @@ export class BolsoTraumaRegistroComponent implements OnInit {
   observaciones = '';
   /** Firma OBAC (PNG data URL). */
   firmaDataUrl = '';
+  /** Firma del inspector (PNG data URL). */
+  firmaInspectorDataUrl = '';
   /** ISO fecha/hora mostrada en “Fecha de cierre / firma” al firmar. */
   fechaCierreChecklist: string | null = null;
 
@@ -226,6 +228,10 @@ export class BolsoTraumaRegistroComponent implements OnInit {
           this.firmaDataUrl = fFirma;
           this.fechaCierreChecklist = checklist?.fecha ?? null;
         }
+        const fInsp = checklist?.firmaInspector?.trim();
+        if (fInsp?.startsWith('data:image')) {
+          this.firmaInspectorDataUrl = fInsp;
+        }
 
         this.loading = false;
       },
@@ -267,6 +273,10 @@ export class BolsoTraumaRegistroComponent implements OnInit {
     return firmaEfectiva(this.firmaDataUrl, this.firmaPerfilCuartelero());
   }
 
+  firmaResueltaInspector(): string {
+    return (this.firmaInspectorDataUrl || '').trim();
+  }
+
   onFirmaChange(dataUrl: string): void {
     this.firmaDataUrl = dataUrl;
     if (dataUrl?.startsWith('data:image')) {
@@ -274,6 +284,10 @@ export class BolsoTraumaRegistroComponent implements OnInit {
     } else {
       this.fechaCierreChecklist = null;
     }
+  }
+
+  onFirmaInspectorChange(dataUrl: string): void {
+    this.firmaInspectorDataUrl = dataUrl;
   }
 
   agregarMaterial(ubicacionIndex: number): void {
@@ -449,6 +463,9 @@ export class BolsoTraumaRegistroComponent implements OnInit {
     if (!this.firmaResueltaObac()) {
       return 'La firma del OBAC es obligatoria (firma en pantalla o en el perfil del responsable).';
     }
+    if (!this.firmaResueltaInspector()) {
+      return 'La firma del inspector es obligatoria.';
+    }
     const flat = this.bolsos.flatMap((b) => b.ubicaciones.flatMap((u) => u.materiales));
     if (flat.length === 0) {
       return 'No hay materiales registrados en los bolsos.';
@@ -482,7 +499,9 @@ export class BolsoTraumaRegistroComponent implements OnInit {
     if (v) {
       this.error = v;
       if (v.includes('firma')) {
-        this.flash('Debes firmar en el área OBAC o tener firma en el perfil del responsable.');
+        this.flash(
+          'Debes completar la firma del inspector y la del OBAC (o la firma en el perfil del responsable).',
+        );
       }
       return;
     }
@@ -499,6 +518,7 @@ export class BolsoTraumaRegistroComponent implements OnInit {
         inspector: this.nombreInspector,
         grupoGuardia: this.grupoGuardia,
         firmaOficial: this.firmaResueltaObac(),
+        firmaInspector: this.firmaResueltaInspector(),
         observaciones: this.observaciones,
         totalItems: total,
         itemsOk: ok,
@@ -539,6 +559,7 @@ export class BolsoTraumaRegistroComponent implements OnInit {
         inspector: this.nombreInspector,
         grupoGuardia: this.grupoGuardia,
         firmaOficial: this.firmaResueltaObac() || undefined,
+        firmaInspector: this.firmaResueltaInspector() || undefined,
         observaciones: this.observaciones,
         totalItems: total,
         itemsOk: ok,
@@ -566,7 +587,7 @@ export class BolsoTraumaRegistroComponent implements OnInit {
 
   descargarPdf(): void {
     if (!this.checklistCompletoParaPdf()) {
-      this.flash('Completa inspector, fecha, firma OBAC e ítems para generar el PDF.');
+      this.flash('Completa inspector, fecha, firmas del inspector y OBAC e ítems para generar el PDF.');
       return;
     }
     const responsable = this.usuarios.find((u) => u.id === this.cuarteleroId)?.nombre ?? '';
@@ -584,6 +605,7 @@ export class BolsoTraumaRegistroComponent implements OnInit {
       inspector: this.nombreInspector,
       grupoGuardia: this.grupoGuardia,
       responsable,
+      firmaInspector: this.firmaResueltaInspector(),
       firmaOficial: this.firmaResueltaObac(),
       fechaRegistro: this.fechaCierreChecklist ?? undefined,
       observaciones: this.observaciones,

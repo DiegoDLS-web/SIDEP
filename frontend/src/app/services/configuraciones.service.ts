@@ -11,7 +11,19 @@ export class ConfiguracionesService {
     return this.http.get<ConfiguracionSistemaDto>('/api/configuraciones');
   }
 
+  /** Sin autenticación: nombre de compañía para login y lockup. */
+  brandingPublic(): Observable<{ nombreCompania: string }> {
+    return this.http.get<{ nombreCompania: string }>('/api/branding-public');
+  }
+
   guardar(payload: ConfiguracionSistemaDto): Observable<ConfiguracionSistemaDto> {
     return this.http.put<ConfiguracionSistemaDto>('/api/configuraciones', payload);
+  }
+
+  /** PNG o JPEG, máx. 2 MB. El archivo queda en `/uploads/compania-logo.*` y los PDF lo usan con prioridad. */
+  subirLogoCompania(file: File): Observable<{ ok: boolean; path: string }> {
+    const fd = new FormData();
+    fd.append('file', file);
+    return this.http.post<{ ok: boolean; path: string }>('/api/configuraciones/logo-compania', fd);
   }
 }

@@ -2,13 +2,9 @@
   <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('assets/login-bg.png')" aria-hidden="true"></div>
   <div class="absolute inset-0 bg-black/70" aria-hidden="true"></div>
   <div class="relative z-10 w-full max-w-md">
-    <div class="sid-hero-premium mb-8 text-center">
-      <div class="sidep-logo-orb mb-4 inline-flex h-20 w-20 items-center justify-center rounded-2xl bg-white/10 p-2">
-        <img [src]="logoSrc" (error)="onLogoError()" alt="SIDEP" class="h-full w-full object-contain" />
-      </div>
-      <h1 class="sid-hero-title mb-2 text-4xl font-bold text-white">SIDEP</h1>
-      <p class="sid-hero-subtitle text-gray-400">Sistema Digital de Emergencias y Procesos</p>
-      <p class="sid-hero-subtitle mt-1 text-sm text-gray-500">1ª Compañía de Bomberos Santa Juana</p>
+    <div class="sid-hero-premium mb-8 flex flex-col items-center text-center">
+      <app-sidep-brand-lockup class="w-full max-w-sm px-2" variant="hero" [subline]="nombreCompaniaTag() ?? 'Compañía'" />
+      <h1 class="sr-only">SIDEP · inicio de sesión</h1>
     </div>
 
     <div class="sid-glass-panel rounded-xl border border-gray-700/80 bg-[#121212]/90 p-8 backdrop-blur-sm">
@@ -65,7 +61,7 @@
           <label class="inline-flex cursor-pointer select-none items-center gap-2 text-sm text-gray-400">
             <input [(ngModel)]="recordarme" type="checkbox" class="peer sr-only" name="recordarme" />
             <span
-              class="flex h-4 w-4 shrink-0 items-center justify-center rounded border border-gray-700 bg-[#141414] text-red-400 shadow-inner shadow-black/40 peer-checked:border-red-500 peer-checked:bg-[#1a0a0a] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red-600/50"
+              class="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded border border-slate-500 bg-[#0d1016] text-red-400 shadow-inner shadow-black/60 peer-checked:border-red-600/80 peer-checked:bg-[#120808] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red-600/50"
               aria-hidden="true"
             >
               @if (recordarme) {

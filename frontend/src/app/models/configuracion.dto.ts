@@ -14,9 +14,12 @@ export interface ConfiguracionNotificacionesDto {
   resumenDiarioEmail: boolean;
 }
 
+/** Logos institucionales en cabeceras de PDF exportados desde el navegador */
+export type LogosPdfCabecera = 'AMBOS' | 'SIDEP' | 'COMPANIA' | 'NINGUNO';
+
 export interface ConfiguracionReportesDto {
   formatoPredeterminado: 'PDF' | 'XLSX' | 'CSV';
-  incluirLogo: boolean;
+  logosPdf: LogosPdfCabecera;
   orientacionPdf: 'VERTICAL' | 'HORIZONTAL';
 }
 
@@ -24,4 +27,6 @@ export interface ConfiguracionSistemaDto {
   compania: ConfiguracionCompaniaDto;
   notificaciones: ConfiguracionNotificacionesDto;
   reportes: ConfiguracionReportesDto;
+  /** rutas permitidas (`routerLink`) por rol — configurable solo por administradores. */
+  navegacionPorRol?: Record<string, string[]>;
 }

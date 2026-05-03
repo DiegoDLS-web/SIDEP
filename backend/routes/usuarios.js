@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.usuariosRouter = void 0;
 const express_1 = require("express");
+const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const prisma_js_1 = require("../lib/prisma.js");
 const auditoria_js_1 = require("../lib/auditoria.js");
@@ -37,6 +38,7 @@ const selectUsuario = {
     cargoOficialidad: true,
     observacionesRegistro: true,
     firmaImagen: true,
+    fotoPerfil: true,
     requiereCambioPassword: true,
     createdAt: true,
     updatedAt: true,
@@ -128,6 +130,16 @@ exports.usuariosRouter.post('/', async (req, res) => {
                 return;
             }
         }
+        let fotoPerfil = null;
+        if (body.fotoPerfil != null && String(body.fotoPerfil).trim() !== '') {
+            try {
+                fotoPerfil = (0, usuario_perfil_js_1.normalizarFotoPerfil)(String(body.fotoPerfil));
+            }
+            catch (e) {
+                res.status(400).json({ error: e instanceof Error ? e.message : 'Foto de perfil inv?lida' });
+                return;
+            }
+        }
         const nombres = String(body.nombres).trim();
         const apellidoPaterno = String(body.apellidoPaterno).trim();
         const apellidoMaterno = String(body.apellidoMaterno).trim();
@@ -165,6 +177,7 @@ exports.usuariosRouter.post('/', async (req, res) => {
                     ? String(body.observacionesRegistro).trim()
                     : null,
                 firmaImagen: firma,
+                fotoPerfil,
                 rol: bodyRol,
                 activo,
                 requiereCambioPassword: true,
@@ -217,6 +230,22 @@ exports.usuariosRouter.patch('/:id', async (req, res) => {
                 }
                 catch (e) {
                     res.status(400).json({ error: e instanceof Error ? e.message : 'Firma inv?lida' });
+                    return;
+                }
+            }
+        }
+        let fotoPerfilParche;
+        if (body.fotoPerfil !== undefined) {
+            const rawFoto = body.fotoPerfil;
+            if (rawFoto === null || rawFoto === '') {
+                fotoPerfilParche = null;
+            }
+            else {
+                try {
+                    fotoPerfilParche = (0, usuario_perfil_js_1.normalizarFotoPerfil)(String(rawFoto));
+                }
+                catch (e) {
+                    res.status(400).json({ error: e instanceof Error ? e.message : 'Foto de perfil inv?lida' });
                     return;
                 }
             }
@@ -308,6 +337,9 @@ exports.usuariosRouter.patch('/:id', async (req, res) => {
         if (firma !== undefined) {
             data.firmaImagen = firma;
         }
+        if (fotoPerfilParche !== undefined) {
+            data.fotoPerfil = fotoPerfilParche;
+        }
         const actual = await prisma_js_1.prisma.usuario.findUnique({ where: { id } });
         if (!actual) {
             res.status(404).json({ error: 'Usuario no encontrado' });
@@ -347,6 +379,10 @@ exports.usuariosRouter.patch('/:id', async (req, res) => {
         res.json(actualizado);
     }
     catch (e) {
+        if (e instanceof client_1.Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+            res.status(400).json({ error: 'El correo o RUT ya está registrado en otra cuenta.' });
+            return;
+        }
         console.error(e);
         res.status(500).json({ error: 'Error al actualizar usuario' });
     }

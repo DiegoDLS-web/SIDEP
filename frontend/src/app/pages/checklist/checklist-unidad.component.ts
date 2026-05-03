@@ -30,6 +30,7 @@ type Ubicacion = { nombre: string; materiales: Material[] };
 })
 export class ChecklistUnidadComponent implements OnInit {
   @ViewChild('firmaCanvas') firmaCanvas?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('firmaCanvasInspector') firmaCanvasInspector?: ElementRef<HTMLCanvasElement>;
 
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -59,6 +60,7 @@ export class ChecklistUnidadComponent implements OnInit {
   /** ISO fecha legible en cabecera (reemplaza el campo texto “firma”) */
   fechaCierreChecklist: string | null = null;
   private firmaInicialServidor: string | null = null;
+  private firmaInspectorInicialServidor: string | null = null;
 
   ubicaciones: Ubicacion[] = [];
   ubicacionesAbiertas: Record<string, boolean> = {};
@@ -74,6 +76,12 @@ export class ChecklistUnidadComponent implements OnInit {
   private ultimoX = 0;
   private ultimoY = 0;
   private firmaCanvasInicializado = false;
+
+  private ctxInspector: CanvasRenderingContext2D | null = null;
+  private dibujandoFirmaInspector = false;
+  private ultimoXI = 0;
+  private ultimoYI = 0;
+  private firmaCanvasInspectorInicializado = false;
   private nombreOriginalMaterial = new Map<string, string>();
 
   ngOnInit(): void {
@@ -118,10 +126,16 @@ export class ChecklistUnidadComponent implements OnInit {
           this.firmaInicialServidor = checklist.firmaOficial;
           this.fechaCierreChecklist = checklist.fecha;
         }
+        const fInsp = checklist?.firmaInspector?.trim();
+        if (fInsp?.startsWith('data:image')) {
+          this.firmaInspectorInicialServidor = fInsp;
+        }
         this.loading = false;
         setTimeout(() => {
           this.inicializarCanvasFirma();
+          this.inicializarCanvasFirmaInspector();
           this.restaurarFirmaDesdeServidor(this.firmaInicialServidor);
+          this.restaurarFirmaInspectorDesdeServidor(this.firmaInspectorInicialServidor);
         }, 0);
       },
       error: () => {
@@ -160,12 +174,12 @@ export class ChecklistUnidadComponent implements OnInit {
     this.ctx = ctx;
     this.pintarFondoFirma();
     canvas.addEventListener('mousedown', (e) => {
-      const [x, y] = this.mapPointer(e.clientX, e.clientY);
+      const [x, y] = this.mapPointerCanvas(canvas, e.clientX, e.clientY);
       this.inicioTrazo(x, y);
     });
     canvas.addEventListener('mousemove', (e) => {
       if (e.buttons !== 1) return;
-      const [x, y] = this.mapPointer(e.clientX, e.clientY);
+      const [x, y] = this.mapPointerCanvas(canvas, e.clientX, e.clientY);
       this.moverTrazo(x, y);
     });
     canvas.addEventListener('mouseup', () => this.finTrazo());
@@ -175,7 +189,7 @@ export class ChecklistUnidadComponent implements OnInit {
       (ev) => {
         ev.preventDefault();
         const t = ev.changedTouches[0];
-        const [x, y] = this.mapPointer(t.clientX, t.clientY);
+        const [x, y] = this.mapPointerCanvas(canvas, t.clientX, t.clientY);
         this.inicioTrazo(x, y);
       },
       { passive: false },
@@ -186,13 +200,57 @@ export class ChecklistUnidadComponent implements OnInit {
         ev.preventDefault();
         if (!this.dibujandoFirma) return;
         const t = ev.changedTouches[0];
-        const [x, y] = this.mapPointer(t.clientX, t.clientY);
+        const [x, y] = this.mapPointerCanvas(canvas, t.clientX, t.clientY);
         this.moverTrazo(x, y);
       },
       { passive: false },
     );
     canvas.addEventListener('touchend', () => this.finTrazo());
     this.firmaCanvasInicializado = true;
+  }
+
+  private inicializarCanvasFirmaInspector(): void {
+    if (this.firmaCanvasInspectorInicializado) return;
+    const canvas = this.firmaCanvasInspector?.nativeElement;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    this.ctxInspector = ctx;
+    this.pintarFondoFirmaInspector();
+    canvas.addEventListener('mousedown', (e) => {
+      const [x, y] = this.mapPointerCanvas(canvas, e.clientX, e.clientY);
+      this.inicioTrazoInspector(x, y);
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      if (e.buttons !== 1) return;
+      const [x, y] = this.mapPointerCanvas(canvas, e.clientX, e.clientY);
+      this.moverTrazoInspector(x, y);
+    });
+    canvas.addEventListener('mouseup', () => this.finTrazoInspector());
+    canvas.addEventListener('mouseleave', () => this.finTrazoInspector());
+    canvas.addEventListener(
+      'touchstart',
+      (ev) => {
+        ev.preventDefault();
+        const t = ev.changedTouches[0];
+        const [x, y] = this.mapPointerCanvas(canvas, t.clientX, t.clientY);
+        this.inicioTrazoInspector(x, y);
+      },
+      { passive: false },
+    );
+    canvas.addEventListener(
+      'touchmove',
+      (ev) => {
+        ev.preventDefault();
+        if (!this.dibujandoFirmaInspector) return;
+        const t = ev.changedTouches[0];
+        const [x, y] = this.mapPointerCanvas(canvas, t.clientX, t.clientY);
+        this.moverTrazoInspector(x, y);
+      },
+      { passive: false },
+    );
+    canvas.addEventListener('touchend', () => this.finTrazoInspector());
+    this.firmaCanvasInspectorInicializado = true;
   }
 
   private normalizarDetalle(detalle: Ubicacion[]): Ubicacion[] {
@@ -279,13 +337,17 @@ export class ChecklistUnidadComponent implements OnInit {
     return resultado;
   }
 
-  private mapPointer(clientX: number, clientY: number): [number, number] {
-    const canvas = this.firmaCanvas?.nativeElement;
-    if (!canvas) return [0, 0];
+  private mapPointerCanvas(canvas: HTMLCanvasElement, clientX: number, clientY: number): [number, number] {
     const r = canvas.getBoundingClientRect();
     const sx = canvas.width / r.width;
     const sy = canvas.height / r.height;
     return [(clientX - r.left) * sx, (clientY - r.top) * sy];
+  }
+
+  private mapPointer(clientX: number, clientY: number): [number, number] {
+    const canvas = this.firmaCanvas?.nativeElement;
+    if (!canvas) return [0, 0];
+    return this.mapPointerCanvas(canvas, clientX, clientY);
   }
 
   defaultUbicaciones(unidad: string): Ubicacion[] {
@@ -395,10 +457,48 @@ export class ChecklistUnidadComponent implements OnInit {
     }
   }
 
+  private pintarFondoFirmaInspector(): void {
+    const canvas = this.firmaCanvasInspector?.nativeElement;
+    if (!canvas || !this.ctxInspector) return;
+    this.ctxInspector.fillStyle = '#0a0a0a';
+    this.ctxInspector.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  private inicioTrazoInspector(x: number, y: number): void {
+    if (!this.ctxInspector) return;
+    this.dibujandoFirmaInspector = true;
+    this.ultimoXI = x;
+    this.ultimoYI = y;
+  }
+
+  private moverTrazoInspector(x: number, y: number): void {
+    if (!this.dibujandoFirmaInspector || !this.ctxInspector) return;
+    this.ctxInspector.strokeStyle = '#ffffff';
+    this.ctxInspector.lineWidth = 2;
+    this.ctxInspector.lineCap = 'round';
+    this.ctxInspector.lineJoin = 'round';
+    this.ctxInspector.beginPath();
+    this.ctxInspector.moveTo(this.ultimoXI, this.ultimoYI);
+    this.ctxInspector.lineTo(x, y);
+    this.ctxInspector.stroke();
+    this.ultimoXI = x;
+    this.ultimoYI = y;
+  }
+
+  private finTrazoInspector(): void {
+    if (!this.dibujandoFirmaInspector) return;
+    this.dibujandoFirmaInspector = false;
+  }
+
   limpiarFirma(): void {
     this.pintarFondoFirma();
     this.firmaInicialServidor = null;
     this.fechaCierreChecklist = null;
+  }
+
+  limpiarFirmaInspector(): void {
+    this.pintarFondoFirmaInspector();
+    this.firmaInspectorInicialServidor = null;
   }
 
   /** vuelve a pintar la firma guardada si existe */
@@ -418,10 +518,24 @@ export class ChecklistUnidadComponent implements OnInit {
     img.src = dataUrl;
   }
 
-  private canvasEstaVacio(): boolean {
-    const canvas = this.firmaCanvas?.nativeElement;
-    if (!canvas) return true;
-    const ctx = this.ctx ?? canvas.getContext('2d');
+  private restaurarFirmaInspectorDesdeServidor(dataUrl: string | null): void {
+    const canvas = this.firmaCanvasInspector?.nativeElement;
+    const ctx = this.ctxInspector;
+    if (!canvas || !ctx || !dataUrl?.startsWith('data:image')) return;
+    const img = new Image();
+    img.onload = () => {
+      this.pintarFondoFirmaInspector();
+      try {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      } catch {
+        /* ignore */
+      }
+    };
+    img.src = dataUrl;
+  }
+
+  private canvasPixelsVacios(canvas: HTMLCanvasElement, ctxPreferido: CanvasRenderingContext2D | null): boolean {
+    const ctx = ctxPreferido ?? canvas.getContext('2d');
     if (!ctx) return true;
     const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const dark = [10, 10, 10];
@@ -433,9 +547,27 @@ export class ChecklistUnidadComponent implements OnInit {
     return true;
   }
 
+  private canvasEstaVacio(): boolean {
+    const canvas = this.firmaCanvas?.nativeElement;
+    if (!canvas) return true;
+    return this.canvasPixelsVacios(canvas, this.ctx);
+  }
+
+  private canvasInspectorEstaVacio(): boolean {
+    const canvas = this.firmaCanvasInspector?.nativeElement;
+    if (!canvas) return true;
+    return this.canvasPixelsVacios(canvas, this.ctxInspector);
+  }
+
   obtenerDataUrlFirma(): string {
     const canvas = this.firmaCanvas?.nativeElement;
     if (!canvas || this.canvasEstaVacio()) return '';
+    return canvas.toDataURL('image/png');
+  }
+
+  obtenerDataUrlFirmaInspector(): string {
+    const canvas = this.firmaCanvasInspector?.nativeElement;
+    if (!canvas || this.canvasInspectorEstaVacio()) return '';
     return canvas.toDataURL('image/png');
   }
 
@@ -450,6 +582,11 @@ export class ChecklistUnidadComponent implements OnInit {
   /** Canvas del formulario o firma cargada en el perfil del OBAC. */
   firmaResueltaObac(): string {
     return firmaEfectiva(this.obtenerDataUrlFirma(), this.firmaPerfilCuartelero());
+  }
+
+  /** Firma trazada por el inspector (obligatoria al cerrar). */
+  firmaResueltaInspector(): string {
+    return this.obtenerDataUrlFirmaInspector().trim();
   }
 
   validarChecklistCompleto(): string | null {
@@ -471,6 +608,9 @@ export class ChecklistUnidadComponent implements OnInit {
     }
     if (!this.firmaResueltaObac()) {
       return 'La firma del OBAC es obligatoria (dibújala o usa la firma del perfil del responsable).';
+    }
+    if (!this.firmaResueltaInspector()) {
+      return 'La firma del inspector es obligatoria (área «Firma del inspector»).';
     }
     return null;
   }
@@ -641,6 +781,9 @@ export class ChecklistUnidadComponent implements OnInit {
     if (!this.firmaResueltaObac()) {
       return 'La firma del OBAC es obligatoria (dibújala o usa la firma del perfil del responsable).';
     }
+    if (!this.firmaResueltaInspector()) {
+      return 'La firma del inspector es obligatoria (área «Firma del inspector»).';
+    }
     return null;
   }
 
@@ -676,6 +819,7 @@ export class ChecklistUnidadComponent implements OnInit {
       return;
     }
     const firma = this.firmaResueltaObac();
+    const firmaInspector = this.firmaResueltaInspector();
     const obacId = this.cuarteleroId;
     if (obacId === '') {
       return;
@@ -688,6 +832,7 @@ export class ChecklistUnidadComponent implements OnInit {
         inspector: this.nombreInspector,
         grupoGuardia: this.grupoGuardia,
         firmaOficial: firma,
+        firmaInspector,
         observaciones: this.observaciones,
         totalItems: this.totalItems(),
         itemsOk: this.itemsOk(),
@@ -722,12 +867,14 @@ export class ChecklistUnidadComponent implements OnInit {
     this.error = null;
     this.savingBorrador = true;
     const firma = this.firmaResueltaObac();
+    const firmaInspector = this.firmaResueltaInspector() || null;
     this.checklistsApi
       .guardarChecklistUnidad(this.unidad, {
         cuarteleroId: obacBorrador,
         inspector: this.nombreInspector,
         grupoGuardia: this.grupoGuardia,
         firmaOficial: firma || null,
+        firmaInspector,
         observaciones: this.observaciones,
         totalItems: this.totalItems(),
         itemsOk: this.itemsOk(),
@@ -787,7 +934,7 @@ export class ChecklistUnidadComponent implements OnInit {
 
   descargarPdf(): void {
     if (!this.checklistCompletoParaPdf()) {
-      this.flash('Termina el checklist (materiales OK y firma OBAC) para generar el PDF.');
+      this.flash('Termina el checklist (materiales OK, firma inspector y firma OBAC) para generar el PDF.');
       return;
     }
     const responsable = this.usuarios.find((u) => u.id === this.cuarteleroId)?.nombre ?? '';
@@ -806,6 +953,7 @@ export class ChecklistUnidadComponent implements OnInit {
       inspector: this.nombreInspector,
       grupoGuardia: this.grupoGuardia,
       responsable,
+      firmaInspector: this.firmaResueltaInspector(),
       firmaOficial: this.firmaResueltaObac(),
       fechaRegistro: this.fechaCierreChecklist ?? undefined,
       observaciones: this.observaciones,

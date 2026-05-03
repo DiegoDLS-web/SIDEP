@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import path from 'node:path';
 import express from 'express';
 import cors from 'cors';
 import type { Prisma } from '@prisma/client';
@@ -7,7 +8,7 @@ import { partesRouter } from './routes/partes.js';
 import { checklistsRouter } from './routes/checklists.js';
 import { bolsosTraumaRouter } from './routes/bolsos-trauma.js';
 import { usuariosRouter } from './routes/usuarios.js';
-import { configuracionesRouter } from './routes/configuraciones.js';
+import { configuracionesRouter, obtenerConfigSistema } from './routes/configuraciones.js';
 import { rolesRouter } from './routes/roles.js';
 import { authRouter } from './routes/auth.js';
 import { auditoriaRouter } from './routes/auditoria.js';
@@ -16,12 +17,21 @@ import { dashboardRouter } from './routes/dashboard.js';
 import { licenciasRouter } from './routes/licencias.js';
 import { requireAuth } from './middleware/auth.js';
 import { requireRoles } from './middleware/roles.js';
-
+import { iniciarProgramadorResumenDiario } from './lib/resumen-diario-email.js';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json({ limit: '12mb' }));
+
+const uploadsRoot = path.join(process.cwd(), 'uploads');
+app.use(
+  '/uploads',
+  express.static(uploadsRoot, {
+    maxAge: process.env.NODE_ENV === 'production' ? '2h' : 0,
+    fallthrough: true,
+  }),
+);
 
 function buildCarroPatch(body: unknown): Prisma.CarroUpdateInput {
   if (!body || typeof body !== 'object') {
@@ -83,13 +93,25 @@ async function resolverCarroId(param: string): Promise<number | null> {
 
 app.use('/api/auth', authRouter);
 
+/** Nombre de compañía para UI pública (login, lockup) sin sesión. */
+app.get('/api/branding-public', async (_req, res) => {
+  try {
+    const c = await obtenerConfigSistema();
+    res.json({ nombreCompania: c.compania.nombreCompania?.trim() || 'Compañía' });
+  } catch (e) {
+    console.error(e);
+    res.json({ nombreCompania: '1ª Compañía Santa Juana' });
+  }
+});
+
 app.get('/api/status', (req, res) => {
   res.json({ mensaje: 'Backend de SIDEP 100% operativo' });
 });
 
 app.use('/api/usuarios', requireAuth, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), usuariosRouter);
 app.use('/api/roles', requireAuth, requireRoles('ADMIN'), rolesRouter);
-app.use('/api/configuraciones', requireAuth, requireRoles('ADMIN'), configuracionesRouter);
+/** Lectura disponible para usuarios autenticados (p. ej. logos en PDF); escritura solo ADMIN en la ruta PUT. */
+app.use('/api/configuraciones', requireAuth, configuracionesRouter);
 app.use('/api/auditoria', requireAuth, requireRoles('ADMIN', 'CAPITAN'), auditoriaRouter);
 app.use('/api/partes', requireAuth, partesRouter);
 app.use('/api/checklists', requireAuth, checklistsRouter);
@@ -241,4 +263,5 @@ app.patch('/api/carros/:id', requireAuth, async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  iniciarProgramadorResumenDiario();
 });

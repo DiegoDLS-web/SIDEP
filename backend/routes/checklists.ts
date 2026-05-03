@@ -350,6 +350,7 @@ checklistsRouter.get('/selector', async (_req, res) => {
         id: c.id,
         unidad: String(c.nomenclatura ?? '').trim() || `U-${c.id}`,
         nombre: (c.nombre ?? '').trim() || `Unidad ${String(c.nomenclatura ?? c.id)}`,
+        imagenUrl: c.imagenUrl ?? null,
         ultimaRevision: ultimo
           ? {
               fecha: ultimo.fecha.toISOString(),
@@ -420,6 +421,7 @@ checklistsRouter.post('/unidad/:unidad', async (req, res) => {
     inspector?: string;
     grupoGuardia?: string;
     firmaOficial?: string;
+    firmaInspector?: string;
     observaciones?: string;
     totalItems?: number;
     itemsOk?: number;
@@ -454,6 +456,7 @@ checklistsRouter.post('/unidad/:unidad', async (req, res) => {
           inspector: body.inspector ?? null,
           grupoGuardia: body.grupoGuardia ?? null,
           firmaOficial: body.firmaOficial ?? null,
+          firmaInspector: body.firmaInspector ?? null,
           observaciones: body.observaciones ?? null,
           totalItems,
           itemsOk,
@@ -510,6 +513,7 @@ checklistsRouter.post('/era', async (req, res) => {
     inspector?: string;
     grupoGuardia?: string;
     firmaOficial?: string;
+    firmaInspector?: string;
     observaciones?: string;
     totalItems?: number;
     itemsOk?: number;
@@ -535,6 +539,7 @@ checklistsRouter.post('/era', async (req, res) => {
         inspector: body.inspector ?? null,
         grupoGuardia: body.grupoGuardia ?? null,
         firmaOficial: body.firmaOficial ?? null,
+        firmaInspector: body.firmaInspector ?? null,
         observaciones: body.observaciones ?? null,
         totalItems,
         itemsOk,

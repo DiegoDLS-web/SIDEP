@@ -13,6 +13,7 @@ export type GuardarBolsoTraumaPayload = {
   inspector?: string;
   grupoGuardia?: string;
   firmaOficial?: string;
+  firmaInspector?: string;
   observaciones?: string;
   totalItems?: number;
   itemsOk?: number;

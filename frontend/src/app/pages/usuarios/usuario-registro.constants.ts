@@ -1,6 +1,6 @@
 /** Valores API ↔ etiquetas en español (oficialidad / directorio / inspectores). */
 export const ETIQUETAS_CARGO_OFICIALIDAD: Record<string, string> = {
-  VOLUNTARIO: 'Voluntario',
+  VOLUNTARIO: 'Voluntario (sin cargo de oficialidad)',
   DIRECTOR_COMPANIA: 'Director',
   SECRETARIO_COMPANIA: 'Secretario',
   TESORERO_COMPANIA: 'Tesorero',
@@ -21,6 +21,7 @@ export const ETIQUETAS_CARGO_OFICIALIDAD: Record<string, string> = {
 };
 
 export const CARGOS_OFICIALIDAD_ORDEN = [
+  'VOLUNTARIO',
   'DIRECTOR_COMPANIA',
   'SECRETARIO_COMPANIA',
   'TESORERO_COMPANIA',
@@ -41,34 +42,60 @@ export const CARGOS_OFICIALIDAD_ORDEN = [
 ] as const;
 
 export const ETIQUETAS_TIPO_VOLUNTARIO: Record<string, string> = {
-  VOLUNTARIO: 'Voluntario',
-  OFICIAL: 'Oficial',
-  CADETE: 'Cadete',
   ASPIRANTE: 'Aspirante',
-  ACTIVO: 'Activo',
-  HONORARIO: 'Honorario',
-  CUARTELERO: 'Cuartelero',
+  VOLUNTARIO: 'Voluntario',
+  HONORARIO: 'Voluntario honorario',
+  INSIGNE: 'Voluntario insigne',
+  ACTIVO: 'Voluntario',
+  OFICIAL: 'Voluntario',
+  CADETE: 'Voluntario',
   CANJE: 'Canje',
+  CUARTELERO: 'Cuartelero',
   CONFEDERADO: 'Confederado',
-  INSIGNE: 'Insigne',
 };
 
 export const TIPOS_VOLUNTARIO_ORDEN = [
+  'ASPIRANTE',
   'VOLUNTARIO',
+  'HONORARIO',
+  'INSIGNE',
+  'ACTIVO',
   'OFICIAL',
   'CADETE',
-  'ASPIRANTE',
-  'ACTIVO',
-  'HONORARIO',
-  'CUARTELERO',
   'CANJE',
+  'CUARTELERO',
   'CONFEDERADO',
-  'INSIGNE',
 ] as const;
 
 export const GRUPOS_SANGUINEOS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'DESCONOCIDO'] as const;
 
 export const ROLES_SISTEMA_FALLBACK = ['CAPITAN', 'TENIENTE', 'VOLUNTARIOS', 'ADMIN'] as const;
+
+/** Misma idea que la lista del parte: oficialidad solo si es distinta de VOLUNTARIO; si no, categoría voluntario. */
+export function etiquetaDirectorioVoluntario(
+  tipoVoluntario: string | null | undefined,
+  cargoOficialidad: string | null | undefined,
+): string {
+  const cargo = (cargoOficialidad ?? '').trim();
+  if (cargo && cargo !== 'VOLUNTARIO') {
+    return ETIQUETAS_CARGO_OFICIALIDAD[cargo] ?? cargo.replace(/_/g, ' ').toLowerCase();
+  }
+  const tipo = (tipoVoluntario ?? '').trim().toUpperCase();
+  const porTipo = tipo ? ETIQUETAS_TIPO_VOLUNTARIO[tipo] : '';
+  return porTipo || 'Voluntario';
+}
+
+/** Solo cargo institucional (oficialidad), alineado con los datos que alimentan asistencia en partes. */
+export function etiquetaOficialidadCargo(
+  cargoOficialidad: string | null | undefined,
+  rolSistema: string | null | undefined,
+): string {
+  const rol = (rolSistema ?? '').trim().toUpperCase();
+  if (rol === 'ADMIN') return 'Administrador del sistema';
+  const c = (cargoOficialidad ?? '').trim();
+  if (!c || c === 'VOLUNTARIO') return 'Sin cargo de oficialidad';
+  return ETIQUETAS_CARGO_OFICIALIDAD[c] ?? c.replace(/_/g, ' ');
+}
 
 export const REGIONES_COMUNAS_CHILE: ReadonlyArray<{ region: string; comunas: readonly string[] }> = [
   { region: 'Arica y Parinacota', comunas: ['Arica', 'Camarones', 'Putre', 'General Lagos'] },

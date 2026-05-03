@@ -1,18 +1,18 @@
 import { CommonModule, formatDate } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
 import type { ChecklistRegistroDto, ChecklistResumenUnidadDto, EstadoChecklist } from '../../models/checklist.dto';
 import { ChecklistsService } from '../../services/checklists.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
-import { calcularEstadoChecklist } from '../../utils/checklist-estado';
+import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 
 @Component({
   selector: 'app-checklist-selector',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidepIconsModule],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule],
   templateUrl: './checklist-selector.component.html',
 })
 export class ChecklistSelectorComponent implements OnInit {
@@ -186,6 +186,65 @@ export class ChecklistSelectorComponent implements OnInit {
     return t || 'Sin nombre registrado';
   }
 
+  private readonly imagenPorNomenclatura: Record<string, string> = {
+    'B-1': this.assetUrl('assets/carros/b1.png'),
+    'BX-1': this.assetUrl('assets/carros/bx1.png'),
+    'R-1': this.assetUrl('assets/carros/r1.png'),
+  };
+
+  private readonly imagenTarjetaFallback =
+    'https://images.unsplash.com/photo-1588662880295-13d2b28127c6?w=1080&q=80&fm=jpg';
+
+  private assetUrl(path: string): string {
+    return new URL(path, document.baseURI).toString();
+  }
+
+  private normalizarUrlImagenUnidad(raw: string, nomenclatura: string): string {
+    const limpio = raw.replace(/\\/g, '/').trim();
+    if (limpio.startsWith('http://') || limpio.startsWith('https://') || limpio.startsWith('data:image')) {
+      return limpio;
+    }
+    if (limpio.startsWith('/assets/')) {
+      return this.assetUrl(limpio.slice(1));
+    }
+    const idxAssets = limpio.toLowerCase().indexOf('/assets/');
+    if (idxAssets >= 0) {
+      return this.assetUrl(limpio.slice(idxAssets + 1));
+    }
+    if (limpio.startsWith('assets/')) {
+      return this.assetUrl(limpio);
+    }
+    if (limpio.startsWith('/')) {
+      return limpio;
+    }
+    if (limpio.includes('/')) {
+      return limpio;
+    }
+    return this.imagenPorNomenclatura[nomenclatura] ?? this.imagenTarjetaFallback;
+  }
+
+  imagenUnidadTarjeta(u: ChecklistResumenUnidadDto): string {
+    const raw = (u.imagenUrl ?? '').trim();
+    const nom = String(u.unidad ?? '').trim();
+    if (!raw) {
+      return this.imagenPorNomenclatura[nom] ?? this.imagenTarjetaFallback;
+    }
+    return this.normalizarUrlImagenUnidad(raw, nom);
+  }
+
+  onImagenTarjetaError(event: Event, u: ChecklistResumenUnidadDto): void {
+    const img = event.target as HTMLImageElement | null;
+    if (!img) return;
+    const fb = this.imagenPorNomenclatura[String(u.unidad ?? '').trim()];
+    if (fb && img.src !== fb) {
+      img.src = fb;
+      return;
+    }
+    if (!img.src.includes(this.imagenTarjetaFallback)) {
+      img.src = this.imagenTarjetaFallback;
+    }
+  }
+
   /** Navegación explícita (más fiable que solo `<a>` en algunos layouts). */
   abrirChecklistUnidad(u: ChecklistResumenUnidadDto, event?: Event): void {
     event?.preventDefault();
@@ -241,5 +300,33 @@ export class ChecklistSelectorComponent implements OnInit {
       nombreUnidad: h.nombreUnidad,
       registro: h,
     });
+  }
+
+  etiquetaEstadoHistorial(
+    registro: ChecklistRegistroDto & { unidad: string; nombreUnidad: string },
+  ): string {
+    return etiquetaEstadoChecklist(this.estadoHistorialFila(registro));
+  }
+
+  detalleUbicacionesHistorial(registro: ChecklistRegistroDto): Array<{
+    nombre: string;
+    materiales: Array<{ nombre: string; cantidadRequerida: number; cantidadActual: number }>;
+  }> {
+    const d = registro.detalle;
+    if (!Array.isArray(d)) return [];
+    return (d as Array<Record<string, unknown>>).map((u) => ({
+      nombre: String(u['nombre'] ?? '—'),
+      materiales: Array.isArray(u['materiales'])
+        ? (u['materiales'] as Array<Record<string, unknown>>).map((m) => ({
+            nombre: String(m['nombre'] ?? '—'),
+            cantidadRequerida: Number(m['cantidadRequerida'] ?? 0),
+            cantidadActual: Number(m['cantidadActual'] ?? 0),
+          }))
+        : [],
+    }));
+  }
+
+  cerrarDetalleBackdrop(ev: MouseEvent): void {
+    if (ev.target === ev.currentTarget) this.cerrarDetalleHistorial();
   }
 }

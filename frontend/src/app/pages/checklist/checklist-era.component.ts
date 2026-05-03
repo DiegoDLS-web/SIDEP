@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import type { ChecklistRegistroDto } from '../../models/checklist.dto';
 import type { CarroDto } from '../../models/carro.dto';
 import type { UsuarioListaDto } from '../../models/usuario.dto';
@@ -11,6 +12,7 @@ import { PdfExportService } from '../../services/pdf-export.service';
 import { ToastService } from '../../services/toast.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
+import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
 import { firmaEfectiva } from '../../utils/firma-resolver';
 import type { EstadoChecklist } from '../../models/checklist.dto';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
@@ -152,11 +154,12 @@ const ERA_PRESETS_UNIDAD: Record<string, EraPreset> = {
 @Component({
   selector: 'app-checklist-era',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidepIconsModule],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule],
   templateUrl: './checklist-era.component.html',
 })
 export class ChecklistEraComponent implements OnInit {
   @ViewChild('firmaCanvas') firmaCanvas?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('firmaCanvasInspector') firmaCanvasInspector?: ElementRef<HTMLCanvasElement>;
 
   private readonly carrosApi = inject(CarrosService);
   private readonly usuariosApi = inject(UsuariosService);
@@ -167,6 +170,7 @@ export class ChecklistEraComponent implements OnInit {
   readonly optSiNo = ['', 'Si', 'No'];
   readonly optOperativo = ['', 'Operativo', 'No Operativo'];
   readonly optBueno = ['', 'Bueno', 'Regular', 'Malo'];
+  readonly splitFh = splitFechaHoraEsCl;
 
   carros: CarroDto[] = [];
   usuarios: UsuarioListaDto[] = [];
@@ -189,6 +193,9 @@ export class ChecklistEraComponent implements OnInit {
   paginaHistorial = 1;
   readonly tamanioPaginaHistorial = 10;
 
+  /** Visor modal del historial (solo lectura; el lápiz sigue editando). */
+  eraHistorialVer: ChecklistRegistroDto | null = null;
+
   unidad = 'R-1';
   cuarteleroId: number | '' = '';
   inspector = '';
@@ -200,12 +207,19 @@ export class ChecklistEraComponent implements OnInit {
   /** ISO fecha/hora en “Fecha de cierre / firma” (al trazar la firma OBAC). */
   fechaCierreChecklist: string | null = null;
   private firmaInicialServidor: string | null = null;
+  private firmaInspectorInicialServidor: string | null = null;
 
   private ctx: CanvasRenderingContext2D | null = null;
   private dibujandoFirma = false;
   private ultimoX = 0;
   private ultimoY = 0;
   private firmaCanvasInicializado = false;
+
+  private ctxInspector: CanvasRenderingContext2D | null = null;
+  private dibujandoFirmaInspector = false;
+  private ultimoXI = 0;
+  private ultimoYI = 0;
+  private firmaCanvasInspectorInicializado = false;
 
   equipos: EraEquipo[] = [eraEquipoVacio(1)];
   recambios: CilindroRecambio[] = [cilindroRecambioVacio(1, 'G1')];
@@ -231,7 +245,9 @@ export class ChecklistEraComponent implements OnInit {
         this.cargarHistorialGeneral();
         setTimeout(() => {
           this.inicializarCanvasFirma();
+          this.inicializarCanvasFirmaInspector();
           this.restaurarFirmaDesdeServidor(this.firmaInicialServidor);
+          this.restaurarFirmaInspectorDesdeServidor(this.firmaInspectorInicialServidor);
         }, 0);
       })
       .catch(() => {
@@ -239,6 +255,27 @@ export class ChecklistEraComponent implements OnInit {
         this.loading = false;
         setTimeout(() => this.inicializarCanvasFirma(), 0);
       });
+  }
+
+  private readonly imagenFallbackCarro =
+    'https://images.unsplash.com/photo-1588662880295-13d2b28127c6?w=1080&q=80&fm=jpg';
+
+  private readonly imagenLocalPorNomenclatura: Record<string, string> = {
+    'B-1': 'assets/carros/b1.png',
+    'BX-1': 'assets/carros/bx1.png',
+    'R-1': 'assets/carros/r1.png',
+  };
+
+  /** Foto de la unidad para la cabecera de la tarjeta (misma lógica que flota / carros). */
+  imagenCabeceraCarro(carro: CarroDto): string {
+    const raw = (carro.imagenUrl ?? '').trim();
+    if (raw) {
+      if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+        return raw;
+      }
+      return raw.startsWith('assets/') ? raw : raw;
+    }
+    return this.imagenLocalPorNomenclatura[carro.nomenclatura] ?? this.imagenFallbackCarro;
   }
 
   carrosOrdenados(): CarroDto[] {
@@ -360,7 +397,9 @@ export class ChecklistEraComponent implements OnInit {
     this.observaciones = '';
     this.fechaCierreChecklist = null;
     this.firmaInicialServidor = null;
+    this.firmaInspectorInicialServidor = null;
     this.limpiarFirma();
+    this.limpiarFirmaInspector();
   }
 
   private aplicarPlantillaDesdeServidorOPresetParaUnidad(unidad: string): void {
@@ -403,7 +442,10 @@ export class ChecklistEraComponent implements OnInit {
     this.snapshotPlantillaEra = null;
     this.limpiarCapturaRegistroEra();
     this.aplicarPlantillaDesdeServidorOPresetParaUnidad(this.unidad);
-    setTimeout(() => this.inicializarCanvasFirma(), 0);
+    setTimeout(() => {
+      this.inicializarCanvasFirma();
+      this.inicializarCanvasFirmaInspector();
+    }, 0);
     this.refrescarHistorialEra();
   }
 
@@ -499,12 +541,12 @@ export class ChecklistEraComponent implements OnInit {
     this.ctx = ctx;
     this.pintarFondoFirma();
     canvas.addEventListener('mousedown', (e) => {
-      const [x, y] = this.mapPointer(e.clientX, e.clientY);
+      const [x, y] = this.mapPointerCanvas(canvas, e.clientX, e.clientY);
       this.inicioTrazo(x, y);
     });
     canvas.addEventListener('mousemove', (e) => {
       if (e.buttons !== 1) return;
-      const [x, y] = this.mapPointer(e.clientX, e.clientY);
+      const [x, y] = this.mapPointerCanvas(canvas, e.clientX, e.clientY);
       this.moverTrazo(x, y);
     });
     canvas.addEventListener('mouseup', () => this.finTrazo());
@@ -514,7 +556,7 @@ export class ChecklistEraComponent implements OnInit {
       (ev) => {
         ev.preventDefault();
         const t = ev.changedTouches[0];
-        const [x, y] = this.mapPointer(t.clientX, t.clientY);
+        const [x, y] = this.mapPointerCanvas(canvas, t.clientX, t.clientY);
         this.inicioTrazo(x, y);
       },
       { passive: false },
@@ -525,7 +567,7 @@ export class ChecklistEraComponent implements OnInit {
         ev.preventDefault();
         if (!this.dibujandoFirma) return;
         const t = ev.changedTouches[0];
-        const [x, y] = this.mapPointer(t.clientX, t.clientY);
+        const [x, y] = this.mapPointerCanvas(canvas, t.clientX, t.clientY);
         this.moverTrazo(x, y);
       },
       { passive: false },
@@ -534,9 +576,51 @@ export class ChecklistEraComponent implements OnInit {
     this.firmaCanvasInicializado = true;
   }
 
-  private mapPointer(clientX: number, clientY: number): [number, number] {
-    const canvas = this.firmaCanvas?.nativeElement;
-    if (!canvas) return [0, 0];
+  private inicializarCanvasFirmaInspector(): void {
+    if (this.firmaCanvasInspectorInicializado) return;
+    const canvas = this.firmaCanvasInspector?.nativeElement;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    this.ctxInspector = ctx;
+    this.pintarFondoFirmaInspector();
+    canvas.addEventListener('mousedown', (e) => {
+      const [x, y] = this.mapPointerCanvas(canvas, e.clientX, e.clientY);
+      this.inicioTrazoInspector(x, y);
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      if (e.buttons !== 1) return;
+      const [x, y] = this.mapPointerCanvas(canvas, e.clientX, e.clientY);
+      this.moverTrazoInspector(x, y);
+    });
+    canvas.addEventListener('mouseup', () => this.finTrazoInspector());
+    canvas.addEventListener('mouseleave', () => this.finTrazoInspector());
+    canvas.addEventListener(
+      'touchstart',
+      (ev) => {
+        ev.preventDefault();
+        const t = ev.changedTouches[0];
+        const [x, y] = this.mapPointerCanvas(canvas, t.clientX, t.clientY);
+        this.inicioTrazoInspector(x, y);
+      },
+      { passive: false },
+    );
+    canvas.addEventListener(
+      'touchmove',
+      (ev) => {
+        ev.preventDefault();
+        if (!this.dibujandoFirmaInspector) return;
+        const t = ev.changedTouches[0];
+        const [x, y] = this.mapPointerCanvas(canvas, t.clientX, t.clientY);
+        this.moverTrazoInspector(x, y);
+      },
+      { passive: false },
+    );
+    canvas.addEventListener('touchend', () => this.finTrazoInspector());
+    this.firmaCanvasInspectorInicializado = true;
+  }
+
+  private mapPointerCanvas(canvas: HTMLCanvasElement, clientX: number, clientY: number): [number, number] {
     const r = canvas.getBoundingClientRect();
     const sx = canvas.width / r.width;
     const sy = canvas.height / r.height;
@@ -581,10 +665,48 @@ export class ChecklistEraComponent implements OnInit {
     }
   }
 
+  private pintarFondoFirmaInspector(): void {
+    const canvas = this.firmaCanvasInspector?.nativeElement;
+    if (!canvas || !this.ctxInspector) return;
+    this.ctxInspector.fillStyle = '#0a0a0a';
+    this.ctxInspector.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  private inicioTrazoInspector(x: number, y: number): void {
+    if (!this.ctxInspector) return;
+    this.dibujandoFirmaInspector = true;
+    this.ultimoXI = x;
+    this.ultimoYI = y;
+  }
+
+  private moverTrazoInspector(x: number, y: number): void {
+    if (!this.dibujandoFirmaInspector || !this.ctxInspector) return;
+    this.ctxInspector.strokeStyle = '#ffffff';
+    this.ctxInspector.lineWidth = 2;
+    this.ctxInspector.lineCap = 'round';
+    this.ctxInspector.lineJoin = 'round';
+    this.ctxInspector.beginPath();
+    this.ctxInspector.moveTo(this.ultimoXI, this.ultimoYI);
+    this.ctxInspector.lineTo(x, y);
+    this.ctxInspector.stroke();
+    this.ultimoXI = x;
+    this.ultimoYI = y;
+  }
+
+  private finTrazoInspector(): void {
+    if (!this.dibujandoFirmaInspector) return;
+    this.dibujandoFirmaInspector = false;
+  }
+
   limpiarFirma(): void {
     this.pintarFondoFirma();
     this.firmaInicialServidor = null;
     this.fechaCierreChecklist = null;
+  }
+
+  limpiarFirmaInspector(): void {
+    this.pintarFondoFirmaInspector();
+    this.firmaInspectorInicialServidor = null;
   }
 
   private restaurarFirmaDesdeServidor(dataUrl: string | null): void {
@@ -603,10 +725,24 @@ export class ChecklistEraComponent implements OnInit {
     img.src = dataUrl;
   }
 
-  private canvasEstaVacio(): boolean {
-    const canvas = this.firmaCanvas?.nativeElement;
-    if (!canvas) return true;
-    const ctx = this.ctx ?? canvas.getContext('2d');
+  private restaurarFirmaInspectorDesdeServidor(dataUrl: string | null): void {
+    const canvas = this.firmaCanvasInspector?.nativeElement;
+    const ctx = this.ctxInspector;
+    if (!canvas || !ctx || !dataUrl?.startsWith('data:image')) return;
+    const img = new Image();
+    img.onload = () => {
+      this.pintarFondoFirmaInspector();
+      try {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      } catch {
+        /* ignore */
+      }
+    };
+    img.src = dataUrl;
+  }
+
+  private canvasPixelsVacios(canvas: HTMLCanvasElement, ctxPreferido: CanvasRenderingContext2D | null): boolean {
+    const ctx = ctxPreferido ?? canvas.getContext('2d');
     if (!ctx) return true;
     const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const dark = [10, 10, 10];
@@ -618,9 +754,27 @@ export class ChecklistEraComponent implements OnInit {
     return true;
   }
 
+  private canvasEstaVacio(): boolean {
+    const canvas = this.firmaCanvas?.nativeElement;
+    if (!canvas) return true;
+    return this.canvasPixelsVacios(canvas, this.ctx);
+  }
+
+  private canvasInspectorEstaVacio(): boolean {
+    const canvas = this.firmaCanvasInspector?.nativeElement;
+    if (!canvas) return true;
+    return this.canvasPixelsVacios(canvas, this.ctxInspector);
+  }
+
   obtenerDataUrlFirma(): string {
     const canvas = this.firmaCanvas?.nativeElement;
     if (!canvas || this.canvasEstaVacio()) return '';
+    return canvas.toDataURL('image/png');
+  }
+
+  obtenerDataUrlFirmaInspector(): string {
+    const canvas = this.firmaCanvasInspector?.nativeElement;
+    if (!canvas || this.canvasInspectorEstaVacio()) return '';
     return canvas.toDataURL('image/png');
   }
 
@@ -634,6 +788,10 @@ export class ChecklistEraComponent implements OnInit {
 
   firmaResueltaObac(): string {
     return firmaEfectiva(this.obtenerDataUrlFirma(), this.firmaPerfilCuartelero());
+  }
+
+  firmaResueltaInspector(): string {
+    return this.obtenerDataUrlFirmaInspector().trim();
   }
 
   private refrescarHistorialEra(): void {
@@ -709,20 +867,8 @@ export class ChecklistEraComponent implements OnInit {
     this.paginaHistorial = 1;
   }
 
-  fechaHoraHist(iso: string): string {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '—';
-    return `${d.toLocaleDateString('es-CL')} ${d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`;
-  }
-
   fechaHoraCard(iso: string | null | undefined): { fecha: string; hora: string } {
-    if (!iso) return { fecha: '—', hora: '—' };
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return { fecha: '—', hora: '—' };
-    return {
-      fecha: d.toLocaleDateString('es-CL'),
-      hora: d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
-    };
+    return splitFechaHoraEsCl(iso);
   }
 
   etiquetaEstadoEra(h: ChecklistRegistroDto): 'COMPLETADO' | 'PENDIENTE' | 'CON_OBSERVACION' {
@@ -785,12 +931,52 @@ export class ChecklistEraComponent implements OnInit {
       this.firmaInicialServidor = h.firmaOficial;
       setTimeout(() => this.restaurarFirmaDesdeServidor(this.firmaInicialServidor), 0);
     }
-    setTimeout(() => this.inicializarCanvasFirma(), 0);
+    const fInsp = h.firmaInspector?.trim();
+    if (fInsp?.startsWith('data:image')) {
+      this.firmaInspectorInicialServidor = fInsp;
+      setTimeout(() => this.restaurarFirmaInspectorDesdeServidor(this.firmaInspectorInicialServidor), 0);
+    } else {
+      this.firmaInspectorInicialServidor = null;
+      setTimeout(() => this.limpiarFirmaInspector(), 0);
+    }
+    setTimeout(() => {
+      this.inicializarCanvasFirma();
+      this.inicializarCanvasFirmaInspector();
+    }, 0);
     this.flash(`Registro ${h.id} cargado para edición.`);
   }
 
   verRegistroEra(h: ChecklistRegistroDto): void {
-    this.editarRegistroEra(h);
+    this.eraHistorialVer = h;
+  }
+
+  cerrarEraHistorialVer(): void {
+    this.eraHistorialVer = null;
+  }
+
+  cerrarEraHistorialBackdrop(ev: MouseEvent): void {
+    if (ev.target === ev.currentTarget) this.cerrarEraHistorialVer();
+  }
+
+  eraEquiposHistorialVer(h: ChecklistRegistroDto): EraEquipo[] {
+    const d = (h.detalle ?? {}) as { equipos?: EraEquipo[] };
+    return Array.isArray(d.equipos) ? d.equipos : [];
+  }
+
+  eraRecambiosHistorialVer(h: ChecklistRegistroDto): CilindroRecambio[] {
+    const d = (h.detalle ?? {}) as { cilindrosRecambio?: CilindroRecambio[] };
+    return Array.isArray(d.cilindrosRecambio) ? d.cilindrosRecambio : [];
+  }
+
+  eraFechaInspeccionDetalle(h: ChecklistRegistroDto): string {
+    const d = (h.detalle ?? {}) as { fechaInspeccion?: string };
+    return (d.fechaInspeccion ?? '').trim() || h.fecha.slice(0, 10);
+  }
+
+  eraEtiquetaEstadoHist(h: ChecklistRegistroDto): string {
+    const e =
+      h.estadoChecklist ?? calcularEstadoChecklist(h.totalItems, h.itemsOk, h.observaciones);
+    return etiquetaEstadoChecklist(e);
   }
 
   descargarRegistroEraPdf(h: ChecklistRegistroDto): void {
@@ -806,6 +992,7 @@ export class ChecklistEraComponent implements OnInit {
       inspector: h.inspector ?? '',
       grupoGuardia: h.grupoGuardia ?? '',
       responsable: h.cuartelero.nombre ?? '',
+      firmaInspector: h.firmaInspector ?? '',
       firmaOficial: h.firmaOficial ?? '',
       observaciones: h.observaciones ?? '',
       equipos: Array.isArray(det.equipos) ? det.equipos : this.equipos,
@@ -877,6 +1064,9 @@ export class ChecklistEraComponent implements OnInit {
     if (!this.firmaResueltaObac()) {
       return 'La firma del OBAC es obligatoria (dibújala o usa la firma del perfil del responsable).';
     }
+    if (!this.firmaResueltaInspector()) {
+      return 'La firma del inspector es obligatoria.';
+    }
     if (this.equipos.length === 0) {
       return 'Debe existir al menos un equipo ERA.';
     }
@@ -940,13 +1130,18 @@ export class ChecklistEraComponent implements OnInit {
     if (v) {
       this.error = v;
       if (v.includes('firma')) {
-        this.flash('Debes firmar en el área OBAC o tener firma en el perfil del responsable.');
+        this.flash('Completa la firma del inspector y la del OBAC (o la firma en el perfil del responsable).');
       }
       return;
     }
     const firma = this.firmaResueltaObac();
+    const firmaInspector = this.firmaResueltaInspector();
     if (!firma) {
       this.error = 'La firma del OBAC es obligatoria.';
+      return;
+    }
+    if (!firmaInspector) {
+      this.error = 'La firma del inspector es obligatoria.';
       return;
     }
     const obacId = this.cuarteleroId;
@@ -966,6 +1161,7 @@ export class ChecklistEraComponent implements OnInit {
         inspector: this.inspector,
         grupoGuardia: this.grupoGuardia,
         firmaOficial: firma,
+        firmaInspector,
         observaciones: this.observaciones,
         totalItems: total,
         itemsOk: ok,
@@ -1008,6 +1204,7 @@ export class ChecklistEraComponent implements OnInit {
       this.equipos.filter((e) => e.arnesCondicion === 'Operativo').length +
       this.recambios.filter((r) => r.condicionGeneral === 'Operativo').length;
     const firma = this.firmaResueltaObac();
+    const firmaInspector = this.firmaResueltaInspector() || null;
     this.checklistsApi
       .guardarChecklistEra({
         unidad: this.unidad,
@@ -1015,6 +1212,7 @@ export class ChecklistEraComponent implements OnInit {
         inspector: this.inspector,
         grupoGuardia: this.grupoGuardia,
         firmaOficial: firma || null,
+        firmaInspector,
         observaciones: this.observaciones,
         totalItems: total,
         itemsOk: ok,
@@ -1047,7 +1245,7 @@ export class ChecklistEraComponent implements OnInit {
 
   descargarPdf(): void {
     if (!this.eraListoParaPdf()) {
-      this.flash('Completa inspector, fecha, firma OBAC y equipos ERA para generar el PDF.');
+      this.flash('Completa inspector, fecha, firmas del inspector y OBAC, y equipos ERA para generar el PDF.');
       return;
     }
     const responsable = this.usuarios.find((u) => u.id === this.cuarteleroId)?.nombre ?? '';
@@ -1058,6 +1256,7 @@ export class ChecklistEraComponent implements OnInit {
       inspector: this.inspector,
       grupoGuardia: this.grupoGuardia,
       responsable,
+      firmaInspector: this.firmaResueltaInspector(),
       firmaOficial: this.firmaResueltaObac(),
       observaciones: this.observaciones,
       equipos: this.equipos,

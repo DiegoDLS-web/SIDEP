@@ -1,6 +1,11 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { catchError, firstValueFrom, of } from 'rxjs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import type { LogosPdfCabecera } from '../models/configuracion.dto';
+import { ConfiguracionesService } from './configuraciones.service';
+import { logosActivosPorConfig } from '../utils/reportes-logos.util';
+import { COMPANIA_LOGO_TRY_PATHS, SIDEP_MARK_PNG_ABSOLUTE } from '../shared/sidep-branding';
 import type { CarroRegistroHistorialDto } from '../models/carro-registro-historial.dto';
 import type { ChecklistRegistroDto } from '../models/checklist.dto';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../utils/checklist-estado';
@@ -91,23 +96,24 @@ function estadoChecklistDesdeRegistro(r: {
     calcularEstadoChecklist(r.totalItems ?? null, r.itemsOk ?? null, r.observaciones ?? null);
 }
 
-function drawHeaderCard(doc: jsPDF, title: string, subtitle: string): void {
-  doc.setFillColor(185, 28, 28);
-  doc.roundedRect(12, 10, 186, 24, 4, 4, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(18);
-  doc.text(title, 18, 21);
-  doc.setFontSize(10);
-  doc.text(subtitle, 18, 29);
-  doc.setTextColor(20, 20, 20);
-}
-
 @Injectable({ providedIn: 'root' })
 export class PdfExportService {
-  private logosPromise: Promise<{ sidep: string | null; compania: string | null }> | null = null;
+  private readonly configApi = inject(ConfiguracionesService);
+
+  private resolverUrlLogo(path: string): string {
+    const p = path.startsWith('/') ? path.slice(1) : path;
+    if (typeof document !== 'undefined' && document?.baseURI) {
+      try {
+        return new URL(p, document.baseURI).toString();
+      } catch {
+        /* ignore */
+      }
+    }
+    return path.startsWith('/') ? path : `/${path}`;
+  }
 
   private cargarLogoComoDataUrl(path: string): Promise<string | null> {
-    return fetch(path)
+    return fetch(this.resolverUrlLogo(path))
       .then((res) => (res.ok ? res.blob() : null))
       .then(
         (blob) =>
@@ -125,33 +131,123 @@ export class PdfExportService {
       .catch(() => null);
   }
 
-  private getLogos(): Promise<{ sidep: string | null; compania: string | null }> {
-    if (!this.logosPromise) {
-      this.logosPromise = Promise.all([
-        this.cargarLogoComoDataUrl('/assets/logos/sidep-logo.png'),
-        this.cargarLogoComoDataUrl('/assets/logos/compania-logo.png'),
-      ]).then(([sidep, compania]) => ({ sidep, compania }));
+  private async cargarPrimeraCompaniaDisponible(): Promise<string | null> {
+    for (const p of COMPANIA_LOGO_TRY_PATHS) {
+      const data = await this.cargarLogoComoDataUrl(p);
+      if (data?.startsWith('data:image')) {
+        return data;
+      }
     }
-    return this.logosPromise;
+    return null;
   }
 
-  private async drawHeaderMarca(doc: jsPDF, title: string, subtitle: string): Promise<void> {
-    drawHeaderCard(doc, title, subtitle);
-    const logos = await this.getLogos();
-    if (logos.sidep?.startsWith('data:image')) {
+  private getLogos(): Promise<{ sidep: string | null; compania: string | null }> {
+    return Promise.all([
+      this.cargarLogoComoDataUrl(SIDEP_MARK_PNG_ABSOLUTE),
+      this.cargarPrimeraCompaniaDisponible(),
+    ]).then(([sidep, compania]) => ({ sidep, compania }));
+  }
+
+  private async modoLogosPdf(): Promise<LogosPdfCabecera> {
+    try {
+      const c = await firstValueFrom(this.configApi.obtener().pipe(catchError(() => of(null))));
+      const m = c?.reportes?.logosPdf;
+      if (m === 'NINGUNO' || m === 'SIDEP' || m === 'COMPANIA' || m === 'AMBOS') {
+        return m;
+      }
+    } catch {
+      /* ignore */
+    }
+    return 'AMBOS';
+  }
+
+  /**
+   * Cabecera roja con logos SIDEP (izquierda) y compañía (derecha).
+   * Los textos se dibujan después de los logos para no quedar tapados.
+   * @returns posición Y recomendada para el cuerpo del documento (debajo de la cabecera).
+   */
+  private async drawHeaderMarca(doc: jsPDF, title: string, subtitle: string): Promise<number> {
+    const [logos, modoPdf] = await Promise.all([this.getLogos(), this.modoLogosPdf()]);
+    const activos = logosActivosPorConfig(modoPdf);
+    const pageW = doc.internal.pageSize.getWidth();
+    const pad = 12;
+    const top = 10;
+    const stripeW = 2.8;
+    const logoSidep = 12.5;
+    /** Logo compañía (sin fondo; el PNG puede ser circular). */
+    const logoCompSlot = 22;
+    const logoCompInset = pad + stripeW + 2;
+    const hasSidep = activos.sidep && !!logos.sidep?.startsWith('data:image');
+    const hasComp = activos.compania && !!logos.compania?.startsWith('data:image');
+    const reserveRight = (hasComp ? logoCompSlot : 0) + 10;
+
+    let titleX = pad + stripeW + 5;
+    if (hasSidep) {
+      titleX = pad + stripeW + 4 + logoSidep + 3;
+    }
+    const textRight = pageW - pad - reserveRight;
+    const titleMaxW = Math.max(38, textRight - titleX);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    const titleLines = doc.splitTextToSize(title, titleMaxW);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    const subLines = doc.splitTextToSize(subtitle, titleMaxW);
+    const lineHT = 5.8;
+    const lineHS = 4.2;
+    const headerInnerH = Math.max(20, Math.min(titleLines.length, 2) * lineHT + subLines.length * lineHS + 8);
+    const headerH = Math.min(38, Math.max(26, headerInnerH));
+
+    doc.setFillColor(153, 27, 27);
+    doc.roundedRect(pad, top, pageW - 2 * pad, headerH, 4, 4, 'F');
+    doc.setFillColor(239, 68, 68);
+    doc.rect(pad, top, stripeW + 2, headerH, 'F');
+
+    const logoY = top + (headerH - logoSidep) / 2;
+    if (hasSidep) {
       try {
-        doc.addImage(logos.sidep, fmtFirmaParaJsPdf(logos.sidep), 14, 12, 11, 11);
+        doc.addImage(logos.sidep!, fmtFirmaParaJsPdf(logos.sidep!), pad + stripeW + 3, logoY, logoSidep, logoSidep);
       } catch {
-        // ignore logo rendering errors
+        /* ignore */
       }
     }
-    if (logos.compania?.startsWith('data:image')) {
+    const compSquareX = pageW - logoCompInset - logoCompSlot;
+    if (hasComp) {
       try {
-        doc.addImage(logos.compania, fmtFirmaParaJsPdf(logos.compania), 176, 11, 18, 14);
+        const cy = top + (headerH - logoCompSlot) / 2;
+        doc.addImage(
+          logos.compania!,
+          fmtFirmaParaJsPdf(logos.compania!),
+          compSquareX,
+          cy,
+          logoCompSlot,
+          logoCompSlot,
+        );
       } catch {
-        // ignore logo rendering errors
+        /* ignore */
       }
     }
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    const showTitle = titleLines.slice(0, 2);
+    let ty = top + 12;
+    doc.text(showTitle, titleX, ty);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    ty += showTitle.length * lineHT - 1;
+    doc.text(subLines, titleX, ty);
+    doc.setTextColor(20, 20, 20);
+
+    doc.setDrawColor(251, 191, 36);
+    doc.setLineWidth(0.35);
+    doc.line(pad + 3, top + headerH + 0.4, pageW - pad - 3, top + headerH + 0.4);
+    doc.setDrawColor(20, 20, 20);
+    doc.setLineWidth(0.1);
+
+    return top + headerH + 7;
   }
 
   private finalizarDocumentoPdf(doc: jsPDF): void {
@@ -166,7 +262,9 @@ export class PdfExportService {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
       doc.setTextColor(82, 82, 91);
-      doc.text(`SIDEP · Documento oficial · ${generado}`, 14, pageH - 7);
+      doc.setFont('helvetica', 'italic');
+      doc.text(`SIDEP · documento institucional · generado ${generado}`, 14, pageH - 7);
+      doc.setFont('helvetica', 'normal');
       doc.text(`Página ${page} de ${totalPages}`, pageW - 14, pageH - 7, { align: 'right' });
       doc.setTextColor(20, 20, 20);
     }
@@ -188,14 +286,14 @@ export class PdfExportService {
     const textW = pageW - 2 * margin;
     const esSnapshotActual = r.id === 0;
 
-    await this.drawHeaderMarca(doc, `Registro ${input.nomenclatura}`, 'SIDEP · Mantención e inspección');
+    const yHead = await this.drawHeaderMarca(doc, `Registro ${input.nomenclatura}`, 'SIDEP · Mantención e inspección');
     doc.setFontSize(10);
-    doc.text(`Unidad: ${input.nomenclatura}`, margin, 42);
-    doc.text(`Nombre: ${input.nombreUnidad?.trim() || '—'}`, margin, 48);
-    doc.text(`Patente: ${input.patente || '—'}`, margin, 54);
+    doc.text(`Unidad: ${input.nomenclatura}`, margin, yHead);
+    doc.text(`Nombre: ${input.nombreUnidad?.trim() || '—'}`, margin, yHead + 6);
+    doc.text(`Patente: ${input.patente || '—'}`, margin, yHead + 12);
 
     autoTable(doc, {
-      startY: 60,
+      startY: yHead + 18,
       head: [['Campo', 'Valor']],
       body: [
         ['Documento', esSnapshotActual ? 'PDF actual' : 'Registro de historial'],
@@ -213,7 +311,7 @@ export class PdfExportService {
       columnStyles: { 0: { cellWidth: 62 }, 1: { cellWidth: textW - 62 } },
     });
 
-    const lastY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 60;
+    const lastY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yHead + 18;
     let y = lastY + 10;
 
     doc.setFontSize(10);
@@ -275,6 +373,8 @@ export class PdfExportService {
     inspector: string;
     grupoGuardia: string;
     responsable: string;
+    /** Firma digital trazada por el inspector (PNG/JPEG data URL). */
+    firmaInspector?: string;
     firmaOficial: string;
     fechaRegistro?: string;
     observaciones: string;
@@ -283,18 +383,18 @@ export class PdfExportService {
     materiales: UnidadMaterial[];
   }): Promise<void> {
     const doc = new jsPDF();
-    await this.drawHeaderMarca(doc, `Checklist Unidad ${input.unidad}`, 'SIDEP · Control operativo de materiales');
+    const yHead = await this.drawHeaderMarca(doc, `Checklist Unidad ${input.unidad}`, 'SIDEP · Control operativo de materiales');
     doc.setFontSize(10);
-    doc.text(`Inspector: ${input.inspector || '—'}`, 14, 42);
-    doc.text(`Grupo de guardia: ${input.grupoGuardia || '—'}`, 14, 48);
-    doc.text(`Responsable (OBAC): ${input.responsable || '—'}`, 108, 42);
+    doc.text(`Inspector: ${input.inspector || '—'}`, 14, yHead);
+    doc.text(`Grupo de guardia: ${input.grupoGuardia || '—'}`, 14, yHead + 6);
+    doc.text(`Responsable (OBAC): ${input.responsable || '—'}`, 108, yHead);
     const fechaTxt = input.fechaRegistro
       ? fmtFechaHoraPdf(input.fechaRegistro)
       : fmtFechaHoraPdf(new Date().toISOString());
-    doc.text(`Fecha de registro: ${fechaTxt}`, 108, 48);
+    doc.text(`Fecha de registro: ${fechaTxt}`, 108, yHead + 6);
 
     autoTable(doc, {
-      startY: 56,
+      startY: yHead + 14,
       theme: 'grid',
       head: [['Total ítems', 'Ítems OK', 'Faltantes', 'Estado checklist']],
       body: [[
@@ -308,7 +408,7 @@ export class PdfExportService {
       bodyStyles: { textColor: [20, 20, 20] },
     });
 
-    let headerY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 56;
+    let headerY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yHead + 14;
     headerY += 8;
 
     const grupos = new Map<string, { nombre: string; items: UnidadMaterial[] }>();
@@ -356,34 +456,57 @@ export class PdfExportService {
     const obsLines = doc.splitTextToSize(input.observaciones || 'Sin observaciones.', 180);
     doc.text(obsLines, 14, obsY);
 
-    let firmaY = obsY + obsLines.length * 5 + 8;
+    let firmaTop = obsY + obsLines.length * 5 + 8;
+    const firmaInspector = input.firmaInspector?.trim();
     const firma = input.firmaOficial?.trim();
-    if (firmaY > 250) {
+    const pw = doc.internal.pageSize.getWidth();
+    const mrg = 14;
+    const g = 9;
+    const boxW = (pw - 2 * mrg - g) / 2;
+    const boxH = 26;
+    if (firmaTop > 238) {
       doc.addPage();
-      firmaY = 20;
+      firmaTop = 22;
     }
     doc.setFontSize(10);
-    doc.text('Firma oficial a cargo (OBAC):', 14, firmaY);
-    firmaY += 5;
-    if (firma?.startsWith('data:image')) {
+    doc.text('Inspector', mrg, firmaTop);
+    doc.text(`OBAC (${input.responsable || '—'})`, mrg + boxW + g, firmaTop);
+    const bx = firmaTop + 4;
+    doc.setDrawColor(228, 228, 231);
+    doc.roundedRect(mrg, bx, boxW, boxH, 1.2, 1.2);
+    doc.roundedRect(mrg + boxW + g, bx, boxW, boxH, 1.2, 1.2);
+    const iW = boxW - 4;
+    const iH = boxH - 4;
+    doc.setDrawColor(20, 20, 20);
+    if (firmaInspector?.startsWith('data:image')) {
       try {
-        const imgW = 70;
-        const imgH = 22;
-        if (firmaY + imgH > 280) {
-          doc.addPage();
-          firmaY = 20;
-          doc.setFontSize(10);
-          doc.text('Firma oficial a cargo (OBAC):', 14, firmaY);
-          firmaY += 5;
-        }
-        doc.addImage(firma, fmtFirmaParaJsPdf(firma), 14, firmaY, imgW, imgH);
+        doc.addImage(firmaInspector, fmtFirmaParaJsPdf(firmaInspector), mrg + 2, bx + 2, iW, iH);
       } catch {
-        doc.setFontSize(9);
-        doc.text('(No se pudo incrustar la imagen de la firma.)', 14, firmaY + 4);
+        doc.setFontSize(8);
+        doc.setTextColor(82, 82, 91);
+        doc.text('(Firma inspector no incrustada.)', mrg + 3, bx + boxH / 2);
+        doc.setTextColor(20, 20, 20);
       }
     } else {
-      doc.setFontSize(9);
-      doc.text('Sin firma digital adjunta.', 14, firmaY + 4);
+      doc.setFontSize(8.5);
+      doc.setTextColor(82, 82, 91);
+      doc.text('Sin firma inspector.', mrg + 3, bx + boxH / 2);
+      doc.setTextColor(20, 20, 20);
+    }
+    if (firma?.startsWith('data:image')) {
+      try {
+        doc.addImage(firma, fmtFirmaParaJsPdf(firma), mrg + boxW + g + 2, bx + 2, iW, iH);
+      } catch {
+        doc.setFontSize(8);
+        doc.setTextColor(82, 82, 91);
+        doc.text('(Firma OBAC no incrustada.)', mrg + boxW + g + 3, bx + boxH / 2);
+        doc.setTextColor(20, 20, 20);
+      }
+    } else {
+      doc.setFontSize(8.5);
+      doc.setTextColor(82, 82, 91);
+      doc.text('Sin firma OBAC.', mrg + boxW + g + 3, bx + boxH / 2);
+      doc.setTextColor(20, 20, 20);
     }
 
     this.finalizarDocumentoPdf(doc);
@@ -396,15 +519,15 @@ export class PdfExportService {
     registro: ChecklistRegistroDto;
   }): Promise<void> {
     const doc = new jsPDF();
-    await this.drawHeaderMarca(doc, `Historial Checklist ${input.unidad}`, 'SIDEP · Registro individual');
+    const yHead = await this.drawHeaderMarca(doc, `Historial Checklist ${input.unidad}`, 'SIDEP · Registro individual');
     const r = input.registro;
     doc.setFontSize(10);
-    doc.text(`Unidad: ${input.unidad}`, 14, 42);
-    doc.text(`Nombre: ${input.nombreUnidad || r.carro?.nombre || '—'}`, 14, 48);
-    doc.text(`Fecha: ${fmtFechaHoraPdf(r.fecha)}`, 14, 54);
+    doc.text(`Unidad: ${input.unidad}`, 14, yHead);
+    doc.text(`Nombre: ${input.nombreUnidad || r.carro?.nombre || '—'}`, 14, yHead + 6);
+    doc.text(`Fecha: ${fmtFechaHoraPdf(r.fecha)}`, 14, yHead + 12);
 
     autoTable(doc, {
-      startY: 60,
+      startY: yHead + 18,
       head: [['Campo', 'Valor']],
       body: [
         ['Tipo', r.tipo || '—'],
@@ -419,16 +542,39 @@ export class PdfExportService {
       columnStyles: { 0: { cellWidth: 58 }, 1: { cellWidth: 130 } },
     });
 
-    const y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 60;
+    const y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yHead + 18;
     doc.setFontSize(10);
     doc.text('Observaciones:', 14, y + 10);
     doc.text((r.observaciones?.trim() || 'Sin observaciones.').slice(0, 500), 14, y + 16);
 
     const firma = r.firmaOficial?.trim();
+    const firmaInsp = r.firmaInspector?.trim();
+    const fy = y + 28;
+    const pw = doc.internal.pageSize.getWidth();
+    const mr = 14;
+    const gap = 8;
+    const bw = (pw - 2 * mr - gap) / 2;
+    const bh = 24;
+    doc.setFontSize(9);
+    doc.text('Inspector', mr, fy);
+    doc.text(`OBAC (${r.cuartelero?.nombre || '—'})`, mr + bw + gap, fy);
+    const yb = fy + 4;
+    doc.setDrawColor(228, 228, 231);
+    doc.roundedRect(mr, yb, bw, bh, 1.2, 1.2);
+    doc.roundedRect(mr + bw + gap, yb, bw, bh, 1.2, 1.2);
+    const iw = bw - 4;
+    const ih = bh - 4;
+    doc.setDrawColor(20, 20, 20);
+    if (firmaInsp?.startsWith('data:image')) {
+      try {
+        doc.addImage(firmaInsp, fmtFirmaParaJsPdf(firmaInsp), mr + 2, yb + 2, iw, ih);
+      } catch {
+        /* ignore */
+      }
+    }
     if (firma?.startsWith('data:image')) {
       try {
-        doc.text('Firma OBAC:', 14, y + 30);
-        doc.addImage(firma, fmtFirmaParaJsPdf(firma), 14, y + 34, 70, 22);
+        doc.addImage(firma, fmtFirmaParaJsPdf(firma), mr + bw + gap + 2, yb + 2, iw, ih);
       } catch {
         // ignore image errors
       }
@@ -444,13 +590,13 @@ export class PdfExportService {
     registros: Array<ChecklistRegistroDto & { unidad?: string; nombreUnidad?: string }>;
   }): Promise<void> {
     const doc = new jsPDF();
-    await this.drawHeaderMarca(doc, `Historial Checklist ${input.unidad}`, input.nombreUnidad || 'Unidad sin nombre');
+    const yHead = await this.drawHeaderMarca(doc, `Historial Checklist ${input.unidad}`, input.nombreUnidad || 'Unidad sin nombre');
     doc.setFontSize(10);
-    doc.text(`Generado: ${fmtFechaHoraPdf(new Date().toISOString())}`, 14, 42);
-    doc.text(`Registros: ${input.registros.length}`, 150, 42);
+    doc.text(`Generado: ${fmtFechaHoraPdf(new Date().toISOString())}`, 14, yHead);
+    doc.text(`Registros: ${input.registros.length}`, 150, yHead);
 
     autoTable(doc, {
-      startY: 50,
+      startY: yHead + 8,
       head: [['Fecha', 'Unidad', 'Bolso', 'Estado', 'Inspector', 'Responsable (OBAC)', 'Guardia']],
       body: input.registros.map((registro) => {
         const estado = etiquetaEstadoChecklist(estadoChecklistDesdeRegistro(registro));
@@ -469,7 +615,7 @@ export class PdfExportService {
       alternateRowStyles: { fillColor: [247, 247, 247] },
     });
 
-    let y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 50;
+    let y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yHead + 8;
     for (const registro of input.registros.slice(0, 12)) {
       const siguiente = y + 10;
       if (siguiente > 265) {
@@ -502,14 +648,16 @@ export class PdfExportService {
     inspector: string;
     grupoGuardia: string;
     responsable: string;
+    firmaInspector?: string;
     firmaOficial: string;
     observaciones: string;
     equipos: EraEquipo[];
     recambios: EraRecambio[];
   }): Promise<void> {
     const doc = new jsPDF();
-    await this.drawHeaderMarca(doc, `Check List ERA ${input.unidad}`, 'SIDEP · Equipos ERA');
+    const yHead = await this.drawHeaderMarca(doc, `Check List ERA ${input.unidad}`, 'SIDEP · Equipos ERA');
     const unidadDesc = input.nombreCarro && input.nombreCarro !== '—' ? `${input.unidad} · ${input.nombreCarro}` : input.unidad;
+    const firmaInspEra = input.firmaInspector?.trim();
     const firma = input.firmaOficial?.trim();
     const totalEquipos = input.equipos.length;
     const totalRecambios = input.recambios.length;
@@ -521,7 +669,7 @@ export class PdfExportService {
     const estadoChecklistEra = calcularEstadoChecklist(totalChequeos, totalOk, input.observaciones);
 
     autoTable(doc, {
-      startY: 40,
+      startY: yHead,
       head: [['Campo', 'Valor']],
       body: [
         ['Unidad', unidadDesc || '—'],
@@ -537,7 +685,7 @@ export class PdfExportService {
       margin: { left: 14, right: 14 },
     });
 
-    const yMeta = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 40;
+    const yMeta = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yHead;
     autoTable(doc, {
       startY: yMeta + 4,
       head: [['Equipos ERA', 'Recambios', 'Operativos', 'Cumplimiento', 'Estado checklist']],
@@ -666,25 +814,55 @@ export class PdfExportService {
       doc.addPage();
       yFirma = 20;
     }
+    const pageW = doc.internal.pageSize.getWidth();
+    const mrg = 14;
+    const gapE = 9;
+    const boxW = (pageW - 2 * mrg - gapE) / 2;
+    const boxHE = 26;
+    if (yFirma + boxHE + 24 > 278) {
+      doc.addPage();
+      yFirma = 20;
+    }
     doc.setFontSize(9.5);
     doc.setFont('helvetica', 'bold');
-    doc.text(`OBAC: ${input.responsable || '—'}`, 14, yFirma);
+    doc.text('Inspector', mrg, yFirma);
+    doc.text(`OBAC (${input.responsable || '—'})`, mrg + boxW + gapE, yFirma);
     doc.setFont('helvetica', 'normal');
+    const yBox = yFirma + 4;
     doc.setDrawColor(228, 228, 231);
-    doc.roundedRect(14, yFirma + 2, 80, 24, 1.2, 1.2);
-    if (firma?.startsWith('data:image')) {
+    doc.roundedRect(mrg, yBox, boxW, boxHE, 1.2, 1.2);
+    doc.roundedRect(mrg + boxW + gapE, yBox, boxW, boxHE, 1.2, 1.2);
+    const imW = boxW - 4;
+    const imH = boxHE - 4;
+    doc.setDrawColor(20, 20, 20);
+    if (firmaInspEra?.startsWith('data:image')) {
       try {
-        doc.addImage(firma, fmtFirmaParaJsPdf(firma), 16, yFirma + 4, 76, 20);
+        doc.addImage(firmaInspEra, fmtFirmaParaJsPdf(firmaInspEra), mrg + 2, yBox + 2, imW, imH);
       } catch {
         doc.setFontSize(8.5);
         doc.setTextColor(82, 82, 91);
-        doc.text('No se pudo incrustar la firma.', 18, yFirma + 15);
+        doc.text('Sin firma inspector (error al incrustar).', mrg + 3, yBox + boxHE / 2);
         doc.setTextColor(20, 20, 20);
       }
     } else {
       doc.setFontSize(8.5);
       doc.setTextColor(82, 82, 91);
-      doc.text('Sin firma digital adjunta.', 18, yFirma + 15);
+      doc.text('Sin firma del inspector.', mrg + 3, yBox + boxHE / 2);
+      doc.setTextColor(20, 20, 20);
+    }
+    if (firma?.startsWith('data:image')) {
+      try {
+        doc.addImage(firma, fmtFirmaParaJsPdf(firma), mrg + boxW + gapE + 2, yBox + 2, imW, imH);
+      } catch {
+        doc.setFontSize(8.5);
+        doc.setTextColor(82, 82, 91);
+        doc.text('Sin firma OBAC (error al incrustar).', mrg + boxW + gapE + 3, yBox + boxHE / 2);
+        doc.setTextColor(20, 20, 20);
+      }
+    } else {
+      doc.setFontSize(8.5);
+      doc.setTextColor(82, 82, 91);
+      doc.text('Sin firma OBAC.', mrg + boxW + gapE + 3, yBox + boxHE / 2);
       doc.setTextColor(20, 20, 20);
     }
 
@@ -710,13 +888,13 @@ export class PdfExportService {
     }>;
   }): Promise<void> {
     const doc = new jsPDF({ orientation: 'landscape' });
-    await this.drawHeaderMarca(doc, 'Historial Bolsos de Trauma', 'SIDEP · Exportación de registros');
+    const yHead = await this.drawHeaderMarca(doc, 'Historial Bolsos de Trauma', 'SIDEP · Exportación de registros');
     doc.setFontSize(10);
-    doc.text(`Generado: ${fmtFechaHoraPdf(new Date().toISOString())}`, 14, 42);
-    doc.text(`Registros: ${input.registros.length}`, 200, 42);
+    doc.text(`Generado: ${fmtFechaHoraPdf(new Date().toISOString())}`, 14, yHead);
+    doc.text(`Registros: ${input.registros.length}`, 200, yHead);
 
     autoTable(doc, {
-      startY: 50,
+      startY: yHead + 8,
       head: [['Fecha', 'Unidad', 'Bolso', 'Estado', 'Inspector', 'Responsable', 'Guardia', 'Cumplimiento', 'Obs.']],
       body: input.registros.map((r) => {
         const t = Number(r.totalItems) || 0;
@@ -765,14 +943,14 @@ export class PdfExportService {
     resueltoEn?: string | null;
   }): Promise<void> {
     const doc = new jsPDF();
-    await this.drawHeaderMarca(doc, `Licencia #${input.id}`, 'SIDEP · Documento de licencia');
+    const yHead = await this.drawHeaderMarca(doc, `Licencia #${input.id}`, 'SIDEP · Documento de licencia');
     doc.setFontSize(10);
-    doc.text(`Solicitante: ${input.solicitante || '—'}`, 14, 42);
-    doc.text(`RUT: ${input.rut || '—'}`, 14, 48);
-    doc.text(`Rol/Cargo: ${input.rol || '—'}`, 14, 54);
+    doc.text(`Solicitante: ${input.solicitante || '—'}`, 14, yHead);
+    doc.text(`RUT: ${input.rut || '—'}`, 14, yHead + 6);
+    doc.text(`Rol/Cargo: ${input.rol || '—'}`, 14, yHead + 12);
 
     autoTable(doc, {
-      startY: 62,
+      startY: yHead + 20,
       head: [['Campo', 'Valor']],
       body: [
         ['Fecha inicio', fmtFechaPdf(input.fechaInicio)],
@@ -786,7 +964,7 @@ export class PdfExportService {
       columnStyles: { 0: { cellWidth: 58 }, 1: { cellWidth: 130 } },
     });
 
-    const y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 62;
+    const y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yHead + 20;
     doc.setFontSize(10);
     doc.text('Motivo:', 14, y + 10);
     const motivoLines = doc.splitTextToSize(input.motivo || '—', 180);

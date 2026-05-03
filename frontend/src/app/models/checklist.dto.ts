@@ -4,6 +4,8 @@ export interface ChecklistResumenUnidadDto {
   id: number;
   unidad: string;
   nombre: string;
+  /** Foto principal de la unidad (misma que en gestión de carros). */
+  imagenUrl?: string | null;
   ultimaRevision: {
     fecha: string;
     /** Texto libre del inspector (si existe). */
@@ -29,6 +31,7 @@ export interface ChecklistRegistroDto {
   inspector: string | null;
   grupoGuardia: string | null;
   firmaOficial: string | null;
+  firmaInspector?: string | null;
   observaciones: string | null;
   totalItems: number | null;
   itemsOk: number | null;

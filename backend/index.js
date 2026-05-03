@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 require("dotenv/config");
+const node_path_1 = __importDefault(require("node:path"));
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const prisma_js_1 = require("./lib/prisma.js");
@@ -20,10 +21,16 @@ const dashboard_js_1 = require("./routes/dashboard.js");
 const licencias_js_1 = require("./routes/licencias.js");
 const auth_js_2 = require("./middleware/auth.js");
 const roles_js_2 = require("./middleware/roles.js");
+const resumen_diario_email_js_1 = require("./lib/resumen-diario-email.js");
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3000;
 app.use((0, cors_1.default)());
 app.use(express_1.default.json({ limit: '12mb' }));
+const uploadsRoot = node_path_1.default.join(process.cwd(), 'uploads');
+app.use('/uploads', express_1.default.static(uploadsRoot, {
+    maxAge: process.env.NODE_ENV === 'production' ? '2h' : 0,
+    fallthrough: true,
+}));
 function buildCarroPatch(body) {
     if (!body || typeof body !== 'object') {
         return {};
@@ -83,7 +90,8 @@ app.get('/api/status', (req, res) => {
 });
 app.use('/api/usuarios', auth_js_2.requireAuth, (0, roles_js_2.requireRoles)('ADMIN', 'CAPITAN', 'TENIENTE'), usuarios_js_1.usuariosRouter);
 app.use('/api/roles', auth_js_2.requireAuth, (0, roles_js_2.requireRoles)('ADMIN'), roles_js_1.rolesRouter);
-app.use('/api/configuraciones', auth_js_2.requireAuth, (0, roles_js_2.requireRoles)('ADMIN'), configuraciones_js_1.configuracionesRouter);
+/** Lectura disponible para usuarios autenticados (p. ej. logos en PDF); escritura solo ADMIN en la ruta PUT. */
+app.use('/api/configuraciones', auth_js_2.requireAuth, configuraciones_js_1.configuracionesRouter);
 app.use('/api/auditoria', auth_js_2.requireAuth, (0, roles_js_2.requireRoles)('ADMIN', 'CAPITAN'), auditoria_js_1.auditoriaRouter);
 app.use('/api/partes', auth_js_2.requireAuth, partes_js_1.partesRouter);
 app.use('/api/checklists', auth_js_2.requireAuth, checklists_js_1.checklistsRouter);
@@ -225,5 +233,6 @@ app.patch('/api/carros/:id', auth_js_2.requireAuth, async (req, res) => {
 });
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    (0, resumen_diario_email_js_1.iniciarProgramadorResumenDiario)();
 });
 //# sourceMappingURL=index.js.map

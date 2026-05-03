@@ -1,0 +1,300 @@
+<div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 sm:py-6 md:px-8 lg:px-10 xl:px-12">
+  @if (loading) {
+    <div class="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-slate-400">
+      <lucide-icon name="user" class="h-10 w-10 animate-pulse text-red-400/90" [size]="40" color="currentColor" />
+      <p class="text-sm">Cargando perfil…</p>
+    </div>
+  } @else if (error || !perfil) {
+    <div class="sid-feedback rounded-xl border border-red-800/60 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+      {{ error || 'Sin datos.' }}
+    </div>
+  } @else {
+    @let p = perfil;
+
+    <div class="flex flex-wrap items-center gap-3">
+      <a
+        routerLink="/"
+        class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-700 bg-[#121212]/90 px-3 py-2 text-sm text-slate-300 shadow-sm ring-1 ring-white/5 transition-colors hover:border-slate-600 hover:text-white"
+      >
+        <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+        Volver al inicio
+      </a>
+      @if (!editandoMisDatos) {
+        <button
+          type="button"
+          class="inline-flex w-fit items-center gap-2 rounded-xl border border-emerald-800/70 bg-emerald-950/30 px-3 py-2 text-sm font-medium text-emerald-200 shadow-sm ring-1 ring-emerald-500/25 transition-colors hover:bg-emerald-900/35 hover:text-white"
+          (click)="iniciarEdicionMisDatos()"
+        >
+          <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+          Editar mis datos
+        </button>
+      } @else {
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 rounded-xl border border-slate-600 bg-slate-800/70 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+          [disabled]="guardandoPerfil"
+          (click)="cancelarEdicionMisDatos()"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-red-900/30 hover:bg-red-500 disabled:opacity-55"
+          [disabled]="guardandoPerfil"
+          (click)="guardarMisDatos()"
+        >
+          @if (guardandoPerfil) {
+            <span>Guardando…</span>
+          } @else {
+            <span>Guardar cambios</span>
+          }
+        </button>
+      }
+    </div>
+
+    @if (errorForm && editandoMisDatos) {
+      <div class="sid-feedback rounded-xl border border-amber-800/55 bg-amber-950/25 px-4 py-3 text-sm text-amber-100">
+        {{ errorForm }}
+      </div>
+    }
+
+    <section
+      class="relative overflow-hidden rounded-2xl border border-slate-800/85 bg-[radial-gradient(circle_at_0%_0%,rgba(59,130,246,0.18),transparent_45%),radial-gradient(circle_at_100%_0%,rgba(220,38,38,0.12),transparent_42%),#0a0a0a] p-6 sm:p-8"
+    >
+      <div class="flex flex-col gap-8 lg:flex-row lg:items-start">
+        <div class="flex flex-col items-center gap-4 sm:flex-row lg:flex-col lg:items-center">
+          @if (p.fotoPerfil && !fotoRota && !editandoMisDatos) {
+            <div
+              class="relative shrink-0 overflow-hidden rounded-3xl border border-red-500/35 bg-black/40 p-1.5 shadow-2xl shadow-black/60 ring-2 ring-red-500/20"
+            >
+              <img
+                [src]="p.fotoPerfil"
+                alt="Foto de perfil"
+                width="176"
+                height="176"
+                class="mx-auto aspect-square h-40 w-40 rounded-2xl object-cover object-top sm:h-44 sm:w-44"
+                (error)="onFotoError()"
+              />
+            </div>
+          } @else if (!editandoMisDatos) {
+            <div
+              class="flex h-40 w-40 shrink-0 items-center justify-center rounded-3xl border border-red-500/40 bg-gradient-to-br from-red-600 to-red-900 text-3xl font-bold text-white shadow-xl ring-2 ring-red-500/25 sm:h-44 sm:w-44"
+            >
+              {{ iniciales(p.nombre) }}
+            </div>
+          }
+          @if (!editandoMisDatos) {
+            <div class="text-center lg:text-center">
+              <p class="text-xs font-medium uppercase tracking-wider text-red-400/90">Tu cuenta SIDEP</p>
+            </div>
+          }
+        </div>
+
+        <div class="min-w-0 flex-1 space-y-4">
+          <div>
+            <h1 class="text-2xl font-bold tracking-tight text-white sm:text-3xl">{{ p.nombre }}</h1>
+            <p class="mt-1 text-sm text-slate-400">RUT {{ p.rut }}</p>
+            <p class="mt-2 text-sm font-medium text-slate-300">{{ etiquetaCategoria(p.tipoVoluntario) }}</p>
+          </div>
+          @if (!editandoMisDatos) {
+            <div class="flex flex-wrap gap-2">
+              <span
+                class="inline-flex max-w-full rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold leading-snug text-amber-100 ring-1 ring-amber-500/40"
+              >
+                <span class="normal-case">{{ chipOficialidad(p) }}</span>
+              </span>
+              <span
+                class="rounded-full px-3 py-1 text-xs font-medium ring-1"
+                [class]="
+                  p.estadoVoluntario === 'VIGENTE' || p.activo
+                    ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/40'
+                    : 'bg-slate-600/25 text-slate-400 ring-slate-600/50'
+                "
+              >
+                {{ p.estadoVoluntario === 'INACTIVO' ? 'Inactivo' : 'Vigente' }}
+              </span>
+            </div>
+          }
+
+          @if (!editandoMisDatos && debeCambiarPassword()) {
+            <a
+              routerLink="/cambiar-password-inicial"
+              class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-900/35 transition-colors hover:bg-red-500"
+            >
+              <lucide-icon name="key" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+              Debes cambiar tu contraseña
+            </a>
+          }
+
+          @if (!editandoMisDatos) {
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div class="rounded-xl border border-slate-800 bg-[#121212]/80 p-4 ring-1 ring-inset ring-white/5">
+                <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Compañía</p>
+                <p class="mt-1 text-sm text-slate-200">{{ p.compania || '—' }}</p>
+              </div>
+              <div class="rounded-xl border border-slate-800 bg-[#121212]/80 p-4 ring-1 ring-inset ring-white/5">
+                <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Cuerpo de bombero</p>
+                <p class="mt-1 text-sm text-slate-200">{{ p.cuerpoBombero || '—' }}</p>
+              </div>
+              <div class="rounded-xl border border-slate-800 bg-[#121212]/80 p-4 ring-1 ring-inset ring-white/5">
+                <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Correo</p>
+                <p class="mt-1 break-all text-sm text-slate-200">{{ p.email || 'Sin registrar' }}</p>
+              </div>
+              <div class="rounded-xl border border-slate-800 bg-[#121212]/80 p-4 ring-1 ring-inset ring-white/5">
+                <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Teléfono</p>
+                <p class="mt-1 text-sm text-slate-200">{{ p.telefono || '—' }}</p>
+              </div>
+              <div class="sm:col-span-2 rounded-xl border border-slate-800 bg-[#121212]/80 p-4 ring-1 ring-inset ring-white/5">
+                <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Domicilio</p>
+                <p class="mt-1 text-sm text-slate-200">{{ p.direccion || '—' }}</p>
+                <p class="mt-1 text-xs text-slate-500">{{ p.comuna }} · {{ p.region }}</p>
+              </div>
+              <div class="rounded-xl border border-slate-800 bg-[#121212]/80 p-4 ring-1 ring-inset ring-white/5">
+                <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Fecha de nacimiento</p>
+                <p class="mt-1 text-sm text-slate-200">{{ fechaCorta(p.fechaNacimiento) }}</p>
+              </div>
+              <div class="rounded-xl border border-slate-800 bg-[#121212]/80 p-4 ring-1 ring-inset ring-white/5">
+                <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Fecha de ingreso</p>
+                <p class="mt-1 text-sm text-slate-200">{{ fechaCorta(p.fechaIngreso) }}</p>
+              </div>
+              <div class="rounded-xl border border-slate-800 bg-[#121212]/80 p-4 ring-1 ring-inset ring-white/5">
+                <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Grupo sanguíneo</p>
+                <p class="mt-1 text-sm text-slate-200">{{ p.grupoSanguineo || '—' }}</p>
+              </div>
+              @if (p.actividad?.trim()) {
+                <div class="sm:col-span-2 rounded-xl border border-slate-800 bg-[#121212]/80 p-4 ring-1 ring-inset ring-white/5">
+                  <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Actividad</p>
+                  <p class="mt-1 text-sm text-slate-200">{{ p.actividad }}</p>
+                </div>
+              }
+            </div>
+          }
+
+          @if (editandoMisDatos) {
+            <div class="space-y-6 rounded-xl border border-slate-800/90 bg-black/25 p-4 ring-1 ring-inset ring-white/5 sm:p-6">
+              <p class="text-xs uppercase tracking-wide text-slate-500">
+                Puedes actualizar contacto y domicilio. La identidad (RUT, nombres) la gestiona un administrador desde
+                <span class="text-slate-400">Usuarios</span>.
+              </p>
+
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div class="sm:col-span-2">
+                  <label class="mb-2 block text-sm font-medium text-slate-300">Correo <span class="text-red-400">*</span></label>
+                  <input [(ngModel)]="miForm.email" type="email" class="sid-input w-full" />
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="mb-2 block text-sm font-medium text-slate-300">Teléfono <span class="text-red-400">*</span></label>
+                  <input
+                    [(ngModel)]="miForm.telefono"
+                    (ngModelChange)="onTelefonoInputMi($event)"
+                    type="text"
+                    inputmode="tel"
+                    placeholder="+56 9 1234 5678"
+                    class="sid-input w-full"
+                  />
+                </div>
+
+                <div class="sm:col-span-2">
+                  <label class="mb-2 block text-sm font-medium text-slate-300">Dirección <span class="text-red-400">*</span></label>
+                  <input [(ngModel)]="miForm.direccion" type="text" class="sid-input w-full" />
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-slate-300">Región <span class="text-red-400">*</span></label>
+                  <select [(ngModel)]="miForm.region" (ngModelChange)="onRegionChangeMi()" class="sid-input w-full">
+                    <option [ngValue]="''">Seleccionar región</option>
+                    @for (r of regionesComunas; track r.region) {
+                      <option [ngValue]="r.region">{{ r.region }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-slate-300">Comuna <span class="text-red-400">*</span></label>
+                  <select [(ngModel)]="miForm.comuna" class="sid-input w-full">
+                    <option [ngValue]="''">Seleccionar comuna</option>
+                    @for (c of comunasDisponiblesMis; track c) {
+                      <option [ngValue]="c">{{ c }}</option>
+                    }
+                  </select>
+                </div>
+
+                <div class="sm:col-span-2">
+                  <label class="mb-2 block text-sm font-medium text-slate-300">Actividad (opcional)</label>
+                  <input [(ngModel)]="miForm.actividad" type="text" class="sid-input w-full" />
+                </div>
+
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-slate-300">Grupo sanguíneo</label>
+                  <select [(ngModel)]="miForm.grupoSanguineo" class="sid-input w-full">
+                    <option [ngValue]="''">—</option>
+                    @for (g of gruposSanguineos; track g) {
+                      <option [ngValue]="g">{{ g }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-red-400/95">Foto de perfil</h3>
+                <div class="flex flex-col gap-3 rounded-xl border border-slate-800 bg-[#0a0a0a]/50 p-4 sm:flex-row sm:items-start">
+                  <div class="flex flex-col gap-2">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      class="text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white file:transition-colors hover:file:bg-slate-600"
+                      (change)="onFotoPerfilArchivoMi($event)"
+                    />
+                    <p class="text-[11px] leading-relaxed text-slate-500">Se comprime al guardar (JPEG). Máx. recomendado 14 MB.</p>
+                    @if (miForm.fotoPerfil) {
+                      <button type="button" class="text-left text-sm text-red-400 hover:underline" (click)="quitarFotoMi()">
+                        Quitar foto
+                      </button>
+                    }
+                  </div>
+                  @if (miForm.fotoPerfil) {
+                    <div class="shrink-0 overflow-hidden rounded-xl border border-slate-700 bg-black/30 p-1">
+                      <img
+                        [src]="miForm.fotoPerfil"
+                        alt="Vista previa"
+                        class="mx-auto block max-h-40 w-[120px] object-cover object-top"
+                      />
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="rounded-2xl border border-slate-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+      <h2 class="mb-2 flex items-center gap-2 text-lg font-bold text-white">
+        <lucide-icon name="layout-dashboard" class="h-5 w-5 text-sky-400" [size]="20" color="currentColor"></lucide-icon>
+        Pantallas disponibles para tu cuenta
+      </h2>
+      <p class="mb-4 text-sm text-slate-500">
+        Según tu rol y la configuración del sistema — el administrador puede afinar rutas desde Configuraciones.
+      </p>
+      @if (navUi.cargada()) {
+        <div class="flex flex-wrap gap-2">
+          @for (path of rutasMenuOrdenadas(); track path) {
+            <span
+              class="inline-flex rounded-lg border border-slate-700/90 bg-[#0a0a0a] px-2.5 py-1 text-xs font-medium text-slate-300 ring-1 ring-inset ring-white/5"
+            >
+              {{ etiquetaMenu(path) }}
+            </span>
+          }
+        </div>
+      } @else {
+        <p class="text-sm text-slate-500">Cargando menú permitido…</p>
+      }
+    </section>
+
+    @if (p.observacionesRegistro?.trim()) {
+      <section class="rounded-2xl border border-slate-800 bg-[#121212]/90 p-5 ring-1 ring-inset ring-white/5">
+        <h3 class="mb-2 text-sm font-semibold text-slate-300">Observaciones de registro</h3>
+        <p class="whitespace-pre-wrap text-sm leading-relaxed text-slate-400">{{ p.observacionesRegistro }}</p>
+      </section>
+    }
+  }
+</div>

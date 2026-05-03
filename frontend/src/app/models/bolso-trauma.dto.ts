@@ -32,6 +32,7 @@ export interface BolsoTraumaRegistroDto {
   inspector: string | null;
   grupoGuardia: string | null;
   firmaOficial: string | null;
+  firmaInspector?: string | null;
   observaciones: string | null;
   totalItems: number | null;
   itemsOk: number | null;

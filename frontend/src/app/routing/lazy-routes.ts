@@ -65,6 +65,9 @@ export const loadLicenciasPageComponent = () =>
 export const loadAnaliticaPageComponent = () =>
   import('../pages/analitica/analitica-page.component').then((m) => m.AnaliticaPageComponent);
 
+export const loadMiPerfilComponent = () =>
+  import('../pages/perfil/mi-perfil.component').then((m) => m.MiPerfilComponent);
+
 /** Pantallas “próximamente” reutilizables. */
 export function rutaPlaceholder(title: string) {
   return {

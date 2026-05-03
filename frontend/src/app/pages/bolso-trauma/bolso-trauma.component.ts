@@ -1,4 +1,4 @@
-import { CommonModule, formatDate } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -11,6 +11,7 @@ import { BolsosTraumaService } from '../../services/bolsos-trauma.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { etiquetaEstadoChecklist } from '../../utils/checklist-estado';
+import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
 
 @Component({
   selector: 'app-bolso-trauma',
@@ -22,6 +23,21 @@ export class BolsoTraumaComponent implements OnInit {
   private readonly bolsosApi = inject(BolsosTraumaService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly router = inject(Router);
+
+  private readonly imagenFallbackCarro =
+    'https://images.unsplash.com/photo-1588662880295-13d2b28127c6?w=1080&q=80&fm=jpg';
+
+  private readonly imagenLocalPorNomenclatura: Record<string, string> = {
+    'B-1': 'assets/carros/b1.png',
+    'BX-1': 'assets/carros/bx1.png',
+    'R-1': 'assets/carros/r1.png',
+  };
+
+  /** Foto del carro en la cabecera de cada unidad (misma convención que ERA / flota). */
+  imagenCabeceraUnidad(nomenclatura: string): string {
+    const key = (nomenclatura ?? '').trim();
+    return this.imagenLocalPorNomenclatura[key] ?? this.imagenFallbackCarro;
+  }
 
   unidades: BolsoTraumaSelectorUnidadDto[] = [];
   historial: BolsoTraumaHistorialDto[] = [];
@@ -58,13 +74,7 @@ export class BolsoTraumaComponent implements OnInit {
   }
 
   fechaHora(iso: string | null | undefined): { fecha: string; hora: string } {
-    if (!iso) return { fecha: '—', hora: '—' };
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return { fecha: '—', hora: '—' };
-    return {
-      fecha: formatDate(d, 'dd/MM/yyyy', 'es-CL'),
-      hora: formatDate(d, 'HH:mm', 'es-CL'),
-    };
+    return splitFechaHoraEsCl(iso);
   }
 
   promedioCompletitud(unidad: BolsoTraumaSelectorUnidadDto): number {
@@ -115,12 +125,6 @@ export class BolsoTraumaComponent implements OnInit {
       });
   }
 
-  fechaHoraHist(iso: string): string {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '—';
-    return `${formatDate(d, 'dd/MM/yyyy HH:mm', 'es-CL')}`;
-  }
-
   abrirDetalle(h: BolsoTraumaHistorialDto): void {
     this.detalleRegistro = null;
     this.loadingDetalle = true;
@@ -159,6 +163,7 @@ export class BolsoTraumaComponent implements OnInit {
           inspector: reg.inspector ?? '',
           grupoGuardia: reg.grupoGuardia ?? '',
           responsable: reg.cuartelero.nombre ?? h.responsable,
+          firmaInspector: reg.firmaInspector ?? '',
           firmaOficial: reg.firmaOficial ?? '',
           fechaRegistro: reg.fecha,
           observaciones: reg.observaciones ?? '',

@@ -1,75 +1,81 @@
-import { AsyncPipe, CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, HostListener, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ConfirmDialogService } from '../services/confirm-dialog.service';
 import { SidepIconsModule } from './sidep-icons.module';
 
 @Component({
   selector: 'app-confirm-dialog',
   standalone: true,
-  imports: [CommonModule, AsyncPipe, SidepIconsModule],
+  imports: [CommonModule, SidepIconsModule],
   template: `
-    @if (vm$ | async; as vm) {
-      @if (vm.open) {
+    @if (vm().open) {
+      <div
+        class="confirm-overlay fixed inset-0 z-[230] flex items-center justify-center bg-black/45 p-4"
+        [class.confirm-overlay-logout]="vm().variant === 'logout'"
+        (click)="cancelar()"
+      >
         <div
-          class="confirm-overlay fixed inset-0 z-[230] flex items-center justify-center bg-black/45 p-4"
-          [class.confirm-overlay-logout]="vm.variant === 'logout'"
-          (click)="cancelar()"
+          class="confirm-dialog flex max-h-[min(90vh,560px)] w-full max-w-md flex-col rounded-2xl border border-slate-700 bg-[linear-gradient(145deg,#111827,#0b1220)] shadow-2xl shadow-black/60 ring-1 ring-inset ring-white/5"
+          [class.confirm-dialog-logout]="vm().variant === 'logout'"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-dialog-title"
+          aria-describedby="confirm-dialog-desc"
+          (click)="$event.stopPropagation()"
         >
           <div
-            class="confirm-dialog w-full max-w-md rounded-2xl border border-slate-700 bg-[linear-gradient(145deg,#111827,#0b1220)] p-5 shadow-2xl shadow-black/60 ring-1 ring-inset ring-white/5"
-            [class.confirm-dialog-logout]="vm.variant === 'logout'"
-            role="dialog"
-            aria-modal="true"
-            (click)="$event.stopPropagation()"
+            class="sid-modal-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain p-5"
           >
-            <div class="mb-3 flex items-center gap-3">
-              <div
-                class="confirm-icon-wrap flex h-10 w-10 items-center justify-center rounded-xl ring-1"
-                [class.bg-red-600/20]="vm.variant !== 'logout'"
-                [class.text-red-300]="vm.variant !== 'logout'"
-                [class.ring-red-500/30]="vm.variant !== 'logout'"
-                [class.bg-violet-600/20]="vm.variant === 'logout'"
-                [class.text-violet-200]="vm.variant === 'logout'"
-                [class.ring-violet-400/40]="vm.variant === 'logout'"
-              >
-                <lucide-icon
-                  [name]="vm.variant === 'logout' ? 'log-out' : 'triangle-alert'"
-                  class="h-5 w-5"
-                  [size]="20"
-                  color="currentColor"
-                />
-              </div>
-              <div>
-                <h3 class="text-base font-semibold text-white">{{ vm.title }}</h3>
-                <p class="text-xs text-slate-400">
-                  {{ vm.variant === 'logout' ? 'Cierre seguro de sesión' : 'Esta acción puede ser irreversible' }}
-                </p>
-              </div>
+          <div class="mb-3 flex items-center gap-3">
+            <div
+              class="confirm-icon-wrap flex h-10 w-10 items-center justify-center rounded-xl ring-1"
+              [class.bg-red-600/20]="vm().variant !== 'logout'"
+              [class.text-red-300]="vm().variant !== 'logout'"
+              [class.ring-red-500/30]="vm().variant !== 'logout'"
+              [class.bg-violet-600/20]="vm().variant === 'logout'"
+              [class.text-violet-200]="vm().variant === 'logout'"
+              [class.ring-violet-400/40]="vm().variant === 'logout'"
+              aria-hidden="true"
+            >
+              <lucide-icon
+                [name]="vm().variant === 'logout' ? 'log-out' : 'triangle-alert'"
+                class="h-5 w-5"
+                [size]="20"
+                color="currentColor"
+              />
             </div>
-            <p class="mb-5 text-sm text-slate-200">{{ vm.message }}</p>
-            <div class="flex justify-end gap-2">
-              <button
-                type="button"
-                class="rounded-lg border border-slate-600 bg-slate-800/70 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700"
-                (click)="cancelar()"
-              >
-                {{ vm.cancelText }}
-              </button>
-              <button
-                type="button"
-                class="rounded-lg px-4 py-2 text-sm font-semibold text-white"
-                [class.bg-red-600]="vm.variant !== 'logout'"
-                [class.hover:bg-red-700]="vm.variant !== 'logout'"
-                [class.bg-violet-600]="vm.variant === 'logout'"
-                [class.hover:bg-violet-700]="vm.variant === 'logout'"
-                (click)="confirmar()"
-              >
-                {{ vm.confirmText }}
-              </button>
+            <div>
+              <h3 id="confirm-dialog-title" class="text-base font-semibold text-white">{{ vm().title }}</h3>
+              <p class="text-xs text-slate-400">
+                {{ vm().variant === 'logout' ? 'Cierre seguro de sesión' : 'Esta acción puede ser irreversible' }}
+              </p>
             </div>
           </div>
+          <p id="confirm-dialog-desc" class="mb-5 text-sm text-slate-200">{{ vm().message }}</p>
+          </div>
+          <div class="flex shrink-0 justify-end gap-2 border-t border-slate-800/90 bg-[#0b1220]/95 p-5 pt-4">
+            <button
+              type="button"
+              class="rounded-lg border border-slate-600 bg-slate-800/70 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700"
+              (click)="cancelar()"
+            >
+              {{ vm().cancelText }}
+            </button>
+            <button
+              type="button"
+              class="rounded-lg px-4 py-2 text-sm font-semibold text-white"
+              [class.bg-red-600]="vm().variant !== 'logout'"
+              [class.hover:bg-red-700]="vm().variant !== 'logout'"
+              [class.bg-violet-600]="vm().variant === 'logout'"
+              [class.hover:bg-violet-700]="vm().variant === 'logout'"
+              (click)="confirmar()"
+            >
+              {{ vm().confirmText }}
+            </button>
+          </div>
         </div>
-      }
+      </div>
     }
   `,
   styles: [
@@ -127,7 +133,17 @@ import { SidepIconsModule } from './sidep-icons.module';
 })
 export class ConfirmDialogComponent {
   private readonly confirm = inject(ConfirmDialogService);
-  readonly vm$ = this.confirm.state$;
+
+  readonly vm = toSignal(this.confirm.state$, {
+    initialValue: {
+      open: false,
+      title: '',
+      message: '',
+      confirmText: 'Confirmar',
+      cancelText: 'Cancelar',
+      variant: 'default' as const,
+    },
+  });
 
   confirmar(): void {
     this.confirm.confirmar();

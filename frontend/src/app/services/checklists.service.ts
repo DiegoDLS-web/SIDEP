@@ -14,6 +14,7 @@ export type ChecklistUnidadPayload = {
   inspector?: string;
   grupoGuardia?: string;
   firmaOficial?: string | null;
+  firmaInspector?: string | null;
   observaciones?: string;
   totalItems?: number;
   itemsOk?: number;
@@ -212,6 +213,7 @@ export class ChecklistsService {
           inspector: payload.inspector ?? null,
           grupoGuardia: payload.grupoGuardia ?? null,
           firmaOficial: payload.firmaOficial ?? null,
+          firmaInspector: payload.firmaInspector ?? null,
           observaciones: payload.observaciones ?? null,
           totalItems: payload.totalItems ?? null,
           itemsOk: payload.itemsOk ?? null,
@@ -239,6 +241,7 @@ export class ChecklistsService {
           inspector: payload.inspector ?? null,
           grupoGuardia: payload.grupoGuardia ?? null,
           firmaOficial: payload.firmaOficial ?? null,
+          firmaInspector: payload.firmaInspector ?? null,
           observaciones: payload.observaciones ?? null,
           totalItems: payload.totalItems ?? null,
           itemsOk: payload.itemsOk ?? null,

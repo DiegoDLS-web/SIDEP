@@ -26,6 +26,7 @@ import {
   type AsistenciaColumnaDef,
   type AsistenciaItemDef,
 } from './asistencia-roster.constants';
+import { etiquetaDirectorioVoluntario } from '../usuarios/usuario-registro.constants';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
 
 type FilaUnidad = {
@@ -527,8 +528,8 @@ export class ParteNuevoComponent implements OnInit {
   private itemDesdeUsuario(u: UsuarioListaDto): AsistenciaItemDef {
     const id = `usr-${u.id}`;
     this.usuarioAsistenciaPorId[id] = u;
-    const cargo = u.cargoOficialidad ? ` · ${u.cargoOficialidad}` : '';
-    return { id, label: `${u.nombre}${cargo}` };
+    const marca = etiquetaDirectorioVoluntario(u.tipoVoluntario, u.cargoOficialidad);
+    return { id, label: marca ? `${u.nombre} · ${marca}` : u.nombre };
   }
 
   private esHonorario(u: UsuarioListaDto): boolean {

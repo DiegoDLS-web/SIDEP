@@ -263,6 +263,7 @@ bolsosTraumaRouter.post('/:unidad', async (req, res) => {
     inspector?: string;
     grupoGuardia?: string;
     firmaOficial?: string;
+    firmaInspector?: string;
     observaciones?: string;
     totalItems?: number;
     itemsOk?: number;
@@ -286,6 +287,7 @@ bolsosTraumaRouter.post('/:unidad', async (req, res) => {
         inspector: body.inspector ?? null,
         grupoGuardia: body.grupoGuardia ?? null,
         firmaOficial: body.firmaOficial ?? null,
+        firmaInspector: body.firmaInspector ?? null,
         observaciones: body.observaciones ?? null,
         totalItems: typeof body.totalItems === 'number' ? body.totalItems : null,
         itemsOk: typeof body.itemsOk === 'number' ? body.itemsOk : null,

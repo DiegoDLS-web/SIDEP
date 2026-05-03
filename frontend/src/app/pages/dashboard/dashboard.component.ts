@@ -11,6 +11,7 @@ import { CarrosService } from '../../services/carros.service';
 import { DashboardService } from '../../services/dashboard.service';
 import { ReportesService } from '../../services/reportes.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
+import { SidepWordmarkChipComponent } from '../../shared/sidep-wordmark-chip.component';
 import { CLAVES_EMERGENCIA } from '../partes/partes.constants';
 import type { CuadroHonorDto } from '../../models/reportes.dto';
 
@@ -26,7 +27,7 @@ type StatCard = {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidepWordmarkChipComponent],
   templateUrl: './dashboard.component.html',
 })
 export class DashboardComponent implements OnInit, OnDestroy {
@@ -53,10 +54,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     {
       label: 'Emergencias totales',
       value: '—',
-      icon: 'flame',
+      icon: 'clipboard-list',
       trend: '—',
       trendUp: true,
-      grad: 'from-red-500 to-red-600',
+      grad: 'from-slate-600 to-slate-800',
     },
     {
       label: 'Tiempo promedio respuesta',
@@ -77,10 +78,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     {
       label: 'Emergencias (mes de referencia)',
       value: '—',
-      icon: 'users',
+      icon: 'calendar',
       trend: '—',
       trendUp: true,
-      grad: 'from-red-500 to-red-600',
+      grad: 'from-blue-600 to-indigo-800',
     },
   ];
 

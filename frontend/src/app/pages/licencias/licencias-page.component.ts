@@ -29,7 +29,6 @@ export class LicenciasPageComponent implements OnInit {
   gestionLicencias: LicenciaMedicaDto[] = [];
   filtroGestion: '' | LicenciaEstado = '';
   filtroGestionTexto = '';
-  filtroGestionEstado: '' | LicenciaEstado = '';
   filtroGestionDesde = '';
   filtroGestionHasta = '';
 
@@ -54,9 +53,15 @@ export class LicenciasPageComponent implements OnInit {
 
   estadoEdicion: Record<number, LicenciaEstado> = {};
   observacionEdicion: Record<number, string> = {};
-  resumenVisible = false;
   paginaGestion = 1;
   readonly tamanioPaginaGestion = 6;
+  modalNuevaSolicitudAbierta = false;
+  /** Panel del resumen diario expandido por defecto. */
+  resumenDiarioVisible = true;
+
+  toggleResumenDiario(): void {
+    this.resumenDiarioVisible = !this.resumenDiarioVisible;
+  }
 
   get hoyIso(): string {
     return new Date().toISOString().slice(0, 10);
@@ -131,11 +136,11 @@ export class LicenciasPageComponent implements OnInit {
       const txt = this.filtroGestionTexto.trim().toLowerCase();
 
       const matchTexto = !txt || nombre.includes(txt) || motivo.includes(txt);
-      const matchEstado = !this.filtroGestionEstado || estado === this.filtroGestionEstado;
+      const matchTab = !this.filtroGestion || estado === this.filtroGestion;
       const matchDesde = !this.filtroGestionDesde || l.fechaInicio >= this.filtroGestionDesde;
       const matchHasta = !this.filtroGestionHasta || l.fechaInicio <= this.filtroGestionHasta;
 
-      return matchTexto && matchEstado && matchDesde && matchHasta;
+      return matchTexto && matchTab && matchDesde && matchHasta;
     });
   }
 
@@ -196,7 +201,7 @@ export class LicenciasPageComponent implements OnInit {
   cargarGestion(): void {
     this.errorGestion = null;
     this.api
-      .listarGestion(this.filtroGestion || undefined)
+      .listarGestion(undefined)
       .pipe(
         catchError(() => {
           this.errorGestion = 'No se pudo cargar la gestión de licencias.';
@@ -256,6 +261,7 @@ export class LicenciasPageComponent implements OnInit {
             this.progresoCarga = 100;
             this.okMsg = 'Solicitud enviada correctamente.';
             this.limpiarFormulario();
+            this.cerrarModalNuevaSolicitud();
             this.cargarTodo();
           }
         },
@@ -286,12 +292,11 @@ export class LicenciasPageComponent implements OnInit {
   setFiltro(estado: '' | LicenciaEstado): void {
     this.filtroGestion = estado;
     this.paginaGestion = 1;
-    this.cargarGestion();
   }
 
   limpiarFiltrosGestion(): void {
+    this.filtroGestion = '';
     this.filtroGestionTexto = '';
-    this.filtroGestionEstado = '';
     this.filtroGestionDesde = '';
     this.filtroGestionHasta = '';
     this.paginaGestion = 1;
@@ -312,8 +317,13 @@ export class LicenciasPageComponent implements OnInit {
     this.paginaGestion = next;
   }
 
-  toggleResumenVisible(): void {
-    this.resumenVisible = !this.resumenVisible;
+  abrirModalNuevaSolicitud(): void {
+    this.modalNuevaSolicitudAbierta = true;
+    this.error = null;
+  }
+
+  cerrarModalNuevaSolicitud(): void {
+    this.modalNuevaSolicitudAbierta = false;
   }
 
   setEstadoRapido(item: LicenciaMedicaDto, estado: LicenciaEstado): void {

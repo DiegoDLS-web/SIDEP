@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.enviarCorreoHtml = enviarCorreoHtml;
 exports.enviarCorreoRecuperacion = enviarCorreoRecuperacion;
 const nodemailer_1 = __importDefault(require("nodemailer"));
 function crearTransporter() {
@@ -19,6 +20,26 @@ function crearTransporter() {
         });
     }
     return nodemailer_1.default.createTransport({ jsonTransport: true });
+}
+/** Envío genérico (resúmenes, avisos). Si no hay SMTP, usa jsonTransport como en desarrollo. */
+async function enviarCorreoHtml(opts) {
+    const to = [...new Set(opts.to.map((x) => x.trim()).filter(Boolean))];
+    if (!to.length) {
+        return;
+    }
+    const from = process.env.SMTP_FROM || 'no-reply@sidep.local';
+    const transporter = crearTransporter();
+    const info = await transporter.sendMail({
+        from,
+        to: to.join(', '),
+        subject: opts.subject,
+        text: opts.text,
+        html: opts.html,
+    });
+    if (info.message) {
+        // eslint-disable-next-line no-console
+        console.log('Correo HTML (dev):', info.message);
+    }
 }
 async function enviarCorreoRecuperacion(destino, resetUrl) {
     const from = process.env.SMTP_FROM || 'no-reply@sidep.local';

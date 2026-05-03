@@ -34,6 +34,8 @@ model Usuario {
   observacionesRegistro    String?  @db.Text
   /// Firma PNG/JPEG en base64 (data URL) para PDFs
   firmaImagen              String?  @db.Text
+  /// Foto de carnet: ruta `/assets/perfiles/…` o imagen en data URL (JPEG/PNG)
+  fotoPerfil               String?  @db.Text
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 
@@ -165,6 +167,7 @@ model ChecklistCarro {
   inspector        String?
   grupoGuardia     String?
   firmaOficial     String?
+  firmaInspector   String?
   observaciones    String?
   totalItems       Int?
   itemsOk          Int?

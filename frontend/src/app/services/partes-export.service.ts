@@ -1,9 +1,14 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { catchError, firstValueFrom, of } from 'rxjs';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import type { ParteEmergenciaDto, ParteMetadataDto } from '../models/parte.dto';
 import { ASISTENCIA_CONTEXTO_OPCIONES, ASISTENCIA_ITEM_LABELS } from '../pages/partes/asistencia-roster.constants';
+import type { LogosPdfCabecera } from '../models/configuracion.dto';
+import { ConfiguracionesService } from './configuraciones.service';
+import { logosActivosPorConfig } from '../utils/reportes-logos.util';
+import { COMPANIA_LOGO_TRY_PATHS, SIDEP_MARK_PNG_ABSOLUTE } from '../shared/sidep-branding';
 
 type DocWithLast = jsPDF & { lastAutoTable?: { finalY: number } };
 
@@ -156,10 +161,22 @@ function resumenAsistencia(m: ParteMetadataDto | null | undefined): string {
 
 @Injectable({ providedIn: 'root' })
 export class PartesExportService {
-  private logosPromise: Promise<{ sidep: string | null; compania: string | null }> | null = null;
+  private readonly configApi = inject(ConfiguracionesService);
+
+  private resolverUrlLogo(path: string): string {
+    const p = path.startsWith('/') ? path.slice(1) : path;
+    if (typeof document !== 'undefined' && document?.baseURI) {
+      try {
+        return new URL(p, document.baseURI).toString();
+      } catch {
+        /* ignore */
+      }
+    }
+    return path.startsWith('/') ? path : `/${path}`;
+  }
 
   private cargarLogoComoDataUrl(path: string): Promise<string | null> {
-    return fetch(path)
+    return fetch(this.resolverUrlLogo(path))
       .then((res) => (res.ok ? res.blob() : null))
       .then(
         (blob) =>
@@ -177,14 +194,34 @@ export class PartesExportService {
       .catch(() => null);
   }
 
-  private getLogos(): Promise<{ sidep: string | null; compania: string | null }> {
-    if (!this.logosPromise) {
-      this.logosPromise = Promise.all([
-        this.cargarLogoComoDataUrl('/assets/logos/sidep-logo.png'),
-        this.cargarLogoComoDataUrl('/assets/logos/compania-logo.png'),
-      ]).then(([sidep, compania]) => ({ sidep, compania }));
+  private async cargarPrimeraCompaniaDisponible(): Promise<string | null> {
+    for (const p of COMPANIA_LOGO_TRY_PATHS) {
+      const data = await this.cargarLogoComoDataUrl(p);
+      if (data?.startsWith('data:image')) {
+        return data;
+      }
     }
-    return this.logosPromise;
+    return null;
+  }
+
+  private getLogos(): Promise<{ sidep: string | null; compania: string | null }> {
+    return Promise.all([
+      this.cargarLogoComoDataUrl(SIDEP_MARK_PNG_ABSOLUTE),
+      this.cargarPrimeraCompaniaDisponible(),
+    ]).then(([sidep, compania]) => ({ sidep, compania }));
+  }
+
+  private async modoLogosPdf(): Promise<LogosPdfCabecera> {
+    try {
+      const c = await firstValueFrom(this.configApi.obtener().pipe(catchError(() => of(null))));
+      const m = c?.reportes?.logosPdf;
+      if (m === 'NINGUNO' || m === 'SIDEP' || m === 'COMPANIA' || m === 'AMBOS') {
+        return m;
+      }
+    } catch {
+      /* ignore */
+    }
+    return 'AMBOS';
   }
 
   private dibujarPieProfesional(doc: jsPDF): void {
@@ -212,7 +249,8 @@ export class PartesExportService {
   private async exportarPdfAsync(parte: ParteEmergenciaDto): Promise<void> {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const m = parte.metadata;
-    const logos = await this.getLogos();
+    const [logos, modoPdf] = await Promise.all([this.getLogos(), this.modoLogosPdf()]);
+    const activos = logosActivosPorConfig(modoPdf);
 
     // ——— Cabecera principal ———
     doc.setFillColor(...C_ACCENT);
@@ -228,14 +266,14 @@ export class PartesExportService {
     doc.setFont('helvetica', 'normal');
     const idTxt = `N° ${parte.correlativo}`;
     doc.text(idTxt, M + CONTENT_W - 4, M + 14, { align: 'right' });
-    if (logos.sidep?.startsWith('data:image')) {
+    if (activos.sidep && logos.sidep?.startsWith('data:image')) {
       try {
-        doc.addImage(logos.sidep, fmtFirmaJsPdf(logos.sidep), M + 1.5, M + 1.8, 8.5, 8.5);
+        doc.addImage(logos.sidep, fmtFirmaJsPdf(logos.sidep), M + 1.45, M + 1.55, 10.25, 10.25);
       } catch {
         // ignore logo rendering errors
       }
     }
-    if (logos.compania?.startsWith('data:image')) {
+    if (activos.compania && logos.compania?.startsWith('data:image')) {
       try {
         doc.addImage(logos.compania, fmtFirmaJsPdf(logos.compania), M + CONTENT_W - 18, M + 1.2, 14, 10);
       } catch {
@@ -482,7 +520,7 @@ export class PartesExportService {
     const txtAsist = resumenAsistencia(m);
     if (txtAsist) {
       y = ensureSpace(doc, y, 250);
-      y = sectionHeading(doc, y, 'Personal y asistencia');
+      y = sectionHeading(doc, y, 'OBAC y asistencia');
       doc.setFontSize(9);
       doc.setTextColor(24, 24, 27);
       y = addWrapped(doc, txtAsist, M, y, CONTENT_W, 4) + 6;

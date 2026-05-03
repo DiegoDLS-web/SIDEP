@@ -1,60 +1,62 @@
 <div class="sid-page w-full min-w-0 px-4 py-4 sm:px-6 sm:py-6 md:px-8 lg:px-10 xl:px-12">
-  <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-    <div>
+  <div class="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-4">
+    <div class="min-w-0 lg:max-w-xl">
       <h1 class="mb-1 text-2xl font-bold sm:text-3xl">Estadísticas operacionales</h1>
-      <p class="text-sm text-gray-400 sm:text-base">
+      <p class="text-xs text-gray-400 sm:text-sm">
         Emergencias, unidades y alertas
         @if (datos) {
-          <span class="text-gray-500">· Actualizado {{ fechaRelativa(datos.generadoEn) }}</span>
+          <span class="text-gray-500">· {{ fechaRelativa(datos.generadoEn) }}</span>
         }
       </p>
     </div>
-    <div class="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:w-auto lg:grid-cols-4 lg:items-end">
-      <div class="flex min-w-0 flex-col gap-1">
-        <label class="text-xs font-medium text-gray-500" for="dash-anio">Año</label>
-        <select
-          id="dash-anio"
-          [(ngModel)]="anio"
-          (ngModelChange)="aplicarFiltros()"
-          class="sid-history-filter w-full text-sm text-white"
-        >
-          @for (a of aniosDisponibles; track a) {
-            <option [ngValue]="a">{{ a }}</option>
-          }
-        </select>
-      </div>
-      <div class="flex min-w-0 flex-col gap-1 sm:col-span-2 lg:col-span-1">
-        <label class="text-xs font-medium text-gray-500" for="dash-tipo">Tipo de emergencia</label>
-        <select
-          id="dash-tipo"
-          [(ngModel)]="claveFiltro"
-          (ngModelChange)="aplicarFiltros()"
-          class="sid-history-filter w-full text-sm text-white"
-        >
-          @for (c of clavesTipo; track c.value) {
-            <option [ngValue]="c.value">{{ c.label }}</option>
-          }
-        </select>
-      </div>
-      <div class="flex min-w-0 flex-col gap-1">
-        <label class="text-xs font-medium text-gray-500" for="dash-unidad">Unidad</label>
-        <select
-          id="dash-unidad"
-          [(ngModel)]="unidadFiltro"
-          (ngModelChange)="aplicarFiltros()"
-          class="sid-history-filter w-full text-sm text-white"
-        >
-          <option [ngValue]="'todas'">Todas las unidades</option>
-          @for (car of carros; track car.id) {
-            <option [ngValue]="car.id">{{ car.nomenclatura }} — {{ car.nombre || car.patente }}</option>
-          }
-        </select>
+    <div class="flex w-full min-w-0 flex-col gap-2 sm:max-w-none lg:w-auto lg:flex-1 lg:flex-row lg:flex-wrap lg:items-end lg:justify-end">
+      <div class="flex flex-wrap items-end gap-2 sm:gap-x-3">
+        <label class="inline-flex w-[5.25rem] shrink-0 flex-col gap-0.5" for="dash-anio">
+          <span class="text-[10px] font-medium uppercase tracking-wide text-gray-500">Año</span>
+          <select
+            id="dash-anio"
+            [(ngModel)]="anio"
+            (ngModelChange)="aplicarFiltros()"
+            class="sid-history-filter py-1.5 text-xs text-white"
+          >
+            @for (a of aniosDisponibles; track a) {
+              <option [ngValue]="a">{{ a }}</option>
+            }
+          </select>
+        </label>
+        <label class="inline-flex min-w-0 max-w-full flex-1 flex-col gap-0.5 sm:max-w-[200px]" for="dash-tipo">
+          <span class="text-[10px] font-medium uppercase tracking-wide text-gray-500">Tipo</span>
+          <select
+            id="dash-tipo"
+            [(ngModel)]="claveFiltro"
+            (ngModelChange)="aplicarFiltros()"
+            class="sid-history-filter max-w-full py-1.5 text-xs text-white"
+          >
+            @for (c of clavesTipo; track c.value) {
+              <option [ngValue]="c.value">{{ c.label }}</option>
+            }
+          </select>
+        </label>
+        <label class="inline-flex min-w-0 max-w-full flex-1 flex-col gap-0.5 sm:max-w-[180px]" for="dash-unidad">
+          <span class="text-[10px] font-medium uppercase tracking-wide text-gray-500">Unidad</span>
+          <select
+            id="dash-unidad"
+            [(ngModel)]="unidadFiltro"
+            (ngModelChange)="aplicarFiltros()"
+            class="sid-history-filter max-w-full py-1.5 text-xs text-white"
+          >
+            <option [ngValue]="'todas'">Todas</option>
+            @for (car of carros; track car.id) {
+              <option [ngValue]="car.id">{{ car.nomenclatura }}</option>
+            }
+          </select>
+        </label>
       </div>
       <a
         routerLink="/partes/nuevo"
-        class="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-lg border border-red-500/60 bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-red-900/20 transition-colors hover:bg-red-700"
+        class="inline-flex shrink-0 items-center justify-center gap-1.5 self-start rounded-lg border border-red-500/60 bg-red-600 px-3 py-2 text-xs font-semibold text-white shadow-md shadow-red-900/20 hover:bg-red-700 sm:text-sm lg:self-end"
       >
-        <lucide-icon name="file-text" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+        <lucide-icon name="file-text" class="h-3.5 w-3.5 sm:h-4 sm:w-4" [size]="16" color="currentColor"></lucide-icon>
         Registrar parte
       </a>
     </div>
@@ -418,9 +420,9 @@
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <!-- Tipos -->
       <div class="rounded-xl border border-gray-800 bg-[#121212] p-5 sm:p-6">
-        <div class="mb-4 flex items-center gap-2">
-          <span class="text-lg" aria-hidden="true">🔥</span>
-          <h2 class="text-lg font-bold">Tipos de emergencia</h2>
+        <div class="mb-4 flex items-center gap-2.5">
+          <app-sidep-wordmark-chip size="md" class="shrink-0" />
+          <h2 class="text-lg font-bold leading-tight">Tipos de emergencia</h2>
         </div>
         <p class="mb-4 text-xs text-gray-500">{{ datos.anio }} · según filtros</p>
         <div class="space-y-3">

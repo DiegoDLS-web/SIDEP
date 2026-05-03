@@ -236,6 +236,58 @@ async function main() {
     'Francisco López Flores': 'SEGUNDO_COMANDANTE',
   };
 
+  /** Retratos en `frontend/src/assets/perfiles/` (sincronizar con `node scripts/sync-fotos-nomina.mjs`). */
+  const fotoPerfilPorNombre: Partial<Record<string, string>> = {
+    'Nicolás Ponce Ramírez': '/assets/perfiles/nicolas-ponce-ramirez.png',
+    'Luciano Rodriguez Burdiles': '/assets/perfiles/luciano-rodriguez-burdiles.png',
+    'Martin Salazar Villalobos': '/assets/perfiles/martin-salazar-villalobos.png',
+    'Tomás Leyton Miranda': '/assets/perfiles/tomas-leyton-miranda.png',
+    'Victor Venegas Zambrano': '/assets/perfiles/victor-venegas-zambrano.png',
+    'Leonardo Ríos Guzmán': '/assets/perfiles/leonardo-patricio-rios-guzman.png',
+    'Carlos Neira Valenzuela': '/assets/perfiles/carlos-neira-valenzuela.png',
+    'Claudio Aroca Oñate': '/assets/perfiles/claudio-aroca-onate.png',
+    'Renato Medina Araneda': '/assets/perfiles/renato-medina-araneda.png',
+    'Ignacio Pinares Escobar': '/assets/perfiles/ignacio-pinares-escobar.png',
+    'Luis Valenzuela Jara': '/assets/perfiles/luis-alberto-valenzuela-jara.png',
+    'Francisco López Flores': '/assets/perfiles/francisco-enrique-lopez-flores.png',
+    'Eduardo Pezo Espinoza': '/assets/perfiles/eduardo-pezo-espinoza.png',
+    'Hector González Duran': '/assets/perfiles/hector-mauricio-gonzalez-duran.png',
+    'Omar Ramos Valenzuela': '/assets/perfiles/omar-dionisio-ramos-valenzuela.png',
+    'Francisco Bravo Duran': '/assets/perfiles/francisco-eduardo-bravo-duran.png',
+    'Claudio Venegas Martinez': '/assets/perfiles/claudio-marcelo-venegas-martinez.png',
+    'Carlos Urrutia Fernandez': '/assets/perfiles/carlos-andres-urrutia-fernandez.png',
+    'Nelson Gutierrez Colipi': '/assets/perfiles/nelson-gutierrez-colipi.png',
+    'Felipe López Flores': '/assets/perfiles/felipe-andres-lopez-flores.png',
+    'Juan José Salazar Erices': '/assets/perfiles/juan-jose-salazar-erices.png',
+    'Ihan Cleveland Figueroa': '/assets/perfiles/ihan-cleveland-figueroa.png',
+    'Luis Molina Castro': '/assets/perfiles/luis-molina-castro.png',
+    'Bernardo Valenzuela Palma': '/assets/perfiles/bernardo-valenzuela-palma.png',
+    'Jonathan Mora Bustamante': '/assets/perfiles/jonathan-patricio-mora-bustamante.png',
+    'Mauricio Alexander Seguel Montecinos': '/assets/perfiles/mauricio-seguel-montecinos.png',
+    'Patricio Alfredo Madariaga Faundez': '/assets/perfiles/patricio-madariaga-faundez.png',
+    'Felipe Andrés Villagra Rojas': '/assets/perfiles/felipe-andres-villagra-rojas.png',
+    'Sergio Ariel Contreras Gutierrez': '/assets/perfiles/sergio-ariel-contreras-gutierrez.png',
+    'Francisco Ignacio Catalán Parra': '/assets/perfiles/francisco-catalan-parra.png',
+    'Juan Carlos Yañez Vallejos': '/assets/perfiles/juan-carlos-yanez-vallejos.png',
+    'Paula Tamara Morales Guzman': '/assets/perfiles/paula-tamara-morales-guzman.png',
+    'Jasmín Elena Silva Escalona': '/assets/perfiles/jasmin-elena-silva-escalona.png',
+    'Mariano Alexis Ruiz Hernandez': '/assets/perfiles/mariano-ruiz-hernandez.png',
+    'Ricardo Sebastián González Mora': '/assets/perfiles/ricardo-gonzalez-mora.png',
+    'Diego Salas Parra': '/assets/perfiles/diego-salas-parra.png',
+    'Alondra Lisoleth Reyes Pino': '/assets/perfiles/alondra-reyes-pino.png',
+    'Fernanda Camila Gallardo Gallardo': '/assets/perfiles/fernanda-gallardo-gallardo.png',
+    'Pamela Thalía Oñate Vergara': '/assets/perfiles/pamela-onate-vergara.png',
+    'Rodrigo Ivan Fernandez Burdiles': '/assets/perfiles/rodrigo-fernandez-burdiles.png',
+    'Christine Rafaela Rios Guzman': '/assets/perfiles/christine-rafaela-rios-guzman.png',
+    'Débora Yinett Baeza Neira': '/assets/perfiles/debora-yinett-baeza-neira.png',
+    'Javiera Elizabeth Quezada Rios': '/assets/perfiles/javiera-quezada-rios.png',
+    'Daniel Alexander Unda Gonzalez': '/assets/perfiles/daniel-alexander-gonzalez-unda.png',
+    'Carlos Elias Gutierrez Urbina': '/assets/perfiles/carlos-gutierrez-urbina.png',
+    'Oscar Rolan Arevalo': '/assets/perfiles/oscar-rolan-arevalo.png',
+    'Javiera Garay Rios': '/assets/perfiles/javiera-garay-rios.png',
+    'Belen Heck Pineda': '/assets/perfiles/belen-heck-pineda.png',
+  };
+
   const nombreYaRegistrado = new Set<string>();
   for (let i = 0; i < nominaCompania.length; i += 1) {
     const n = nominaCompania[i]!;
@@ -255,7 +307,8 @@ async function main() {
             : insignes.has(n.nombre)
               ? 'INSIGNE'
               : 'VOLUNTARIO';
-    const cargoOficialidad = cargosPorNombre[n.nombre] ?? 'TENIENTE_CUARTO';
+    const cargoOficialidad = cargosPorNombre[n.nombre] ?? 'VOLUNTARIO';
+    const fotoPerfilSeed = fotoPerfilPorNombre[n.nombre];
     await prisma.usuario.upsert({
       where: { rut },
       update: {
@@ -269,6 +322,7 @@ async function main() {
         telefono: `+56 9 6100 ${String(1000 + i)}`,
         activo: true,
         password: hashDefault,
+        ...(fotoPerfilSeed ? { fotoPerfil: fotoPerfilSeed } : {}),
       },
       create: {
         rut,
@@ -282,6 +336,7 @@ async function main() {
         telefono: `+56 9 6100 ${String(1000 + i)}`,
         activo: true,
         password: hashDefault,
+        fotoPerfil: fotoPerfilSeed ?? null,
       },
     });
   }
@@ -320,6 +375,15 @@ async function main() {
       ],
     },
     data: { tipoVoluntario: 'VOLUNTARIO' },
+  });
+
+  const nombresConCargoReal = new Set(Object.keys(cargosPorNombre));
+  await prisma.usuario.updateMany({
+    where: {
+      cargoOficialidad: 'TENIENTE_CUARTO',
+      nombre: { notIn: Array.from(nombresConCargoReal) },
+    },
+    data: { cargoOficialidad: 'VOLUNTARIO' },
   });
 
   const carrosAll = await prisma.carro.findMany({
