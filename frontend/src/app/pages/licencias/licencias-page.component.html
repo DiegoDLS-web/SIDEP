@@ -1,0 +1,635 @@
+<div class="sid-page sid-licencias-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 sm:py-6 md:px-8 lg:px-10 xl:px-12">
+  <section
+    class="relative overflow-hidden rounded-2xl border border-fuchsia-900/40 bg-[radial-gradient(circle_at_0%_0%,rgba(59,130,246,0.28),transparent_42%),radial-gradient(circle_at_100%_0%,rgba(192,38,211,0.22),transparent_40%),#0a0a0a] p-5 sm:p-6"
+  >
+    <div class="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div>
+        <p class="sid-page-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-3 py-1 text-xs text-fuchsia-200">
+          Salud y disponibilidad operativa
+        </p>
+        <h1 class="sid-page-hero-title text-2xl font-bold sm:text-3xl">Licencias</h1>
+        <p class="sid-page-hero-subtitle mt-1 text-sm text-gray-300 sm:text-base">
+          Envía solicitudes de permiso, revisa tu historial y gestiona estados desde oficialidad.
+        </p>
+      </div>
+      <button
+        type="button"
+        class="sid-btn sid-btn-neutral inline-flex items-center justify-center gap-2 border-fuchsia-800/40 bg-black/30"
+        (click)="cargarTodo()"
+      >
+        <lucide-icon name="refresh-cw" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+        Actualizar
+      </button>
+    </div>
+  </section>
+
+  @if (puedeGestionar) {
+    <section class="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <article class="rounded-xl border border-amber-700/35 bg-gradient-to-br from-amber-950/30 to-transparent p-5">
+        <p class="text-xs uppercase tracking-wide text-amber-200/80">Pendientes</p>
+        <p class="mt-2 text-3xl font-bold text-amber-300">{{ totalPendientes }}</p>
+      </article>
+      <article class="rounded-xl border border-emerald-700/35 bg-gradient-to-br from-emerald-950/30 to-transparent p-5">
+        <p class="text-xs uppercase tracking-wide text-emerald-200/80">Aprobadas</p>
+        <p class="mt-2 text-3xl font-bold text-emerald-300">{{ totalAprobadas }}</p>
+      </article>
+      <article class="rounded-xl border border-red-700/35 bg-gradient-to-br from-red-950/30 to-transparent p-5">
+        <p class="text-xs uppercase tracking-wide text-red-200/80">Rechazadas</p>
+        <p class="mt-2 text-3xl font-bold text-red-300">{{ totalRechazadas }}</p>
+      </article>
+    </section>
+  }
+
+  @if (error) {
+    <div class="sid-feedback rounded-lg border border-red-800 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+      <p class="font-semibold">No se pudo completar la acción.</p>
+      <p class="mt-1">{{ error }}</p>
+    </div>
+  }
+  @if (okMsg) {
+    <div class="sid-feedback rounded-lg border border-emerald-800 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
+      {{ okMsg }}
+    </div>
+  }
+
+  <div class="sid-section-divider" data-title="Resumen diario"></div>
+
+  @if (puedeGestionar) {
+    <section class="rounded-2xl border border-fuchsia-900/35 bg-[#121212] p-5 sm:p-6">
+      <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+          <h2 class="flex items-center gap-2 text-lg font-semibold">
+            <lucide-icon name="users" class="h-5 w-5 shrink-0 text-fuchsia-300" [size]="20" color="currentColor"></lucide-icon>
+            <span class="min-w-0">Resumen diario de permisos (hoy)</span>
+          </h2>
+          <p class="text-xs text-gray-500 sm:ml-auto">Fecha: {{ fecha(resumen.fecha || hoyIso) }}</p>
+        </div>
+        <button
+          type="button"
+          class="sid-btn sid-btn-neutral inline-flex shrink-0 items-center justify-center gap-2 border-fuchsia-800/45 bg-black/35 text-sm"
+          (click)="toggleResumenDiario()"
+          [attr.aria-expanded]="resumenDiarioVisible"
+        >
+          @if (resumenDiarioVisible) {
+            <lucide-icon name="chevron-up" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            Ocultar detalle
+          } @else {
+            <lucide-icon name="chevron-down" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            Mostrar detalle
+          }
+        </button>
+      </div>
+      @if (resumenDiarioVisible) {
+      <div class="mb-4 flex flex-wrap gap-2">
+        <span class="rounded-full border border-emerald-700/45 bg-emerald-950/20 px-2.5 py-1 text-xs text-emerald-200">
+          Con licencia: {{ resumen.conLicencia.length }}
+        </span>
+        <span class="rounded-full border border-amber-700/45 bg-amber-950/20 px-2.5 py-1 text-xs text-amber-200">
+          Mandaron permiso: {{ resumen.mandoPermiso.length }}
+        </span>
+        <span class="rounded-full border border-red-700/45 bg-red-950/20 px-2.5 py-1 text-xs text-red-200">
+          Sin permiso: {{ resumen.sinPermiso.length }}
+        </span>
+      </div>
+      @if (resumenDiarioVacio && totalGestion > 0) {
+        <p class="mb-3 text-xs text-amber-200">
+          No hay licencias activas para hoy, pero sí existen solicitudes en gestión.
+        </p>
+      }
+      <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <article class="rounded-xl border border-emerald-900/50 bg-emerald-950/20 p-4 sm:p-5">
+          <p class="mb-2 text-sm font-semibold text-emerald-200">Con licencia médica</p>
+          <div class="sid-scroll-dark max-h-56 space-y-1.5 overflow-auto pr-1">
+            @for (u of resumen.conLicencia; track u.id) {
+              <p class="rounded-md bg-black/20 px-2 py-1 text-sm text-emerald-100">{{ u.nombre }}</p>
+            }
+          </div>
+          @if (resumen.conLicencia.length === 0) {
+            <p class="text-sm text-emerald-200/70">Sin registros para hoy.</p>
+          }
+        </article>
+        <article class="rounded-xl border border-amber-900/50 bg-amber-950/20 p-4 sm:p-5">
+          <p class="mb-2 text-sm font-semibold text-amber-200">Mandaron permiso</p>
+          <div class="sid-scroll-dark max-h-56 space-y-1.5 overflow-auto pr-1">
+            @for (u of resumen.mandoPermiso; track u.id) {
+              <p class="rounded-md bg-black/20 px-2 py-1 text-sm text-amber-100">{{ u.nombre }}</p>
+            }
+          </div>
+          @if (resumen.mandoPermiso.length === 0) {
+            <p class="text-sm text-amber-200/70">Sin registros para hoy.</p>
+          }
+        </article>
+        <article class="rounded-xl border border-red-900/50 bg-red-950/20 p-4 sm:p-5">
+          <p class="mb-2 text-sm font-semibold text-red-200">Sin permiso</p>
+          <div class="sid-scroll-dark max-h-56 space-y-1.5 overflow-auto pr-1">
+            @for (u of resumen.sinPermiso; track u.id) {
+              <p class="rounded-md bg-black/20 px-2 py-1 text-sm text-red-100">{{ u.nombre }}</p>
+            }
+          </div>
+          @if (resumen.sinPermiso.length === 0) {
+            <p class="text-sm text-red-200/70">Sin registros para hoy.</p>
+          }
+        </article>
+      </div>
+      }
+    </section>
+  }
+
+  <div class="sid-section-divider" data-title="Nueva solicitud"></div>
+
+  <section
+    class="flex flex-col gap-3 rounded-2xl border border-blue-900/45 bg-[#121212] p-4 shadow-lg shadow-black/15 ring-1 ring-inset ring-white/5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-5"
+  >
+    <div class="min-w-0">
+      <h2 class="text-base font-semibold text-white">Nueva solicitud de licencia</h2>
+      <p class="mt-1 text-xs leading-relaxed text-slate-500">
+        El formulario es corto; se abre en una ventana para dejar espacio a la gestión y al historial.
+      </p>
+    </div>
+    <button
+      type="button"
+      class="sid-btn sid-btn-primary inline-flex shrink-0 items-center justify-center gap-2 px-5 py-2.5 sm:min-w-[200px]"
+      (click)="abrirModalNuevaSolicitud()"
+    >
+      <lucide-icon name="file-plus-2" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+      Nueva solicitud
+    </button>
+  </section>
+
+  @if (puedeGestionar) {
+    <div class="sid-section-divider" data-title="Gestión"></div>
+    <section class="sid-licencias-gestion rounded-2xl border border-cyan-900/35 bg-[#121212] p-5 sm:p-6">
+      <div class="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 class="flex items-center gap-2 text-lg font-semibold">
+            <lucide-icon name="shield" class="h-5 w-5 text-cyan-300" [size]="20" color="currentColor"></lucide-icon>
+            Gestión de solicitudes
+          </h2>
+          <p class="mt-1 text-xs text-gray-500">Actualiza estado y observación de forma rápida.</p>
+        </div>
+        <div class="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            class="sid-btn sid-btn-neutral inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-2 text-sm text-white"
+            (click)="limpiarFiltrosGestion()"
+          >
+            Limpiar filtros
+          </button>
+          <div class="rounded-lg border border-slate-700 bg-[#0a0a0a] px-3 py-2 text-xs text-slate-300">
+            Registros: <strong class="text-white">{{ totalGestion }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-5 flex flex-wrap gap-2">
+        <button
+          type="button"
+          class="rounded-lg border px-3 py-1.5 text-xs font-medium transition"
+          [ngClass]="filtroGestion === '' ? 'border-cyan-500/60 bg-cyan-500/20 text-cyan-200' : 'border-slate-700 bg-[#0a0a0a] text-slate-300 hover:border-slate-500'"
+          (click)="setFiltro('')"
+        >
+          Todos
+        </button>
+        <button
+          type="button"
+          class="rounded-lg border px-3 py-1.5 text-xs font-medium transition"
+          [ngClass]="filtroGestion === 'PENDIENTE' ? 'border-amber-500/60 bg-amber-500/20 text-amber-200' : 'border-slate-700 bg-[#0a0a0a] text-slate-300 hover:border-slate-500'"
+          (click)="setFiltro('PENDIENTE')"
+        >
+          Pendiente
+        </button>
+        <button
+          type="button"
+          class="rounded-lg border px-3 py-1.5 text-xs font-medium transition"
+          [ngClass]="filtroGestion === 'APROBADA' ? 'border-emerald-500/60 bg-emerald-500/20 text-emerald-200' : 'border-slate-700 bg-[#0a0a0a] text-slate-300 hover:border-slate-500'"
+          (click)="setFiltro('APROBADA')"
+        >
+          Aprobada
+        </button>
+        <button
+          type="button"
+          class="rounded-lg border px-3 py-1.5 text-xs font-medium transition"
+          [ngClass]="filtroGestion === 'RECHAZADA' ? 'border-red-500/60 bg-red-500/20 text-red-200' : 'border-slate-700 bg-[#0a0a0a] text-slate-300 hover:border-slate-500'"
+          (click)="setFiltro('RECHAZADA')"
+        >
+          Rechazada
+        </button>
+        <button
+          type="button"
+          class="rounded-lg border px-3 py-1.5 text-xs font-medium transition"
+          [ngClass]="filtroGestion === 'ANULADA' ? 'border-slate-500/60 bg-slate-500/20 text-slate-200' : 'border-slate-700 bg-[#0a0a0a] text-slate-300 hover:border-slate-500'"
+          (click)="setFiltro('ANULADA')"
+        >
+          Anulada
+        </button>
+      </div>
+
+      <div class="mb-4 flex flex-col gap-2 rounded-xl border border-slate-800/80 bg-black/20 p-3 sm:p-3">
+        <p class="text-[11px] text-slate-500">Pestañas = estado. Abajo: texto y fechas de inicio del permiso (compacto).</p>
+        <div class="flex flex-wrap items-end gap-2">
+          <input
+            type="search"
+            [(ngModel)]="filtroGestionTexto"
+            placeholder="Nombre o motivo"
+            class="sid-history-filter min-w-0 flex-1 py-1.5 text-xs sm:max-w-md"
+          />
+          <input type="date" [(ngModel)]="filtroGestionDesde" class="sid-history-filter dark-date-input w-[9.5rem] py-1.5 text-xs" title="Desde" />
+          <input type="date" [(ngModel)]="filtroGestionHasta" class="sid-history-filter dark-date-input w-[9.5rem] py-1.5 text-xs" title="Hasta" />
+        </div>
+      </div>
+
+      @if (errorGestion) {
+        <div class="sid-feedback mb-4 rounded-lg border border-amber-800/60 bg-amber-950/20 px-4 py-3 text-sm text-amber-200">
+          {{ errorGestion }}
+        </div>
+      }
+
+      <div class="lg:hidden space-y-3">
+        @for (l of gestionLicenciasPaginadas; track l.id) {
+          <article class="rounded-xl border border-slate-800 bg-[#0a0a0a] p-3">
+            <div class="mb-2 flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-semibold text-gray-100">#{{ l.id }} · {{ l.usuario?.nombre || ('Usuario #' + l.usuarioId) }}</p>
+                <p class="text-xs text-gray-500">{{ l.usuario?.rol || '—' }} · {{ fecha(l.fechaInicio) }} – {{ fecha(l.fechaTermino) }}</p>
+              </div>
+              <span class="sid-status-chip shrink-0" [ngClass]="l.estado === 'APROBADA' ? 'sid-status-chip-ok' : l.estado === 'RECHAZADA' ? 'sid-status-chip-danger' : l.estado === 'ANULADA' ? 'sid-status-chip-neutral' : 'sid-status-chip-warn'">
+                {{ etiquetaEstado(l.estado) }}
+              </span>
+            </div>
+            <p class="line-clamp-3 text-sm text-gray-300">{{ l.motivo }}</p>
+            <div class="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-800/80 pt-2">
+              @if (tieneAdjunto(l.archivoUrl)) {
+                <a
+                  class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-cyan-800/60 bg-cyan-950/30 text-cyan-200"
+                  [href]="l.archivoUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Ver adjunto"
+                >
+                  <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                </a>
+              }
+              <button
+                type="button"
+                class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-fuchsia-700/70 bg-fuchsia-950/35 text-fuchsia-100"
+                title="PDF"
+                (click)="descargarLicenciaPdf(l)"
+              >
+                <lucide-icon name="file-text" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+              </button>
+            </div>
+            <div class="mt-3 flex flex-col gap-2">
+              <select [(ngModel)]="estadoEdicion[l.id]" class="sid-input py-2 text-sm">
+                <option value="PENDIENTE">Pendiente</option>
+                <option value="APROBADA">Aprobada</option>
+                <option value="RECHAZADA">Rechazada</option>
+                <option value="ANULADA">Anulada</option>
+              </select>
+              <div class="flex gap-2">
+                <input [(ngModel)]="observacionEdicion[l.id]" class="sid-input min-w-0 flex-1 py-2 text-sm" placeholder="Observación" />
+                <button type="button" class="sid-btn sid-btn-info inline-flex h-10 w-10 shrink-0 items-center justify-center" title="Guardar" (click)="guardarEstado(l)">
+                  <lucide-icon name="save" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                </button>
+              </div>
+            </div>
+          </article>
+        }
+      </div>
+
+      <div class="sid-history-wrap hidden overflow-x-auto lg:block">
+        <table class="sid-history-table min-w-[860px] w-full text-xs">
+          <thead>
+            <tr>
+              <th class="whitespace-nowrap">Solicitud</th>
+              <th class="whitespace-nowrap">Período</th>
+              <th>Motivo</th>
+              <th class="text-center">Doc.</th>
+              <th class="whitespace-nowrap">Estado</th>
+              <th>Resolver</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (l of gestionLicenciasPaginadas; track l.id) {
+              <tr>
+                <td class="align-top text-gray-200">
+                  <span class="font-mono text-[11px] text-slate-500">#{{ l.id }}</span>
+                  <p class="font-medium text-gray-100">{{ l.usuario?.nombre || ('Usuario #' + l.usuarioId) }}</p>
+                  <p class="text-slate-500">{{ l.usuario?.rol || '—' }}</p>
+                </td>
+                <td class="align-top whitespace-nowrap text-gray-300">{{ fecha(l.fechaInicio) }} – {{ fecha(l.fechaTermino) }}</td>
+                <td class="align-top">
+                  <p class="line-clamp-2 max-w-[14rem] text-gray-300">{{ l.motivo }}</p>
+                </td>
+                <td class="align-middle text-center">
+                  <div class="inline-flex justify-center gap-1">
+                    @if (tieneAdjunto(l.archivoUrl)) {
+                      <a
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-800/60 bg-cyan-950/30 text-cyan-200 hover:bg-cyan-900/40"
+                        [href]="l.archivoUrl"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Adjunto"
+                      >
+                        <lucide-icon name="eye" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+                      </a>
+                    }
+                    <button
+                      type="button"
+                      class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-fuchsia-700/70 bg-fuchsia-950/35 text-fuchsia-100 hover:bg-fuchsia-900/45"
+                      title="PDF"
+                      (click)="descargarLicenciaPdf(l)"
+                    >
+                      <lucide-icon name="file-text" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+                    </button>
+                  </div>
+                </td>
+                <td class="align-middle">
+                  <span class="sid-status-chip text-[11px]" [ngClass]="l.estado === 'APROBADA' ? 'sid-status-chip-ok' : l.estado === 'RECHAZADA' ? 'sid-status-chip-danger' : l.estado === 'ANULADA' ? 'sid-status-chip-neutral' : 'sid-status-chip-warn'">
+                    {{ etiquetaEstado(l.estado) }}
+                  </span>
+                </td>
+                <td class="align-middle">
+                  <div class="flex min-w-[220px] flex-wrap items-center gap-1.5">
+                    <select [(ngModel)]="estadoEdicion[l.id]" class="sid-input h-9 w-[7.75rem] py-1 text-xs">
+                      <option value="PENDIENTE">Pendiente</option>
+                      <option value="APROBADA">Aprobada</option>
+                      <option value="RECHAZADA">Rechazada</option>
+                      <option value="ANULADA">Anulada</option>
+                    </select>
+                    <input [(ngModel)]="observacionEdicion[l.id]" class="sid-input h-9 min-w-[120px] flex-1 py-1 text-xs" placeholder="Observación" />
+                    <button type="button" class="sid-btn sid-btn-info inline-flex h-9 w-9 items-center justify-center" title="Guardar" (click)="guardarEstado(l)">
+                      <lucide-icon name="save" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (!errorGestion && gestionLicenciasFiltradas.length > 0) {
+        <div class="mt-4 flex flex-col gap-2 border-t border-slate-800/80 pt-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+          <span>Página {{ paginaGestionVista }} de {{ totalPaginasGestion }} · {{ gestionLicenciasFiltradas.length }} registro(s)</span>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              class="sid-btn sid-btn-neutral rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-white transition-colors hover:bg-slate-800 disabled:opacity-40"
+              [disabled]="paginaGestion <= 1"
+              (click)="cambiarPaginaGestion(-1)"
+            >
+              Anterior
+            </button>
+            <button
+              type="button"
+              class="sid-btn sid-btn-neutral rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-white transition-colors hover:bg-slate-800 disabled:opacity-40"
+              [disabled]="paginaGestionVista >= totalPaginasGestion"
+              (click)="cambiarPaginaGestion(1)"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      }
+      @if (!errorGestion && gestionLicenciasFiltradas.length === 0) {
+        <p class="mt-3 text-sm text-gray-500">No hay licencias para el filtro seleccionado.</p>
+      }
+    </section>
+  }
+
+  @if (modalNuevaSolicitudAbierta) {
+    <div
+      class="fixed inset-0 z-[60] flex items-end justify-center bg-black/75 p-0 sm:items-center sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="lic-modal-titulo"
+      (click)="$event.target === $event.currentTarget && cerrarModalNuevaSolicitud()"
+    >
+      <div
+        class="flex max-h-[min(100dvh,720px)] w-full max-w-lg flex-col rounded-t-2xl border border-slate-700 bg-[#121212] shadow-2xl sm:max-h-[85vh] sm:rounded-2xl"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="flex items-start justify-between gap-3 border-b border-slate-800 px-4 py-3 sm:px-5">
+          <div>
+            <h2 id="lic-modal-titulo" class="text-lg font-semibold text-white">Nueva solicitud</h2>
+            <p class="text-xs text-slate-500">Fechas, motivo y adjunto opcional.</p>
+          </div>
+          <button type="button" class="rounded-lg border border-slate-600 p-2 text-slate-300 hover:bg-slate-800" title="Cerrar" (click)="cerrarModalNuevaSolicitud()">
+            <lucide-icon name="x" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+          </button>
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="text-sm sm:col-span-1">
+              <span class="mb-1 block text-gray-400">Fecha inicio</span>
+              <input [(ngModel)]="form.fechaInicio" [max]="form.fechaTermino || ''" type="date" lang="es-CL" class="sid-input w-full py-2 text-sm" />
+            </label>
+            <label class="text-sm sm:col-span-1">
+              <span class="mb-1 block text-gray-400">Fecha término</span>
+              <input [(ngModel)]="form.fechaTermino" [min]="form.fechaInicio || ''" type="date" lang="es-CL" class="sid-input w-full py-2 text-sm" />
+            </label>
+            <label class="text-sm sm:col-span-2">
+              <span class="mb-1 block text-gray-400">Motivo</span>
+              <textarea [(ngModel)]="form.motivo" rows="3" class="sid-input min-h-[88px] w-full text-sm"></textarea>
+            </label>
+            <label class="text-sm sm:col-span-2">
+              <span class="mb-1 block text-gray-400">Adjunto (opcional)</span>
+              <input #adjuntoInput type="file" accept=".pdf,image/png,image/jpeg,image/jpg,image/webp,image/gif" class="hidden" (change)="onAdjuntoSeleccionado($event)" />
+              <div class="rounded-xl border border-slate-700 bg-[#0a0a0a] p-3">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div class="min-w-0">
+                    @if (adjuntoNombre) {
+                      <p class="truncate text-sm text-cyan-200">{{ adjuntoNombre }}</p>
+                      <p class="text-[11px] text-cyan-300/70">{{ adjuntoTipo || 'archivo' }}</p>
+                    } @else {
+                      <p class="text-xs text-gray-500">PDF o imagen · máx 8 MB</p>
+                    }
+                  </div>
+                  <div class="flex gap-2">
+                    <button type="button" class="sid-btn sid-btn-neutral border-cyan-800/40 px-3 py-1.5 text-xs" (click)="adjuntoInput.click()">
+                      {{ adjuntoNombre ? 'Cambiar' : 'Elegir' }}
+                    </button>
+                    @if (adjuntoNombre) {
+                      <button type="button" class="rounded-lg border border-red-800/50 px-2 py-1.5 text-xs text-red-300" (click)="quitarAdjunto()">Quitar</button>
+                    }
+                  </div>
+                </div>
+              </div>
+              @if (adjuntoError) {
+                <p class="mt-1 text-xs text-red-300">{{ adjuntoError }}</p>
+              }
+              @if (adjuntoPreviewUrl && esPreviewImagen()) {
+                <div class="mt-2 overflow-hidden rounded-lg border border-slate-700">
+                  <img [src]="adjuntoPreviewUrl" alt="Previsualización" class="max-h-40 w-full object-contain" />
+                </div>
+              } @else if (adjuntoPreviewUrl && esPreviewPdf()) {
+                <div class="mt-2 overflow-hidden rounded-lg border border-slate-700">
+                  <iframe [src]="adjuntoPreviewUrl" title="PDF" class="h-44 w-full"></iframe>
+                </div>
+              }
+            </label>
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-500">
+            <span class="rounded border border-slate-700 px-2 py-0.5">{{ diasSolicitados }} días</span>
+            <span class="rounded border border-slate-700 px-2 py-0.5">Motivo ≥ 8 caracteres</span>
+          </div>
+          @if (fechasInvalidas) {
+            <p class="mt-2 text-xs text-amber-300">La fecha de término no puede ser anterior al inicio.</p>
+          }
+          @if (guardando && progresoCarga > 0) {
+            <div class="mt-3">
+              <div class="mb-1 flex justify-between text-[11px] text-cyan-200">
+                <span>Subiendo…</span>
+                <span>{{ progresoCarga }}%</span>
+              </div>
+              <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                <div class="h-full rounded-full bg-cyan-500 transition-all" [style.width.%]="progresoCarga"></div>
+              </div>
+            </div>
+          }
+        </div>
+        <div class="border-t border-slate-800 px-4 py-3 sm:flex sm:justify-end sm:px-5">
+          <button
+            type="button"
+            class="sid-btn sid-btn-primary inline-flex w-full items-center justify-center gap-2 sm:w-auto"
+            [disabled]="guardando || formInvalido"
+            (click)="crearLicencia()"
+          >
+            <lucide-icon name="send" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            {{ guardando ? 'Enviando…' : 'Enviar solicitud' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <div class="sid-section-divider" data-title="Historial"></div>
+
+  <section class="sid-licencias-historial sid-history-card p-5 sm:p-6">
+    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <h2 class="sid-history-title mb-1 flex items-center gap-2">
+          <lucide-icon name="history" class="h-5 w-5 text-fuchsia-300" [size]="20" color="currentColor"></lucide-icon>
+          Historial general de licencias
+        </h2>
+        <p class="sid-history-subtitle">Seguimiento de solicitudes y su estado de resolución.</p>
+      </div>
+      <button
+        type="button"
+        class="sid-btn sid-btn-neutral inline-flex shrink-0 items-center justify-center gap-2 self-end rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-2 text-sm text-white sm:self-start"
+        (click)="limpiarFiltrosHistorial()"
+      >
+        Limpiar filtros
+      </button>
+    </div>
+
+    <div class="mb-4 grid grid-cols-1 gap-2 md:grid-cols-4">
+      <input
+        type="search"
+        [(ngModel)]="filtroHistorialTexto"
+        placeholder="Buscar por nombre o motivo"
+        class="sid-history-filter text-sm md:col-span-2"
+      />
+      <select [(ngModel)]="filtroHistorialEstado" class="sid-history-filter text-sm">
+        <option value="">Todos los estados</option>
+        <option value="PENDIENTE">Pendiente</option>
+        <option value="APROBADA">Aprobada</option>
+        <option value="RECHAZADA">Rechazada</option>
+        <option value="ANULADA">Anulada</option>
+      </select>
+      <div class="flex items-center gap-2">
+        <input type="date" [(ngModel)]="filtroHistorialDesde" class="sid-history-filter dark-date-input w-full text-sm" />
+        <input type="date" [(ngModel)]="filtroHistorialHasta" class="sid-history-filter dark-date-input w-full text-sm" />
+      </div>
+    </div>
+
+    <div class="space-y-4 lg:hidden">
+      @for (l of historialFiltrado; track l.id) {
+        <article class="rounded-xl border border-gray-800 bg-[#0a0a0a] p-4 sm:p-5">
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <p class="text-sm font-medium text-gray-100">{{ fecha(l.fechaInicio) }} - {{ fecha(l.fechaTermino) }}</p>
+            <span class="sid-status-chip" [ngClass]="l.estado === 'APROBADA' ? 'sid-status-chip-ok' : l.estado === 'RECHAZADA' ? 'sid-status-chip-danger' : l.estado === 'ANULADA' ? 'sid-status-chip-neutral' : 'sid-status-chip-warn'">
+              {{ etiquetaEstado(l.estado) }}
+            </span>
+          </div>
+          <p class="text-sm leading-relaxed text-gray-300">{{ l.motivo }}</p>
+          <p class="mt-2 text-xs text-gray-500">Resolución: {{ l.observacionResolucion || '—' }}</p>
+          <div class="mt-3 flex flex-wrap items-center gap-2">
+            @if (tieneAdjunto(l.archivoUrl)) {
+              <a
+                class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-cyan-800/60 bg-cyan-950/30 text-cyan-200 hover:bg-cyan-900/40"
+                [href]="l.archivoUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Ver adjunto"
+              >
+                <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+              </a>
+            }
+            <button
+              type="button"
+              class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-fuchsia-700/70 bg-fuchsia-950/35 text-fuchsia-100 hover:bg-fuchsia-900/45"
+              title="Descargar PDF"
+              (click)="descargarLicenciaPdf(l)"
+            >
+              <lucide-icon name="file-text" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            </button>
+          </div>
+        </article>
+      }
+    </div>
+
+    <div class="sid-history-wrap hidden overflow-x-auto lg:block">
+      <table class="sid-history-table min-w-full text-sm">
+        <thead>
+          <tr>
+            <th>Período</th>
+            <th>Motivo</th>
+            <th>Estado</th>
+            <th>Resolución</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (l of historialFiltrado; track l.id) {
+            <tr>
+              <td class="text-gray-200">{{ fecha(l.fechaInicio) }} - {{ fecha(l.fechaTermino) }}</td>
+              <td class="max-w-[24rem] leading-relaxed text-gray-300">{{ l.motivo }}</td>
+              <td>
+                <span class="sid-status-chip" [ngClass]="l.estado === 'APROBADA' ? 'sid-status-chip-ok' : l.estado === 'RECHAZADA' ? 'sid-status-chip-danger' : l.estado === 'ANULADA' ? 'sid-status-chip-neutral' : 'sid-status-chip-warn'">
+                  {{ etiquetaEstado(l.estado) }}
+                </span>
+              </td>
+              <td class="text-gray-400">{{ l.observacionResolucion || '—' }}</td>
+              <td>
+                <div class="flex flex-wrap items-center gap-2">
+                  @if (tieneAdjunto(l.archivoUrl)) {
+                    <a
+                      class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-cyan-800/60 bg-cyan-950/30 text-cyan-200 hover:bg-cyan-900/40"
+                      [href]="l.archivoUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Ver adjunto"
+                    >
+                      <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                    </a>
+                  }
+                  <button
+                    type="button"
+                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-fuchsia-700/70 bg-fuchsia-950/35 text-fuchsia-100 hover:bg-fuchsia-900/45"
+                    title="Descargar PDF"
+                    (click)="descargarLicenciaPdf(l)"
+                  >
+                    <lucide-icon name="file-text" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if (!loading && historialFiltrado.length === 0) {
+      <p class="mt-3 text-sm text-gray-500">Sin solicitudes aún.</p>
+    }
+  </section>
+</div>

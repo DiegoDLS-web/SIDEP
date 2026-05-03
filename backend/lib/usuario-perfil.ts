@@ -1,0 +1,100 @@
+/** Cargos institucionales (un valor por persona). */
+export const CARGOS_OFICIALIDAD = [
+  'VOLUNTARIO',
+  'DIRECTOR_COMPANIA',
+  'SECRETARIO_COMPANIA',
+  'TESORERO_COMPANIA',
+  'PRO_SECRETARIO_COMPANIA',
+  'CAPITAN_COMPANIA',
+  'TENIENTE_PRIMERO',
+  'TENIENTE_SEGUNDO',
+  'TENIENTE_TERCERO',
+  'TENIENTE_CUARTO',
+  'AYUDANTE_COMPANIA',
+  'PRO_AYUDANTE',
+  'VICE_SUPERINTENDENTE',
+  'SECRETARIO_GENERAL',
+  'TESORERO_GENERAL',
+  'SEGUNDO_COMANDANTE',
+  'INSPECTOR_COMANDANCIA_1',
+  'INSPECTOR_COMANDANCIA_2',
+] as const;
+
+export const TIPOS_VOLUNTARIO = [
+  'ACTIVO',
+  'VOLUNTARIO',
+  'OFICIAL',
+  'CADETE',
+  'ASPIRANTE',
+  'HONORARIO',
+  'CUARTELERO',
+  'CANJE',
+  'CONFEDERADO',
+  'INSIGNE',
+] as const;
+
+export const GRUPOS_SANGUINEOS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'DESCONOCIDO'] as const;
+
+export function esCargoValido(c: string | undefined | null): boolean {
+  if (!c?.trim()) return false;
+  return (CARGOS_OFICIALIDAD as readonly string[]).includes(c.trim());
+}
+
+export function esTipoVoluntarioValido(t: string | undefined | null): boolean {
+  if (!t?.trim()) return false;
+  return (TIPOS_VOLUNTARIO as readonly string[]).includes(t.trim());
+}
+
+export function nombreCompletoDesdePartes(p: {
+  nombres?: string | null;
+  apellidoPaterno?: string | null;
+  apellidoMaterno?: string | null;
+}): string {
+  const partes = [p.nombres, p.apellidoPaterno, p.apellidoMaterno].map((x) => (x ?? '').trim()).filter(Boolean);
+  return partes.join(' ').trim();
+}
+
+const MAX_FIRMA_CHARS = 2_800_000;
+/** Fotos adjuntas (data URL tras compresión en cliente); algo mayor que la firma. */
+const MAX_FOTO_PERFIL_CHARS = 12_000_000;
+
+/** Rutas públicas sirven ficheros en `frontend/src/assets/perfiles/`. */
+const RUTA_ASSETS_SEGURA = /^\/assets\/perfiles\/[a-zA-Z0-9._-]+\.(png|jpg|jpeg|webp)$/;
+
+export function normalizarFotoPerfil(raw: string | undefined | null): string | null {
+  if (raw == null || raw === '') return null;
+  const s = raw.trim();
+  if (s.startsWith('/assets/')) {
+    if (!RUTA_ASSETS_SEGURA.test(s)) {
+      throw new Error('Ruta de foto de perfil no permitida');
+    }
+    return s;
+  }
+  if (!s.startsWith('data:image/')) {
+    throw new Error('La foto debe ser una imagen (data:image/…) o una ruta bajo /assets/perfiles/');
+  }
+  if (s.length > MAX_FOTO_PERFIL_CHARS) {
+    throw new Error('La foto de perfil es demasiado grande; reduce resolución o calidad.');
+  }
+  const lower = s.slice(0, 48).toLowerCase();
+  if (!lower.includes('png') && !lower.includes('jpeg') && !lower.includes('jpg') && !lower.includes('webp')) {
+    throw new Error('Solo se permiten imágenes PNG, JPEG o WebP');
+  }
+  return s;
+}
+
+export function normalizarFirmaDataUrl(raw: string | undefined | null): string | null {
+  if (raw == null || raw === '') return null;
+  const s = raw.trim();
+  if (!s.startsWith('data:image/')) {
+    throw new Error('La firma debe ser una imagen en base64 (data:image/...)');
+  }
+  if (s.length > MAX_FIRMA_CHARS) {
+    throw new Error('La imagen de firma es demasiado grande');
+  }
+  const lower = s.slice(0, 40).toLowerCase();
+  if (!lower.includes('png') && !lower.includes('jpeg') && !lower.includes('jpg')) {
+    throw new Error('Solo se permiten imágenes PNG o JPEG');
+  }
+  return s;
+}

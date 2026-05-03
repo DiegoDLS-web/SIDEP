@@ -1,0 +1,479 @@
+<div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 sm:py-5 md:px-8 lg:px-10 xl:px-12 lg:py-6">
+  @if (loading) {
+    <div class="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-slate-400">
+      <lucide-icon name="file-text" class="h-10 w-10 animate-pulse text-red-400/90" [size]="40" color="currentColor" />
+      <p class="text-sm">Cargando partes…</p>
+    </div>
+  } @else if (error) {
+    <div class="sid-feedback rounded-2xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ error }}</div>
+  } @else {
+    <section
+      class="relative overflow-hidden rounded-2xl border border-rose-900/40 bg-[radial-gradient(circle_at_0%_0%,rgba(244,63,94,0.14),transparent_50%),radial-gradient(circle_at_100%_0%,rgba(59,130,246,0.1),transparent_45%),#0a0a0a] p-5 sm:p-6"
+    >
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p class="sid-page-hero-badge mb-2 inline-flex rounded-full border border-rose-500/35 bg-rose-500/10 px-3 py-1 text-xs text-rose-200">Gestión operativa</p>
+          <h1 class="sid-page-hero-title text-2xl font-bold tracking-tight text-white sm:text-3xl">Partes de emergencia</h1>
+          <p class="sid-page-hero-subtitle mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">Historial, filtros y exportación de partes</p>
+        </div>
+        <a
+          routerLink="/partes/nuevo"
+          class="sid-btn sid-btn-primary inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-900/30 transition-all hover:bg-red-500 sm:px-6 sm:py-3 sm:text-base"
+        >
+          <lucide-icon name="plus" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
+          Nuevo parte
+        </a>
+      </div>
+    </section>
+
+    <div class="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-4">
+      <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-5">
+        <div class="mb-1.5 flex items-center justify-between">
+          <lucide-icon name="file-text" class="h-7 w-7 text-sky-400" [size]="28" color="currentColor"></lucide-icon>
+        </div>
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ statsAnio() }}</p>
+        <p class="text-xs font-medium text-slate-400 sm:text-sm">Partes año actual</p>
+      </div>
+      <div class="rounded-2xl border border-slate-800/90 bg-gradient-to-br from-rose-950/40 to-transparent p-4 ring-1 ring-inset ring-rose-500/10 sm:p-5">
+        <div class="mb-1.5 flex items-center justify-between">
+          <lucide-icon name="flame" class="h-7 w-7 text-rose-400" [size]="28" color="currentColor"></lucide-icon>
+        </div>
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ statsMes() }}</p>
+        <p class="text-xs font-medium text-slate-400 sm:text-sm">Este mes</p>
+      </div>
+      <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-5">
+        <div class="mb-1.5 flex items-center justify-between">
+          <lucide-icon name="clock" class="h-7 w-7 text-amber-400" [size]="28" color="currentColor"></lucide-icon>
+        </div>
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ partes.length }}</p>
+        <p class="text-xs font-medium text-slate-400 sm:text-sm">Total registrados</p>
+      </div>
+      <div
+        class="min-[420px]:col-span-2 rounded-2xl border border-emerald-900/50 bg-gradient-to-br from-emerald-950/35 to-transparent p-4 ring-1 ring-inset ring-emerald-500/15 sm:p-5 lg:col-span-1"
+      >
+        <div class="mb-1.5 flex items-center justify-between">
+          <lucide-icon name="users" class="h-7 w-7 text-emerald-400" [size]="28" color="currentColor"></lucide-icon>
+        </div>
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ filtrados.length }}</p>
+        <p class="text-xs font-medium text-slate-300 sm:text-sm">Con filtros actuales</p>
+      </div>
+    </div>
+
+    <div class="rounded-2xl border border-slate-800 bg-[#121212] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-5">
+      <div class="mb-4 flex flex-wrap items-center gap-2 border-b border-slate-800/80 pb-3">
+        <lucide-icon name="funnel" class="h-5 w-5 text-red-500" [size]="20" color="currentColor"></lucide-icon>
+        <h3 class="text-lg font-bold text-white">Filtros de búsqueda</h3>
+        <span class="text-sm text-slate-500">Por tipo, dirección o fecha</span>
+      </div>
+      <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-12 xl:gap-4">
+        <div class="xl:col-span-3">
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-200">Tipo de emergencia</label>
+          <select
+            [(ngModel)]="filtroTipo"
+            (ngModelChange)="alCambiarFiltroPartes()"
+            class="min-h-[44px] w-full rounded-lg border border-gray-600 bg-black/50 px-3 py-2.5 text-sm text-white shadow-inner focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/40"
+          >
+            <option value="todos">Todos los tipos</option>
+            <optgroup label="Clasificación 10-x (operativas)">
+              @for (c of clavesOperativasFiltro; track c.value) {
+                <option [value]="c.value">{{ c.label }}</option>
+              }
+            </optgroup>
+            <optgroup label="Compañía / servicios">
+              @for (c of clavesCompaniaFiltro; track c.value) {
+                <option [value]="c.value">{{ c.label }}</option>
+              }
+            </optgroup>
+          </select>
+        </div>
+        <div class="sm:col-span-2 xl:col-span-5">
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-200">Dirección</label>
+          <div class="relative">
+            <lucide-icon
+              name="search"
+              class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
+              [size]="16"
+              color="currentColor"
+            ></lucide-icon>
+            <input
+              type="text"
+              [(ngModel)]="filtroDireccion"
+              (ngModelChange)="alCambiarFiltroPartes()"
+              placeholder="Buscar por dirección…"
+              class="min-h-[44px] w-full rounded-lg border border-gray-600 bg-black/50 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-gray-500 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/40"
+            />
+          </div>
+        </div>
+        <div class="xl:col-span-4">
+          <label class="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-200">Fecha (dd/MM/yyyy)</label>
+          <input
+            type="text"
+            [(ngModel)]="filtroFecha"
+            (ngModelChange)="alCambiarFiltroPartes()"
+            placeholder="ej. 10/03/2026"
+            class="min-h-[44px] w-full rounded-lg border border-gray-600 bg-black/50 px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/40"
+          />
+        </div>
+      </div>
+      <div>
+        <label class="mb-3 block text-xs font-bold uppercase tracking-wide text-gray-200">Filtro rápido por período</label>
+        <div class="flex flex-wrap gap-2">
+          <button
+            type="button"
+            class="min-h-[40px] rounded-lg px-4 py-2 text-sm font-semibold transition-all"
+            [class.bg-red-600]="filtroPeriodo === 'todos'"
+            [class.text-white]="filtroPeriodo === 'todos'"
+            [class.shadow-md]="filtroPeriodo === 'todos'"
+            [class.shadow-red-900/40]="filtroPeriodo === 'todos'"
+            [class.bg-gray-800]="filtroPeriodo !== 'todos'"
+            [class.text-gray-300]="filtroPeriodo !== 'todos'"
+            [class.ring-1]="filtroPeriodo !== 'todos'"
+            [class.ring-gray-600]="filtroPeriodo !== 'todos'"
+            (click)="filtroPeriodo = 'todos'; alCambiarFiltroPartes()"
+          >
+            Todos
+          </button>
+          <button
+            type="button"
+            class="min-h-[40px] rounded-lg px-4 py-2 text-sm font-semibold transition-all"
+            [class.bg-red-600]="filtroPeriodo === 'hoy'"
+            [class.text-white]="filtroPeriodo === 'hoy'"
+            [class.shadow-md]="filtroPeriodo === 'hoy'"
+            [class.bg-gray-800]="filtroPeriodo !== 'hoy'"
+            [class.text-gray-300]="filtroPeriodo !== 'hoy'"
+            [class.ring-1]="filtroPeriodo !== 'hoy'"
+            [class.ring-gray-600]="filtroPeriodo !== 'hoy'"
+            (click)="filtroPeriodo = 'hoy'; alCambiarFiltroPartes()"
+          >
+            Hoy
+          </button>
+          <button
+            type="button"
+            class="min-h-[40px] rounded-lg px-4 py-2 text-sm font-semibold transition-all"
+            [class.bg-red-600]="filtroPeriodo === 'semana'"
+            [class.text-white]="filtroPeriodo === 'semana'"
+            [class.shadow-md]="filtroPeriodo === 'semana'"
+            [class.bg-gray-800]="filtroPeriodo !== 'semana'"
+            [class.text-gray-300]="filtroPeriodo !== 'semana'"
+            [class.ring-1]="filtroPeriodo !== 'semana'"
+            [class.ring-gray-600]="filtroPeriodo !== 'semana'"
+            (click)="filtroPeriodo = 'semana'; alCambiarFiltroPartes()"
+          >
+            Esta semana
+          </button>
+          <button
+            type="button"
+            class="min-h-[40px] rounded-lg px-4 py-2 text-sm font-semibold transition-all"
+            [class.bg-red-600]="filtroPeriodo === 'mes'"
+            [class.text-white]="filtroPeriodo === 'mes'"
+            [class.shadow-md]="filtroPeriodo === 'mes'"
+            [class.bg-gray-800]="filtroPeriodo !== 'mes'"
+            [class.text-gray-300]="filtroPeriodo !== 'mes'"
+            [class.ring-1]="filtroPeriodo !== 'mes'"
+            [class.ring-gray-600]="filtroPeriodo !== 'mes'"
+            (click)="filtroPeriodo = 'mes'; alCambiarFiltroPartes()"
+          >
+            Este mes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-3 flex justify-end md:hidden">
+      <button
+        type="button"
+          class="sid-btn sid-btn-success inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-900/30 min-[400px]:w-auto"
+        (click)="exportarExcel()"
+      >
+        <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+        Exportar Excel
+      </button>
+    </div>
+
+    <div class="mb-4 space-y-3 md:hidden">
+      @for (parte of filtradosPaginados(); track parte.id) {
+        <div
+          class="rounded-2xl border border-slate-800/90 bg-[#121212] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5"
+        >
+          <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+            <span class="min-w-0 text-sm font-semibold leading-snug text-white">{{ etiquetaClave(parte.claveEmergencia) }}</span>
+            <span class="inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold" [ngClass]="estadoClase(parte.estado)">
+              {{ parte.estado }}
+            </span>
+          </div>
+          <div class="mb-2">
+            <p class="text-xs font-medium text-gray-300">{{ splitFechaHora(parte.fecha).fecha }}</p>
+            <p class="text-xs text-gray-500">{{ splitFechaHora(parte.fecha).hora }}</p>
+          </div>
+          <p class="mb-3 text-xs text-gray-400">{{ parte.direccion }}</p>
+          <p class="mb-3 text-xs text-gray-500">
+            Unidades:
+            @for (nom of parte.unidades; track nom.id) {
+              <span class="mr-1 font-mono text-amber-100/90">{{ nom.carro.nomenclatura }}</span>
+            } @empty {
+              —
+            }
+          </p>
+          <p class="mb-4 text-xs text-gray-400">OBAC: {{ parte.obac.nombre }}</p>
+          <div class="flex flex-wrap gap-2">
+            <button
+              type="button"
+              class="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-sky-700 px-3 py-2.5 text-xs font-semibold text-white min-[400px]:flex-none"
+              (click)="abrirVistaSoloLectura(parte)"
+            >
+              <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+              Ver
+            </button>
+            <a
+              [routerLink]="['/partes/nuevo']"
+              [queryParams]="{ editar: parte.id }"
+              class="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2.5 text-xs font-semibold text-white min-[400px]:flex-none"
+            >
+              <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+              Editar
+            </a>
+            <button
+              type="button"
+              class="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 px-3 py-2.5 text-xs font-semibold text-white min-[400px]:flex-none"
+              (click)="exportarPdfParte(parte)"
+            >
+              <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+              PDF
+            </button>
+          </div>
+        </div>
+      } @empty {
+        <p class="rounded-xl border border-dashed border-gray-700 bg-[#0a0a0a] p-6 text-center text-sm text-gray-400">
+          No hay partes con estos filtros.
+        </p>
+      }
+    </div>
+    @if (filtrados.length > 0) {
+      <div class="mb-6 flex flex-col gap-2 px-1 md:hidden sm:flex-row sm:items-center sm:justify-between">
+        <span class="text-sm text-gray-400">
+          Página {{ paginaPartes }} de {{ totalPaginasPartes() }} · {{ filtrados.length }} resultado(s)
+        </span>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            [disabled]="paginaPartes <= 1"
+            (click)="cambiarPaginaPartes(-1)"
+            class="rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-white disabled:opacity-40"
+          >
+            Anterior
+          </button>
+          <button
+            type="button"
+            [disabled]="paginaPartes >= totalPaginasPartes()"
+            (click)="cambiarPaginaPartes(1)"
+            class="rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-white disabled:opacity-40"
+          >
+            Siguiente
+          </button>
+        </div>
+      </div>
+    }
+
+    <div class="hidden overflow-hidden rounded-2xl border border-slate-800 bg-[#121212] shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 md:block">
+      <div class="sid-history-head !mb-0 border-b border-slate-800/80 p-4 sm:p-5">
+        <div>
+          <h2 class="text-lg font-bold text-white sm:text-xl">
+            Historial de partes
+            <span class="ml-2 text-sm font-normal text-slate-500 sm:text-base">({{ filtrados.length }})</span>
+          </h2>
+          <p class="text-xs text-slate-500 sm:text-sm">Listado con paginación; exporta el conjunto filtrado a Excel</p>
+        </div>
+        <div class="sid-history-actions w-full sm:w-auto">
+          <button
+            type="button"
+            class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-900/25 transition-colors hover:bg-emerald-500 sm:w-auto"
+            (click)="exportarExcel()"
+          >
+            <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            Exportar Excel
+          </button>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="sid-history-table min-w-[48rem] text-sm">
+          <thead>
+            <tr>
+              <th>Fecha / hora</th>
+              <th class="min-w-[10rem]">Tipo</th>
+              <th class="min-w-[12rem]">Dirección</th>
+              <th>Unidad</th>
+              <th class="min-w-[8rem]">OBAC</th>
+              <th>Estado</th>
+              <th class="text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (parte of filtradosPaginados(); track parte.id) {
+              <tr>
+                <td>
+                  <div>
+                    <p class="font-medium text-white">{{ splitFechaHora(parte.fecha).fecha }}</p>
+                    <p class="text-xs text-slate-500">{{ splitFechaHora(parte.fecha).hora }}</p>
+                  </div>
+                </td>
+                <td>
+                  <span class="line-clamp-2 text-slate-200">{{ etiquetaClave(parte.claveEmergencia) }}</span>
+                </td>
+                <td class="max-w-xs">
+                  <span class="text-slate-200">{{ parte.direccion }}</span>
+                </td>
+                <td>
+                  <span
+                    class="inline-flex flex-wrap gap-1 font-mono text-xs font-semibold text-amber-200/90"
+                  >
+                    @for (nom of parte.unidades; track nom.id) {
+                      <span class="rounded-md bg-zinc-800/90 px-2 py-0.5 ring-1 ring-zinc-600/80">{{ nom.carro.nomenclatura }}</span>
+                    } @empty {
+                      <span class="text-slate-500">—</span>
+                    }
+                  </span>
+                </td>
+                <td>
+                  <span class="text-slate-200">{{ parte.obac.nombre }}</span>
+                </td>
+                <td>
+                  <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold" [ngClass]="estadoClase(parte.estado)">
+                    {{ parte.estado }}
+                  </span>
+                </td>
+                <td class="text-right">
+                  <div class="inline-flex flex-wrap items-center justify-end gap-1.5">
+                    <button
+                      type="button"
+                      class="rounded-lg bg-sky-700/90 p-2 text-white transition-colors hover:bg-sky-600"
+                      title="Ver parte (solo lectura)"
+                      (click)="abrirVistaSoloLectura(parte)"
+                    >
+                      <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                    </button>
+                    <a
+                      [routerLink]="['/partes/nuevo']"
+                      [queryParams]="{ editar: parte.id }"
+                      class="rounded-lg border border-slate-600 bg-slate-800 p-2 text-white transition-colors hover:bg-slate-700"
+                      title="Editar este parte"
+                    >
+                      <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                    </a>
+                    <button
+                      type="button"
+                      class="rounded-lg bg-red-600 p-2 text-white transition-colors hover:bg-red-500"
+                      title="Descargar PDF"
+                      (click)="exportarPdfParte(parte)"
+                    >
+                      <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="px-4 py-12 text-center text-sm text-slate-500">
+                  No se encontraron partes con los filtros aplicados.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (filtrados.length > 0) {
+        <div class="flex flex-col gap-3 border-t border-slate-800/80 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <span class="text-sm text-slate-500">
+            Página {{ paginaPartes }} de {{ totalPaginasPartes() }} · {{ filtrados.length }} resultado(s)
+          </span>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              [disabled]="paginaPartes <= 1"
+              (click)="cambiarPaginaPartes(-1)"
+              class="rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-sm text-white transition-colors hover:bg-slate-800 disabled:opacity-40"
+            >
+              Anterior
+            </button>
+            <button
+              type="button"
+              [disabled]="paginaPartes >= totalPaginasPartes()"
+              (click)="cambiarPaginaPartes(1)"
+              class="rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-sm text-white transition-colors hover:bg-slate-800 disabled:opacity-40"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (vistaModalAbierta) {
+    <div
+      class="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-0 pb-[env(safe-area-inset-bottom)] backdrop-blur-[2px] sm:items-center sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="parte-vista-modal-titulo"
+      (click)="cerrarVistaModal()"
+    >
+      <div
+        class="flex max-h-[min(92vh,900px)] w-full max-w-3xl flex-col rounded-t-2xl border border-slate-700 bg-[#0d0d0d] shadow-2xl shadow-black/50 sm:rounded-2xl"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-800 px-4 py-3 sm:px-5">
+          <div class="min-w-0">
+            <h2 id="parte-vista-modal-titulo" class="text-base font-bold text-white sm:text-lg">Vista del parte</h2>
+            @if (vistaModalParte) {
+              <p class="mt-1 text-sm text-slate-300">{{ etiquetaClave(vistaModalParte.claveEmergencia) }}</p>
+              <p class="mt-0.5 text-xs text-slate-500">
+                {{ splitFechaHora(vistaModalParte.fecha).fecha }} · {{ splitFechaHora(vistaModalParte.fecha).hora }}
+              </p>
+              <p class="mt-2">
+                <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold" [ngClass]="estadoClase(vistaModalParte.estado)">
+                  {{ vistaModalParte.estado }}
+                </span>
+              </p>
+            }
+          </div>
+          <button
+            type="button"
+            class="shrink-0 rounded-lg border border-slate-600 bg-slate-900/80 p-2 text-slate-200 transition-colors hover:bg-slate-800"
+            title="Cerrar"
+            (click)="cerrarVistaModal()"
+          >
+            <lucide-icon name="x" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
+          </button>
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5 [scrollbar-color:#4b5563_#111827]">
+          @if (vistaModalCargando) {
+            <div class="flex flex-col items-center justify-center gap-3 py-16 text-slate-400">
+              <lucide-icon name="file-text" class="h-10 w-10 animate-pulse text-rose-400/90" [size]="40" color="currentColor" />
+              <p class="text-sm">Cargando parte…</p>
+            </div>
+          } @else if (vistaModalError) {
+            <p class="rounded-xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ vistaModalError }}</p>
+          } @else if (vistaModalParte) {
+            <app-parte-vista-solo-lectura [parte]="vistaModalParte" />
+          }
+        </div>
+        <div class="shrink-0 border-t border-slate-800 px-4 py-3 sm:px-5">
+          @if (vistaModalParte) {
+            <p class="text-center text-[11px] text-slate-500">
+              Solo lectura.
+              <a
+                [routerLink]="['/partes', vistaModalParte.id]"
+                class="font-medium text-sky-400 underline-offset-2 hover:text-sky-300 hover:underline"
+                (click)="cerrarVistaModal()"
+              >
+                Abrir ficha completa
+              </a>
+              (incluye analítica) · Editar o PDF desde las acciones de la tabla.
+            </p>
+          } @else {
+            <p class="text-center text-[11px] text-slate-500">Solo lectura.</p>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

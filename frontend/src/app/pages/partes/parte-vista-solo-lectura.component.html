@@ -1,0 +1,265 @@
+@let p = parte;
+
+<div class="space-y-6">
+  <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+    <h2 class="mb-6 flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
+      <lucide-icon name="calendar" class="h-5 w-5 text-rose-400" [size]="20" color="currentColor"></lucide-icon>
+      Información general
+    </h2>
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+      <div>
+        <p class="mb-1 text-sm text-slate-500">OBAC</p>
+        <p class="font-medium text-white">{{ p.obac.nombre }}</p>
+        <p class="text-xs text-slate-500">{{ p.obac.rut }} · {{ p.obac.rol }}</p>
+      </div>
+      <div class="md:col-span-2">
+        <p class="mb-1 text-sm text-slate-500">Dirección</p>
+        <p class="font-medium text-white">{{ p.direccion }}</p>
+      </div>
+    </div>
+    <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-800/80 pt-4 text-xs text-slate-500">
+      <span>Referencia interna: {{ idDisplay(p.correlativo) }}</span>
+      <span class="text-slate-600">·</span>
+      <span>Registro: {{ fechaHora(p.fecha) }}</span>
+    </div>
+  </div>
+
+  @if (p.metadata && tieneDetalleExtendido(p.metadata)) {
+    <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+      <h2 class="mb-4 flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
+        <lucide-icon name="clipboard-check" class="h-5 w-5 text-rose-400" [size]="20" color="currentColor"></lucide-icon>
+        Detalle del parte
+      </h2>
+      <div class="space-y-4 text-sm leading-relaxed text-gray-300">
+        @if (p.metadata.descripcionEmergencia) {
+          <div>
+            <p class="mb-1 text-xs font-medium uppercase text-gray-500">Descripción de la emergencia</p>
+            <p class="whitespace-pre-wrap">{{ p.metadata.descripcionEmergencia }}</p>
+          </div>
+        }
+        @if (p.metadata.trabajoRealizado) {
+          <div>
+            <p class="mb-1 text-xs font-medium uppercase text-gray-500">Trabajo realizado</p>
+            <p class="whitespace-pre-wrap">{{ p.metadata.trabajoRealizado }}</p>
+          </div>
+        }
+        @if (p.metadata.materialUtilizado) {
+          <div>
+            <p class="mb-1 text-xs font-medium uppercase text-gray-500">Material utilizado</p>
+            <p class="whitespace-pre-wrap">{{ p.metadata.materialUtilizado }}</p>
+          </div>
+        }
+        @if (p.metadata.horaDelLlamado) {
+          <div>
+            <p class="mb-1 text-xs font-medium uppercase text-gray-500">Hora del llamado (reloj)</p>
+            <p class="font-medium text-gray-200">{{ p.metadata.horaDelLlamado }}</p>
+          </div>
+        }
+        @if (asistenciaTieneDatos(p.metadata.asistencia)) {
+          <div>
+            <p class="mb-2 text-xs font-medium uppercase text-gray-500">Asistencia</p>
+            @if (usaAsistenciaPorContexto(p.metadata.asistencia)) {
+              @for (ctx of asistenciaContextos; track ctx.key) {
+                @if (nombresAsistenciaContexto(p.metadata.asistencia, ctx.key).length > 0) {
+                  <div class="mb-3">
+                    <p class="mb-1 text-[11px] font-medium uppercase text-amber-200/80">{{ ctx.label }}</p>
+                    <ul class="list-inside list-disc space-y-1 text-sm text-gray-300">
+                      @for (nom of nombresAsistenciaContexto(p.metadata.asistencia, ctx.key); track nom) {
+                        <li>{{ nom }}</li>
+                      }
+                    </ul>
+                  </div>
+                }
+              }
+            } @else if (nombresAsistenciaMarcados(p.metadata.asistencia?.asistenciaSeleccion).length > 0) {
+              <ul class="mb-3 list-inside list-disc space-y-1 text-sm text-gray-300">
+                @for (nom of nombresAsistenciaMarcados(p.metadata.asistencia?.asistenciaSeleccion); track nom) {
+                  <li>{{ nom }}</li>
+                }
+              </ul>
+            }
+            <dl class="grid gap-2 sm:grid-cols-2">
+              @for (row of etiquetasAsistencia; track row.k) {
+                @if (p.metadata.asistencia?.[row.k]?.trim()) {
+                  <div class="rounded-lg border border-gray-800 bg-[#0a0a0a] p-3">
+                    <dt class="text-[11px] font-medium uppercase text-gray-500">{{ row.label }}</dt>
+                    <dd class="mt-1 text-sm text-gray-200">{{ p.metadata.asistencia?.[row.k] }}</dd>
+                  </div>
+                }
+              }
+            </dl>
+            @if (radiosAsistenciaLista(p.metadata.asistencia).length > 0) {
+              <div class="mt-3">
+                <p class="mb-1 text-[11px] font-medium uppercase text-gray-500">Radios marcadas</p>
+                <div class="flex flex-wrap gap-2">
+                  @for (rx of radiosAsistenciaLista(p.metadata.asistencia); track rx) {
+                    <span
+                      class="inline-flex max-w-full flex-col gap-0.5 rounded-md border border-gray-700 bg-[#0a0a0a] px-2 py-1 text-xs text-amber-200/90"
+                    >
+                      <span class="font-mono">{{ rx }}</span>
+                      @if (p.metadata.asistencia?.radiosDetalle?.[rx]?.trim()) {
+                        <span class="text-[11px] font-normal text-gray-400">{{ p.metadata.asistencia?.radiosDetalle?.[rx] }}</span>
+                      }
+                    </span>
+                  }
+                </div>
+              </div>
+            }
+            <div class="mt-4 grid gap-4 sm:grid-cols-2">
+              @if (p.metadata.asistencia?.encargadoDatos?.trim() || p.metadata.asistencia?.firmaEncargadoDatos?.startsWith('data:image')) {
+                <div class="rounded-lg border border-gray-800 bg-[#0a0a0a] p-3">
+                  <p class="mb-1 text-[11px] font-medium uppercase text-gray-500">Encargado de tomar datos</p>
+                  @if (p.metadata.asistencia?.encargadoDatos?.trim()) {
+                    <p class="text-sm text-gray-200">{{ p.metadata.asistencia?.encargadoDatos }}</p>
+                  }
+                  @if (p.metadata.asistencia?.firmaEncargadoDatos?.startsWith('data:image')) {
+                    <p class="mb-1 mt-2 text-xs text-gray-500">Firma</p>
+                    <img
+                      [src]="p.metadata.asistencia?.firmaEncargadoDatos"
+                      alt="Firma encargado de datos"
+                      class="max-h-28 rounded border border-gray-600 bg-white"
+                    />
+                  }
+                </div>
+              }
+              @if (p.metadata.asistencia?.nombreObac?.trim() || p.metadata.asistencia?.firmaObac?.startsWith('data:image')) {
+                <div class="rounded-lg border border-gray-800 bg-[#0a0a0a] p-3">
+                  <p class="mb-1 text-[11px] font-medium uppercase text-gray-500">OBAC (parte)</p>
+                  @if (p.metadata.asistencia?.nombreObac?.trim()) {
+                    <p class="text-sm text-gray-200">{{ p.metadata.asistencia?.nombreObac }}</p>
+                  }
+                  @if (p.metadata.asistencia?.firmaObac?.startsWith('data:image')) {
+                    <p class="mb-1 mt-2 text-xs text-gray-500">Firma</p>
+                    <img
+                      [src]="p.metadata.asistencia?.firmaObac"
+                      alt="Firma OBAC"
+                      class="max-h-28 rounded border border-gray-600 bg-white"
+                    />
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
+        @if (p.metadata.observaciones) {
+          <div>
+            <p class="mb-1 text-xs font-medium uppercase text-gray-500">Observaciones</p>
+            <p class="whitespace-pre-wrap">{{ p.metadata.observaciones }}</p>
+          </div>
+        }
+        @if (p.metadata.conductoresPorCarroId && entradasConductores(p.metadata.conductoresPorCarroId).length) {
+          <div>
+            <p class="mb-2 text-xs font-medium uppercase text-gray-500">Conductores por unidad</p>
+            <ul class="list-inside list-disc space-y-1 text-gray-400">
+              @for (kv of entradasConductores(p.metadata.conductoresPorCarroId); track kv[0]) {
+                <li>Carro ID {{ kv[0] }}: {{ kv[1] }}</li>
+              }
+            </ul>
+          </div>
+        }
+        @if (p.metadata.vehiculos?.length) {
+          <div>
+            <p class="mb-2 text-xs font-medium uppercase text-gray-500">Otros vehículos</p>
+            <div class="space-y-2">
+              @for (v of p.metadata.vehiculos; track $index) {
+                <div class="rounded-lg border border-gray-800 bg-[#0a0a0a] p-3 text-xs">
+                  {{ v.tipo }} {{ v.patente }} · {{ v.marca }} · Cond. {{ v.conductor }} · RUT {{ v.rut }}
+                </div>
+              }
+            </div>
+          </div>
+        }
+        @if (p.metadata.apoyoExterno?.length) {
+          <div>
+            <p class="mb-2 text-xs font-medium uppercase text-gray-500">Apoyo externo</p>
+            <div class="space-y-2">
+              @for (a of p.metadata.apoyoExterno; track $index) {
+                <div class="rounded-lg border border-gray-800 bg-[#0a0a0a] p-3 text-xs">
+                  {{ lineaApoyo(a) }}
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+    <h2 class="mb-6 flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
+      <lucide-icon name="truck" class="h-5 w-5 text-rose-400" [size]="20" color="currentColor"></lucide-icon>
+      Unidades despachadas
+    </h2>
+    @if (p.unidades.length > 0) {
+      <p class="mb-4 text-sm text-gray-400">
+        Hora del llamado (reloj):
+        <span class="font-medium text-gray-200">{{ horaDelLlamadoDisplay(p) }}</span>
+      </p>
+    }
+    <div class="space-y-3">
+      @for (u of p.unidades; track u.id) {
+        <div class="rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-4 ring-1 ring-inset ring-white/5">
+          <div class="mb-3 flex flex-wrap items-baseline gap-2 border-b border-gray-800 pb-2">
+            <span class="font-mono font-semibold text-red-400">{{ u.carro.nomenclatura }}</span>
+            <span class="text-sm text-gray-400">Patente {{ u.carro.patente }}</span>
+            <span class="text-sm text-gray-300">Conductor {{ conductorUnidad(p.metadata, u.carroId) }}</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+            <div>
+              <p class="text-[10px] font-medium uppercase text-amber-200/80">6-0</p>
+              <p class="font-mono text-gray-200">{{ u.hora6_0 ?? u.horaSalida }}</p>
+            </div>
+            <div>
+              <p class="text-[10px] font-medium uppercase text-amber-200/80">6-3</p>
+              <p class="font-mono text-gray-200">{{ u.hora6_3 ?? '—' }}</p>
+            </div>
+            <div>
+              <p class="text-[10px] font-medium uppercase text-amber-200/80">6-9</p>
+              <p class="font-mono text-gray-200">{{ u.hora6_9 ?? '—' }}</p>
+            </div>
+            <div>
+              <p class="text-[10px] font-medium uppercase text-amber-200/80">6-10</p>
+              <p class="font-mono text-gray-200">{{ u.hora6_10 ?? u.horaLlegada }}</p>
+            </div>
+          </div>
+          <p class="mt-2 text-sm text-gray-400">KM salida {{ u.kmSalida }} → KM llegada {{ u.kmLlegada }}</p>
+        </div>
+      } @empty {
+        <p class="text-gray-500">Sin unidades registradas.</p>
+      }
+    </div>
+  </div>
+
+  <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+    <h2 class="mb-6 flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
+      <lucide-icon name="users" class="h-5 w-5 text-rose-400" [size]="20" color="currentColor"></lucide-icon>
+      Pacientes
+    </h2>
+    @if (p.pacientes.length === 0) {
+      <p class="text-gray-500">Sin pacientes registrados.</p>
+    } @else {
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-gray-800 text-left text-gray-400">
+              <th class="py-2 pr-4">Nombre</th>
+              <th class="py-2 pr-4">Edad</th>
+              <th class="py-2 pr-4">RUT</th>
+              <th class="py-2">Triage</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (pac of p.pacientes; track pac.id) {
+              <tr class="border-b border-gray-800">
+                <td class="py-3 pr-4">{{ pac.nombre }}</td>
+                <td class="py-3 pr-4 text-gray-400">{{ pac.edad != null ? pac.edad : '—' }}</td>
+                <td class="py-3 pr-4 text-gray-400">{{ pac.rut || '—' }}</td>
+                <td class="py-3 font-medium" [ngClass]="triageClase(pac.triage)">{{ pac.triage }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>

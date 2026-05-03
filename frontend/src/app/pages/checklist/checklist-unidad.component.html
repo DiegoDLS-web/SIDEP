@@ -1,0 +1,571 @@
+<div class="sid-page w-full min-w-0 space-y-4 px-4 pb-6 pt-2 sm:px-6 sm:pb-8 md:px-8 md:pt-4 lg:px-10 xl:px-12 lg:pb-10">
+  @if (loading) {
+    <div class="flex min-h-[30vh] flex-col items-center justify-center gap-3 text-slate-400">
+      <lucide-icon name="clipboard-check" class="h-10 w-10 animate-pulse text-red-500" [size]="40" color="currentColor" />
+      <p class="text-sm">Cargando checklist…</p>
+    </div>
+    <a
+      routerLink="/checklist"
+      class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212] px-4 py-2.5 text-sm text-slate-300 ring-1 ring-inset ring-white/5"
+    >
+      <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+      Volver a checklist
+    </a>
+  } @else {
+  @if (error && !saving) {
+    <p class="sid-feedback rounded-2xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ error }}</p>
+  }
+
+  <a
+    routerLink="/checklist"
+    class="mb-1 inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212] px-4 py-2.5 text-sm text-slate-300 shadow-sm ring-1 ring-inset ring-white/5 transition-all hover:border-slate-600 hover:text-white sm:mb-2"
+  >
+    <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+    Volver a checklist
+  </a>
+
+  <!-- Barra compacta solo en pantallas menores a lg -->
+  <div
+    class="sticky top-0 z-20 -mx-3 mb-2 border-b border-slate-800/90 bg-[#0a0a0a]/95 px-3 py-3 shadow-lg shadow-black/20 backdrop-blur-md sm:-mx-4 lg:hidden"
+  >
+    <p class="text-xs font-semibold uppercase tracking-wide text-emerald-500/90">Checklist en curso</p>
+    <p class="truncate text-base font-bold text-white sm:text-lg">{{ tituloChecklist() }}</p>
+    <div class="mt-2 grid grid-cols-1 gap-1 text-xs text-slate-300 sm:grid-cols-2 sm:text-sm">
+      <p class="min-w-0 truncate">
+        <span class="text-slate-500">Fecha / firma:</span>
+        {{ fechasFormateadaCabecera() }}
+      </p>
+      <p class="min-w-0 truncate">
+        <span class="text-slate-500">OBAC:</span>
+        {{ nombreObacSeleccionado() }}
+      </p>
+    </div>
+  </div>
+
+  @if (mensajeFlash) {
+    <div
+      class="sid-feedback mb-4 rounded-xl border border-amber-600/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-100"
+      role="status"
+    >
+      {{ mensajeFlash }}
+    </div>
+  }
+
+    <section
+      class="hidden gap-4 rounded-2xl border border-emerald-900/35 bg-[radial-gradient(circle_at_0%_0%,rgba(16,185,129,0.12),transparent_48%),radial-gradient(circle_at_100%_0%,rgba(220,38,38,0.1),transparent_40%),#0a0a0a] p-5 sm:p-6 lg:flex lg:flex-col"
+    >
+      <div class="flex flex-1 flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div class="min-w-0">
+          <p class="mb-2 inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200">Unidad en servicio</p>
+          <h1 class="mb-1 break-words text-2xl font-bold text-white md:text-3xl">Checklist · {{ tituloChecklist() }}</h1>
+          <p class="text-sm text-slate-300">Control de materiales por ubicación; firmas de inspector y OBAC al final</p>
+        </div>
+        <div class="flex w-full flex-col gap-2 sm:items-end md:w-auto">
+          <button
+            type="button"
+            (click)="descargarPdf()"
+            [disabled]="!checklistCompletoParaPdf()"
+            [title]="
+              checklistCompletoParaPdf()
+                ? 'Generar PDF del checklist'
+                : 'Termina el checklist (materiales, firma inspector y OBAC) para generar el PDF'
+            "
+            class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-md transition-colors sm:w-auto"
+            [ngClass]="
+              checklistCompletoParaPdf()
+                ? 'sid-btn sid-btn-primary border border-red-500 bg-red-600 text-white hover:bg-red-700'
+                : 'cursor-not-allowed border border-red-900/60 bg-red-950/40 text-red-200/40'
+            "
+          >
+            <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            Generar PDF
+          </button>
+          @if (!checklistCompletoParaPdf()) {
+            <p class="max-w-sm text-right text-xs text-slate-500">Completa materiales y ambas firmas para descargar el PDF</p>
+          }
+        </div>
+      </div>
+    </section>
+
+    <div class="flex flex-col gap-2 sm:items-end lg:hidden">
+      <button
+        type="button"
+        (click)="descargarPdf()"
+        [disabled]="!checklistCompletoParaPdf()"
+        [title]="
+          checklistCompletoParaPdf()
+            ? 'Generar PDF del checklist'
+            : 'Termina el checklist (materiales, firma inspector y OBAC) para generar el PDF'
+        "
+        class="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-md transition-colors"
+        [ngClass]="
+          checklistCompletoParaPdf()
+            ? 'sid-btn sid-btn-primary border border-red-500 bg-red-600 text-white hover:bg-red-700'
+            : 'cursor-not-allowed border border-red-900/60 bg-red-950/40 text-red-200/40'
+        "
+      >
+        <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+        Generar PDF
+      </button>
+      @if (!checklistCompletoParaPdf()) {
+        <p class="text-center text-xs text-slate-500 sm:text-left">Completa materiales y las firmas del inspector y del OBAC para el PDF</p>
+      }
+    </div>
+
+    <section class="rounded-2xl border border-slate-800/90 bg-[#121212] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 md:p-6">
+      <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-white md:text-xl">Estado de unidad</h2>
+          <p class="text-sm text-slate-500">Semáforo operativo y métricas clave para cerrar checklist rápido.</p>
+        </div>
+        <span class="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold" [ngClass]="claseSemaforoUnidad()">
+          <span class="h-3 w-3 rounded-full" [ngClass]="estadoUnidadSemaforo() === 'VERDE' ? 'bg-emerald-400' : estadoUnidadSemaforo() === 'AMARILLO' ? 'bg-amber-400' : 'bg-red-400'"></span>
+          {{ etiquetaSemaforoUnidad() }}
+        </span>
+      </div>
+      <div class="grid grid-cols-2 gap-3 md:grid-cols-5">
+        <div class="rounded-xl border border-slate-700 bg-[#0a0a0a] p-3">
+          <p class="text-xs text-slate-500">Completado</p>
+          <p class="text-2xl font-bold text-white">{{ porcentajeCompletado() }}%</p>
+        </div>
+        <div class="rounded-xl border border-slate-700 bg-[#0a0a0a] p-3">
+          <p class="text-xs text-slate-500">Total</p>
+          <p class="text-2xl font-bold text-white">{{ totalItems() }}</p>
+        </div>
+        <div class="rounded-xl border border-amber-700/60 bg-amber-950/20 p-3">
+          <p class="text-xs text-amber-200/70">Faltantes</p>
+          <p class="text-2xl font-bold text-amber-300">{{ totalItems() - itemsOk() }}</p>
+        </div>
+        <div class="rounded-xl border border-red-700/60 bg-red-950/20 p-3">
+          <p class="text-xs text-red-200/70">Críticos</p>
+          <p class="text-2xl font-bold text-red-300">{{ itemsCriticos() }}</p>
+        </div>
+        <div class="rounded-xl border border-slate-700 bg-[#0a0a0a] p-3">
+          <p class="text-xs text-slate-500">Última revisión</p>
+          <p class="text-sm font-semibold text-slate-200">{{ fechasFormateadaCabecera() }}</p>
+        </div>
+      </div>
+    </section>
+
+  <div class="space-y-4 md:space-y-6">
+    <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-4 shadow-lg shadow-black/15 ring-1 ring-inset ring-white/5 md:p-6">
+      <h2 class="mb-4 text-lg font-bold text-white md:text-xl">Datos del inspector</h2>
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300"
+            >Nombre del inspector / clave <span class="text-red-400">*</span></label
+          >
+          <input
+            [(ngModel)]="nombreInspector"
+            name="nombreInspector"
+            placeholder="Ej: Juan Pérez · clave 1234"
+            autocomplete="name"
+            class="sid-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white placeholder:text-gray-600"
+          />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300"
+            >Grupo de Guardia <span class="text-red-400">*</span></label
+          >
+          <select
+            [(ngModel)]="grupoGuardia"
+            name="grupoGuardia"
+            class="sid-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+          >
+            <option value="">Selecciona grupo</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300"
+            >Oficial Responsable (OBAC) <span class="text-red-400">*</span></label
+          >
+          <select
+            [(ngModel)]="cuarteleroId"
+            name="cuarteleroId"
+            class="sid-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+          >
+            @for (u of usuarios; track u.id) {
+              <option [ngValue]="u.id">{{ u.nombre }} ({{ u.rol }})</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-gray-300"
+            >Fecha de cierre / firma <span class="text-red-400">*</span></label
+          >
+          <div
+            class="flex min-h-[42px] items-center rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-gray-200"
+          >
+            {{ fechasFormateadaCabecera() }}
+          </div>
+          <p class="mt-2 text-xs leading-relaxed text-gray-500">
+            Al firmar abajo como OBAC, aquí se muestra la fecha (ya no se usa un campo de texto para la firma).
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-4 shadow-lg shadow-black/15 ring-1 ring-inset ring-white/5 md:p-6">
+      <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-white md:text-xl">Inventario operativo</h2>
+          <p class="text-sm text-slate-500">Modo compacto con estado automático y acciones rápidas por fila</p>
+        </div>
+        <div class="flex flex-col gap-3 md:w-auto md:flex-row md:flex-wrap md:items-center">
+          <input
+            [(ngModel)]="filtroMateriales"
+            placeholder="Buscar material o ubicación"
+            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-white md:w-72"
+          />
+          @if (puedeEditarPlantilla) {
+            <div class="flex flex-wrap gap-2">
+              @if (!editandoPlantilla) {
+                <button
+                  type="button"
+                  (click)="activarEdicionPlantilla()"
+                  class="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg border border-cyan-700/70 bg-cyan-950/30 px-3 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-900/40"
+                >
+                  Editar plantilla checklist
+                </button>
+              } @else {
+                <button
+                  type="button"
+                  [disabled]="guardandoPlantilla"
+                  (click)="guardarPlantillaUnidad()"
+                  class="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg border border-emerald-700/70 bg-emerald-950/30 px-3 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-900/40 disabled:opacity-50"
+                >
+                  <lucide-icon name="save" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                  {{ guardandoPlantilla ? 'Guardando...' : 'Guardar plantilla' }}
+                </button>
+                <button
+                  type="button"
+                  [disabled]="guardandoPlantilla"
+                  (click)="cancelarEdicionPlantilla()"
+                  class="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg border border-slate-700/70 bg-slate-900/30 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800/50 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+              }
+            </div>
+          }
+          <label class="inline-flex cursor-pointer select-none items-center gap-2 text-sm text-gray-300">
+            <input [(ngModel)]="soloFaltantes" type="checkbox" class="peer sr-only" />
+            <span
+              class="flex h-4 w-4 shrink-0 items-center justify-center rounded border border-gray-700 bg-[#141414] text-red-400 shadow-inner shadow-black/40 peer-checked:border-red-500 peer-checked:bg-[#1a0a0a] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red-600/50"
+              aria-hidden="true"
+            >
+              @if (soloFaltantes) {
+                <span class="text-[10px] font-bold leading-none">✓</span>
+              }
+            </span>
+            Solo pendientes (oculta OK)
+          </label>
+        </div>
+      </div>
+      @if (puedeEditarPlantilla && editandoPlantilla) {
+        <p class="mt-3 text-xs text-emerald-200/90">
+          Modo edición de plantilla: puedes crear o quitar materiales y ajustar lo requerido. La cantidad actual del inventario puedes cargarla en todo momento.
+        </p>
+      } @else if (puedeEditarPlantilla) {
+        <p class="mt-3 text-xs text-slate-500">
+          Para editar materiales base de la unidad, pulsa «Editar plantilla checklist» (requiere rol ADMIN, capitán o teniente).
+        </p>
+      }
+    </div>
+
+    @for (ubicacion of ubicaciones; track $index; let ui = $index) {
+      <div class="overflow-hidden rounded-2xl border border-slate-800/90 bg-[#121212] shadow-lg shadow-black/15 ring-1 ring-inset ring-white/5">
+        <div
+          (click)="toggleUbicacion(ubicacion.nombre)"
+          class="flex flex-col gap-3 border-b border-slate-800/80 bg-[#0d0d0d]/50 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 md:p-6"
+        >
+          <div class="flex min-w-0 items-center gap-3">
+            <div
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-500/20 bg-gradient-to-br from-red-600 to-red-800 text-white shadow-md sm:h-11 sm:w-11"
+            >
+              <lucide-icon name="truck" class="h-5 w-5 sm:h-6 sm:w-6" [size]="24" color="currentColor"></lucide-icon>
+            </div>
+            <div class="min-w-0 flex-1">
+              <h2 class="text-left text-base font-bold text-white sm:text-lg md:text-xl">{{ ubicacion.nombre }}</h2>
+              <p class="text-left text-xs text-slate-500">
+                {{ materialesVisibles(ubicacion).length }} visibles · {{ faltantesPorUbicacion(ubicacion) }} faltantes
+              </p>
+            </div>
+          </div>
+          <div class="flex w-full shrink-0 items-center gap-2 sm:w-auto sm:justify-end">
+            <button
+              type="button"
+              (click)="$event.stopPropagation(); agregarMaterial(ui)"
+              [disabled]="!editandoPlantilla"
+              class="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-md transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none sm:px-4 sm:py-2.5"
+            >
+              + Material
+            </button>
+            <lucide-icon
+              name="chevron-down"
+              class="h-5 w-5 shrink-0 text-gray-400 transition-transform duration-200"
+              [class.rotate-180]="ubicacionAbierta(ubicacion.nombre)"
+            ></lucide-icon>
+          </div>
+        </div>
+
+        @if (ubicacionAbierta(ubicacion.nombre)) {
+        <!-- Móvil: filas en tarjeta (sin scroll horizontal) -->
+        <div class="space-y-3 border-b border-gray-900/50 p-3 sm:p-4 md:hidden">
+          @for (material of materialesVisibles(ubicacion); track material.id; let mi = $index) {
+            <div class="rounded-xl border border-gray-800 bg-[#0a0a0a] p-3">
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <label class="block text-xs font-medium text-gray-500">Nombre material</label>
+                <span class="inline-flex items-center justify-center rounded-lg border px-3 py-1 text-sm font-bold" [ngClass]="claseBadgeEstadoMaterial(material)">
+                  {{ estadoMaterial(material) === 'CRITICO' ? 'Crítico' : estadoMaterial(material) === 'BAJO' ? 'Bajo' : 'OK' }}
+                </span>
+              </div>
+              <input
+                [(ngModel)]="material.nombre"
+                (focus)="registrarNombreOriginal(material)"
+                (blur)="confirmarCambioNombre(material)"
+                [readonly]="!editandoPlantilla"
+                placeholder="Nombre material"
+                class="mb-3 w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 text-sm text-white placeholder:text-gray-600 read-only:opacity-80"
+              />
+              <div class="mb-3 grid grid-cols-2 gap-3">
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Requerido</label>
+                  <input
+                    type="number"
+                    [(ngModel)]="material.cantidadRequerida"
+                    [disabled]="!editandoPlantilla"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-2 py-2 text-center text-sm text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <label class="mb-1 block text-xs text-gray-500">Actual</label>
+                  <input
+                    type="number"
+                    [(ngModel)]="material.cantidadActual"
+                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-2 py-2 text-center text-sm text-white"
+                  />
+                </div>
+              </div>
+              <div class="grid grid-cols-1 gap-2">
+                <button
+                  type="button"
+                  (click)="eliminarMaterial(ui, mi)"
+                  [disabled]="!editandoPlantilla"
+                  class="rounded-lg border border-slate-600 bg-slate-900 px-2 py-2 text-xs font-semibold text-slate-200 disabled:opacity-40"
+                  title="Quitar material"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          }
+          @if (materialesVisibles(ubicacion).length === 0) {
+            <p class="py-2 text-center text-sm text-gray-500">No hay materiales que coincidan con el filtro actual.</p>
+          }
+        </div>
+
+        <div class="hidden overflow-x-auto md:block [-webkit-overflow-scrolling:touch]">
+          <table class="min-w-full text-left text-sm">
+            <thead>
+              <tr class="border-b border-gray-900 text-xs font-medium uppercase tracking-wide text-gray-500">
+                <th class="px-3 py-3 pl-4 sm:px-4 sm:pl-5">Nombre material</th>
+                <th class="px-3 py-3 text-center">Requerido</th>
+                <th class="px-3 py-3 text-center">Actual</th>
+                <th class="px-3 py-3 text-center">Estado automático</th>
+                <th class="px-3 py-3 pr-4 text-right sm:pr-5">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (material of materialesVisibles(ubicacion); track material.id; let mi = $index) {
+                <tr class="border-b border-gray-900/80">
+                  <td class="px-3 py-3 pl-4 align-middle sm:px-4 sm:pl-5">
+                    <input
+                      [(ngModel)]="material.nombre"
+                      (focus)="registrarNombreOriginal(material)"
+                      (blur)="confirmarCambioNombre(material)"
+                      [readonly]="!editandoPlantilla"
+                      placeholder="Nombre material"
+                      class="w-full min-w-0 rounded-xl border border-gray-800 bg-[#0a0a0a] px-3 py-2 text-sm text-white placeholder:text-gray-600 read-only:opacity-80 sm:min-w-[12rem]"
+                    />
+                  </td>
+                  <td class="px-3 py-3 align-middle">
+                    <div class="flex justify-center">
+                      <input
+                        type="number"
+                        [(ngModel)]="material.cantidadRequerida"
+                        [disabled]="!editandoPlantilla"
+                        class="w-16 rounded-xl border border-gray-800 bg-[#0a0a0a] px-2 py-2 text-center text-sm text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      />
+                    </div>
+                  </td>
+                  <td class="px-3 py-3 align-middle">
+                    <div class="flex justify-center">
+                      <input
+                        type="number"
+                        [(ngModel)]="material.cantidadActual"
+                        class="w-16 rounded-xl border border-gray-800 bg-[#0a0a0a] px-2 py-2 text-center text-sm text-white"
+                      />
+                    </div>
+                  </td>
+                  <td class="px-3 py-3 align-middle text-center">
+                    <span class="inline-flex min-w-[110px] items-center justify-center rounded-lg border px-3 py-2 text-sm font-bold" [ngClass]="claseBadgeEstadoMaterial(material)">
+                      {{ estadoMaterial(material) === 'CRITICO' ? 'Crítico' : estadoMaterial(material) === 'BAJO' ? 'Bajo' : 'OK' }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 pr-5 align-middle text-right">
+                    <div class="flex flex-wrap justify-end gap-2">
+                      <button
+                        type="button"
+                        (click)="eliminarMaterial(ui, mi)"
+                        [disabled]="!editandoPlantilla"
+                        class="inline-flex h-8 items-center justify-center rounded-lg border border-slate-600 bg-slate-900 px-2.5 text-xs font-semibold text-slate-200 disabled:opacity-40"
+                        title="Quitar material"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+              @if (materialesVisibles(ubicacion).length === 0) {
+                <tr>
+                  <td colspan="5" class="px-5 py-4 text-sm text-gray-500">
+                    No hay materiales que coincidan con el filtro actual.
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        }
+      </div>
+    }
+
+    <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/15 ring-1 ring-inset ring-white/5 md:p-6">
+      <label class="mb-3 block text-sm font-medium text-slate-400">Observaciones (opcional)</label>
+      <textarea
+        rows="5"
+        [(ngModel)]="observaciones"
+        name="observaciones"
+        class="min-h-[140px] w-full resize-y rounded-xl border border-slate-700 bg-[#0a0a0a] px-4 py-3 text-sm text-white placeholder:text-slate-600"
+        placeholder=""
+      ></textarea>
+    </div>
+
+    <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/15 ring-1 ring-inset ring-white/5 md:p-6">
+      <h2 class="mb-1 text-lg font-bold tracking-tight text-white">
+        Firmas de cierre <span class="text-red-400">*</span>
+      </h2>
+      <p class="mb-6 text-sm leading-relaxed text-slate-500">
+        Inspector y OBAC en la misma fila en pantallas anchas; ambas obligatorias. La fecha de cierre del OBAC aparece arriba en
+        <span class="font-medium text-slate-300">«Fecha de cierre / firma»</span>.
+      </p>
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
+        <div>
+          <h3 class="mb-1 text-base font-semibold text-white">
+            Inspector <span class="text-red-400">*</span>
+          </h3>
+          <p class="mb-3 text-xs leading-relaxed text-slate-500 sm:text-sm">Ejecuta la inspección en campo.</p>
+          <div class="overflow-hidden rounded-xl border border-slate-700 bg-[#0a0a0a]">
+            <canvas
+              #firmaCanvasInspector
+              width="560"
+              height="180"
+              class="mx-auto block h-[180px] w-full max-w-full touch-none cursor-crosshair"
+            ></canvas>
+          </div>
+          <div class="mt-3 flex justify-start">
+            <button
+              type="button"
+              (click)="limpiarFirmaInspector()"
+              class="rounded-xl border border-amber-500/55 bg-[#0a0a0a] px-4 py-2 text-sm font-medium text-amber-300 transition-colors hover:bg-slate-900"
+            >
+              Limpiar firma inspector
+            </button>
+          </div>
+        </div>
+        <div>
+          <h3 class="mb-1 text-base font-semibold text-white">
+            OBAC a cargo <span class="text-red-400">*</span>
+          </h3>
+          <p class="mb-3 text-xs leading-relaxed text-slate-500 sm:text-sm">
+            Firma oficial de la guardia respecto al checklist cerrado.
+          </p>
+          <div class="overflow-hidden rounded-xl border border-slate-700 bg-[#0a0a0a]">
+            <canvas
+              #firmaCanvas
+              width="560"
+              height="180"
+              class="mx-auto block h-[180px] w-full max-w-full touch-none cursor-crosshair"
+            ></canvas>
+          </div>
+          <div class="mt-3 flex justify-start">
+            <button
+              type="button"
+              (click)="limpiarFirma()"
+              class="rounded-xl border border-slate-600 bg-[#0a0a0a] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-900"
+            >
+              Limpiar firma OBAC
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/15 ring-1 ring-inset ring-white/5 md:p-6">
+      <h3 class="mb-3 text-lg font-bold text-white">Firma y cierre guiado</h3>
+      <div class="mb-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold" [ngClass]="claseEstadoFinalCarro()">
+        Estado final del carro al guardar: {{ estadoFinalCarroTexto() }}
+      </div>
+      <div class="grid gap-3 text-sm text-slate-300 md:grid-cols-2">
+        <div class="rounded-xl border border-slate-700 bg-[#0a0a0a] p-3">
+          <p class="mb-2 font-semibold text-slate-100">Checklist de validación</p>
+          <ul class="space-y-1 text-xs">
+            <li>Inspector: <strong>{{ nombreInspector.trim() ? 'OK' : 'Pendiente' }}</strong></li>
+            <li>Guardia: <strong>{{ grupoGuardia.trim() ? 'OK' : 'Pendiente' }}</strong></li>
+            <li>Firma inspector: <strong>{{ firmaResueltaInspector() ? 'OK' : 'Pendiente' }}</strong></li>
+            <li>Firma OBAC: <strong>{{ firmaResueltaObac() ? 'OK' : 'Pendiente' }}</strong></li>
+            <li>Fecha cierre: <strong>{{ fechaCierreChecklist ? 'OK' : 'Pendiente' }}</strong></li>
+          </ul>
+        </div>
+        <div class="rounded-xl border p-3" [ngClass]="itemsCriticos() > 0 ? 'border-red-700 bg-red-950/20' : 'border-amber-700 bg-amber-950/20'">
+          <p class="mb-2 font-semibold text-slate-100">Alertas de cierre</p>
+          <p class="text-xs text-slate-300">Faltantes: <strong>{{ totalItems() - itemsOk() }}</strong></p>
+          <p class="text-xs text-slate-300">Críticos: <strong>{{ itemsCriticos() }}</strong></p>
+          <p class="mt-2 text-xs" [ngClass]="itemsCriticos() > 0 ? 'text-red-300' : 'text-amber-300'">
+            {{ itemsCriticos() > 0 ? 'Hay ítems críticos. Se solicitará confirmación final.' : 'Sin críticos; revisa pendientes antes de cerrar.' }}
+          </p>
+        </div>
+      </div>
+      <div class="mt-4">
+        <button
+          type="button"
+          [disabled]="saving || savingBorrador"
+          (click)="guardarBorrador()"
+          class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-slate-600 bg-slate-900/80 px-4 py-2.5 text-sm font-semibold text-slate-200 ring-1 ring-inset ring-white/5 transition-all hover:bg-slate-800 disabled:opacity-50"
+        >
+          <lucide-icon name="save" class="h-5 w-5 opacity-80" [size]="20" color="currentColor"></lucide-icon>
+          Guardar como borrador
+        </button>
+      </div>
+    </section>
+
+    <div class="pointer-events-none sticky bottom-0 z-30 -mx-4 border-t border-slate-800/80 bg-[#0a0a0a]/95 px-4 py-3 backdrop-blur md:-mx-8 md:px-8 lg:-mx-10 lg:px-10 xl:-mx-12 xl:px-12">
+      <button
+        type="button"
+        [disabled]="saving || savingBorrador"
+        (click)="guardar()"
+        class="pointer-events-auto sid-btn sid-btn-primary flex min-h-[56px] w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-red-900/20 transition-all hover:bg-red-700 disabled:opacity-50"
+      >
+        <lucide-icon name="save" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
+        {{ saving ? 'Guardando…' : 'Guardar checklist' }}
+      </button>
+    </div>
+  </div>
+  }
+</div>

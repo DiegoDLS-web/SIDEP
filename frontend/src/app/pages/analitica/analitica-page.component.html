@@ -1,0 +1,554 @@
+<div class="sid-page w-full min-w-0 space-y-5 px-4 py-4 sm:space-y-6 sm:px-6 md:px-8 lg:px-10 xl:px-12 md:py-6 lg:py-8">
+  @if (loading && !datos) {
+    <div class="flex min-h-[30vh] flex-col items-center justify-center gap-3 text-slate-400">
+      <lucide-icon name="chart-column" class="h-10 w-10 animate-pulse text-red-500" [size]="40" color="currentColor"></lucide-icon>
+      <p class="text-sm">Cargando analítica operacional…</p>
+    </div>
+  }
+
+  @if (error) {
+    <div class="sid-feedback rounded-2xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ error }}</div>
+  }
+
+  <section
+    class="relative overflow-hidden rounded-2xl border border-emerald-900/30 bg-[radial-gradient(circle_at_0%_0%,rgba(16,185,129,0.15),transparent_48%),radial-gradient(circle_at_100%_0%,rgba(220,38,38,0.12),transparent_40%),#0a0a0a] p-5 sm:p-6"
+  >
+    <div class="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div class="min-w-0 lg:max-w-[min(100%,52rem)]">
+        <p class="sid-page-hero-badge mb-2 inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200">
+          Monitoreo operacional
+        </p>
+        <h1 class="sid-page-hero-title flex flex-wrap items-center gap-3 text-2xl font-bold text-white sm:text-3xl">
+          <lucide-icon name="chart-column" class="h-8 w-8 shrink-0 text-red-400" [size]="32" color="currentColor"></lucide-icon>
+          <span>Analítica operacional</span>
+        </h1>
+        <p class="sid-page-hero-subtitle mt-2 text-sm leading-relaxed text-slate-300 sm:text-base">
+          KPIs de respuesta, unidades y asistencia. Misma línea visual que checklist, carros y licencias.
+        </p>
+      </div>
+      <button
+        type="button"
+        data-export-hide="true"
+        class="sid-btn sid-btn-primary inline-flex min-h-[44px] w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-red-500 bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-red-700 disabled:opacity-40 sm:w-auto lg:self-start"
+        [disabled]="!datos || exportandoPdf"
+        (click)="exportarReportePdf()"
+      >
+        <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+        {{ exportandoPdf ? 'Exportando PDF…' : 'Exportar reporte PDF' }}
+      </button>
+    </div>
+  </section>
+
+  @if (datos) {
+    <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-4 shadow-lg shadow-black/15 ring-1 ring-inset ring-white/5 md:p-6">
+      <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-white md:text-xl">Periodo analizado</h2>
+          <p class="text-sm text-slate-500">Filtra año y mes; los KPIs se recalculan al instante.</p>
+        </div>
+      </div>
+      <div class="grid max-w-xl grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300" for="ana-anio">Año</label>
+          <select
+            id="ana-anio"
+            [(ngModel)]="anio"
+            (ngModelChange)="cargar()"
+            class="sid-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+          >
+            @for (a of aniosDisponibles; track a) {
+              <option [ngValue]="a">{{ a }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300" for="ana-mes">Mes</label>
+          <select
+            id="ana-mes"
+            [(ngModel)]="mes"
+            (ngModelChange)="cargar()"
+            class="sid-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+          >
+            @for (m of meses; track m.id) {
+              <option [ngValue]="m.id">{{ m.nombre }}</option>
+            }
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div #reporteAnalitica class="space-y-6 md:space-y-8">
+      <!-- KPIs -->
+      <section data-exportable="true" data-export-id="kpis">
+        <div class="mb-4 flex flex-wrap items-start justify-between gap-3 md:items-center">
+          <div>
+            <h2 class="text-lg font-bold text-white md:text-xl">Indicadores clave</h2>
+            <p class="text-sm text-slate-500">Métricas del mes seleccionado (salidas registradas).</p>
+          </div>
+          <button
+            type="button"
+            title="Exportar sección como PNG"
+            data-export-hide="true"
+            class="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-slate-600 bg-[#0a0a0a] px-4 py-2 text-xs font-semibold text-slate-200 ring-1 ring-inset ring-white/5 hover:border-red-600/60 hover:bg-red-950/30 disabled:opacity-40"
+            [disabled]="exportandoPng === 'kpis'"
+            (click)="exportarSeccionPng('kpis')"
+          >
+            <lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+            {{ exportandoPng === 'kpis' ? 'Exportando…' : 'PNG' }}
+          </button>
+        </div>
+        <div class="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+        <div class="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-[#151515] to-[#121212] p-4 shadow-xl shadow-black/30 ring-1 ring-inset ring-white/[0.05] sm:p-5">
+          <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ numero(datos.tiempoDespachoPromedioMin) }}</p>
+          <p class="text-xs text-slate-400 sm:text-sm">Despacho prom. (min)</p>
+        </div>
+        <div class="rounded-2xl border border-emerald-800/35 bg-gradient-to-br from-emerald-950/[0.42] via-[#121212]/90 to-transparent p-4 ring-1 ring-inset ring-emerald-500/10 sm:p-5">
+          <p class="mb-0.5 text-2xl font-bold tabular-nums text-emerald-400 sm:text-3xl">{{ numero(datos.tiempoRespuestaPromedioMin) }}</p>
+          <p class="text-xs text-slate-400 sm:text-sm">Respuesta prom. (min)</p>
+        </div>
+        <div class="rounded-2xl border border-amber-800/35 bg-gradient-to-br from-amber-950/[0.38] via-[#121212]/90 to-transparent p-4 ring-1 ring-inset ring-amber-500/10 sm:p-5">
+          <p class="mb-0.5 text-2xl font-bold tabular-nums text-amber-400 sm:text-3xl">{{ numero(datos.duracionPromedioEmergenciaMin) }}</p>
+          <p class="text-xs text-slate-400 sm:text-sm">Duración emergencia (min)</p>
+        </div>
+        <div class="rounded-2xl border border-red-900/40 bg-gradient-to-br from-red-950/[0.4] via-[#121212]/90 to-transparent p-4 ring-1 ring-inset ring-red-500/15 sm:p-5">
+          <div class="mb-2 flex flex-wrap items-end justify-between gap-2">
+            <p class="text-3xl font-bold tabular-nums text-red-200 sm:text-[2rem]">{{ numero(datos.cumplimientoRespuesta8MinPct) }}%</p>
+            <span class="inline-flex rounded-xl border px-2.5 py-1 text-[11px] font-semibold" [ngClass]="claseNivelSla()">
+              {{ textoNivelSla() }}
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 sm:text-sm">Cumplimiento respuesta &lt; 8 min</p>
+        </div>
+        </div>
+      </section>
+
+      <!-- Comparativos -->
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-bold text-white md:text-xl">Comparativos</h2>
+          <p class="text-sm text-slate-500">Mes actual vs. mes anterior · asistencias acumuladas.</p>
+        </div>
+        <button
+          type="button"
+          title="Exportar sección como PNG"
+          data-export-hide="true"
+          class="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-slate-600 bg-[#0a0a0a] px-4 py-2 text-xs font-semibold text-slate-200 ring-1 ring-inset ring-white/5 hover:border-red-600/60 disabled:opacity-40"
+          [disabled]="exportandoPng === 'comparativo-claro'"
+          (click)="exportarSeccionPng('comparativo-claro')"
+        >
+          <lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+          {{ exportandoPng === 'comparativo-claro' ? 'Exportando…' : 'PNG' }}
+        </button>
+      </div>
+      <section class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-3 xl:gap-5" data-exportable="true" data-export-id="comparativo-claro">
+        <article
+          class="flex w-full flex-col rounded-2xl border border-white/[0.06] bg-gradient-to-b from-[#161616] to-[#111] p-4 shadow-xl shadow-black/35 ring-1 ring-inset ring-white/[0.05] md:p-5"
+        >
+          <p class="text-sm font-medium text-slate-400">Salidas · mes vs. anterior</p>
+          <div class="mt-3 grid grid-cols-2 gap-2.5">
+            <div class="rounded-xl border border-slate-700 bg-[#0a0a0a] px-3 py-2.5">
+              <p class="text-xs text-slate-500">Mes actual</p>
+              <p class="text-2xl font-bold text-white">{{ numero(datos.salidasTotalesMes) }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-700 bg-[#0a0a0a] px-3 py-2.5">
+              <p class="text-xs text-slate-500">Mes anterior</p>
+              <p class="text-xl font-semibold text-slate-200">{{ numero(datos.comparativoMensual?.salidasMesAnterior ?? 0) }}</p>
+            </div>
+          </div>
+          <p class="mt-2.5 text-sm font-medium" [class]="claseVariacion(datos.comparativoMensual?.variacionSalidasPct ?? 0)">
+            {{ textoVariacion(datos.comparativoMensual?.variacionSalidasPct ?? 0) }}
+          </p>
+          <footer class="mt-auto border-t border-dashed border-white/[0.06] pt-4 text-[11px] text-slate-600">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span>{{ nombreMes(mes) }} {{ anio }}</span>
+              <span class="hidden font-mono text-[10px] uppercase tracking-wider opacity-55 sm:inline">Comparativo</span>
+            </div>
+          </footer>
+        </article>
+        <article
+          class="flex w-full flex-col rounded-2xl border border-white/[0.06] bg-gradient-to-b from-[#161616] to-[#111] p-4 shadow-xl shadow-black/35 ring-1 ring-inset ring-white/[0.05] md:p-5"
+        >
+          <p class="text-sm font-medium text-slate-400">Kilómetros · mes vs. anterior</p>
+          <div class="mt-3 grid grid-cols-2 gap-2.5">
+            <div class="rounded-xl border border-slate-700 bg-[#0a0a0a] px-3 py-2.5">
+              <p class="text-xs text-slate-500">Mes actual</p>
+              <p class="text-2xl font-bold text-white">{{ numero(datos.kilometrosTotalesMes) }}</p>
+            </div>
+            <div class="rounded-xl border border-slate-700 bg-[#0a0a0a] px-3 py-2.5">
+              <p class="text-xs text-slate-500">Mes anterior</p>
+              <p class="text-xl font-semibold text-slate-200">{{ numero(datos.comparativoMensual?.kilometrosMesAnterior ?? 0) }}</p>
+            </div>
+          </div>
+          <p class="mt-2.5 text-sm font-medium" [class]="claseVariacion(datos.comparativoMensual?.variacionKilometrosPct ?? 0)">
+            {{ textoVariacion(datos.comparativoMensual?.variacionKilometrosPct ?? 0) }}
+          </p>
+          <footer class="mt-auto border-t border-dashed border-white/[0.06] pt-4 text-[11px] text-slate-600">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span>{{ nombreMes(mes) }} {{ anio }}</span>
+              <span class="hidden font-mono text-[10px] uppercase tracking-wider opacity-55 sm:inline">Km</span>
+            </div>
+          </footer>
+        </article>
+        <article
+          class="flex w-full flex-col rounded-2xl border border-white/[0.06] bg-gradient-to-b from-[#161616] to-[#111] p-4 shadow-xl shadow-black/35 ring-1 ring-inset ring-white/[0.05] md:p-5 sm:col-span-2 xl:col-span-1"
+        >
+          <p class="text-sm font-medium text-slate-400">Asistencias registradas</p>
+          <div class="mt-3 grid grid-cols-2 gap-2.5">
+            <div class="rounded-xl border border-emerald-800/45 bg-emerald-950/25 px-3 py-2.5 ring-1 ring-inset ring-emerald-500/15">
+              <p class="text-xs text-emerald-200/80">Anual ({{ datos.anio }})</p>
+              <p class="text-2xl font-bold text-emerald-300">{{ numero(datos.asistenciaVoluntariosTotalAnual) }}</p>
+            </div>
+            <div class="rounded-xl border border-sky-800/45 bg-sky-950/20 px-3 py-2.5 ring-1 ring-inset ring-sky-500/15">
+              <p class="text-xs text-sky-200/80">Voluntarios ({{ nombreMes(mesAsistenciaSeleccionado) }})</p>
+              <p class="text-2xl font-bold text-sky-100">{{ numero(detalleAsistenciaMesSeleccionado()?.voluntarios?.length ?? 0) }}</p>
+            </div>
+          </div>
+          <p class="mt-2.5 text-xs leading-relaxed text-slate-500">
+            Solo asistencias válidas (sin cuentas demo ni tipos excluidos).
+          </p>
+          <footer class="mt-auto border-t border-dashed border-white/[0.06] pt-4 text-[11px] text-slate-600">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span>Acumulado anual vs. voluntarios del mes</span>
+              <span class="font-mono text-[10px] uppercase tracking-wider opacity-55">{{ datos.anio }}</span>
+            </div>
+          </footer>
+        </article>
+      </section>
+
+      <!-- Actividad mensual + Salidas por semana (una sola tarjeta: misma altura útil en ambos lados) -->
+      <section data-exportable="true" data-export-id="actividad-semanas">
+        <div
+          class="overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-[#161616] via-[#121212] to-[#111] shadow-xl shadow-black/35 ring-1 ring-inset ring-white/[0.06]"
+        >
+          <div
+            class="flex flex-col gap-3 border-b border-white/[0.06] bg-black/25 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+          >
+            <div class="min-w-0 flex-1">
+              <h2 class="text-lg font-bold text-white md:text-xl">Actividad del mes · distribución por semana</h2>
+              <p class="text-sm text-slate-500">Totales mensuales a la izquierda; proporción semanal a la derecha.</p>
+            </div>
+            <button
+              type="button"
+              title="Exportar bloque como PNG"
+              data-export-hide="true"
+              class="inline-flex min-h-[40px] shrink-0 items-center gap-2 rounded-xl border border-slate-600 bg-[#0a0a0a] px-4 py-2 text-xs font-semibold text-slate-200 ring-1 ring-inset ring-white/5 hover:border-red-600/60 disabled:opacity-40"
+              [disabled]="exportandoPng === 'actividad-semanas'"
+              (click)="exportarSeccionPng('actividad-semanas')"
+            >
+              <lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+              PNG
+            </button>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 lg:items-stretch">
+            <div class="flex h-full min-h-0 flex-col gap-4 border-white/[0.06] px-4 py-5 lg:border-e lg:px-6 lg:py-6">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Resumen mensual</p>
+              <div class="flex flex-wrap items-stretch gap-3">
+                <div class="min-w-[7.75rem] flex-1 rounded-xl border border-slate-700/90 bg-[#0a0a0a] p-3">
+                  <p class="text-[10px] font-medium uppercase tracking-wide text-slate-500">Salidas</p>
+                  <p class="mt-0.5 text-2xl font-bold tabular-nums text-white">{{ numero(datos.salidasTotalesMes) }}</p>
+                </div>
+                <div class="min-w-[7.75rem] flex-1 rounded-xl border border-slate-700/90 bg-[#0a0a0a] p-3">
+                  <p class="text-[10px] font-medium uppercase tracking-wide text-slate-500">Km</p>
+                  <p class="mt-0.5 text-2xl font-bold tabular-nums text-white">{{ numero(datos.kilometrosTotalesMes) }}</p>
+                </div>
+              </div>
+              <div
+                class="rounded-xl border border-slate-700/85 bg-[#0d0d0d]/85 px-3 py-2.5 text-xs leading-snug text-slate-400"
+              >
+                <span class="text-slate-500">Δ salidas</span>
+                <span class="font-semibold" [ngClass]="claseVariacion(datos.comparativoMensual?.variacionSalidasPct ?? 0)">{{
+                  textoVariacion(datos.comparativoMensual?.variacionSalidasPct ?? 0)
+                }}</span>
+                <span class="mx-1.5 text-slate-600">·</span>
+                <span class="text-slate-500">Δ km</span>
+                <span class="font-semibold" [ngClass]="claseVariacion(datos.comparativoMensual?.variacionKilometrosPct ?? 0)">{{
+                  textoVariacion(datos.comparativoMensual?.variacionKilometrosPct ?? 0)
+                }}</span>
+              </div>
+              <!-- Relleno con intención: equilibra alto con la columna de semanas (grid estira ambas filas) -->
+              <div
+                class="min-h-[2rem] flex-1 rounded-xl bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.04),transparent_70%)] ring-1 ring-inset ring-white/[0.04]"
+                aria-hidden="true"
+              ></div>
+              <div class="rounded-xl border border-dashed border-white/[0.1] bg-black/30 px-3 py-2.5 text-[11px] leading-snug text-slate-600">
+                Mes de referencia: {{ nombreMes(mes) }} {{ anio }} · mismo período para variaciones del bloque derecho.
+              </div>
+            </div>
+            <div class="flex h-full min-h-0 flex-col px-4 py-5 lg:py-6">
+              <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                Distribución proporcional por semana
+              </p>
+              <div class="max-h-[min(26rem,calc(65vh))] flex-1 space-y-2 overflow-y-auto pr-1">
+                @for (s of datos.salidasPorSemana; track s.semana) {
+                  <div class="rounded-xl border border-slate-800/90 bg-[#0a0a0a] px-3 py-2">
+                    <div class="mb-1.5 flex items-center justify-between gap-2 text-sm">
+                      <span class="font-medium text-slate-200">Semana {{ s.semana }}</span>
+                      <span class="tabular-nums font-bold text-white">{{ s.salidas }}</span>
+                    </div>
+                    <div class="h-3 overflow-hidden rounded-lg bg-slate-800/90 ring-1 ring-inset ring-white/5">
+                      <div
+                        class="h-full min-h-[100%] rounded-lg bg-gradient-to-r from-red-600 to-red-500 shadow-[0_0_12px_rgba(220,38,38,0.35)]"
+                        [style.width.%]="anchoBarraSemana(s.salidas)"
+                      ></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+          <footer class="border-t border-dashed border-white/[0.07] px-4 py-4 text-[11px] text-slate-600 sm:px-5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span>{{ nombreMes(mes) }} {{ anio }}</span>
+              <span class="rounded bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-500">Proporcional por semana</span>
+            </div>
+          </footer>
+        </div>
+      </section>
+
+      <!-- Sectores críticos + Uso de unidades (misma tarjeta, alto compartido) -->
+      <section data-exportable="true" data-export-id="sectores-uso">
+        <div
+          class="overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-[#161616] via-[#121212] to-[#111] shadow-xl shadow-black/35 ring-1 ring-inset ring-white/[0.06]"
+        >
+          <div class="flex flex-col gap-3 border-b border-white/[0.06] bg-black/25 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <div class="min-w-0">
+              <h2 class="text-lg font-bold text-white md:text-xl">Sectores críticos · uso de carros</h2>
+              <p class="text-sm text-slate-500">Respuesta más lenta por sector (top) y reparto mensual por unidad.</p>
+            </div>
+            <button
+              type="button"
+              data-export-hide="true"
+              class="inline-flex min-h-[40px] shrink-0 items-center gap-2 rounded-xl border border-slate-600 bg-[#0a0a0a] px-4 py-2 text-xs font-semibold text-slate-200 ring-1 ring-inset ring-white/5 hover:border-red-600/60 disabled:opacity-40"
+              [disabled]="exportandoPng === 'sectores-uso'"
+              (click)="exportarSeccionPng('sectores-uso')"
+            >
+              <lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+              PNG
+            </button>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 lg:items-stretch">
+            <div class="flex h-full min-h-0 flex-col gap-3 px-4 py-5 lg:border-e lg:border-white/[0.06] lg:px-6 lg:py-6">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Sectores con mayor tiempo de respuesta</p>
+              @if (datos.sectoresCriticos.length === 0) {
+                <p class="rounded-xl border border-slate-800 bg-[#0a0a0a] px-4 py-4 text-center text-sm text-slate-500">
+                  Sin sectores con datos en este período.
+                </p>
+              } @else {
+                <div class="max-h-[min(26rem,calc(65vh))] space-y-2 overflow-y-auto pr-1 lg:max-h-none">
+                  @for (s of datos.sectoresCriticos; track s.sector) {
+                    <div
+                      class="flex items-start gap-3 rounded-xl border border-slate-800 bg-[#0a0a0a] p-3 transition-colors hover:border-slate-600 sm:p-3.5"
+                    >
+                      <div
+                        class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#161616] ring-1 ring-slate-700/90"
+                      >
+                        <lucide-icon name="map-pin" class="h-4 w-4 text-amber-400/90" [size]="16" color="currentColor"></lucide-icon>
+                      </div>
+                      <div class="min-w-0 flex-1">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                          <p class="font-semibold leading-snug text-slate-100">{{ s.sector }}</p>
+                          <span class="rounded-lg border border-slate-600/90 bg-slate-900/90 px-2 py-0.5 text-[11px] font-medium text-slate-300">
+                            {{ s.casos }} casos
+                          </span>
+                        </div>
+                        <p class="mt-1 text-xs text-slate-400">
+                          Promedio respuesta
+                          <span class="font-semibold text-slate-200">{{ numero(s.promedioRespuestaMin) }} min</span>
+                        </p>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+              <div
+                class="mt-auto min-h-[2rem] flex-1 rounded-xl bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.035),transparent_72%)] ring-1 ring-inset ring-white/[0.04]"
+                aria-hidden="true"
+              ></div>
+            </div>
+            <div class="flex h-full min-h-0 flex-col gap-3 px-4 py-5 lg:px-6 lg:py-6">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Unidades del mes</p>
+              <div class="space-y-2">
+                @for (u of datos.usoUnidades; track u.id) {
+                  <div class="rounded-xl border border-slate-800 bg-[#0a0a0a] px-3 py-2">
+                    <div class="mb-1.5 flex items-center justify-between gap-2 text-sm">
+                      <span class="inline-flex items-center gap-2 font-mono font-bold text-white">
+                        <lucide-icon name="truck" class="h-4 w-4 shrink-0 text-red-400" [size]="16" color="currentColor"></lucide-icon>
+                        {{ u.nomenclatura }}
+                      </span>
+                      <span class="text-right tabular-nums text-xs text-slate-400">{{ u.salidas }} salidas · {{ numero(u.km) }} km</span>
+                    </div>
+                    <div class="h-3 overflow-hidden rounded-lg bg-black/45 ring-1 ring-inset ring-white/5">
+                      <div
+                        class="h-full rounded-lg bg-gradient-to-r from-red-500 to-rose-400 shadow-[0_0_12px_rgba(248,113,113,0.35)]"
+                        [style.width.%]="maxSalidas() > 0 ? (u.salidas / maxSalidas()) * 100 : 0"
+                      ></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+          <footer class="border-t border-dashed border-white/[0.07] px-4 py-4 text-[11px] text-slate-600 sm:px-5">
+            {{ nombreMes(mes) }} {{ anio }} · {{ datos.usoUnidades.length }} carros en flota tomados en cuenta
+          </footer>
+        </div>
+      </section>
+
+      <!-- Checklist diario · Asistencia de voluntarios (una tarjeta, dos paneles lado a lado en desktop) -->
+      <section data-exportable="true" data-export-id="checklist-asistencia">
+        <div
+          class="overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-[#161616] via-[#121212] to-[#111] shadow-xl shadow-black/35 ring-1 ring-inset ring-white/[0.06]"
+        >
+          <div class="flex flex-col gap-3 border-b border-white/[0.06] bg-black/25 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <div class="min-w-0 flex-1">
+              <h2 class="text-lg font-bold text-white md:text-xl">Checklist por unidad · asistencia de voluntarios</h2>
+              <p class="text-sm text-slate-500">Dos lecturas relacionadas del mismo período; exportación unificada.</p>
+            </div>
+            <button
+              type="button"
+              data-export-hide="true"
+              class="inline-flex min-h-[40px] shrink-0 items-center gap-2 rounded-xl border border-slate-600 bg-[#0a0a0a] px-4 py-2 text-xs font-semibold text-slate-200 ring-1 ring-inset ring-white/5 hover:border-red-600/60 disabled:opacity-40"
+              [disabled]="exportandoPng === 'checklist-asistencia'"
+              (click)="exportarSeccionPng('checklist-asistencia')"
+            >
+              <lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+              PNG
+            </button>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] lg:items-stretch">
+            <div class="flex h-full min-h-0 flex-col gap-3 border-white/[0.06] px-4 py-5 lg:border-e lg:px-6 lg:py-6">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Cumplimiento checklist diario (UNIDAD)</p>
+              <div class="space-y-2">
+                @for (c of datos.cumplimientoChecklist; track c.carroId) {
+                  <div class="rounded-xl border border-slate-800 bg-[#0a0a0a] px-3 py-2">
+                    <div class="mb-1.5 flex items-center justify-between gap-2 text-sm">
+                      <span class="font-semibold text-slate-100">{{ c.nomenclatura }}</span>
+                      <span class="tabular-nums font-bold text-emerald-300">{{ numero(c.cumplimientoPct) }}%</span>
+                    </div>
+                    <div class="h-3 overflow-hidden rounded-lg bg-black/45 ring-1 ring-inset ring-white/5">
+                      <div
+                        class="h-full rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.35)]"
+                        [style.width.%]="maxCumplimiento() > 0 ? (c.cumplimientoPct / maxCumplimiento()) * 100 : 0"
+                      ></div>
+                    </div>
+                  </div>
+                }
+              </div>
+              <div
+                class="mt-auto hidden min-h-[2rem] flex-1 rounded-xl bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,0.06),transparent_70%)] ring-1 ring-inset ring-emerald-500/10 lg:block"
+                aria-hidden="true"
+              ></div>
+              <p class="rounded-lg bg-black/30 px-2 py-1.5 text-[10px] text-slate-600 lg:hidden">
+                {{ datos.cumplimientoChecklist.length }} unidades con registro checklist.
+              </p>
+            </div>
+            <div class="flex h-full min-h-0 flex-col gap-4 px-4 py-5 lg:px-6 lg:py-6">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Asistencia de voluntarios (por mes)</p>
+              <div class="flex flex-wrap gap-2">
+                <span
+                  class="inline-flex min-h-[34px] items-center rounded-lg border border-emerald-700/55 bg-emerald-950/30 px-3 py-1.5 text-xs font-semibold text-emerald-200"
+                >
+                  Total anual: {{ numero(datos.asistenciaVoluntariosTotalAnual) }}
+                </span>
+                <span
+                  class="inline-flex min-h-[34px] flex-1 items-center rounded-lg border border-sky-700/55 bg-sky-950/30 px-3 py-1.5 text-xs font-semibold text-sky-200 sm:flex-initial"
+                >
+                  {{ nombreMes(mesAsistenciaSeleccionado) }}: {{ numero(detalleAsistenciaMesSeleccionado()?.voluntarios?.length ?? 0) }} voluntarios
+                </span>
+              </div>
+              <div
+                class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4"
+                role="region"
+                [attr.aria-label]="'Asistencia por mes · ' + anio"
+              >
+                @for (a of datos.asistenciaVoluntariosPorMes; track a.mes) {
+                  <div
+                    class="group flex flex-col rounded-xl border border-slate-800/90 bg-[#0d0d0d] px-2.5 py-2 ring-1 ring-inset ring-white/[0.04] transition-colors hover:border-slate-700"
+                    [attr.title]="a.nombreMes + ': ' + a.voluntariosConAsistencia + ' voluntarios'"
+                  >
+                    <div class="mb-2 flex flex-col gap-0.5">
+                      <span class="truncate text-[11px] font-semibold leading-tight text-slate-100 sm:text-[12px]">{{ a.nombreMes }}</span>
+                      <span class="tabular-nums text-[11px] font-medium text-slate-400">{{ a.voluntariosConAsistencia }}</span>
+                    </div>
+                    <div class="mt-auto h-2 min-h-[8px] w-full overflow-hidden rounded-md bg-black/55 ring-1 ring-inset ring-white/10">
+                      <div
+                        class="h-full rounded-md bg-gradient-to-r from-sky-500 via-sky-400 to-cyan-400 transition-[width] duration-300"
+                        [style.width.%]="
+                          maxAsistenciaVoluntarios() > 0 ? (a.voluntariosConAsistencia / maxAsistenciaVoluntarios()) * 100 : 0
+                        "
+                      ></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+          <footer class="border-t border-dashed border-white/[0.07] px-4 py-4 text-[11px] text-slate-600 sm:px-5">
+            Barras relativas al mes punta {{ datos.anio }} · checklist: {{ datos.cumplimientoChecklist.length }} unidades
+          </footer>
+        </div>
+      </section>
+
+      <!-- Detalle voluntarios -->
+      <section class="sid-history-card overflow-hidden p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 md:p-6" data-exportable="true" data-export-id="asistencia-voluntario">
+        <div class="sid-history-head mb-4 border-0 p-0">
+          <div>
+            <h2 class="sid-history-title text-xl">Detalle asistencia por voluntario</h2>
+            <p class="sid-history-subtitle">Listado filtrable por mes (misma lógica de asistencia que partes).</p>
+          </div>
+          <div class="sid-history-actions w-full shrink-0 sm:w-auto">
+            <select [(ngModel)]="mesAsistenciaSeleccionado" class="sid-history-filter max-w-[12rem] text-sm">
+              @for (m of meses; track m.id) {
+                <option [ngValue]="m.id">{{ m.nombre }}</option>
+              }
+            </select>
+            <button
+              type="button"
+              data-export-hide="true"
+              title="PNG"
+              class="sid-btn sid-btn-neutral inline-flex min-h-[44px] items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold disabled:opacity-40"
+              [disabled]="exportandoPng === 'asistencia-voluntario'"
+              (click)="exportarSeccionPng('asistencia-voluntario')"
+            >
+              <lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+              PNG
+            </button>
+          </div>
+        </div>
+        <div class="sid-history-wrap -mx-1 max-w-[100vw] overflow-x-auto pr-px sm:mx-0 sm:max-w-none sm:overflow-x-visible">
+          <table class="sid-history-table w-full min-w-[18rem] table-fixed sm:min-w-0">
+            <colgroup>
+              <col />
+              <col class="w-[8.5rem]" />
+              <col class="w-[7.5rem]" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th class="pr-3">Voluntario</th>
+                <th class="pr-4 text-right">Asistencias</th>
+                <th class="pr-4 text-right">Partes</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (v of detalleAsistenciaMesSeleccionado()?.voluntarios ?? []; track v.usuarioId) {
+                <tr>
+                  <td class="truncate pr-3 font-medium text-slate-100" [title]="v.nombre">{{ v.nombre }}</td>
+                  <td class="pr-4 text-right tabular-nums font-semibold text-emerald-300">{{ v.asistenciasRegistradas }}</td>
+                  <td class="pr-4 text-right tabular-nums font-semibold text-slate-300">{{ v.partesConAsistencia }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="3" class="px-4 py-8 text-center">
+                    <div class="rounded-xl border border-amber-800/55 bg-amber-950/25 px-4 py-6 text-sm text-amber-100">
+                      Sin asistencias registradas para <span class="font-semibold">{{ nombreMes(mesAsistenciaSeleccionado) }}</span>.
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  }
+</div>

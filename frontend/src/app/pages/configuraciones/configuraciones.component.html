@@ -1,0 +1,332 @@
+<div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 sm:py-6 md:px-8 lg:px-10 xl:px-12">
+  <section
+    class="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-[radial-gradient(circle_at_0%_0%,rgba(59,130,246,0.2),transparent_45%),radial-gradient(circle_at_100%_0%,rgba(220,38,38,0.12),transparent_42%),#0a0a0a] p-5 sm:p-6"
+  >
+    <div class="relative z-10">
+      <p class="sid-page-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs text-blue-200">
+        Sistema · administración
+      </p>
+      <h1 class="sid-page-hero-title text-2xl font-bold sm:text-3xl">Configuraciones del sistema</h1>
+      <p class="sid-page-hero-subtitle mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">Ajustes de compañía, notificaciones, reportes y roles en SIDEP</p>
+    </div>
+  </section>
+
+  @if (error) {
+    <div class="sid-feedback rounded-xl border border-red-800/60 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+      {{ error }}
+    </div>
+  }
+  @if (exito) {
+    <div class="sid-feedback rounded-xl border border-emerald-800/60 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
+      {{ exito }}
+    </div>
+  }
+
+  @if (loading) {
+    <div class="flex min-h-[12rem] flex-col items-center justify-center gap-2 rounded-2xl border border-gray-800 bg-[#121212] p-8 text-slate-400">
+      <lucide-icon name="clock" class="h-8 w-8 animate-spin text-sky-400" [size]="32" color="currentColor" />
+      <span class="text-sm">Cargando configuraciones…</span>
+    </div>
+  } @else {
+    <div class="flex flex-col gap-6">
+        <section class="rounded-2xl border border-slate-800 bg-[#121212] p-5 sm:p-6 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
+          <div class="mb-6 flex items-start gap-3 border-b border-slate-800/80 pb-4">
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-red-600/90 to-red-800 shadow-md">
+              <lucide-icon name="building-2" class="h-5 w-5 text-white" [size]="20" color="currentColor" />
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-white sm:text-xl">Información de la compañía</h2>
+              <p class="text-sm text-slate-500">Datos que pueden mostrarse en reportes y documentos</p>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label class="mb-2 block text-sm font-medium text-slate-300">Nombre de la compañía</label>
+                <input [(ngModel)]="config.compania.nombreCompania" type="text" class="sid-input w-full" />
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-medium text-slate-300">Nombre bomba</label>
+                <input [(ngModel)]="config.compania.nombreBomba" type="text" class="sid-input w-full" />
+              </div>
+            </div>
+            <div>
+              <label class="mb-2 block text-sm font-medium text-slate-300">Dirección</label>
+              <input [(ngModel)]="config.compania.direccion" type="text" class="sid-input w-full" />
+            </div>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label class="mb-2 block text-sm font-medium text-slate-300">Teléfono</label>
+                <input [(ngModel)]="config.compania.telefono" type="text" class="sid-input w-full" />
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-medium text-slate-300">Email institucional</label>
+                <input [(ngModel)]="config.compania.emailInstitucional" type="email" class="sid-input w-full" />
+              </div>
+            </div>
+            <div>
+              <label class="mb-2 block text-sm font-medium text-slate-300">Fecha de fundación</label>
+              <input [(ngModel)]="config.compania.fechaFundacion" type="date" class="sid-input dark-date-input w-full" />
+            </div>
+          </div>
+        </section>
+
+        <section class="rounded-2xl border border-slate-800 bg-[#121212] p-5 sm:p-6 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
+          <div class="mb-6 flex items-start gap-3 border-b border-slate-800/80 pb-4">
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 ring-1 ring-amber-500/30">
+              <lucide-icon name="bell" class="h-5 w-5 text-amber-400" [size]="20" color="currentColor" />
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-white sm:text-xl">Notificaciones</h2>
+              <p class="text-sm text-slate-500">Preferencias de alertas (cuando apliquen en el sistema)</p>
+            </div>
+          </div>
+          <div class="sid-notif-checkboxes space-y-3">
+            <label
+              class="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-4 transition-colors hover:border-slate-700"
+            >
+              <div>
+                <p class="font-medium text-slate-200">Alertas de emergencia</p>
+                <p class="text-sm text-slate-500">Recibir notificaciones de nuevas emergencias</p>
+              </div>
+              <input
+                [(ngModel)]="config.notificaciones.alertasEmergencia"
+                type="checkbox"
+                class="h-4 w-4 shrink-0 rounded"
+              />
+            </label>
+            <label
+              class="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-4 transition-colors hover:border-slate-700"
+            >
+              <div>
+                <p class="font-medium text-slate-200">Alertas de inventario bajo</p>
+                <p class="text-sm text-slate-500">Notificar cuando el stock esté bajo</p>
+              </div>
+              <input
+                [(ngModel)]="config.notificaciones.alertasInventario"
+                type="checkbox"
+                class="h-4 w-4 shrink-0 rounded"
+              />
+            </label>
+            <label
+              class="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-4 transition-colors hover:border-slate-700"
+            >
+              <div>
+                <p class="font-medium text-slate-200">Recordatorios de checklist</p>
+                <p class="text-sm text-slate-500">Recordar realizar checklist de vehículos</p>
+              </div>
+              <input
+                [(ngModel)]="config.notificaciones.recordatoriosChecklist"
+                type="checkbox"
+                class="h-4 w-4 shrink-0 rounded"
+              />
+            </label>
+            <label
+              class="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-4 transition-colors hover:border-slate-700"
+            >
+              <div>
+                <p class="font-medium text-slate-200">Resumen diario por email</p>
+                <p class="text-sm text-slate-500">
+                  Cada día a las <span class="text-slate-400">08:00 (Chile)</span> envía un resumen con los partes del día
+                  anterior al correo institucional y, si el administrador lo definió en el servidor, a correos adicionales.
+                  Requiere que el envío SMTP esté configurado en el entorno del sistema.
+                </p>
+              </div>
+              <input
+                [(ngModel)]="config.notificaciones.resumenDiarioEmail"
+                type="checkbox"
+                class="h-4 w-4 shrink-0 rounded"
+              />
+            </label>
+          </div>
+        </section>
+
+        <section class="rounded-2xl border border-slate-800 bg-[#121212] p-5 sm:p-6 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
+          <div class="mb-6 flex items-start gap-3 border-b border-slate-800/80 pb-4">
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/15 ring-1 ring-blue-500/30">
+              <lucide-icon name="file-text" class="h-5 w-5 text-blue-300" [size]="20" color="currentColor" />
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-white sm:text-xl">Configuración de reportes</h2>
+              <p class="text-sm text-slate-500">Exportación y apariencia de PDFs</p>
+            </div>
+          </div>
+          <div class="space-y-4">
+            <div>
+              <label class="mb-2 block text-sm font-medium text-slate-300">Formato de exportación predeterminado</label>
+              <select [(ngModel)]="config.reportes.formatoPredeterminado" class="sid-input w-full">
+                <option value="PDF">PDF</option>
+                <option value="XLSX">Excel (.xlsx)</option>
+                <option value="CSV">CSV</option>
+              </select>
+            </div>
+            <div>
+              <label class="mb-2 block text-sm font-medium text-slate-300">Logos en cabecera de PDF</label>
+              <select [(ngModel)]="config.reportes.logosPdf" class="sid-input w-full">
+                @for (op of opcionesLogosPdf; track op.value) {
+                  <option [ngValue]="op.value">{{ op.label }}</option>
+                }
+              </select>
+              <p class="mt-1.5 text-xs text-slate-500">
+                El logo de compañía se muestra en PDF cuando eliges compañía o ambos. Puedes subir uno aquí o dejar el archivo por defecto en
+                <code class="rounded bg-black/40 px-1 text-slate-400">assets/logos/compania-logo.png</code>.
+              </p>
+            </div>
+            <div class="rounded-xl border border-slate-800/90 bg-[#0a0a0a] p-4">
+              <label class="mb-2 block text-sm font-medium text-slate-300">Logo de compañía para PDF</label>
+              <p class="mb-3 text-xs text-slate-500">PNG o JPEG, máximo 2 MB. Reemplaza el logo que aparece en cabeceras de reporte.</p>
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+                  class="block w-full max-w-md text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-600"
+                  (change)="onArchivoLogoCompaniaSeleccionado($event)"
+                />
+                <button
+                  type="button"
+                  class="shrink-0 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  [disabled]="subiendoLogoCompania || !archivoLogoCompania"
+                  (click)="subirLogoCompania()"
+                >
+                  {{ subiendoLogoCompania ? 'Subiendo…' : 'Subir logo' }}
+                </button>
+              </div>
+              @if (logoCompaniaPreview()) {
+                <div class="mt-4 flex items-center gap-3">
+                  <img
+                    [src]="logoCompaniaPreview()!"
+                    alt="Vista previa del logo de compañía"
+                    class="h-16 max-w-[200px] rounded-lg border border-slate-700 bg-black/50 object-contain p-1"
+                  />
+                  <span class="text-xs text-slate-500">Vista previa del archivo en servidor</span>
+                </div>
+              }
+            </div>
+            <div>
+              <label class="mb-2 block text-sm font-medium text-slate-300">Orientación de página (PDF)</label>
+              <select [(ngModel)]="config.reportes.orientacionPdf" class="sid-input w-full">
+                <option value="VERTICAL">Vertical</option>
+                <option value="HORIZONTAL">Horizontal</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <section class="rounded-2xl border border-slate-800 bg-[#121212] p-5 sm:p-6 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
+          <div class="mb-5 flex flex-col gap-2 border-b border-slate-800/80 pb-4 sm:flex-row sm:items-start sm:justify-between">
+            <div class="flex items-start gap-3">
+              <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 ring-1 ring-cyan-500/35">
+                <lucide-icon name="menu" class="h-5 w-5 text-cyan-300" [size]="20" color="currentColor" />
+              </div>
+              <div>
+                <h2 class="text-lg font-bold text-white sm:text-xl">Menú lateral por rol</h2>
+                <p class="text-sm text-slate-500">
+                  Marca qué secciones ve cada rol al iniciar sesión. Los permisos estrictos (p. ej. usuarios solo con rol autorizado)
+                  siguen aplicando en servidor; aquí defines la vista de navegación.
+                </p>
+              </div>
+            </div>
+          </div>
+          @if (!roles.length) {
+            <p class="text-sm text-slate-500">No hay roles cargados todavía.</p>
+          } @else {
+            <div class="max-h-[min(80vh,48rem)] space-y-3 overflow-y-auto pr-1 [scrollbar-color:#4b5563_#111827]">
+              @for (rol of roles; track rol.id) {
+                <details class="group rounded-xl border border-slate-800/90 bg-[#0a0a0a] open:border-slate-700/70 open:shadow-md open:shadow-black/20">
+                  <summary
+                    class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-left outline-none [&::-webkit-details-marker]:hidden group-open:bg-slate-900/70"
+                  >
+                    <span class="font-semibold text-slate-200">{{ rol.nombre }}</span>
+                    <lucide-icon
+                      name="chevron-down"
+                      class="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180"
+                      [size]="16"
+                      color="currentColor"
+                    />
+                  </summary>
+                  <div class="space-y-3 border-t border-slate-800/80 px-4 py-4">
+                    <button
+                      type="button"
+                      class="rounded-lg bg-slate-700/80 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-600"
+                      (click)="restaurarPredeterminadoMenu(rol.nombre); $event.stopPropagation()"
+                    >
+                      Restaurar predeterminado de este rol
+                    </button>
+                    <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      @for (op of opcionesMenu; track op.path) {
+                        <label
+                          class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-800 bg-[#111]/80 px-3 py-2 text-sm text-slate-300 hover:border-slate-600"
+                        >
+                          <input
+                            type="checkbox"
+                            class="h-4 w-4 rounded border-slate-600 bg-[#161616] text-red-600 focus:ring-red-600/35"
+                            [checked]="tieneRutaEnRol(rol.nombre, op.path)"
+                            (change)="alternarRutaMenu(rol.nombre, op.path, ($any($event.target).checked))"
+                          />
+                          <span>{{ op.label }}</span>
+                          <span class="ml-auto font-mono text-[10px] text-slate-600">{{ op.path }}</span>
+                        </label>
+                      }
+                    </div>
+                  </div>
+                </details>
+              }
+            </div>
+          }
+        </section>
+
+        <section class="rounded-2xl border border-slate-800 bg-[#121212] p-5 sm:p-6 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
+          <div class="mb-4 flex items-start gap-3 border-b border-slate-800/80 pb-4">
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 ring-1 ring-violet-500/35">
+              <lucide-icon name="shield" class="h-5 w-5 text-violet-300" [size]="20" color="currentColor" />
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-white sm:text-xl">Roles de usuario</h2>
+              <p class="text-sm text-slate-500">Roles del sistema (CAPITAN, TENIENTE, VOLUNTARIOS, ADMIN). Un rol inactivo no se asigna a usuarios nuevos.</p>
+            </div>
+          </div>
+          <div class="max-h-[min(70vh,32rem)] space-y-2 overflow-y-auto pr-1">
+            @for (rol of roles; track rol.id) {
+              <div
+                class="flex flex-col gap-2 rounded-xl border border-slate-800/90 bg-[#0a0a0a] p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div class="flex min-w-0 items-center gap-2">
+                  <span class="truncate font-medium text-slate-200">{{ rol.nombre }}</span>
+                  <span
+                    class="shrink-0 rounded-full px-2 py-0.5 text-xs"
+                    [class]="rol.activo ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-600/25 text-slate-400'"
+                    >{{ rol.activo ? 'Activo' : 'Inactivo' }}</span
+                  >
+                </div>
+                <button
+                  type="button"
+                  class="w-full rounded-lg px-3 py-2 text-sm font-medium transition-colors sm:w-auto"
+                  [class]="rol.activo ? 'bg-amber-600/90 text-white hover:bg-amber-500' : 'bg-emerald-600/90 text-white hover:bg-emerald-500'"
+                  (click)="cambiarEstadoRol(rol)"
+                >
+                  {{ rol.activo ? 'Desactivar' : 'Activar' }}
+                </button>
+              </div>
+            } @empty {
+              <p class="text-sm text-slate-500">No hay roles cargados.</p>
+            }
+          </div>
+        </section>
+    </div>
+
+    <div
+      class="flex flex-col gap-3 rounded-2xl border border-slate-800/80 bg-[#121212] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
+    >
+      <p class="text-sm text-slate-500">Los cambios se guardan al pulsar el botón. Los roles se actualizan al instante al activar o desactivar.</p>
+      <button
+        type="button"
+        class="sid-btn sid-btn-primary w-full min-h-[48px] rounded-xl px-8 font-semibold shadow-lg shadow-red-900/20 sm:w-auto"
+        [disabled]="guardando"
+        (click)="guardar()"
+      >
+        {{ guardando ? 'Guardando...' : 'Guardar cambios' }}
+      </button>
+    </div>
+  }
+</div>

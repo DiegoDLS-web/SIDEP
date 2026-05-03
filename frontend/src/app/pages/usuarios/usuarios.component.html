@@ -1,0 +1,544 @@
+<div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 sm:py-6 md:px-8 lg:px-10 xl:px-12">
+  <a
+    routerLink="/"
+    class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212]/90 px-3 py-2 text-sm text-slate-300 shadow-sm ring-1 ring-white/5 transition-colors hover:border-slate-600 hover:text-white"
+  >
+    <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+    Volver al inicio
+  </a>
+  <section
+    class="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-[radial-gradient(circle_at_0%_0%,rgba(59,130,246,0.2),transparent_45%),radial-gradient(circle_at_100%_0%,rgba(220,38,38,0.15),transparent_42%),#0a0a0a] p-5 sm:p-6"
+  >
+    <div class="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <p class="sid-page-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs text-blue-200">
+          Directorio institucional
+        </p>
+        <h1 class="sid-page-hero-title text-2xl font-bold sm:text-3xl">Gestión de usuarios</h1>
+        <p class="sid-page-hero-subtitle mt-1 text-sm text-gray-300 sm:text-base">Registro de voluntarios y datos institucionales</p>
+      </div>
+      <button
+        type="button"
+        class="inline-flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-red-900/20 transition-all hover:bg-red-700 hover:shadow-red-900/30 sm:w-auto"
+        (click)="abrirNuevo()"
+      >
+        <lucide-icon name="plus" class="h-5 w-5" [size]="20" color="currentColor" />
+        Nuevo usuario
+      </button>
+    </div>
+  </section>
+
+  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-800/40 to-transparent p-4 ring-1 ring-inset ring-white/5">
+      <div class="mb-2 flex items-center justify-between">
+        <lucide-icon name="users" class="h-6 w-6 text-blue-400" [size]="24" color="currentColor" />
+        <span class="text-xs uppercase tracking-wide text-slate-500">Total</span>
+      </div>
+      <p class="text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ usuarios.length }}</p>
+      <p class="text-sm text-slate-400">Usuarios</p>
+    </div>
+    <div class="rounded-xl border border-emerald-800/40 bg-gradient-to-br from-emerald-950/30 to-transparent p-4 ring-1 ring-inset ring-white/5">
+      <div class="mb-2 flex items-center justify-between">
+        <lucide-icon name="circle-check" class="h-6 w-6 text-emerald-400" [size]="24" color="currentColor" />
+        <span class="text-xs uppercase tracking-wide text-slate-500">Activo</span>
+      </div>
+      <p class="text-2xl font-bold tabular-nums text-emerald-300 sm:text-3xl">{{ totalActivos() }}</p>
+      <p class="text-sm text-slate-400">Vigentes / activos</p>
+    </div>
+    <div class="rounded-xl border border-amber-800/40 bg-gradient-to-br from-amber-950/25 to-transparent p-4 ring-1 ring-inset ring-white/5">
+      <div class="mb-2 flex items-center justify-between">
+        <lucide-icon name="heart-pulse" class="h-6 w-6 text-amber-400" [size]="24" color="currentColor" />
+        <span class="text-xs uppercase tracking-wide text-slate-500">Licencia</span>
+      </div>
+      <p class="text-2xl font-bold tabular-nums text-amber-200 sm:text-3xl">{{ totalConLicencia() }}</p>
+      <p class="text-sm text-slate-400">Con licencia</p>
+    </div>
+    <div class="rounded-xl border border-red-900/40 bg-gradient-to-br from-red-950/30 to-transparent p-4 ring-1 ring-inset ring-white/5">
+      <div class="mb-2 flex items-center justify-between">
+        <lucide-icon name="triangle-alert" class="h-6 w-6 text-red-400" [size]="24" color="currentColor" />
+        <span class="text-xs uppercase tracking-wide text-slate-500">Susp.</span>
+      </div>
+      <p class="text-2xl font-bold tabular-nums text-red-200 sm:text-3xl">{{ totalConSuspension() }}</p>
+      <p class="text-sm text-slate-400">Suspensión / alerta</p>
+    </div>
+  </div>
+
+  <div class="rounded-2xl border border-gray-800 bg-[#121212] p-4 sm:p-5 shadow-lg shadow-black/20">
+    <div class="relative">
+      <span class="pointer-events-none absolute inset-y-0 left-0 flex w-12 items-center justify-center text-slate-400 md:w-14">
+        <lucide-icon name="search" class="h-5 w-5 shrink-0" [size]="20" color="currentColor" aria-hidden="true" />
+      </span>
+      <input
+        type="search"
+        [ngModel]="busqueda"
+        (ngModelChange)="setBusqueda($event)"
+        placeholder="Buscar por nombre, RUT, email, compañía u oficialidad…"
+        autocomplete="off"
+        class="sid-input w-full rounded-xl border-slate-700 bg-[#0a0a0a] py-3 pl-12 pr-4 text-sm text-white placeholder:text-slate-500 focus:border-red-500/60 focus:ring-2 focus:ring-red-600/20 md:pl-14 md:text-[0.9375rem]"
+      />
+    </div>
+  </div>
+
+  @if (error) {
+    <div class="sid-feedback rounded-xl border border-red-800/60 bg-red-950/25 px-4 py-3 text-sm text-red-200">
+      {{ error }}
+    </div>
+  }
+  @if (exito) {
+    <div class="sid-feedback rounded-xl border border-emerald-800/60 bg-emerald-950/25 px-4 py-3 text-sm text-emerald-200">
+      {{ exito }}
+    </div>
+  }
+
+  @if (mostrandoFormulario) {
+    <div
+      class="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/70 px-3 py-6 backdrop-blur-sm sm:px-4 sm:py-10"
+      (click)="cerrarSiBackdrop($event)"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-labelledby]="'titulo-form-usuario'"
+    >
+      <div
+        class="sid-modal-scroll relative max-h-[min(90vh,calc(100dvh-4rem))] w-full max-w-4xl overflow-y-auto overscroll-contain rounded-2xl border border-gray-800 bg-[#121212] p-5 shadow-2xl shadow-black/40 sm:p-7 [&_.sid-input]:px-3 [&_.sid-input]:py-2.5"
+        (click)="$event.stopPropagation()"
+      >
+        <button
+          type="button"
+          class="absolute right-3 top-3 rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+          (click)="cancelarForm()"
+          aria-label="Cerrar"
+        >
+          <lucide-icon name="x" class="h-5 w-5" [size]="20" color="currentColor" />
+        </button>
+      <div class="mb-6 border-b border-gray-800/80 pb-4 pr-10">
+        <h2 id="titulo-form-usuario" class="text-xl font-bold text-white sm:text-2xl">
+          {{ editandoId ? 'Editar usuario' : 'Nuevo usuario' }}
+        </h2>
+        <p class="mt-1 text-sm text-slate-500"><span class="text-red-400">*</span> Campos obligatorios</p>
+      </div>
+
+      <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-red-400/95">Identidad</h3>
+      <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300">
+            Nombres
+            @if (!editandoId) {
+              <span class="text-red-400">*</span>
+            }
+          </label>
+          <input [(ngModel)]="form.nombres" type="text" class="sid-input w-full" [disabled]="!!editandoId" />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300">
+            Apellido paterno
+            @if (!editandoId) {
+              <span class="text-red-400">*</span>
+            }
+          </label>
+          <input [(ngModel)]="form.apellidoPaterno" type="text" class="sid-input w-full" [disabled]="!!editandoId" />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300">
+            Apellido materno
+            @if (!editandoId) {
+              <span class="text-red-400">*</span>
+            }
+          </label>
+          <input [(ngModel)]="form.apellidoMaterno" type="text" class="sid-input w-full" [disabled]="!!editandoId" />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300">
+            RUT
+            @if (!editandoId) {
+              <span class="text-red-400">*</span>
+            }
+          </label>
+          <input
+            [(ngModel)]="form.rut"
+            (ngModelChange)="onRutInput($event)"
+            type="text"
+            inputmode="text"
+            placeholder="12.345.678-9"
+            class="sid-input w-full"
+            [disabled]="!!editandoId"
+          />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300">
+            Nacionalidad
+            @if (!editandoId) {
+              <span class="text-red-400">*</span>
+            }
+          </label>
+          <input [(ngModel)]="form.nacionalidad" type="text" class="sid-input w-full" [disabled]="!!editandoId" />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300">Grupo sanguíneo (opcional)</label>
+          <select [(ngModel)]="form.grupoSanguineo" class="sid-input w-full">
+            <option [ngValue]="''">—</option>
+            @for (g of gruposSanguineos; track g) {
+              <option [ngValue]="g">{{ g }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-red-400/95">Foto de perfil (opcional)</h3>
+      <div class="mb-6 flex flex-col gap-3 rounded-xl border border-slate-800 bg-[#0a0a0a]/50 p-4 sm:flex-row sm:items-start">
+        <div class="flex flex-col gap-2">
+          <input
+            type="file"
+            accept="image/jpeg,image/jpg,image/png,image/webp"
+            class="text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white file:transition-colors hover:file:bg-slate-600"
+            (change)="onFotoPerfilArchivo($event)"
+          />
+          <p class="text-[11px] leading-relaxed text-slate-500">
+            Orientación retrato recomendada. Se comprime automáticamente al guardar. También puedes usar rutas
+            <span class="font-mono text-slate-400">/assets/perfiles/…</span> vía script de importación.
+          </p>
+          @if (form.fotoPerfil) {
+            <button type="button" class="text-left text-sm text-red-400 hover:underline" (click)="quitarFotoPerfil()">
+              Quitar foto
+            </button>
+          }
+        </div>
+        @if (form.fotoPerfil) {
+          <div class="shrink-0 overflow-hidden rounded-xl border border-slate-700 bg-black/30 p-1">
+            <img
+              [src]="form.fotoPerfil"
+              alt="Vista previa foto de perfil"
+              class="mx-auto block max-h-40 w-[120px] object-cover object-top"
+            />
+          </div>
+        }
+      </div>
+
+      <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-red-400/95">Domicilio</h3>
+      <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div class="md:col-span-2">
+          <label class="mb-2 block text-sm font-medium text-slate-300">Dirección <span class="text-red-400">*</span></label>
+          <input [(ngModel)]="form.direccion" type="text" class="sid-input w-full" />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300">Región <span class="text-red-400">*</span></label>
+          <select [(ngModel)]="form.region" (ngModelChange)="onRegionChange()" class="sid-input w-full">
+            <option [ngValue]="''">Seleccionar región</option>
+            @for (r of regionesComunas; track r.region) {
+              <option [ngValue]="r.region">{{ r.region }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300">Comuna <span class="text-red-400">*</span></label>
+          <select [(ngModel)]="form.comuna" class="sid-input w-full" [disabled]="!form.region">
+            <option [ngValue]="''">Seleccionar comuna</option>
+            @for (c of comunasDisponibles; track c) {
+              <option [ngValue]="c">{{ c }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-red-400/95">Actividad y contacto</h3>
+      <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div class="md:col-span-2">
+          <label class="mb-2 block text-sm font-medium text-slate-300">Actividad (trabajo o estudios, opcional)</label>
+          <input [(ngModel)]="form.actividad" type="text" class="sid-input w-full" />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300">
+            Fecha de nacimiento
+            @if (!editandoId) {
+              <span class="text-red-400">*</span>
+            }
+          </label>
+          <input [(ngModel)]="form.fechaNacimiento" type="date" class="sid-input dark-date-input w-full" />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300">
+            Fecha de ingreso
+            @if (!editandoId) {
+              <span class="text-red-400">*</span>
+            }
+          </label>
+          <input [(ngModel)]="form.fechaIngreso" type="date" class="sid-input dark-date-input w-full" />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300">Email <span class="text-red-400">*</span></label>
+          <input [(ngModel)]="form.email" type="email" class="sid-input w-full" />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300">Teléfono <span class="text-red-400">*</span></label>
+          <input
+            [(ngModel)]="form.telefono"
+            (ngModelChange)="onTelefonoInput($event)"
+            type="text"
+            inputmode="tel"
+            placeholder="+56 9 1234 5678"
+            class="sid-input w-full"
+          />
+        </div>
+      </div>
+
+      <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-red-400/95">Institucional</h3>
+      @if (!editandoId) {
+        <p class="mb-4 rounded-xl border border-slate-700/80 bg-slate-950/40 px-3 py-2.5 text-sm text-slate-400">
+          La contraseña de acceso se asigna automáticamente; el voluntario debe cambiarla al iniciar sesión por primera vez.
+        </p>
+      }
+      <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300">Tipo de voluntario <span class="text-red-400">*</span></label>
+          <select [(ngModel)]="form.tipoVoluntario" class="sid-input w-full">
+            @for (t of tiposVoluntario; track t) {
+              <option [ngValue]="t">{{ etiquetasTipoVoluntario[t] || t }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300">Cuerpo de bombero <span class="text-red-400">*</span></label>
+          <input [(ngModel)]="form.cuerpoBombero" type="text" class="sid-input w-full" />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300">Compañía <span class="text-red-400">*</span></label>
+          <input [(ngModel)]="form.compania" type="text" class="sid-input w-full" />
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300">Estado <span class="text-red-400">*</span></label>
+          <select [(ngModel)]="form.estadoVoluntario" class="sid-input w-full">
+            <option ngValue="VIGENTE">Vigente</option>
+            <option ngValue="INACTIVO">Inactivo</option>
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="mb-2 block text-sm font-medium text-slate-300">Oficialidad (cargo) <span class="text-red-400">*</span></label>
+          <select [(ngModel)]="form.cargoOficialidad" class="sid-input w-full">
+            @for (c of cargosOrden; track c) {
+              <option [ngValue]="c">{{ etiquetasCargo[c] || c }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-300">Rol en el sistema <span class="text-red-400">*</span></label>
+          <select
+            [(ngModel)]="form.rol"
+            [disabled]="!!editandoId && !puedeEditarRol"
+            class="sid-input w-full disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            @for (rol of roles; track rol.id) {
+              <option [ngValue]="rol.nombre">{{ rol.nombre }}</option>
+            }
+          </select>
+          @if (roles.length === 0) {
+            <p class="mt-1 text-xs text-amber-300">No se cargaron roles desde API; usando lista base.</p>
+          }
+          @if (editandoId && !puedeEditarRol) {
+            <p class="mt-1 text-xs text-slate-500">Solo administración o mando puede cambiar el rol.</p>
+          }
+        </div>
+      </div>
+
+      <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-red-400/95">Firma para documentos (PNG/JPEG)</h3>
+      <div class="mb-6 flex flex-col gap-3 rounded-xl border border-slate-800 bg-[#0a0a0a]/50 p-4 sm:flex-row sm:items-start">
+        <div class="flex flex-col gap-2">
+          <input
+            type="file"
+            accept="image/jpeg,image/jpg,image/png"
+            class="text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white file:transition-colors hover:file:bg-slate-600"
+            (change)="onFirmaArchivo($event)"
+          />
+          @if (form.firmaImagen) {
+            <button type="button" class="text-left text-sm text-red-400 hover:underline" (click)="quitarFirma()">Quitar firma cargada</button>
+          }
+        </div>
+        @if (form.firmaImagen) {
+          <div class="rounded-lg border border-slate-700 bg-black/30 p-2">
+            <img [src]="form.firmaImagen" alt="Vista previa firma" class="max-h-28 max-w-full object-contain" />
+          </div>
+        }
+      </div>
+
+      @if (editandoId) {
+        <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-red-400/95">Observaciones del registro</h3>
+        <div class="mb-6">
+          <label class="mb-2 block text-sm font-medium text-slate-300">Motivo de cambio o baja (ej. renuncia, traslado)</label>
+          <textarea
+            [(ngModel)]="form.observacionesRegistro"
+            rows="3"
+            placeholder="Se registrará al guardar junto con la fecha de actualización del usuario."
+            class="sid-input w-full min-h-[5rem] resize-y"
+          ></textarea>
+        </div>
+      }
+
+      <div class="mt-2 flex flex-col gap-2 border-t border-gray-800 pt-6 sm:flex-row sm:items-center">
+        <button
+          type="button"
+          class="sid-btn sid-btn-primary min-h-[48px] rounded-xl px-6 font-semibold disabled:opacity-50"
+          (click)="guardar()"
+          [disabled]="guardando"
+        >
+          {{ guardando ? 'Guardando...' : 'Guardar' }}
+        </button>
+        <button type="button" class="sid-btn sid-btn-neutral min-h-[48px] rounded-xl border-slate-600 px-6 font-medium" (click)="cancelarForm()">
+          Cancelar
+        </button>
+      </div>
+      </div>
+    </div>
+  }
+
+  @if (loading) {
+    <div class="rounded-2xl border border-gray-800 bg-[#121212] p-6">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        @for (i of [1,2,3,4,5,6]; track i) {
+          <div class="rounded-2xl border border-gray-800/90 bg-[#111] p-4">
+            <div class="mb-3 flex items-center gap-3">
+              <div class="sid-skeleton h-10 w-10 rounded-full"></div>
+              <div class="min-w-0 flex-1 space-y-2">
+                <div class="sid-skeleton h-3.5 w-2/3 rounded"></div>
+                <div class="sid-skeleton h-3 w-1/3 rounded"></div>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <div class="sid-skeleton h-3 w-full rounded"></div>
+              <div class="sid-skeleton h-3 w-5/6 rounded"></div>
+              <div class="sid-skeleton h-3 w-2/3 rounded"></div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3">
+      @for (usuario of filtradosPagina; track usuario.id) {
+        <div
+          class="sid-list-item-enter group relative overflow-hidden rounded-2xl border border-gray-800/90 bg-[#121212] p-5 pt-12 transition-all duration-200 hover:border-red-900/45 hover:shadow-xl hover:shadow-red-950/25 sm:pt-8"
+        >
+          <span
+            class="absolute right-4 top-4 shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+            [class]="
+              usuario.estadoVoluntario === 'VIGENTE' || usuario.activo
+                ? 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/35'
+                : 'bg-slate-600/20 text-slate-400 ring-1 ring-slate-600/40'
+            "
+          >
+            {{ usuario.estadoVoluntario === 'INACTIVO' ? 'Inactivo' : 'Vigente' }}
+          </span>
+          <div class="mb-5 flex flex-col gap-5 sm:flex-row sm:items-start">
+            @if (fotoListaVisible(usuario)) {
+              <img
+                [src]="usuario.fotoPerfil!"
+                alt=""
+                width="128"
+                height="128"
+                class="mx-auto aspect-square h-28 w-28 shrink-0 rounded-3xl object-cover object-top shadow-lg shadow-black/50 ring-[3px] ring-red-500/35 sm:mx-0 sm:h-32 sm:w-32"
+                (error)="onFotoListaError(usuario.id)"
+              />
+            } @else {
+              <div
+                class="mx-auto flex aspect-square h-28 w-28 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-red-600 to-red-900 text-2xl font-bold text-white shadow-lg shadow-black/50 ring-[3px] ring-red-500/30 sm:mx-0 sm:h-32 sm:w-32"
+              >
+                {{ iniciales(usuario.nombre) }}
+              </div>
+            }
+            <div class="min-w-0 flex-1 text-center sm:pt-1 sm:text-left">
+              <h3 class="break-words text-lg font-bold leading-snug text-white">{{ usuario.nombre }}</h3>
+              <p class="mt-2 text-sm text-slate-500">{{ usuario.rut }}</p>
+              <p class="mt-1.5 text-sm font-medium text-slate-300">{{ etiquetaTipoVoluntario(usuario.tipoVoluntario) }}</p>
+            </div>
+          </div>
+
+          <div class="mb-4 border-b border-gray-800/80 pb-4">
+            <div class="mb-3 flex flex-wrap items-center gap-2">
+              <span
+                class="inline-flex max-w-full items-center gap-1.5 rounded-full bg-amber-500/12 px-2.5 py-1 text-[11px] font-semibold leading-snug text-amber-200 ring-1 ring-amber-500/35 sm:text-xs"
+              >
+                <lucide-icon name="shield" class="h-3.5 w-3.5 shrink-0" [size]="14" color="currentColor" />
+                <span class="normal-case tracking-normal">{{ etiquetaChipOficialidad(usuario) }}</span>
+              </span>
+            </div>
+            <span class="inline-flex rounded-full bg-slate-800/80 px-2.5 py-1 text-[11px] font-medium text-slate-400 ring-1 ring-slate-600/50">
+              Compañía · {{ usuario.compania || '—' }}
+            </span>
+          </div>
+          <div class="space-y-2">
+            <div class="flex min-w-0 items-center gap-2">
+              <lucide-icon name="mail" class="h-4 w-4 shrink-0 text-slate-500" [size]="16" color="currentColor" />
+              <span class="truncate text-sm text-slate-300">{{ usuario.email || 'Sin email' }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <lucide-icon name="phone" class="h-4 w-4 shrink-0 text-slate-500" [size]="16" color="currentColor" />
+              <span class="text-sm text-slate-300">{{ usuario.telefono || 'Sin teléfono' }}</span>
+            </div>
+          </div>
+          <div class="mt-4 flex flex-col gap-2 border-t border-gray-800/80 pt-4 sm:flex-row">
+            <button
+              type="button"
+              class="flex-1 rounded-xl border border-slate-600 bg-slate-800/80 px-3 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-700"
+              (click)="editar(usuario)"
+            >
+              Editar
+            </button>
+            <button
+              type="button"
+              class="flex-1 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors"
+              [class]="
+                usuario.estadoVoluntario === 'INACTIVO' || !usuario.activo
+                  ? 'bg-emerald-600 hover:bg-emerald-500'
+                  : 'bg-amber-600 hover:bg-amber-500'
+              "
+              (click)="cambiarEstado(usuario)"
+            >
+              {{ usuario.estadoVoluntario === 'INACTIVO' || !usuario.activo ? 'Activar' : 'Dar de baja' }}
+            </button>
+            @if (esAdmin) {
+              <button
+                type="button"
+                class="flex-1 rounded-xl bg-red-800/90 px-3 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700"
+                (click)="eliminar(usuario)"
+              >
+                Eliminar
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+    @if (!loading && filtrados.length > 0 && totalPaginas > 1) {
+      <div class="mt-6 flex flex-col items-center justify-center gap-3 border-t border-gray-800/80 pt-4 sm:flex-row sm:justify-between">
+        <p class="text-sm text-slate-400">
+          Página <span class="tabular-nums text-slate-200">{{ paginaLista }}</span> de
+          <span class="tabular-nums text-slate-200">{{ totalPaginas }}</span>
+          <span class="text-slate-500"> · {{ filtrados.length }} usuarios</span>
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-2">
+          <button
+            type="button"
+            class="rounded-xl border border-slate-600 bg-slate-800/80 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+            (click)="cambiarPagina(-1)"
+            [disabled]="paginaLista <= 1"
+          >
+            Anterior
+          </button>
+          <button
+            type="button"
+            class="rounded-xl border border-slate-600 bg-slate-800/80 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+            (click)="cambiarPagina(1)"
+            [disabled]="paginaLista >= totalPaginas"
+          >
+            Siguiente
+          </button>
+        </div>
+      </div>
+    }
+  }
+
+  @if (!loading && filtrados.length === 0) {
+    <div class="rounded-2xl border border-dashed border-slate-700 bg-[#121212]/80 p-12 text-center">
+      <lucide-icon name="users" class="sid-empty-icon mx-auto mb-3 h-12 w-12 text-slate-600" [size]="48" color="currentColor" />
+      <p class="text-slate-400">No se encontraron usuarios</p>
+    </div>
+  }
+
+</div>

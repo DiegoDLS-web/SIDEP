@@ -1,0 +1,103 @@
+<div class="sid-shell text-white">
+  <a href="#main-content" class="sid-skip-link" (click)="saltarAlContenido($event)">Saltar al contenido</a>
+  <button
+    type="button"
+    class="fixed left-3 top-3 z-50 rounded-lg border border-gray-700 bg-[#121212] p-2 text-gray-200 transition-colors hover:bg-gray-800/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500/50 lg:hidden"
+    (click)="toggleSidebar()"
+    [attr.aria-expanded]="sidebarAbierto"
+    aria-controls="side-navigation"
+    aria-label="Abrir o cerrar menú de navegación"
+  >
+    <lucide-icon [name]="sidebarAbierto ? 'x' : 'menu'" class="h-5 w-5" />
+  </button>
+
+  @if (sidebarAbierto) {
+    <button
+      type="button"
+      class="sid-overlay-dynamic fixed inset-0 z-30 bg-black/60 lg:hidden"
+      (click)="cerrarSidebar()"
+      aria-hidden="true"
+      tabindex="-1"
+    ></button>
+  }
+
+  <aside
+    id="side-navigation"
+    aria-label="Navegación principal"
+    class="sid-shell__aside sid-glass-aside fixed inset-y-0 left-0 z-40 flex w-72 max-w-[85vw] -translate-x-full flex-col border-r border-[var(--sid-border)] transition-transform lg:static lg:w-64 lg:max-w-none lg:translate-x-0"
+    [class.translate-x-0]="sidebarAbierto"
+  >
+    <div class="sid-sidebar-top-divider p-4">
+      <div class="sid-glass-panel rounded-xl p-2.5">
+        <app-sidep-brand-lockup variant="sidebar" [subline]="nombreCompaniaTag() ?? 'Compañía'" />
+      </div>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto overflow-x-hidden p-4" aria-label="Secciones">
+      @for (section of sectionesSidebar(); track section.title; let si = $index) {
+        <div class="sid-nav-section px-1 py-1" [class.mt-5]="si > 0">
+          <p class="sid-nav-section-title mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+            {{ section.title }}
+          </p>
+          <div class="space-y-1">
+            @for (item of section.items; track item.routerLink) {
+              <a
+                [routerLink]="item.routerLink"
+                class="sid-nav-item sid-nav-glass flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150"
+                [ngClass]="navClasses(navActive(item))"
+                (click)="cerrarSidebar()"
+              >
+                <lucide-icon
+                  [name]="item.icon"
+                  class="h-5 w-5 shrink-0"
+                  [size]="20"
+                  color="currentColor"
+                ></lucide-icon>
+                <span>{{ item.label }}</span>
+              </a>
+            }
+          </div>
+        </div>
+      }
+    </nav>
+
+    <div class="sid-sidebar-footer sid-sidebar-bottom-divider p-4">
+      <a
+        routerLink="/perfil"
+        (click)="cerrarSidebar()"
+        aria-label="Abrir mi perfil"
+        title="Mi perfil"
+        class="sid-user-card sid-glass-panel flex items-center gap-3 rounded-lg bg-gray-800/80 p-3 ring-1 ring-inset ring-white/5 transition-colors hover:bg-gray-800 hover:ring-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500/45"
+      >
+        <div
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-red-600 to-red-800 text-xs font-bold text-white"
+        >
+          {{ inicialesUsuario }}
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm font-medium text-white">{{ nombreUsuario }}</p>
+          <p class="truncate text-xs text-gray-400">{{ rolUsuario }}</p>
+        </div>
+      </a>
+      <button
+        type="button"
+        class="sid-btn sid-btn-primary sid-logout-btn sid-logout-clean mt-3 flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-red-700"
+        (click)="logout()"
+      >
+        <lucide-icon name="log-in" class="h-4 w-4 rotate-180" aria-hidden="true"></lucide-icon>
+        Cerrar sesión
+      </button>
+    </div>
+  </aside>
+
+  <main
+    id="main-content"
+    tabindex="-1"
+    class="sid-shell__main min-h-0 w-full min-w-0 flex-1 overflow-x-hidden overflow-y-auto pb-[env(safe-area-inset-bottom)] pt-14 outline-none lg:pt-0"
+    [class.route-fade-in]="routeTransitioning"
+    [class.route-morph]="routeTransitioning"
+  >
+    <router-outlet />
+  </main>
+  <app-confirm-dialog />
+</div>
