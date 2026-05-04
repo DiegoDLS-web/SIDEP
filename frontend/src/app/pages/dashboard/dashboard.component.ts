@@ -87,6 +87,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   mesesChart: { mes: string; cantidadActual: number; cantidadPrev: number }[] = [];
   maxMes = 1;
+  /** Tooltip flotante en barras del gráfico mensual. */
+  chartBarHover: { im: number; serie: 'a' | 'p' } | null = null;
   cuadroHonor: CuadroHonorDto | null = null;
   mostrarCuadroHonor = true;
 
@@ -192,6 +194,25 @@ export class DashboardComponent implements OnInit, OnDestroy {
       trend: 'Mes en el año filtrado',
       trendUp: true,
     };
+  }
+
+  onMesChartBarEnter(ix: number, serie: 'a' | 'p'): void {
+    this.chartBarHover = { im: ix, serie };
+  }
+
+  clearChartBarHover(): void {
+    this.chartBarHover = null;
+  }
+
+  tooltipBarraMesActual(m: { mes: string; cantidadActual: number }): string {
+    const n = m.cantidadActual;
+    return `${m.mes} ${this.anio}: ${n} ${n === 1 ? 'emergencia' : 'emergencias'}`;
+  }
+
+  tooltipBarraMesPrev(m: { mes: string; cantidadPrev: number }): string {
+    const n = m.cantidadPrev;
+    const y = this.anio - 1;
+    return `${m.mes} ${y}: ${n} ${n === 1 ? 'emergencia' : 'emergencias'}`;
   }
 
   maxPorTipo(): number {

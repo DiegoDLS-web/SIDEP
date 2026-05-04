@@ -455,12 +455,13 @@ export class PartesExportService {
     y = ensureSpace(doc, y, 220);
 
     // ——— Pacientes ———
-    if (parte.pacientes.length > 0) {
+    const pacientes = parte.pacientes ?? [];
+    if (pacientes.length > 0) {
       y = sectionHeading(doc, y, 'Pacientes');
       autoTable(doc, {
         startY: y,
         head: [['Nombre', 'Edad', 'RUT', 'Triage']],
-        body: parte.pacientes.map((p) => [
+        body: pacientes.map((p) => [
           p.nombre,
           p.edad != null ? String(p.edad) : '—',
           p.rut ?? '—',
@@ -600,7 +601,7 @@ export class PartesExportService {
       OBAC: p.obac.nombre,
       Estado: p.estado,
       Unidades: p.unidades.map((u) => u.carro.nomenclatura).join(', '),
-      Pacientes: p.pacientes.length,
+      Pacientes: (p.pacientes ?? []).length,
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();

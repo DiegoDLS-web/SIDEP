@@ -8,6 +8,7 @@ import { AuthService } from '../../services/auth.service';
 import { LicenciasService } from '../../services/licencias.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
+import { etiquetaOficialidadCargo } from '../usuarios/usuario-registro.constants';
 
 @Component({
   selector: 'app-licencias-page',
@@ -55,6 +56,8 @@ export class LicenciasPageComponent implements OnInit {
   observacionEdicion: Record<number, string> = {};
   paginaGestion = 1;
   readonly tamanioPaginaGestion = 6;
+  paginaHistorial = 1;
+  readonly tamanioPaginaHistorial = 8;
   modalNuevaSolicitudAbierta = false;
   /** Panel del resumen diario expandido por defecto. */
   resumenDiarioVisible = true;
@@ -142,6 +145,28 @@ export class LicenciasPageComponent implements OnInit {
 
       return matchTexto && matchTab && matchDesde && matchHasta;
     });
+  }
+
+  get totalPaginasHistorial(): number {
+    return Math.max(1, Math.ceil(this.historialFiltrado.length / this.tamanioPaginaHistorial));
+  }
+
+  get paginaHistorialVista(): number {
+    return Math.min(this.paginaHistorial, this.totalPaginasHistorial);
+  }
+
+  get historialPaginado(): LicenciaMedicaDto[] {
+    const i = (this.paginaHistorialVista - 1) * this.tamanioPaginaHistorial;
+    return this.historialFiltrado.slice(i, i + this.tamanioPaginaHistorial);
+  }
+
+  cambiarPaginaHistorial(delta: number): void {
+    const next = this.paginaHistorial + delta;
+    this.paginaHistorial = Math.min(this.totalPaginasHistorial, Math.max(1, next));
+  }
+
+  onFiltroHistorialChange(): void {
+    this.paginaHistorial = 1;
   }
 
   get historialFiltrado(): LicenciaMedicaDto[] {
@@ -307,6 +332,7 @@ export class LicenciasPageComponent implements OnInit {
     this.filtroHistorialEstado = '';
     this.filtroHistorialDesde = '';
     this.filtroHistorialHasta = '';
+    this.paginaHistorial = 1;
   }
 
   cambiarPaginaGestion(delta: number): void {
@@ -442,6 +468,9 @@ export class LicenciasPageComponent implements OnInit {
   }
 
   descargarLicenciaPdf(item: LicenciaMedicaDto): void {
+    const rp = item.resueltoPor;
+    const cargoResolutor =
+      rp != null ? etiquetaOficialidadCargo(rp.cargoOficialidad ?? null, rp.rol) : null;
     void this.pdfExport.exportarLicencia({
       id: item.id,
       solicitante: item.usuario?.nombre || `Usuario #${item.usuarioId}`,
@@ -452,8 +481,11 @@ export class LicenciasPageComponent implements OnInit {
       motivo: item.motivo,
       estado: this.etiquetaEstado(item.estado),
       observacionResolucion: item.observacionResolucion,
-      resueltoPor: item.resueltoPor?.nombre ?? null,
+      resueltoPor: rp?.nombre ?? null,
+      resueltoCargoEtiqueta: cargoResolutor,
       resueltoEn: item.resueltoEn ?? null,
+      firmaResolutor: rp?.firmaImagen ?? null,
+      estadoCodigo: item.estado,
     });
   }
 }

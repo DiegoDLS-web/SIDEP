@@ -1,21 +1,16 @@
-<div class="sid-page min-h-0 w-full min-w-0 space-y-6 px-4 py-3 sm:px-6 md:py-6 md:px-8 lg:px-10 xl:px-12">
+<div class="sid-page sid-page-shell min-h-0 w-full py-3 sm:pt-4 md:py-6">
   @if (loading) {
     <div class="flex min-h-[30vh] flex-col items-center justify-center gap-3 text-slate-400">
       <lucide-icon name="shield" class="h-10 w-10 animate-pulse text-red-500" [size]="40" color="currentColor" />
       <p class="text-sm">Cargando checklist ERA…</p>
     </div>
   } @else {
-    <a
-      routerLink="/"
-      class="mb-3 inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212]/90 px-3 py-2 text-sm text-slate-300 ring-1 ring-white/5 transition-colors hover:border-slate-600 hover:text-white"
-    >
+    <a routerLink="/" class="sid-back-link mb-3">
       <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
       Volver al inicio
     </a>
-    <section
-      class="relative overflow-hidden rounded-2xl border border-violet-900/35 bg-[radial-gradient(circle_at_0%_0%,rgba(139,92,246,0.18),transparent_48%),radial-gradient(circle_at_100%_0%,rgba(220,38,38,0.12),transparent_40%),#0a0a0a] p-5 sm:p-6"
-    >
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <section class="sid-hero-panel sid-hero-panel--violet">
+      <div class="sid-hero-panel__row sid-hero-panel__row--split">
         <div>
           <p class="mb-2 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs text-violet-200">
             Equipo de respiración autónomos
@@ -46,7 +41,7 @@
 
     @if (!mostrarRegistro) {
       <div class="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        @for (c of carrosOrdenados(); track c.id) {
+        @for (c of carrosOrdenados(); track c.id; let ic = $index) {
           @let r = resumenUnidadEra(c);
           <div
             class="group flex min-h-[240px] flex-col overflow-hidden rounded-2xl border border-slate-800/90 bg-[#121212] shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 transition-all duration-200 hover:border-red-800/50 hover:shadow-red-950/20"
@@ -70,8 +65,12 @@
                     <span class="text-white/90">Completitud</span>
                     <span class="font-semibold text-white">{{ r.completitud }}%</span>
                   </div>
-                  <div class="h-1.5 w-full rounded-full bg-black/45 sm:h-2">
-                    <div class="h-1.5 rounded-full bg-white/95 sm:h-2" [style.width.%]="r.completitud"></div>
+                  <div class="h-1.5 w-full overflow-hidden rounded-full bg-black/45 sm:h-2">
+                    <div
+                      class="sid-chart-bar-fill h-1.5 rounded-full bg-white/95 sm:h-2"
+                      [style.width.%]="r.completitud"
+                      [style.--sid-chart-stagger.ms]="ic * 48"
+                    ></div>
                   </div>
                 </div>
               </div>
@@ -906,10 +905,7 @@
               </div>
             </div>
           } @empty {
-            <div class="sid-empty-state">
-              <lucide-icon name="archive-x" class="sid-empty-icon h-6 w-6 text-slate-500" [size]="22" color="currentColor"></lucide-icon>
-              <p class="text-sm text-slate-400">Sin registros.</p>
-            </div>
+            <app-sid-empty-state [compact]="true" title="Sin registros" icon="archive-x" />
           }
         </div>
         <div class="sid-history-wrap hidden overflow-x-auto md:block">

@@ -4,6 +4,7 @@ exports.reportesRouter = void 0;
 const express_1 = require("express");
 const prisma_js_1 = require("../lib/prisma.js");
 const apiError_js_1 = require("../lib/apiError.js");
+const parte_asistencia_js_1 = require("../lib/parte-asistencia.js");
 exports.reportesRouter = (0, express_1.Router)();
 function esTipoExcluidoAsistencia(tipo) {
     const t = String(tipo ?? '')
@@ -64,26 +65,6 @@ function extraerSector(direccion) {
         return 'Sin sector';
     const sector = raw.split(',')[0]?.trim() ?? '';
     return sector || 'Sin sector';
-}
-function extraerAsistenciasMetadata(metadata) {
-    const meta = metadata;
-    const apc = meta?.asistencia?.asistenciaPorContexto;
-    if (!apc || typeof apc !== 'object')
-        return [];
-    const out = [];
-    for (const mapa of Object.values(apc)) {
-        if (!mapa || typeof mapa !== 'object')
-            continue;
-        for (const [k, v] of Object.entries(mapa)) {
-            if (!k.startsWith('usr-'))
-                continue;
-            const uid = Number(k.slice(4));
-            if (!Number.isFinite(uid) || uid <= 0)
-                continue;
-            out.push({ usuarioId: uid, presente: Boolean(v) });
-        }
-    }
-    return out;
 }
 exports.reportesRouter.get('/emergencias', async (req, res) => {
     const desde = req.query.desde ? new Date(String(req.query.desde)) : undefined;
@@ -361,7 +342,7 @@ exports.reportesRouter.get('/analitica-operacional', async (req, res) => {
             const detalleMes = asistenciaDetallePorMes.get(mesParte);
             if (!bucket)
                 continue;
-            const asistencias = extraerAsistenciasMetadata(parte.metadata);
+            const asistencias = (0, parte_asistencia_js_1.extraerAsistenciasMetadata)(parte.metadata);
             for (const item of asistencias) {
                 if (!item.presente)
                     continue;

@@ -7,13 +7,14 @@ import type { ChecklistRegistroDto, ChecklistResumenUnidadDto, EstadoChecklist }
 import { ChecklistsService } from '../../services/checklists.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
+import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 
 @Component({
   selector: 'app-checklist-selector',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidScrollRevealDirective],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidScrollRevealDirective, SidEmptyStateComponent],
   templateUrl: './checklist-selector.component.html',
 })
 export class ChecklistSelectorComponent implements OnInit {

@@ -76,6 +76,9 @@ model ParteEmergencia {
   obac             Usuario              @relation("ObacRelation", fields: [obacId], references: [id])
   unidades         UnidadEnEmergencia[]
   pacientes        PacienteEmergencia[]
+
+  @@index([fecha(sort: Desc)])
+  @@index([claveEmergencia, fecha(sort: Desc)])
 }
 
 model UnidadEnEmergencia {

@@ -7,9 +7,10 @@
       <h1 class="sr-only">SIDEP · inicio de sesión</h1>
     </div>
 
-    <div class="sid-glass-panel rounded-xl border border-gray-700/80 bg-[#121212]/90 p-8 backdrop-blur-sm">
-      <h2 class="mb-6 text-2xl font-bold text-white">Iniciar Sesión</h2>
-      <p class="mb-4 text-sm text-gray-400">Si no ingresas datos, entrarás en modo demo automáticamente.</p>
+    <div class="sid-glass-panel sid-panel rounded-xl border border-gray-700/80 bg-[#121212]/90 p-8 backdrop-blur-sm">
+      <span class="sid-eyebrow mb-3">Acceso seguro</span>
+      <h2 class="sid-title-balanced mb-2 text-2xl font-bold text-white">Iniciar Sesión</h2>
+      <p class="mb-5 text-sm text-gray-400">Si no ingresas datos, entrarás en modo demo automáticamente.</p>
       @if (error) {
         <div class="sid-feedback mb-4 rounded-lg border border-red-700 bg-red-900/20 px-4 py-3 text-sm text-red-300">
           {{ error }}
@@ -32,7 +33,7 @@
               [(ngModel)]="email"
               required
               placeholder="usuario@bomberos.cl"
-              class="box-border w-full rounded-lg border border-gray-700 bg-[#0a0a0a] py-3 pl-12 pr-4 text-white placeholder:text-gray-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500/40"
+              class="sid-input box-border w-full !rounded-lg !border-gray-700 !bg-[#0a0a0a] !py-3 !pl-12 !pr-4 placeholder:text-gray-500"
             />
           </div>
         </div>
@@ -52,7 +53,7 @@
               [(ngModel)]="password"
               required
               placeholder="••••••••"
-              class="box-border w-full rounded-lg border border-gray-700 bg-[#0a0a0a] py-3 pl-12 pr-4 text-white placeholder:text-gray-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500/40"
+              class="sid-input box-border w-full !rounded-lg !border-gray-700 !bg-[#0a0a0a] !py-3 !pl-12 !pr-4 placeholder:text-gray-500"
             />
           </div>
         </div>
@@ -70,7 +71,7 @@
             </span>
             Recordarme
           </label>
-          <a routerLink="/recuperar-password" class="text-sm text-red-500 hover:text-red-400"
+          <a routerLink="/recuperar-password" class="sid-link-clean text-sm"
             >¿Olvidaste tu contraseña?</a
           >
         </div>
@@ -78,14 +79,14 @@
         <button
           type="submit"
           [disabled]="loading"
-          class="w-full rounded-lg bg-red-600 py-3 font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60"
+          class="sid-btn sid-btn-primary w-full rounded-lg py-3 font-medium disabled:opacity-60"
         >
           {{ loading ? 'Ingresando...' : 'Ingresar al Sistema' }}
         </button>
         <button
           type="button"
           [disabled]="loading"
-          class="w-full rounded-lg border border-gray-700 bg-transparent py-3 font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-60"
+          class="sid-btn sid-btn-ghost w-full rounded-lg py-3 font-medium disabled:opacity-60"
           (click)="entrarDemo()"
         >
           Entrar modo prueba (sin credenciales)

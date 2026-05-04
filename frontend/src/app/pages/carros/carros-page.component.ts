@@ -12,6 +12,7 @@ import { CarrosService } from '../../services/carros.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { ToastService } from '../../services/toast.service';
 import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
+import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
@@ -25,7 +26,15 @@ type CarrosView =
 @Component({
   selector: 'app-carros-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidScrollRevealDirective],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    SidepIconsModule,
+    SignaturePadComponent,
+    SidScrollRevealDirective,
+    SidEmptyStateComponent,
+  ],
   templateUrl: './carros-page.component.html',
 })
 export class CarrosPageComponent {
@@ -46,8 +55,6 @@ export class CarrosPageComponent {
     'https://images.unsplash.com/photo-1588662880295-13d2b28127c6?w=1080&q=80&fm=jpg';
   readonly splitFh = splitFechaHoraEsCl;
 
-  hoveredCarroId: number | null = null;
-  private readonly carroGlow = new Map<number, { x: number; y: number }>();
   editando = false;
   guardando = false;
   mensajeEdicion = '';
@@ -234,35 +241,6 @@ export class CarrosPageComponent {
     if (!img.src.includes(this.imagenFallback)) {
       img.src = this.imagenFallback;
     }
-  }
-
-  onCarroMouseMove(event: MouseEvent, carro: CarroDto): void {
-    const el = event.currentTarget as HTMLElement | null;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * 100;
-    const y = ((event.clientY - rect.top) / rect.height) * 100;
-    this.hoveredCarroId = carro.id;
-    this.carroGlow.set(carro.id, { x, y });
-  }
-
-  onCarroMouseLeave(carro: CarroDto): void {
-    if (this.hoveredCarroId === carro.id) {
-      this.hoveredCarroId = null;
-    }
-  }
-
-  estiloGlowCarro(carro: CarroDto): Record<string, string> {
-    const pos = this.carroGlow.get(carro.id) ?? { x: 50, y: 50 };
-    return {
-      '--mx': `${pos.x}%`,
-      '--my': `${pos.y}%`,
-    };
-  }
-
-  claseVivaCarro(carro: CarroDto): string {
-    if (carro.estadoOperativo) return 'sid-carro-vivo-ok';
-    return 'sid-carro-vivo-mant';
   }
 
   private normalizarUrlImagen(raw: string, nomenclatura: string): string {

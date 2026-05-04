@@ -235,7 +235,7 @@
       <lucide-icon name="users" class="h-5 w-5 text-rose-400" [size]="20" color="currentColor"></lucide-icon>
       Pacientes
     </h2>
-    @if (p.pacientes.length === 0) {
+    @if ((p.pacientes ?? []).length === 0) {
       <p class="text-gray-500">Sin pacientes registrados.</p>
     } @else {
       <div class="overflow-x-auto">
@@ -249,7 +249,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (pac of p.pacientes; track pac.id) {
+            @for (pac of p.pacientes ?? []; track pac.id) {
               <tr class="border-b border-gray-800">
                 <td class="py-3 pr-4">{{ pac.nombre }}</td>
                 <td class="py-3 pr-4 text-gray-400">{{ pac.edad != null ? pac.edad : '—' }}</td>

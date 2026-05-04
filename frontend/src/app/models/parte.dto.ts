@@ -121,5 +121,6 @@ export interface ParteEmergenciaDto {
   obacId: number;
   obac: UsuarioBasicoDto;
   unidades: UnidadParteDto[];
-  pacientes: PacienteParteDto[];
+  /** Ausente en listados paginados optimizados (`pacientes: []`). */
+  pacientes?: PacienteParteDto[];
 }

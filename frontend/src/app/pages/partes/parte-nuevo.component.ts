@@ -1094,7 +1094,7 @@ export class ParteNuevoComponent implements OnInit {
             },
           ];
 
-    this.pacientes = parte.pacientes.map((p) => ({
+    this.pacientes = (parte.pacientes ?? []).map((p) => ({
       nombre: p.nombre ?? '',
       edad: p.edad == null ? '' : String(p.edad),
       rut: p.rut ?? '',

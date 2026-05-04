@@ -9,6 +9,8 @@ import { registrarActividad } from '../lib/auditoria.js';
 import { enviarCorreoRecuperacion } from '../lib/mailer.js';
 import { obtenerConfigSistema } from './configuraciones.js';
 import { rutasPermitidasParaRol } from '../lib/nav-por-rol.js';
+import { requireRoles } from '../middleware/roles.js';
+import { buildResumenOperativoUsuario } from '../lib/usuario-resumen-operativo.js';
 import { GRUPOS_SANGUINEOS, normalizarFotoPerfil } from '../lib/usuario-perfil.js';
 import { sendApiError } from '../lib/apiError.js';
 
@@ -514,6 +516,51 @@ authRouter.get('/mi-navegacion', requireAuth, async (req, res) => {
   } catch (e) {
     console.error(e);
     sendApiError(res, 500, 'AUTH_MENU_CONFIG', 'No se pudo obtener la configuración de menú');
+  }
+});
+
+/** Pantallas del menú lateral si el usuario tuviera otro rol (configuración + whitelist). Solo personal de gestión. */
+authRouter.get(
+  '/previa-menu-simulado',
+  requireAuth,
+  requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'),
+  async (req, res) => {
+    const rolSim = String(req.query.rol ?? '')
+      .trim()
+      .toUpperCase();
+    const permitidos = new Set(['ADMIN', 'CAPITAN', 'TENIENTE']);
+    if (!permitidos.has(rolSim)) {
+      sendApiError(res, 400, 'AUTH_MENU_SIM_ROL', 'Indica rol=ADMIN, CAPITAN o TENIENTE');
+      return;
+    }
+    try {
+      const cfg = await obtenerConfigSistema();
+      const paths = rutasPermitidasParaRol(rolSim, cfg.navegacionPorRol);
+      res.json({ rolSimulado: rolSim, paths });
+    } catch (e) {
+      console.error(e);
+      sendApiError(res, 500, 'AUTH_MENU_SIM', 'No se pudo obtener la vista de menú simulada');
+    }
+  },
+);
+
+authRouter.get('/mi-resumen-operativo', requireAuth, async (req, res) => {
+  const uid = uidAutenticado(req);
+  if (!uid) {
+    sendApiError(res, 401, 'AUTH_UNAUTHORIZED', 'No autorizado');
+    return;
+  }
+  try {
+    const u = await prisma.usuario.findUnique({ where: { id: uid }, select: { activo: true } });
+    if (!u?.activo) {
+      sendApiError(res, 401, 'AUTH_UNAUTHORIZED', 'No autorizado');
+      return;
+    }
+    const resumen = await buildResumenOperativoUsuario(uid);
+    res.json(resumen);
+  } catch (e) {
+    console.error(e);
+    sendApiError(res, 500, 'AUTH_RESUMEN_OPERATIVO', 'No se pudo armar tu resumen operativo');
   }
 });
 

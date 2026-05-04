@@ -15,6 +15,8 @@ const auditoria_js_1 = require("../lib/auditoria.js");
 const mailer_js_1 = require("../lib/mailer.js");
 const configuraciones_js_1 = require("./configuraciones.js");
 const nav_por_rol_js_1 = require("../lib/nav-por-rol.js");
+const roles_js_1 = require("../middleware/roles.js");
+const usuario_resumen_operativo_js_1 = require("../lib/usuario-resumen-operativo.js");
 const usuario_perfil_js_1 = require("../lib/usuario-perfil.js");
 const apiError_js_1 = require("../lib/apiError.js");
 exports.authRouter = (0, express_1.Router)();
@@ -488,6 +490,46 @@ exports.authRouter.get('/mi-navegacion', auth_js_2.requireAuth, async (req, res)
     catch (e) {
         console.error(e);
         (0, apiError_js_1.sendApiError)(res, 500, 'AUTH_MENU_CONFIG', 'No se pudo obtener la configuración de menú');
+    }
+});
+/** Pantallas del menú lateral si el usuario tuviera otro rol (configuración + whitelist). Solo personal de gestión. */
+exports.authRouter.get('/previa-menu-simulado', auth_js_2.requireAuth, (0, roles_js_1.requireRoles)('ADMIN', 'CAPITAN', 'TENIENTE'), async (req, res) => {
+    const rolSim = String(req.query.rol ?? '')
+        .trim()
+        .toUpperCase();
+    const permitidos = new Set(['ADMIN', 'CAPITAN', 'TENIENTE']);
+    if (!permitidos.has(rolSim)) {
+        (0, apiError_js_1.sendApiError)(res, 400, 'AUTH_MENU_SIM_ROL', 'Indica rol=ADMIN, CAPITAN o TENIENTE');
+        return;
+    }
+    try {
+        const cfg = await (0, configuraciones_js_1.obtenerConfigSistema)();
+        const paths = (0, nav_por_rol_js_1.rutasPermitidasParaRol)(rolSim, cfg.navegacionPorRol);
+        res.json({ rolSimulado: rolSim, paths });
+    }
+    catch (e) {
+        console.error(e);
+        (0, apiError_js_1.sendApiError)(res, 500, 'AUTH_MENU_SIM', 'No se pudo obtener la vista de menú simulada');
+    }
+});
+exports.authRouter.get('/mi-resumen-operativo', auth_js_2.requireAuth, async (req, res) => {
+    const uid = uidAutenticado(req);
+    if (!uid) {
+        (0, apiError_js_1.sendApiError)(res, 401, 'AUTH_UNAUTHORIZED', 'No autorizado');
+        return;
+    }
+    try {
+        const u = await prisma_js_1.prisma.usuario.findUnique({ where: { id: uid }, select: { activo: true } });
+        if (!u?.activo) {
+            (0, apiError_js_1.sendApiError)(res, 401, 'AUTH_UNAUTHORIZED', 'No autorizado');
+            return;
+        }
+        const resumen = await (0, usuario_resumen_operativo_js_1.buildResumenOperativoUsuario)(uid);
+        res.json(resumen);
+    }
+    catch (e) {
+        console.error(e);
+        (0, apiError_js_1.sendApiError)(res, 500, 'AUTH_RESUMEN_OPERATIVO', 'No se pudo armar tu resumen operativo');
     }
 });
 exports.authRouter.post('/logout', auth_js_2.requireAuth, async (req, res) => {

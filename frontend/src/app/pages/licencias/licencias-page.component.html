@@ -1,8 +1,6 @@
-<div class="sid-page sid-licencias-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 sm:py-6 md:px-8 lg:px-10 xl:px-12">
-  <section
-    class="relative overflow-hidden rounded-2xl border border-fuchsia-900/40 bg-[radial-gradient(circle_at_0%_0%,rgba(59,130,246,0.28),transparent_42%),radial-gradient(circle_at_100%_0%,rgba(192,38,211,0.22),transparent_40%),#0a0a0a] p-5 sm:p-6"
-  >
-    <div class="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+<div class="sid-page sid-page-shell sid-licencias-page w-full min-w-0">
+  <section class="sid-hero-panel sid-hero-panel--fuchsia">
+    <div class="sid-hero-panel__row sid-hero-panel__row--split-start">
       <div>
         <p class="sid-page-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-3 py-1 text-xs text-fuchsia-200">
           Salud y disponibilidad operativa
@@ -25,15 +23,15 @@
 
   @if (puedeGestionar) {
     <section class="grid grid-cols-1 gap-4 md:grid-cols-3">
-      <article class="rounded-xl border border-amber-700/35 bg-gradient-to-br from-amber-950/30 to-transparent p-5">
+      <article class="sid-card-hover rounded-xl border border-amber-700/35 bg-gradient-to-br from-amber-950/30 to-transparent p-5">
         <p class="text-xs uppercase tracking-wide text-amber-200/80">Pendientes</p>
         <p class="mt-2 text-3xl font-bold text-amber-300">{{ totalPendientes }}</p>
       </article>
-      <article class="rounded-xl border border-emerald-700/35 bg-gradient-to-br from-emerald-950/30 to-transparent p-5">
+      <article class="sid-card-hover rounded-xl border border-emerald-700/35 bg-gradient-to-br from-emerald-950/30 to-transparent p-5">
         <p class="text-xs uppercase tracking-wide text-emerald-200/80">Aprobadas</p>
         <p class="mt-2 text-3xl font-bold text-emerald-300">{{ totalAprobadas }}</p>
       </article>
-      <article class="rounded-xl border border-red-700/35 bg-gradient-to-br from-red-950/30 to-transparent p-5">
+      <article class="sid-card-hover rounded-xl border border-red-700/35 bg-gradient-to-br from-red-950/30 to-transparent p-5">
         <p class="text-xs uppercase tracking-wide text-red-200/80">Rechazadas</p>
         <p class="mt-2 text-3xl font-bold text-red-300">{{ totalRechazadas }}</p>
       </article>
@@ -526,10 +524,11 @@
       <input
         type="search"
         [(ngModel)]="filtroHistorialTexto"
+        (ngModelChange)="onFiltroHistorialChange()"
         placeholder="Buscar por nombre o motivo"
         class="sid-history-filter text-sm md:col-span-2"
       />
-      <select [(ngModel)]="filtroHistorialEstado" class="sid-history-filter text-sm">
+      <select [(ngModel)]="filtroHistorialEstado" (ngModelChange)="onFiltroHistorialChange()" class="sid-history-filter text-sm">
         <option value="">Todos los estados</option>
         <option value="PENDIENTE">Pendiente</option>
         <option value="APROBADA">Aprobada</option>
@@ -537,13 +536,23 @@
         <option value="ANULADA">Anulada</option>
       </select>
       <div class="flex items-center gap-2">
-        <input type="date" [(ngModel)]="filtroHistorialDesde" class="sid-history-filter dark-date-input w-full text-sm" />
-        <input type="date" [(ngModel)]="filtroHistorialHasta" class="sid-history-filter dark-date-input w-full text-sm" />
+        <input
+          type="date"
+          [(ngModel)]="filtroHistorialDesde"
+          (ngModelChange)="onFiltroHistorialChange()"
+          class="sid-history-filter dark-date-input w-full text-sm"
+        />
+        <input
+          type="date"
+          [(ngModel)]="filtroHistorialHasta"
+          (ngModelChange)="onFiltroHistorialChange()"
+          class="sid-history-filter dark-date-input w-full text-sm"
+        />
       </div>
     </div>
 
     <div class="space-y-4 lg:hidden">
-      @for (l of historialFiltrado; track l.id) {
+      @for (l of historialPaginado; track l.id) {
         <article class="rounded-xl border border-gray-800 bg-[#0a0a0a] p-4 sm:p-5">
           <div class="mb-2 flex items-center justify-between gap-2">
             <p class="text-sm font-medium text-gray-100">{{ fecha(l.fechaInicio) }} - {{ fecha(l.fechaTermino) }}</p>
@@ -590,7 +599,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (l of historialFiltrado; track l.id) {
+          @for (l of historialPaginado; track l.id) {
             <tr>
               <td class="text-gray-200">{{ fecha(l.fechaInicio) }} - {{ fecha(l.fechaTermino) }}</td>
               <td class="max-w-[24rem] leading-relaxed text-gray-300">{{ l.motivo }}</td>
@@ -630,6 +639,31 @@
     </div>
     @if (!loading && historialFiltrado.length === 0) {
       <p class="mt-3 text-sm text-gray-500">Sin solicitudes aún.</p>
+    }
+    @if (!loading && historialFiltrado.length > 0 && totalPaginasHistorial > 1) {
+      <div class="mt-4 flex flex-col gap-3 border-t border-gray-800 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <span class="text-sm text-gray-500">
+          Página {{ paginaHistorialVista }} de {{ totalPaginasHistorial }} · {{ historialFiltrado.length }} registro(s)
+        </span>
+        <div class="flex flex-wrap gap-2">
+          <button
+            type="button"
+            class="rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-white disabled:opacity-40"
+            [disabled]="paginaHistorialVista <= 1"
+            (click)="cambiarPaginaHistorial(-1)"
+          >
+            Anterior
+          </button>
+          <button
+            type="button"
+            class="rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-white disabled:opacity-40"
+            [disabled]="paginaHistorialVista >= totalPaginasHistorial"
+            (click)="cambiarPaginaHistorial(1)"
+          >
+            Siguiente
+          </button>
+        </div>
+      </div>
     }
   </section>
 </div>

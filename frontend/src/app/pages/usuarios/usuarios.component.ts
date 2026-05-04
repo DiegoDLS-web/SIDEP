@@ -63,7 +63,6 @@ export class UsuariosComponent implements OnInit {
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-
   readonly cargosOrden = CARGOS_OFICIALIDAD_ORDEN;
   readonly etiquetasCargo = ETIQUETAS_CARGO_OFICIALIDAD;
   readonly tiposVoluntario = TIPOS_VOLUNTARIO_ORDEN;

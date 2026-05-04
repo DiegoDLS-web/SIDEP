@@ -940,7 +940,13 @@ export class PdfExportService {
     estado: string;
     observacionResolucion?: string | null;
     resueltoPor?: string | null;
+    /** Etiqueta legible del cargo institucional de quien resolvió (ej. Ayudante de compañía). */
+    resueltoCargoEtiqueta?: string | null;
     resueltoEn?: string | null;
+    /** Firma PNG/JPEG (data URL) de quien aprobó o rechazó. */
+    firmaResolutor?: string | null;
+    /** Estado en sistema (APROBADA, RECHAZADA, …) para saber si aplica aviso de firma faltante. */
+    estadoCodigo?: string | null;
   }): Promise<void> {
     const doc = new jsPDF();
     const yHead = await this.drawHeaderMarca(doc, `Licencia #${input.id}`, 'SIDEP · Documento de licencia');
@@ -957,6 +963,7 @@ export class PdfExportService {
         ['Fecha término', fmtFechaPdf(input.fechaTermino)],
         ['Estado', input.estado || '—'],
         ['Resuelto por', input.resueltoPor || '—'],
+        ['Cargo quien resolvió', input.resueltoCargoEtiqueta?.trim() || '—'],
         ['Fecha resolución', fmtFechaHoraPdf(input.resueltoEn || null)],
       ],
       styles: { fontSize: 9, cellPadding: 2 },
@@ -974,6 +981,59 @@ export class PdfExportService {
     doc.text('Observación de resolución:', 14, y2 + 8);
     const obsLines = doc.splitTextToSize(input.observacionResolucion || 'Sin observación.', 180);
     doc.text(obsLines, 14, y2 + 14);
+
+    let yFirma = y2 + 14 + obsLines.length * 5 + 10;
+    if (yFirma > 222) {
+      doc.addPage();
+      yFirma = 20;
+    }
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Firma de quien resolvió la solicitud', 14, yFirma);
+    doc.setFont('helvetica', 'normal');
+    yFirma += 7;
+    doc.setFontSize(9);
+    doc.setTextColor(63, 63, 70);
+    doc.text(input.resueltoPor?.trim() ? String(input.resueltoPor) : '—', 14, yFirma);
+    yFirma += 5;
+    const cargoTxt = input.resueltoCargoEtiqueta?.trim();
+    if (cargoTxt) {
+      doc.text(cargoTxt, 14, yFirma);
+      yFirma += 5;
+    }
+    doc.setTextColor(20, 20, 20);
+
+    const firmaRes = input.firmaResolutor?.trim();
+    if (firmaRes?.startsWith('data:image')) {
+      yFirma += 3;
+      doc.setFontSize(8.5);
+      doc.setTextColor(82, 82, 91);
+      doc.text('Firma registrada:', 14, yFirma);
+      yFirma += 5;
+      doc.setTextColor(20, 20, 20);
+      try {
+        const imgW = 72;
+        const imgH = 24;
+        doc.addImage(firmaRes, fmtFirmaParaJsPdf(firmaRes), 14, yFirma, imgW, imgH);
+        yFirma += imgH + 4;
+      } catch {
+        doc.setFontSize(9);
+        doc.setTextColor(82, 82, 91);
+        doc.text('(No se pudo incrustar la imagen de la firma.)', 14, yFirma);
+        doc.setTextColor(20, 20, 20);
+        yFirma += 8;
+      }
+    } else if (
+      input.resueltoPor?.trim() &&
+      ['APROBADA', 'RECHAZADA', 'ANULADA'].includes(String(input.estadoCodigo ?? '').toUpperCase())
+    ) {
+      yFirma += 3;
+      doc.setFontSize(8.5);
+      doc.setTextColor(82, 82, 91);
+      doc.text('Sin firma digital registrada para quien resolvió.', 14, yFirma);
+      doc.setTextColor(20, 20, 20);
+    }
 
     this.finalizarDocumentoPdf(doc);
     doc.save(`SIDEP-licencia-${input.id}-${stampFechaArchivo()}.pdf`);

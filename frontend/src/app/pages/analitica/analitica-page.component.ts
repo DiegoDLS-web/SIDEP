@@ -132,9 +132,22 @@ export class AnaliticaPageComponent implements OnInit {
 
   textoNivelSla(): string {
     const nivel = this.nivelSla();
-    if (nivel === 'alto') return 'SLA saludable';
-    if (nivel === 'medio') return 'SLA en observación';
-    return 'SLA crítico';
+    if (nivel === 'alto') return 'Meta cumplida en general';
+    if (nivel === 'medio') return 'A mejorar: revisar demoras';
+    return 'Crítico: muchas respuestas lentas';
+  }
+
+  claseSlaPill(): string {
+    const nivel = this.nivelSla();
+    if (nivel === 'alto') return 'border-emerald-500/45 bg-emerald-500/15 text-emerald-200';
+    if (nivel === 'medio') return 'border-amber-500/45 bg-amber-500/15 text-amber-200';
+    return 'border-red-500/45 bg-red-500/15 text-red-200';
+  }
+
+  sectorCriticoPrincipal(): { sector: string; promedioRespuestaMin: number } | null {
+    const top = this.datos?.sectoresCriticos?.[0];
+    if (!top) return null;
+    return { sector: top.sector, promedioRespuestaMin: top.promedioRespuestaMin };
   }
 
   maxSalidasSemana(): number {

@@ -171,7 +171,9 @@ exports.licenciasRouter.get('/mis', async (req, res) => {
             where: { usuarioId: uid },
             orderBy: { createdAt: 'desc' },
             include: {
-                resueltoPor: { select: { id: true, nombre: true, rol: true } },
+                resueltoPor: {
+                    select: { id: true, nombre: true, rol: true, cargoOficialidad: true, firmaImagen: true },
+                },
             },
             take: 300,
         });
@@ -240,7 +242,9 @@ exports.licenciasRouter.get('/', async (req, res) => {
                 usuario: {
                     select: { id: true, nombre: true, rut: true, rol: true, cargoOficialidad: true },
                 },
-                resueltoPor: { select: { id: true, nombre: true, rol: true } },
+                resueltoPor: {
+                    select: { id: true, nombre: true, rol: true, cargoOficialidad: true, firmaImagen: true },
+                },
             },
             take: 1000,
         });

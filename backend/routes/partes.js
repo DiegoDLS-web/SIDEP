@@ -76,10 +76,10 @@ exports.partesRouter.get('/pagina', async (req, res) => {
     }
     catch (e) {
         console.error(e);
-        (0, apiError_js_1.sendApiError)(res, 500, 'PARTES_LIST_PAGINA', 'Error al listar partes con paginaci�n.');
+        (0, apiError_js_1.sendApiError)(res, 500, 'PARTES_LIST_PAGINA', 'Error al listar partes con paginación.');
     }
 });
-/** Totales globales para tarjetas del listado (sin filtros de b�squeda). */
+/** Totales globales para tarjetas del listado (sin filtros de búsqueda). */
 exports.partesRouter.get('/metricas', async (_req, res) => {
     try {
         const now = new Date();

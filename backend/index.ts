@@ -2,6 +2,7 @@ import 'dotenv/config';
 import path from 'node:path';
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import type { Prisma } from '@prisma/client';
 import { prisma } from './lib/prisma.js';
 import { sendApiError } from './lib/apiError.js';
@@ -23,6 +24,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
+app.use(compression({ threshold: 1024 }));
 app.use(express.json({ limit: '12mb' }));
 
 const uploadsRoot = path.join(process.cwd(), 'uploads');

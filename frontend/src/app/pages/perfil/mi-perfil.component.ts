@@ -4,6 +4,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import type { UsuarioListaDto } from '../../models/usuario.dto';
+import type { ResumenOperativoDto } from '../../models/resumen-operativo.dto';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
@@ -33,6 +34,31 @@ export class MiPerfilComponent implements OnInit {
   perfil: UsuarioListaDto | null = null;
   fotoRota = false;
 
+  resumen: ResumenOperativoDto | null = null;
+  resumenCargando = false;
+  resumenError: string | null = null;
+
+  paginaLicenciasPerfil = 1;
+  paginaEmergenciasPerfil = 1;
+  readonly tamPagLicenciasPerfil = 4;
+  readonly tamPagEmergenciasPerfil = 5;
+
+  private readonly mesesCortos = [
+    '',
+    'Enero',
+    'Febrero',
+    'Marzo',
+    'Abril',
+    'Mayo',
+    'Junio',
+    'Julio',
+    'Agosto',
+    'Septiembre',
+    'Octubre',
+    'Noviembre',
+    'Diciembre',
+  ];
+
   editandoMisDatos = false;
   guardandoPerfil = false;
   errorForm: string | null = null;
@@ -48,6 +74,28 @@ export class MiPerfilComponent implements OnInit {
   ngOnInit(): void {
     this.navUi.refrescar();
     this.cargarPerfil();
+  }
+
+  nombreMesPerfil(m: number | undefined): string {
+    if (!m || m < 1 || m > 12) return '';
+    return this.mesesCortos[m] ?? '';
+  }
+
+  private cargarResumenOperativo(): void {
+    this.resumenCargando = true;
+    this.resumenError = null;
+    this.http.get<ResumenOperativoDto>('/api/auth/mi-resumen-operativo').subscribe({
+      next: (r) => {
+        this.resumen = r;
+        this.paginaLicenciasPerfil = 1;
+        this.paginaEmergenciasPerfil = 1;
+        this.resumenCargando = false;
+      },
+      error: () => {
+        this.resumenError = 'No se pudo cargar tu resumen operativo (asistencias y licencias).';
+        this.resumenCargando = false;
+      },
+    });
   }
 
   etiquetaMenu(path: string): string {
@@ -79,6 +127,7 @@ export class MiPerfilComponent implements OnInit {
         this.perfil = p;
         this.poblarMisForm(p);
         this.loading = false;
+        this.cargarResumenOperativo();
       },
       error: () => {
         this.error = 'No se pudo cargar tu perfil.';
@@ -91,6 +140,59 @@ export class MiPerfilComponent implements OnInit {
     if (!iso) return '—';
     const d = new Date(iso);
     return Number.isNaN(d.getTime()) ? '—' : formatDate(d, 'dd/MM/yyyy', 'es-CL');
+  }
+
+  fechaHoraPerfil(iso: string | null | undefined): string {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? '—' : formatDate(d, "dd/MM/yyyy · HH:mm", 'es-CL');
+  }
+
+  totalPaginasLicenciasPerfil(): number {
+    const n = this.resumen?.licencias.items.length ?? 0;
+    return Math.max(1, Math.ceil(n / this.tamPagLicenciasPerfil));
+  }
+
+  totalPaginasEmergenciasPerfil(): number {
+    const n = this.resumen?.emergenciasRecientes.length ?? 0;
+    return Math.max(1, Math.ceil(n / this.tamPagEmergenciasPerfil));
+  }
+
+  licenciasItemsPagina(): ResumenOperativoDto['licencias']['items'] {
+    const items = this.resumen?.licencias.items ?? [];
+    const p = Math.min(this.paginaLicenciasPerfil, this.totalPaginasLicenciasPerfil());
+    const i = (p - 1) * this.tamPagLicenciasPerfil;
+    return items.slice(i, i + this.tamPagLicenciasPerfil);
+  }
+
+  emergenciasItemsPagina(): ResumenOperativoDto['emergenciasRecientes'] {
+    const items = this.resumen?.emergenciasRecientes ?? [];
+    const p = Math.min(this.paginaEmergenciasPerfil, this.totalPaginasEmergenciasPerfil());
+    const i = (p - 1) * this.tamPagEmergenciasPerfil;
+    return items.slice(i, i + this.tamPagEmergenciasPerfil);
+  }
+
+  cambiarPaginaLicenciasPerfil(delta: number): void {
+    const next = this.paginaLicenciasPerfil + delta;
+    this.paginaLicenciasPerfil = Math.min(this.totalPaginasLicenciasPerfil(), Math.max(1, next));
+  }
+
+  cambiarPaginaEmergenciasPerfil(delta: number): void {
+    const next = this.paginaEmergenciasPerfil + delta;
+    this.paginaEmergenciasPerfil = Math.min(this.totalPaginasEmergenciasPerfil(), Math.max(1, next));
+  }
+
+  etiquetaEstadoParte(estado: string | null | undefined): string {
+    const e = (estado ?? '').trim().toUpperCase();
+    const map: Record<string, string> = {
+      PENDIENTE: 'Pendiente',
+      BORRADOR: 'Borrador',
+      CERRADO: 'Cerrado',
+      CERRADA: 'Cerrada',
+      FINALIZADO: 'Finalizado',
+      FINALIZADA: 'Finalizada',
+    };
+    return map[e] ?? (estado?.trim() || '—');
   }
 
   chipOficialidad(p: UsuarioListaDto): string {

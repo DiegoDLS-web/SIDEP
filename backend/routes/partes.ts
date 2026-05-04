@@ -19,6 +19,34 @@ const includeParte = {
   pacientes: true,
 } as const;
 
+/** Listado paginado: sin pacientes/metadata pesados ni firma del OBAC. */
+const selectPartePagina = {
+  id: true,
+  correlativo: true,
+  claveEmergencia: true,
+  direccion: true,
+  fecha: true,
+  estado: true,
+  obacId: true,
+  obac: { select: { id: true, nombre: true, rut: true, rol: true } },
+  unidades: {
+    select: {
+      id: true,
+      parteId: true,
+      carroId: true,
+      horaSalida: true,
+      horaLlegada: true,
+      hora6_0: true,
+      hora6_3: true,
+      hora6_9: true,
+      hora6_10: true,
+      kmSalida: true,
+      kmLlegada: true,
+      carro: { select: { id: true, nomenclatura: true, patente: true } },
+    },
+  },
+} satisfies Prisma.ParteEmergenciaSelect;
+
 function firstQueryString(q: unknown): string | undefined {
   if (typeof q === 'string') return q;
   if (Array.isArray(q) && typeof q[0] === 'string') return q[0];
@@ -62,11 +90,12 @@ partesRouter.get('/pagina', async (req, res) => {
         orderBy: { fecha: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
-        include: includeParte,
+        select: selectPartePagina,
       }),
     ]);
     const items = rows.map((p) => ({
       ...p,
+      pacientes: [],
       fechaLegible: formatFechaHoraChile(p.fecha),
     }));
     const totalPages = Math.max(1, Math.ceil(total / pageSize));

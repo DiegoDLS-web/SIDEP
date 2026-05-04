@@ -12,6 +12,7 @@ import {
 } from '../lib/usuario-perfil.js';
 import { sendApiError } from '../lib/apiError.js';
 import { firstQueryString } from '../lib/httpQuery.js';
+import { buildResumenOperativoUsuario } from '../lib/usuario-resumen-operativo.js';
 
 export const usuariosRouter = Router();
 
@@ -184,6 +185,35 @@ usuariosRouter.get('/', async (_req, res) => {
   } catch (e) {
     console.error(e);
     sendApiError(res, 500, 'USUARIOS_LIST', 'Error al listar usuarios');
+  }
+});
+
+usuariosRouter.get('/:id/resumen-operativo', async (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id) || id <= 0) {
+    sendApiError(res, 400, 'USUARIOS_ID_INVALIDO', 'ID inválido.');
+    return;
+  }
+  const uid = req.user?.uid;
+  const rol = req.user?.rol?.trim().toUpperCase();
+  const puede =
+    uid != null &&
+    (uid === id || rol === 'ADMIN' || rol === 'CAPITAN' || rol === 'TENIENTE');
+  if (!puede) {
+    sendApiError(res, 403, 'USUARIOS_RESUMEN_ROL', 'No autorizado a ver este resumen.');
+    return;
+  }
+  try {
+    const existe = await prisma.usuario.findUnique({ where: { id }, select: { id: true } });
+    if (!existe) {
+      sendApiError(res, 404, 'USUARIO_NO_ENCONTRADO', 'Usuario no encontrado.');
+      return;
+    }
+    const resumen = await buildResumenOperativoUsuario(id);
+    res.json(resumen);
+  } catch (e) {
+    console.error(e);
+    sendApiError(res, 500, 'USUARIOS_RESUMEN', 'Error al obtener resumen operativo.');
   }
 });
 

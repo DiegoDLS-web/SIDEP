@@ -2,9 +2,10 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
-const ROLES_GESTION_USUARIOS = new Set(['ADMIN']);
+/** Misma política que `requireRoles` en `/api/usuarios`: ADMIN, CAPITÁN y TENIENTE. */
+const ROLES_GESTION_USUARIOS = new Set(['ADMIN', 'CAPITAN', 'TENIENTE']);
 
-/** Alta y edición de voluntarios (solo estos roles pueden asignar rol en backend). */
+/** Directorio de voluntarios (listado y edición según permisos del backend). */
 export const gestionUsuariosGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);

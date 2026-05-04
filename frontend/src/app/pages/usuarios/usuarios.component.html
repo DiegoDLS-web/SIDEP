@@ -1,16 +1,10 @@
-<div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 sm:py-6 md:px-8 lg:px-10 xl:px-12">
-  <a
-    routerLink="/"
-    class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212]/90 px-3 py-2 text-sm text-slate-300 shadow-sm ring-1 ring-white/5 transition-colors hover:border-slate-600 hover:text-white"
-  >
+<div class="sid-page sid-page-shell w-full min-w-0">
+  <a routerLink="/" class="sid-back-link mb-1">
     <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
     Volver al inicio
   </a>
-  <section
-    sidScrollReveal
-    class="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-[radial-gradient(circle_at_0%_0%,rgba(59,130,246,0.2),transparent_45%),radial-gradient(circle_at_100%_0%,rgba(220,38,38,0.15),transparent_42%),#0a0a0a] p-5 sm:p-6"
-  >
-    <div class="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+  <section sidScrollReveal class="sid-hero-panel sid-hero-panel--institutional">
+    <div class="sid-hero-panel__row sid-hero-panel__row--split">
       <div>
         <p class="sid-page-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs text-blue-200">
           Directorio institucional
@@ -20,7 +14,7 @@
       </div>
       <button
         type="button"
-        class="inline-flex w-full min-h-[48px] items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-red-900/20 transition-all hover:bg-red-700 hover:shadow-red-900/30 sm:w-auto"
+        class="sid-btn sid-btn-primary inline-flex w-full min-h-[48px] items-center justify-center gap-2 px-5 py-3 text-sm font-semibold shadow-lg shadow-red-900/20 sm:w-auto"
         (click)="abrirNuevo()"
       >
         <lucide-icon name="plus" class="h-5 w-5" [size]="20" color="currentColor" aria-hidden="true" />
@@ -30,7 +24,7 @@
   </section>
 
   <div sidScrollReveal class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-    <div class="rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-800/40 to-transparent p-4 ring-1 ring-inset ring-white/5">
+    <div class="sid-card-hover rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-800/40 to-transparent p-4 ring-1 ring-inset ring-white/5">
       <div class="mb-2 flex items-center justify-between">
         <lucide-icon name="users" class="h-6 w-6 text-blue-400" [size]="24" color="currentColor" />
         <span class="text-xs uppercase tracking-wide text-slate-500">Total</span>
@@ -38,7 +32,7 @@
       <p class="text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ metricas?.totalSistema ?? totalLista }}</p>
       <p class="text-sm text-slate-400">Usuarios</p>
     </div>
-    <div class="rounded-xl border border-emerald-800/40 bg-gradient-to-br from-emerald-950/30 to-transparent p-4 ring-1 ring-inset ring-white/5">
+    <div class="sid-card-hover rounded-xl border border-emerald-800/40 bg-gradient-to-br from-emerald-950/30 to-transparent p-4 ring-1 ring-inset ring-white/5">
       <div class="mb-2 flex items-center justify-between">
         <lucide-icon name="circle-check" class="h-6 w-6 text-emerald-400" [size]="24" color="currentColor" />
         <span class="text-xs uppercase tracking-wide text-slate-500">Activo</span>
@@ -46,7 +40,7 @@
       <p class="text-2xl font-bold tabular-nums text-emerald-300 sm:text-3xl">{{ metricas?.activos ?? '—' }}</p>
       <p class="text-sm text-slate-400">Vigentes / activos</p>
     </div>
-    <div class="rounded-xl border border-amber-800/40 bg-gradient-to-br from-amber-950/25 to-transparent p-4 ring-1 ring-inset ring-white/5">
+    <div class="sid-card-hover rounded-xl border border-amber-800/40 bg-gradient-to-br from-amber-950/25 to-transparent p-4 ring-1 ring-inset ring-white/5">
       <div class="mb-2 flex items-center justify-between">
         <lucide-icon name="heart-pulse" class="h-6 w-6 text-amber-400" [size]="24" color="currentColor" />
         <span class="text-xs uppercase tracking-wide text-slate-500">Licencia</span>
@@ -54,7 +48,7 @@
       <p class="text-2xl font-bold tabular-nums text-amber-200 sm:text-3xl">{{ metricas?.conLicencia ?? '—' }}</p>
       <p class="text-sm text-slate-400">Con licencia</p>
     </div>
-    <div class="rounded-xl border border-red-900/40 bg-gradient-to-br from-red-950/30 to-transparent p-4 ring-1 ring-inset ring-white/5">
+    <div class="sid-card-hover rounded-xl border border-red-900/40 bg-gradient-to-br from-red-950/30 to-transparent p-4 ring-1 ring-inset ring-white/5">
       <div class="mb-2 flex items-center justify-between">
         <lucide-icon name="triangle-alert" class="h-6 w-6 text-red-400" [size]="24" color="currentColor" />
         <span class="text-xs uppercase tracking-wide text-slate-500">Susp.</span>

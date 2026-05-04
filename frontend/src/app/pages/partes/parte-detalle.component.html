@@ -1,6 +1,6 @@
 @let vm = vm$ | async;
 
-<div class="sid-page w-full min-w-0 space-y-6 px-4 py-6 sm:py-8 md:px-8 lg:px-10 xl:px-12">
+<div class="sid-page sid-page-shell w-full min-w-0 py-6 sm:py-8">
   @if (!vm || vm.status === 'loading') {
     <div class="flex min-h-[30vh] flex-col items-center justify-center gap-3 text-slate-400">
       <lucide-icon name="file-text" class="h-10 w-10 animate-pulse text-rose-500" [size]="40" color="currentColor" />
@@ -10,28 +10,20 @@
     <div class="max-w-md rounded-2xl border border-red-900/50 bg-red-950/25 p-5 text-sm text-red-300">
       {{ vm.message }}
     </div>
-    <a
-      routerLink="/partes"
-      class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212] px-4 py-2.5 text-sm text-slate-300 ring-1 ring-inset ring-white/5"
-    >
+    <a routerLink="/partes" class="sid-back-link px-4 py-2.5">
       <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
       Volver a partes
     </a>
   } @else {
     @let p = vm.parte;
     @let a = vm.analitica;
-    <a
-      routerLink="/partes"
-      class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-800 bg-[#121212] px-4 py-2.5 text-sm text-slate-300 shadow-sm ring-1 ring-inset ring-white/5 transition-all hover:border-slate-600 hover:text-white"
-    >
+    <a routerLink="/partes" class="sid-back-link px-4 py-2.5">
       <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
       Volver a partes
     </a>
 
-    <section
-      class="overflow-hidden rounded-2xl border border-rose-900/35 bg-[radial-gradient(circle_at_0%_0%,rgba(244,63,94,0.12),transparent_50%),radial-gradient(circle_at_100%_0%,rgba(59,130,246,0.08),transparent_45%),#0a0a0a] p-5 sm:p-6"
-    >
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <section class="sid-hero-panel sid-hero-panel--rose">
+      <div class="sid-hero-panel__row sid-hero-panel__row--split">
         <div class="min-w-0">
           <p class="mb-2 inline-flex rounded-full border border-rose-500/35 bg-rose-500/10 px-3 py-1 text-xs text-rose-200">10-x · registro de emergencia</p>
           <h1 class="text-2xl font-bold text-white sm:text-3xl">Parte {{ idDisplay(p.correlativo) }}</h1>
@@ -379,7 +371,7 @@
           <lucide-icon name="users" class="h-5 w-5 text-rose-400" [size]="20" color="currentColor"></lucide-icon>
           Pacientes
         </h2>
-        @if (p.pacientes.length === 0) {
+        @if ((p.pacientes ?? []).length === 0) {
           <p class="text-gray-500">Sin pacientes registrados.</p>
         } @else {
           <div class="overflow-x-auto">
@@ -393,7 +385,7 @@
                 </tr>
               </thead>
               <tbody>
-                @for (pac of p.pacientes; track pac.id) {
+                @for (pac of p.pacientes ?? []; track pac.id) {
                   <tr class="border-b border-gray-800">
                     <td class="py-3 pr-4">{{ pac.nombre }}</td>
                     <td class="py-3 pr-4 text-gray-400">{{ pac.edad != null ? pac.edad : '—' }}</td>

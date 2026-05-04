@@ -9,6 +9,7 @@ import type {
 } from '../../models/bolso-trauma.dto';
 import { BolsosTraumaService } from '../../services/bolsos-trauma.service';
 import { PdfExportService } from '../../services/pdf-export.service';
+import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
@@ -16,7 +17,7 @@ import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
 @Component({
   selector: 'app-bolso-trauma',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidEmptyStateComponent],
   templateUrl: './bolso-trauma.component.html',
 })
 export class BolsoTraumaComponent implements OnInit {

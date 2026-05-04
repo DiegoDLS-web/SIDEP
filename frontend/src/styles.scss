@@ -25,6 +25,24 @@ optgroup {
   color: #f3f4f6;
 }
 
+/* Dropdown coherente con tarjetas (flecha custom; el panel sigue siendo nativo del SO). */
+select.sid-partes-select {
+  appearance: none;
+  padding-right: 2.35rem;
+  background-color: var(--sid-surface-inset, #141414);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  background-size: 1rem;
+}
+
+select.sid-partes-select:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 1px rgba(239, 68, 68, 0.35),
+    0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
 /* Calendario nativo coherente con tema oscuro (Chrome/Edge/Safari). */
 .dark-date-input,
 input[type='date'],
@@ -123,6 +141,8 @@ select.sid-input:-webkit-autofill,
   --sid-card-gap: 1rem;
   --sid-heading-h2-size: 1.1rem;
   --sid-radius-card: 0.75rem;
+  /** Base para retardos escalonados en barras/listas (`--sid-chart-stagger` suele ser `índice * step`). */
+  --sid-chart-stagger-step: 40ms;
 }
 
 body {
@@ -244,6 +264,230 @@ body {
 }
 .sid-btn-success:hover {
   background: #047857;
+}
+
+.sid-btn-ghost {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(10, 10, 10, 0.55);
+  color: #e5e7eb;
+}
+.sid-btn-ghost:hover {
+  background: rgba(30, 41, 59, 0.55);
+}
+
+.sid-link-clean {
+  color: #f87171;
+  transition: color 0.2s ease;
+}
+.sid-link-clean:hover {
+  color: #fca5a5;
+}
+
+.sid-panel {
+  border: 1px solid var(--sid-border);
+  border-radius: 0.9rem;
+  background: linear-gradient(180deg, rgba(18, 18, 18, 0.98), rgba(10, 10, 10, 0.98));
+  box-shadow:
+    0 0 0 1px rgba(148, 163, 184, 0.05) inset,
+    0 10px 24px rgba(0, 0, 0, 0.2);
+}
+
+.sid-card-hover {
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+.sid-card-hover:hover {
+  border-color: rgba(148, 163, 184, 0.35);
+  box-shadow:
+    0 0 0 1px rgba(148, 163, 184, 0.08) inset,
+    0 14px 30px rgba(0, 0, 0, 0.25);
+  transform: translateY(-1px);
+}
+
+.sid-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  background: rgba(15, 23, 42, 0.45);
+  padding: 0.22rem 0.62rem;
+  font-size: 0.69rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #cbd5e1;
+}
+
+.sid-title-balanced {
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+/*
+ * Anatomía de página (listados / CRUD): mismo “shell” y héroes por tono de módulo.
+ * Evita duplicar gradientes y paddings en cada template.
+ */
+.sid-page-shell {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1rem;
+}
+@media (min-width: 640px) {
+  .sid-page-shell {
+    padding: 1.5rem 1.5rem;
+  }
+}
+@media (min-width: 768px) {
+  .sid-page-shell {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+@media (min-width: 1024px) {
+  .sid-page-shell {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+}
+@media (min-width: 1280px) {
+  .sid-page-shell {
+    padding-left: 3rem;
+    padding-right: 3rem;
+  }
+}
+
+.sid-back-link {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(30 41 55);
+  background: rgba(18, 18, 18, 0.92);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: rgb(203 213 225);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+.sid-back-link:hover {
+  border-color: rgb(71 85 105);
+  color: #fff;
+}
+
+.sid-hero-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--sid-border);
+  background: #0a0a0a;
+}
+@media (min-width: 640px) {
+  .sid-hero-panel {
+    padding: 1.5rem;
+  }
+}
+
+.sid-hero-panel--rose {
+  border-color: rgba(190, 18, 60, 0.4);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(244, 63, 94, 0.14), transparent 50%),
+    radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.1), transparent 45%),
+    #0a0a0a;
+}
+
+.sid-hero-panel--institutional {
+  border-color: rgba(30, 41, 55, 0.8);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.2), transparent 45%),
+    radial-gradient(circle at 100% 0%, rgba(220, 38, 38, 0.15), transparent 42%),
+    #0a0a0a;
+}
+
+.sid-hero-panel--admin {
+  border-color: rgba(30, 41, 55, 0.8);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.2), transparent 45%),
+    radial-gradient(circle at 100% 0%, rgba(220, 38, 38, 0.12), transparent 42%),
+    #0a0a0a;
+}
+
+.sid-hero-panel--fuchsia {
+  border-color: rgba(112, 26, 117, 0.4);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.28), transparent 42%),
+    radial-gradient(circle at 100% 0%, rgba(192, 38, 211, 0.22), transparent 40%),
+    #0a0a0a;
+}
+
+.sid-hero-panel--cyan {
+  border-color: rgba(22, 78, 99, 0.35);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(6, 182, 212, 0.14), transparent 50%),
+    radial-gradient(circle at 100% 0%, rgba(225, 29, 72, 0.14), transparent 45%),
+    #0a0a0a;
+}
+
+.sid-hero-panel--emerald {
+  border-color: rgba(6, 78, 59, 0.3);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(16, 185, 129, 0.15), transparent 48%),
+    radial-gradient(circle at 100% 0%, rgba(220, 38, 38, 0.12), transparent 40%),
+    #0a0a0a;
+}
+
+.sid-hero-panel--red {
+  border-color: rgba(127, 29, 29, 0.4);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(220, 38, 38, 0.18), transparent 45%),
+    radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.1), transparent 42%),
+    #0a0a0a;
+}
+
+.sid-hero-panel--violet {
+  border-color: rgba(76, 29, 149, 0.35);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(139, 92, 246, 0.18), transparent 48%),
+    radial-gradient(circle at 100% 0%, rgba(220, 38, 38, 0.12), transparent 40%),
+    #0a0a0a;
+}
+
+.sid-hero-panel__row {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/** Título a la izquierda, acciones alineadas al borde inferior en sm+. */
+.sid-hero-panel__row--split {
+  align-items: stretch;
+}
+@media (min-width: 640px) {
+  .sid-hero-panel__row--split {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+}
+
+/** Variante para filas con mucho texto + botón (p. ej. licencias). */
+@media (min-width: 1024px) {
+  .sid-hero-panel__row--split-start {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
 }
 
 .sid-history-head {
@@ -910,12 +1154,10 @@ body.confirm-open {
   z-index: 1;
 }
 
-.sid-carro-vivo-ok {
-  animation: carroPulseOk calc(2.2s * var(--sid-motion-speed)) ease-in-out infinite;
-}
-
+/** Pulso verde/ámbar en tarjetas de carros eliminado: sombra neutra estable. */
+.sid-carro-vivo-ok,
 .sid-carro-vivo-mant {
-  animation: carroPulseMant calc(1.8s * var(--sid-motion-speed)) ease-in-out infinite;
+  animation: none !important;
 }
 
 .sidep-logo-orb {
@@ -1112,34 +1354,6 @@ textarea:focus-visible,
   }
 }
 
-@keyframes carroPulseOk {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 rgba(16, 185, 129, 0),
-      0 8px 20px rgba(0, 0, 0, 0.25);
-  }
-  50% {
-    box-shadow:
-      0 0 0 1px rgba(16, 185, 129, 0.22) inset,
-      0 12px 26px rgba(16, 185, 129, 0.18);
-  }
-}
-
-@keyframes carroPulseMant {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 rgba(245, 158, 11, 0),
-      0 8px 20px rgba(0, 0, 0, 0.25);
-  }
-  50% {
-    box-shadow:
-      0 0 0 1px rgba(245, 158, 11, 0.26) inset,
-      0 12px 26px rgba(245, 158, 11, 0.2);
-  }
-}
-
 .sid-history-wrap {
   border: 1px solid var(--sid-border);
   border-radius: 0.75rem;
@@ -1281,6 +1495,12 @@ textarea:focus-visible,
 
 .sid-empty-state .sid-empty-icon {
   margin-bottom: 0.1rem;
+}
+
+.sid-empty-state--compact {
+  min-height: 0;
+  padding: 0.65rem 0.85rem;
+  gap: 0.45rem;
 }
 
 .sid-section-divider {
@@ -1432,4 +1652,86 @@ textarea:focus-visible,
   background-color: rgba(71, 85, 105, 0.95);
   border-radius: 8px;
   border: 2px solid rgba(15, 23, 42, 0.55);
+}
+
+/* Barras de gráficos: entrada suave + escalonado vía `--sid-chart-stagger` (típicamente índice × `--sid-chart-stagger-step`). */
+@keyframes sid-chart-bar-grow-x {
+  from {
+    opacity: 0.88;
+    transform: scaleX(0.06);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes sid-chart-col-pop {
+  from {
+    opacity: 0.45;
+    transform: scaleY(0.08);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+.sid-chart-bar-fill {
+  transform-origin: left center;
+  animation-name: sid-chart-bar-grow-x;
+  animation-duration: 0.68s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: both;
+  animation-delay: var(--sid-chart-stagger, 0ms);
+}
+
+.sid-chart-col-pop {
+  transform-origin: bottom center;
+  animation-name: sid-chart-col-pop;
+  animation-duration: 0.62s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: both;
+  animation-delay: var(--sid-chart-stagger, 0ms);
+}
+
+@keyframes sid-chart-heat-fade {
+  from {
+    opacity: 0.35;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.sid-chart-heat-cell {
+  animation: sid-chart-heat-fade 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--sid-chart-stagger, 0ms);
+}
+
+@keyframes sid-sector-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sid-sector-row-enter {
+  animation: sid-sector-row-in 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--sid-chart-stagger, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sid-chart-bar-fill,
+  .sid-chart-col-pop,
+  .sid-chart-heat-cell,
+  .sid-sector-row-enter {
+    animation: none !important;
+  }
 }

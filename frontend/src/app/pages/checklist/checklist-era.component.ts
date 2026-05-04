@@ -11,6 +11,7 @@ import { ChecklistsService } from '../../services/checklists.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { ToastService } from '../../services/toast.service';
 import { UsuariosService } from '../../services/usuarios.service';
+import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
 import { firmaEfectiva } from '../../utils/firma-resolver';
@@ -154,7 +155,7 @@ const ERA_PRESETS_UNIDAD: Record<string, EraPreset> = {
 @Component({
   selector: 'app-checklist-era',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidEmptyStateComponent],
   templateUrl: './checklist-era.component.html',
 })
 export class ChecklistEraComponent implements OnInit {

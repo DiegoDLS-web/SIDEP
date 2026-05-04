@@ -24,6 +24,8 @@ export interface LicenciaMedicaDto {
     id: number;
     nombre: string;
     rol: string;
+    cargoOficialidad?: string | null;
+    firmaImagen?: string | null;
   } | null;
 }
 

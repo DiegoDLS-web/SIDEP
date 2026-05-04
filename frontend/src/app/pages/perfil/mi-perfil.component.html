@@ -1,4 +1,4 @@
-<div class="sid-page w-full min-w-0 space-y-6 px-4 py-4 sm:px-6 sm:py-6 md:px-8 lg:px-10 xl:px-12">
+<div class="sid-page sid-page-shell w-full min-w-0">
   @if (loading) {
     <div class="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-slate-400">
       <lucide-icon name="user" class="h-10 w-10 animate-pulse text-red-400/90" [size]="40" color="currentColor" />
@@ -12,10 +12,7 @@
     @let p = perfil;
 
     <div class="flex flex-wrap items-center gap-3">
-      <a
-        routerLink="/"
-        class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-700 bg-[#121212]/90 px-3 py-2 text-sm text-slate-300 shadow-sm ring-1 ring-white/5 transition-colors hover:border-slate-600 hover:text-white"
-      >
+      <a routerLink="/" class="sid-back-link">
         <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
         Volver al inicio
       </a>
@@ -266,6 +263,228 @@
         </div>
       </div>
     </section>
+
+    @if (resumenError) {
+      <div class="sid-feedback rounded-xl border border-amber-800/50 bg-amber-950/25 px-4 py-3 text-sm text-amber-100">
+        {{ resumenError }}
+      </div>
+    }
+    @if (resumenCargando) {
+      <div class="flex min-h-[4rem] items-center justify-center gap-3 rounded-2xl border border-slate-800/90 bg-[#121212] px-4 py-6 text-sm text-slate-400 ring-1 ring-inset ring-white/5">
+        <lucide-icon name="loader-2" class="h-5 w-5 animate-spin text-red-400/90" [size]="20" color="currentColor" />
+        Cargando tu actividad en emergencias y licencias…
+      </div>
+    }
+    @if (resumen && !resumenCargando) {
+      @let r = resumen;
+      <section class="space-y-6">
+        <div class="rounded-2xl border border-slate-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+          <h2 class="mb-1 flex flex-wrap items-center gap-2 text-lg font-bold text-white">
+            <lucide-icon name="flame" class="h-5 w-5 text-rose-400" [size]="20" color="currentColor"></lucide-icon>
+            Emergencias y asistencia registrada
+          </h2>
+          <p class="mb-5 text-sm text-slate-500">
+            Se cuenta lo marcado en el parte (asistencia por contexto). “Marcas” = veces que figuraste presente; “Emergencias
+            distintas” = partes diferentes.
+          </p>
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div class="rounded-xl border border-slate-800 bg-black/30 p-4 ring-1 ring-inset ring-white/5">
+              <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Total histórico</p>
+              <p class="mt-1 text-2xl font-bold tabular-nums text-white">{{ r.asistencia.emergenciasDistintasTotal }}</p>
+              <p class="mt-1 text-xs text-slate-400">
+                emergencias · {{ r.asistencia.marcasRegistradasTotal }} marcas en parte
+              </p>
+            </div>
+            <div class="rounded-xl border border-slate-800 bg-black/30 p-4 ring-1 ring-inset ring-white/5">
+              <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Año {{ r.asistencia.anioReferencia }}</p>
+              <p class="mt-1 text-2xl font-bold tabular-nums text-white">{{ r.asistencia.emergenciasDistintasAnioActual }}</p>
+              <p class="mt-1 text-xs text-slate-400">
+                emergencias · {{ r.asistencia.marcasRegistradasAnioActual }} marcas
+              </p>
+            </div>
+            <div class="rounded-xl border border-emerald-900/35 bg-emerald-950/20 p-4 ring-1 ring-inset ring-emerald-500/10">
+              <p class="text-[11px] font-medium uppercase tracking-wide text-emerald-200/90">
+                {{ nombreMesPerfil(r.asistencia.mesReferencia) }} {{ r.asistencia.anioReferencia }}
+              </p>
+              <p class="mt-1 text-2xl font-bold tabular-nums text-white">{{ r.asistencia.emergenciasDistintasMesActual }}</p>
+              <p class="mt-1 text-xs text-emerald-200/70">
+                emergencias · {{ r.asistencia.marcasRegistradasMesActual }} marcas
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-2xl border border-slate-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+          <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 class="flex items-center gap-2 text-lg font-bold text-white">
+              <lucide-icon name="file-text" class="h-5 w-5 text-amber-300/90" [size]="20" color="currentColor"></lucide-icon>
+              Licencias registradas
+            </h2>
+            @if (navUi.puedeVerRuta('/licencias-medicas')) {
+              <a
+                routerLink="/licencias-medicas"
+                class="text-sm font-medium text-red-400 hover:text-red-300 hover:underline"
+              >
+                Ir a licencias
+              </a>
+            }
+          </div>
+          <p class="mb-4 text-sm text-slate-500">
+            Total en sistema: <span class="font-semibold text-slate-300">{{ r.licencias.total }}</span>
+          </p>
+          @if (r.licencias.items.length === 0) {
+            <p class="text-sm text-slate-500">No hay licencias cargadas a tu nombre.</p>
+          } @else {
+            <ul class="divide-y divide-slate-800/90 rounded-xl border border-slate-800/90 bg-black/20">
+              @for (lic of licenciasItemsPagina(); track lic.id) {
+                <li class="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-slate-200">
+                      {{ fechaCorta(lic.fechaInicio) }} — {{ fechaCorta(lic.fechaTermino) }}
+                      <span
+                        class="ml-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1"
+                        [class]="
+                          lic.estado === 'APROBADA' || lic.estado === 'APROBADO'
+                            ? 'bg-emerald-500/15 text-emerald-200 ring-emerald-500/35'
+                            : lic.estado === 'RECHAZADA' || lic.estado === 'RECHAZADO'
+                              ? 'bg-red-500/15 text-red-200 ring-red-500/35'
+                              : 'bg-slate-600/20 text-slate-300 ring-slate-600/45'
+                        "
+                      >
+                        {{ lic.estado }}
+                      </span>
+                    </p>
+                    <p class="mt-1 line-clamp-2 text-xs text-slate-500">{{ lic.motivo }}</p>
+                  </div>
+                </li>
+              }
+            </ul>
+            @if (totalPaginasLicenciasPerfil() > 1) {
+              <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-xs text-slate-500">
+                  Página {{ paginaLicenciasPerfil }} de {{ totalPaginasLicenciasPerfil() }}
+                </p>
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    class="rounded-lg border border-slate-600 bg-slate-800/80 px-3 py-1.5 text-sm text-white disabled:opacity-40"
+                    [disabled]="paginaLicenciasPerfil <= 1"
+                    (click)="cambiarPaginaLicenciasPerfil(-1)"
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-lg border border-slate-600 bg-slate-800/80 px-3 py-1.5 text-sm text-white disabled:opacity-40"
+                    [disabled]="paginaLicenciasPerfil >= totalPaginasLicenciasPerfil()"
+                    (click)="cambiarPaginaLicenciasPerfil(1)"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            }
+          }
+        </div>
+
+        @if (r.emergenciasRecientes.length > 0) {
+          <div class="rounded-2xl border border-slate-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+            <h2 class="mb-1 flex items-center gap-2 text-lg font-bold text-white">
+              <lucide-icon name="history" class="h-5 w-5 text-sky-400" [size]="20" color="currentColor"></lucide-icon>
+              Últimas emergencias con tu asistencia
+            </h2>
+            <p class="mb-4 text-sm text-slate-500">
+              Ordenadas por fecha del parte. Incluyen clave, estado, OBAC y cuántas marcas tuyas hay en ese registro.
+            </p>
+            <ul class="flex flex-col gap-3">
+              @for (e of emergenciasItemsPagina(); track e.id) {
+                <li>
+                  <a
+                    [routerLink]="['/partes', e.id]"
+                    class="group block rounded-xl border border-slate-800/90 bg-gradient-to-b from-black/40 to-black/20 p-4 ring-1 ring-inset ring-white/[0.04] transition-colors hover:border-red-900/45 hover:from-red-950/25 hover:to-black/30"
+                  >
+                    <div class="flex flex-col gap-3 min-[500px]:flex-row min-[500px]:items-start min-[500px]:justify-between">
+                      <div class="min-w-0 space-y-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="font-mono text-base font-semibold text-red-300">{{ e.correlativo }}</span>
+                          <span
+                            class="rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1"
+                            [class]="
+                              (e.estado || '').toUpperCase() === 'PENDIENTE' || (e.estado || '').toUpperCase() === 'BORRADOR'
+                                ? 'bg-amber-500/15 text-amber-200 ring-amber-500/35'
+                                : 'bg-slate-700/40 text-slate-200 ring-slate-600/50'
+                            "
+                          >
+                            {{ etiquetaEstadoParte(e.estado) }}
+                          </span>
+                          @if (e.marcasEnParte > 1) {
+                            <span
+                              class="rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-medium text-sky-200 ring-1 ring-sky-500/30"
+                              [title]="'Veces que figuraste presente en los contextos de asistencia de este parte'"
+                            >
+                              {{ e.marcasEnParte }} marcas en este parte
+                            </span>
+                          }
+                        </div>
+                        <p class="text-sm text-slate-200">
+                          <span class="font-medium text-white">{{ e.claveEmergencia }}</span>
+                          <span class="text-slate-500"> · </span>
+                          <span class="tabular-nums text-slate-300">{{ fechaHoraPerfil(e.fecha) }}</span>
+                        </p>
+                        <p class="text-[13px] leading-snug text-slate-400">
+                          <span class="text-slate-500">OBAC:</span>
+                          {{ e.obacNombre }}
+                        </p>
+                      </div>
+                      <div class="flex shrink-0 items-center justify-between gap-3 min-[500px]:flex-col min-[500px]:items-end">
+                        <lucide-icon
+                          name="chevron-right"
+                          class="h-5 w-5 text-slate-600 transition-colors group-hover:text-red-400 min-[500px]:order-2"
+                          [size]="20"
+                          color="currentColor"
+                          aria-hidden="true"
+                        ></lucide-icon>
+                        <span class="text-xs font-medium text-red-400/90 group-hover:text-red-300 min-[500px]:order-1">
+                          Abrir parte
+                        </span>
+                      </div>
+                    </div>
+                    <p class="mt-3 border-t border-slate-800/80 pt-3 text-sm leading-relaxed text-slate-300">
+                      {{ e.direccion }}
+                    </p>
+                  </a>
+                </li>
+              }
+            </ul>
+            @if (totalPaginasEmergenciasPerfil() > 1) {
+              <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-xs text-slate-500">
+                  Página {{ paginaEmergenciasPerfil }} de {{ totalPaginasEmergenciasPerfil() }}
+                </p>
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    class="rounded-lg border border-slate-600 bg-slate-800/80 px-3 py-1.5 text-sm text-white disabled:opacity-40"
+                    [disabled]="paginaEmergenciasPerfil <= 1"
+                    (click)="cambiarPaginaEmergenciasPerfil(-1)"
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-lg border border-slate-600 bg-slate-800/80 px-3 py-1.5 text-sm text-white disabled:opacity-40"
+                    [disabled]="paginaEmergenciasPerfil >= totalPaginasEmergenciasPerfil()"
+                    (click)="cambiarPaginaEmergenciasPerfil(1)"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </section>
+    }
 
     <section class="rounded-2xl border border-slate-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
       <h2 class="mb-2 flex items-center gap-2 text-lg font-bold text-white">

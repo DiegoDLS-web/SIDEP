@@ -1,6 +1,9 @@
 /**
- * Fábricas de carga perezosa (lazy loading).
- * Cada `import()` genera un chunk aparte: menos JS en la primera pantalla.
+ * Fábricas de carga perezosa (lazy loading) — responsabilidad única por ruta.
+ *
+ * - **Open/Closed**: nuevas pantallas = nuevas funciones `loadX` + entrada en `app.routes.ts`.
+ * - **Chunks**: cada `import()` dinámico genera un bundle separado (menos JS en la primera carga).
+ * - **No duplicar**: reutilizar estos loaders desde rutas; no importar componentes de página en el bundle raíz.
  */
 
 export const loadLoginComponent = () =>
