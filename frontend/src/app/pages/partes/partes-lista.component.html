@@ -70,7 +70,7 @@
 
     <app-sid-card sidScrollReveal [pad]="'md'">
       <div class="w-full min-w-0">
-        <div class="mb-5 border-b border-slate-800/90 pb-5 sm:mb-6 sm:pb-6">
+        <div class="mb-6 border-b border-slate-800/90 pb-6 sm:mb-7 sm:pb-7">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-2.5">
               <lucide-icon name="funnel" class="h-5 w-5 shrink-0 text-red-500" [size]="20" color="currentColor" aria-hidden="true"></lucide-icon>
@@ -89,36 +89,95 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-x-5">
-          <div class="min-w-0">
-            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500" for="partes-filtro-tipo"
+        <div class="grid grid-cols-1 gap-5 md:grid-cols-3 md:gap-x-6 md:gap-y-5">
+          <div id="partes-filtro-tipo-wrap" class="relative min-w-0">
+            <label
+              class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400"
+              id="partes-filtro-tipo-lbl"
+              for="partes-filtro-tipo-btn"
               >Tipo de emergencia</label
             >
-            <select
-              id="partes-filtro-tipo"
-              [(ngModel)]="filtroTipo"
-              (ngModelChange)="alCambiarFiltroPartes()"
-              class="sid-input sid-history-filter sid-partes-select min-h-[var(--sid-control-height)] w-full rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 text-sm text-white"
+            <button
+              type="button"
+              id="partes-filtro-tipo-btn"
+              class="sid-input sid-history-filter flex min-h-[var(--sid-control-height)] w-full items-center justify-between gap-2 rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 pl-3 pr-2.5 text-left text-sm text-white focus-visible:outline-none"
+              aria-haspopup="listbox"
+              [attr.aria-expanded]="filtroTipoPanelAbierto"
+              [attr.aria-controls]="filtroTipoPanelAbierto ? 'partes-filtro-tipo-listbox' : null"
+              [attr.aria-labelledby]="'partes-filtro-tipo-lbl'"
+              (click)="toggleFiltroTipoPanel($event)"
             >
-              <option value="todos">Todos los tipos</option>
-              <optgroup label="Clasificación 10-x (operativas)">
+              <span class="min-w-0 flex-1 truncate leading-snug">{{ etiquetaFiltroTipoActual() }}</span>
+              <lucide-icon
+                name="chevron-down"
+                class="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200"
+                [class.rotate-180]="filtroTipoPanelAbierto"
+                [size]="16"
+                color="currentColor"
+                aria-hidden="true"
+              ></lucide-icon>
+            </button>
+            @if (filtroTipoPanelAbierto) {
+              <div
+                id="partes-filtro-tipo-listbox"
+                class="sid-partes-filtro-tipo-listbox sid-scroll-dark absolute left-0 right-0 top-full z-[45] mt-1.5 max-h-[min(22rem,52vh)] overflow-y-auto rounded-xl border border-slate-600/80 bg-[var(--sid-surface-inset)] py-1.5 shadow-xl ring-1 ring-black/30"
+                role="listbox"
+                aria-labelledby="partes-filtro-tipo-lbl"
+              >
+                <button
+                  type="button"
+                  role="option"
+                  class="mx-1 flex w-[calc(100%-0.5rem)] rounded-lg px-3 py-2.5 text-left text-sm text-slate-100 transition-colors hover:bg-slate-800/90"
+                  [class.bg-red-950/50]="filtroTipo === 'todos'"
+                  [class.text-white]="filtroTipo === 'todos'"
+                  [attr.aria-selected]="filtroTipo === 'todos'"
+                  (click)="seleccionarFiltroTipo('todos')"
+                >
+                  Todos los tipos
+                </button>
+                <p class="mx-3 mb-1 mt-3 border-b border-slate-700/50 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  Clasificación 10-x (operativas)
+                </p>
                 @for (c of clavesOperativasFiltro; track c.value) {
-                  <option [value]="c.value">{{ c.label }}</option>
+                  <button
+                    type="button"
+                    role="option"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-red-950/50]="filtroTipo === c.value"
+                    [class.text-white]="filtroTipo === c.value"
+                    [attr.aria-selected]="filtroTipo === c.value"
+                    (click)="seleccionarFiltroTipo(c.value)"
+                  >
+                    {{ c.label }}
+                  </button>
                 }
-              </optgroup>
-              <optgroup label="Compañía / servicios">
+                <p class="mx-3 mb-1 mt-4 border-b border-slate-700/50 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  Compañía / servicios
+                </p>
                 @for (c of clavesCompaniaFiltro; track c.value) {
-                  <option [value]="c.value">{{ c.label }}</option>
+                  <button
+                    type="button"
+                    role="option"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-red-950/50]="filtroTipo === c.value"
+                    [class.text-white]="filtroTipo === c.value"
+                    [attr.aria-selected]="filtroTipo === c.value"
+                    (click)="seleccionarFiltroTipo(c.value)"
+                  >
+                    {{ c.label }}
+                  </button>
                 }
-              </optgroup>
-            </select>
+              </div>
+            }
           </div>
           <div class="min-w-0">
-            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500" for="partes-filtro-dir">Dirección</label>
+            <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400" for="partes-filtro-dir"
+              >Dirección</label
+            >
             <div class="relative">
               <lucide-icon
                 name="search"
-                class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
+                class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
                 [size]="16"
                 color="currentColor"
                 aria-hidden="true"
@@ -133,12 +192,12 @@
                 [attr.aria-busy]="actualizandoTabla"
                 placeholder="Buscar por dirección..."
                 autocomplete="off"
-                class="sid-input sid-history-filter min-h-[var(--sid-control-height)] w-full rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 pl-10 pr-3 text-sm text-white placeholder:text-slate-500"
+                class="sid-input sid-history-filter min-h-[var(--sid-control-height)] w-full rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 pl-12 pr-3 text-sm text-white placeholder:text-slate-500"
               />
             </div>
           </div>
           <div class="min-w-0">
-            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500" for="partes-filtro-fecha"
+            <label class="mb-2 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400" for="partes-filtro-fecha"
               >Fecha del parte</label
             >
             <input
@@ -159,8 +218,8 @@
           </div>
         </div>
 
-        <div class="mt-5 md:mt-6">
-          <p class="mb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Filtro rápido</p>
+        <div class="mt-6 md:mt-8">
+          <p class="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">Filtro rápido</p>
           <div
             class="grid grid-cols-4 gap-1.5 sm:gap-3"
             role="group"

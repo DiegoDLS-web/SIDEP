@@ -90,6 +90,14 @@
     </div>
   </aside>
 
+  @if (bienvenidaVisible()) {
+    <app-welcome-overlay
+      [nombreUsuario]="nombreBienvenida()"
+      [leaving]="bienvenidaSalida()"
+      (skip)="cerrarBienvenidaUsuario()"
+    />
+  }
+
   <main
     id="main-content"
     tabindex="-1"

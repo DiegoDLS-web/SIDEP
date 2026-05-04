@@ -1,6 +1,8 @@
-import { Component, HostListener, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, HostListener, OnDestroy, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
+import { take } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { NavegacionUiService } from '../services/navegacion-ui.service';
 import { ConfirmDialogService } from '../services/confirm-dialog.service';
@@ -10,6 +12,8 @@ import { SidepIconsModule } from '../shared/sidep-icons.module';
 import { ConfirmDialogComponent } from '../shared/confirm-dialog.component';
 import { ConfiguracionesService } from '../services/configuraciones.service';
 import { SidepBrandLockupComponent } from '../shared/sidep-brand-lockup.component';
+import type { SesionUsuarioDto } from '../models/auth.dto';
+import { WelcomeOverlayComponent } from '../shared/welcome-overlay.component';
 
 type NavItem = {
   routerLink: string;
@@ -33,12 +37,14 @@ type NavSection = { title: string; items: NavItem[] };
     SidepIconsModule,
     ConfirmDialogComponent,
     SidepBrandLockupComponent,
+    WelcomeOverlayComponent,
   ],
   templateUrl: './main-layout.component.html',
 })
-export class MainLayoutComponent {
+export class MainLayoutComponent implements OnDestroy {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly navUi = inject(NavegacionUiService);
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly motionProfile = inject(MotionProfileService);
@@ -48,6 +54,13 @@ export class MainLayoutComponent {
   readonly nombreCompaniaTag = signal<string | null>(null);
   sidebarAbierto = false;
   routeTransitioning = false;
+
+  /** Splash de bienvenida cada vez que el layout arranca autenticado (login, F5, URL directa con token). */
+  readonly bienvenidaVisible = signal(false);
+  readonly bienvenidaSalida = signal(false);
+  readonly nombreBienvenida = signal('');
+  private bienvenidaTimer: ReturnType<typeof setTimeout> | null = null;
+  private bienvenidaCierreTimer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly baseSections: NavSection[] = [
     {
@@ -114,6 +127,60 @@ export class MainLayoutComponent {
       next: (b) => this.nombreCompaniaTag.set(b.nombreCompania?.trim() || null),
       error: () => this.nombreCompaniaTag.set('1ª Compañía Santa Juana'),
     });
+    this.auth
+      .cargarSesion()
+      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
+      .subscribe((u) => {
+        if (u) {
+          this.mostrarBienvenidaSesionActivada(u);
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.limpiarTimersBienvenida();
+  }
+
+  private limpiarTimersBienvenida(): void {
+    if (this.bienvenidaTimer) {
+      clearTimeout(this.bienvenidaTimer);
+      this.bienvenidaTimer = null;
+    }
+    if (this.bienvenidaCierreTimer) {
+      clearTimeout(this.bienvenidaCierreTimer);
+      this.bienvenidaCierreTimer = null;
+    }
+  }
+
+  private mostrarBienvenidaSesionActivada(u: SesionUsuarioDto): void {
+    const nombre = (u.nombre ?? '').trim() || 'Usuario';
+    this.nombreBienvenida.set(nombre);
+    this.bienvenidaSalida.set(false);
+    this.bienvenidaVisible.set(true);
+    const reduced =
+      typeof globalThis.matchMedia === 'function' &&
+      globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const ms = reduced ? 2400 : 4400;
+    this.bienvenidaTimer = setTimeout(() => this.iniciarCierreBienvenida(), ms);
+  }
+
+  iniciarCierreBienvenida(): void {
+    if (!this.bienvenidaVisible() || this.bienvenidaSalida()) return;
+    this.limpiarTimersBienvenida();
+    this.bienvenidaSalida.set(true);
+    this.bienvenidaCierreTimer = setTimeout(() => {
+      this.bienvenidaVisible.set(false);
+      this.bienvenidaSalida.set(false);
+      this.bienvenidaCierreTimer = null;
+    }, 520);
+  }
+
+  cerrarBienvenidaUsuario(): void {
+    if (this.bienvenidaTimer) {
+      clearTimeout(this.bienvenidaTimer);
+      this.bienvenidaTimer = null;
+    }
+    this.iniciarCierreBienvenida();
   }
 
   private seccionesFallbackLegacy(rolRaw: string | undefined): NavSection[] {
@@ -187,6 +254,10 @@ export class MainLayoutComponent {
 
   @HostListener('document:keydown.escape')
   onEscapeCerrarSidebar(): void {
+    if (this.bienvenidaVisible()) {
+      this.cerrarBienvenidaUsuario();
+      return;
+    }
     if (this.sidebarAbierto) {
       this.sidebarAbierto = false;
     }

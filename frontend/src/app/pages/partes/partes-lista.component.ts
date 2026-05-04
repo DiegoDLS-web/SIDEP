@@ -64,6 +64,8 @@ export class PartesListaComponent implements OnInit {
   /** Valor aplicado contra el backend / URL `q`. */
   filtroDireccion = '';
   filtroTipo = 'todos';
+  /** Reemplazo del select nativo: lista siempre debajo del control y scrollbar oscura. */
+  filtroTipoPanelAbierto = false;
   filtroFecha = '';
   filtroPeriodo: PartesPeriodoFilter = 'todos';
   fechaFiltroError: string | null = null;
@@ -118,6 +120,7 @@ export class PartesListaComponent implements OnInit {
         if (entrante === this.lastQuerySig) return;
         this.lastQuerySig = entrante;
         this.hidratarDesdeParams(pm);
+        this.filtroTipoPanelAbierto = false;
         this.filtroDireccionDraft = this.filtroDireccion;
         this.actualizarErroresFecha();
         if (!this.loading) this.recargarTablaInner(true);
@@ -125,6 +128,37 @@ export class PartesListaComponent implements OnInit {
   }
 
   etiquetaClave = etiquetaClave;
+
+  etiquetaFiltroTipoActual(): string {
+    if (this.filtroTipo === 'todos') {
+      return 'Todos los tipos';
+    }
+    return this.etiquetaClave(this.filtroTipo);
+  }
+
+  toggleFiltroTipoPanel(ev: MouseEvent): void {
+    ev.stopPropagation();
+    this.filtroTipoPanelAbierto = !this.filtroTipoPanelAbierto;
+  }
+
+  seleccionarFiltroTipo(valor: string): void {
+    this.filtroTipoPanelAbierto = false;
+    if (this.filtroTipo === valor) {
+      return;
+    }
+    this.filtroTipo = valor;
+    this.alCambiarFiltroPartes();
+  }
+
+  @HostListener('document:click', ['$event'])
+  cerrarFiltroTipoPanelSiClickFuera(ev: MouseEvent): void {
+    if (!this.filtroTipoPanelAbierto) return;
+    const t = ev.target;
+    if (!(t instanceof Node)) return;
+    const wrap = document.getElementById('partes-filtro-tipo-wrap');
+    if (wrap?.contains(t)) return;
+    this.filtroTipoPanelAbierto = false;
+  }
 
   /** Firma estable para ignorar emits redundantes del router. */
   private firmaQueriesDesdeEstado(): string {
@@ -330,6 +364,7 @@ export class PartesListaComponent implements OnInit {
       clearTimeout(this.direccionCommitTimer);
       this.direccionCommitTimer = null;
     }
+    this.filtroTipoPanelAbierto = false;
     this.filtroTipo = 'todos';
     this.filtroDireccion = '';
     this.filtroDireccionDraft = '';
@@ -467,6 +502,10 @@ export class PartesListaComponent implements OnInit {
 
   @HostListener('document:keydown.escape')
   onEscapeCerrarVistaModal(): void {
+    if (this.filtroTipoPanelAbierto) {
+      this.filtroTipoPanelAbierto = false;
+      return;
+    }
     if (this.vistaModalAbierta) {
       this.cerrarVistaModal();
     }
