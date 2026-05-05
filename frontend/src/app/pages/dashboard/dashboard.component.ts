@@ -278,6 +278,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return f?.label ?? clave;
   }
 
+  /** Tooltip en filtros cuando el texto visible queda truncado en móvil. */
+  tituloSelectTipoDashboard(): string {
+    if (this.claveFiltro === 'todos') {
+      return 'Todos los tipos';
+    }
+    return this.etiquetaClave(this.claveFiltro);
+  }
+
+  tituloSelectUnidadDashboard(): string {
+    if (this.unidadFiltro === 'todas') {
+      return 'Todas las unidades';
+    }
+    const c = this.carros.find((x) => x.id === this.unidadFiltro);
+    return c ? `${c.nomenclatura}${c.nombre ? ' · ' + c.nombre : ''}` : 'Unidad';
+  }
+
   estadoParteClass(estado: string): string {
     const e = estado.toUpperCase();
     if (e === 'COMPLETADO') return 'bg-green-600/20 text-green-400';

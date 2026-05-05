@@ -25,7 +25,7 @@
     <section class="sid-hero-panel sid-hero-panel--rose">
       <div class="sid-hero-panel__row sid-hero-panel__row--split">
         <div class="min-w-0">
-          <p class="mb-2 inline-flex rounded-full border border-rose-500/35 bg-rose-500/10 px-3 py-1 text-xs text-rose-200">10-x · registro de emergencia</p>
+          <p class="mb-2 inline-flex rounded-full border border-rose-500/35 bg-rose-500/10 px-3 py-1 text-xs text-rose-200">Registro de emergencia</p>
           <h1 class="text-2xl font-bold text-white sm:text-3xl">Parte {{ idDisplay(p.correlativo) }}</h1>
           <p class="mt-1 text-sm text-slate-300 sm:text-base">{{ fechaHora(p.fecha) }} · {{ etiquetaClave(p.claveEmergencia) }}</p>
           <p class="mt-3">
@@ -47,7 +47,7 @@
               (click)="editarParteCompleto(p)"
             >
               <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-              Editar completo
+              Editar
             </button>
             <button
               type="button"

@@ -9,7 +9,6 @@ import { PartesExportService } from '../../services/partes-export.service';
 import type { PartesMetricasResp, PartesPaginaResp } from '../../services/partes.service';
 import { PartesService } from '../../services/partes.service';
 import { ToastService } from '../../services/toast.service';
-import { SidCardComponent } from '../../shared/sid-card.component';
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
@@ -36,7 +35,6 @@ function parsePeriodoQuery(v: string | null): PartesPeriodoFilter {
     SidepIconsModule,
     ParteVistaSoloLecturaComponent,
     SidScrollRevealDirective,
-    SidCardComponent,
     SidEmptyStateComponent,
   ],
   templateUrl: './partes-lista.component.html',

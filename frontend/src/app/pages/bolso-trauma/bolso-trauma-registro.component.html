@@ -95,74 +95,92 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
-          <label class="mb-1.5 block text-xs font-medium text-gray-400"
-            >Nombre del inspector / clave <span class="text-red-400">*</span></label
-          >
-          <input
-            [(ngModel)]="nombreInspector"
-            name="inspector"
-            placeholder="Ej: Juan Pérez · clave 1234"
-            class="sid-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white placeholder:text-gray-600"
-          />
-        </div>
-        <div>
-          <label class="mb-1.5 block text-xs font-medium text-gray-400"
-            >Grupo de guardia <span class="text-red-400">*</span></label
-          >
-          <select
-            [(ngModel)]="grupoGuardia"
-            name="grupoGuardia"
-            class="sid-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
-          >
-            <option value="">Seleccionar</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-          </select>
-        </div>
-        <div>
-          <label class="mb-1.5 block text-xs font-medium text-gray-400"
-            >Nombre oficial / OBAC a cargo <span class="text-red-400">*</span></label
-          >
-          <select
-            [(ngModel)]="cuarteleroId"
-            name="cuarteleroId"
-            class="sid-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
-          >
-            @for (u of usuarios; track u.id) {
-              <option [ngValue]="u.id">{{ u.nombre }} ({{ u.rol }})</option>
-            }
-          </select>
-        </div>
-        <div>
-          <label class="mb-1.5 block text-xs font-medium text-gray-400"
-            >Fecha de inspección <span class="text-red-400">*</span></label
-          >
-          <input
-            type="date"
-            [(ngModel)]="fechaInspeccion"
-            name="fechaInspeccion"
-            class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
-          />
-        </div>
-        <div class="md:col-span-2">
-          <label class="mb-1.5 block text-xs font-medium text-gray-400"
-            >Fecha de cierre / firma <span class="text-red-400">*</span></label
-          >
-          <div
-            class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-gray-200"
-            aria-live="polite"
-          >
-            {{ fechasFormateadaCierreFirma() }}
+      @if (!editandoPlantilla) {
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label class="mb-1.5 block text-xs font-medium text-gray-400"
+              >Nombre del inspector / clave <span class="text-red-400">*</span></label
+            >
+            <input
+              [(ngModel)]="nombreInspector"
+              name="inspector"
+              placeholder="Ej: Juan Pérez · clave 1234"
+              class="sid-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white placeholder:text-gray-600"
+            />
           </div>
-          <p class="mt-1.5 text-xs text-gray-500">
-            Al firmar abajo como OBAC, aquí se muestra la fecha y hora del cierre (no se usa texto para la firma).
-          </p>
+          <div>
+            <label class="mb-1.5 block text-xs font-medium text-gray-400"
+              >Grupo de guardia <span class="text-red-400">*</span></label
+            >
+            <select
+              [(ngModel)]="grupoGuardia"
+              name="grupoGuardia"
+              class="sid-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+            >
+              <option value="">Seleccionar</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-medium text-gray-400"
+              >Nombre oficial / OBAC a cargo <span class="text-red-400">*</span></label
+            >
+            <select
+              [(ngModel)]="cuarteleroId"
+              name="cuarteleroId"
+              class="sid-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+            >
+              @for (u of usuarios; track u.id) {
+                <option [ngValue]="u.id">{{ u.nombre }} ({{ u.rol }})</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-xs font-medium text-gray-400"
+              >Fecha de inspección <span class="text-red-400">*</span></label
+            >
+            <input
+              type="date"
+              [(ngModel)]="fechaInspeccion"
+              name="fechaInspeccion"
+              class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+            />
+          </div>
+          <div class="md:col-span-2">
+            <label class="mb-1.5 block text-xs font-medium text-gray-400"
+              >Fecha de cierre / firma <span class="text-red-400">*</span></label
+            >
+            <div
+              class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-gray-200"
+              aria-live="polite"
+            >
+              {{ fechasFormateadaCierreFirma() }}
+            </div>
+            <p class="mt-1.5 text-xs text-gray-500">
+              Al firmar abajo como OBAC, aquí se muestra la fecha y hora del cierre (no se usa texto para la firma).
+            </p>
+          </div>
         </div>
-      </div>
+      } @else {
+        <div class="rounded-xl border border-emerald-800/45 bg-emerald-950/20 p-4 sm:p-5">
+          <p class="text-sm font-medium text-emerald-200">{{ resumenEdicionPlantillaLinea() }}</p>
+          <p class="mt-1 text-xs text-emerald-200/70">Inspector, OBAC, guardia e inspección no aplican mientras ajustas la plantilla base.</p>
+          <label class="mb-1.5 mt-4 block text-xs font-medium text-slate-300" for="trauma-motivo-plantilla"
+            >Motivo del cambio (opcional)</label
+          >
+          <textarea
+            id="trauma-motivo-plantilla"
+            name="motivoEdicionPlantilla"
+            [(ngModel)]="motivoEdicionPlantilla"
+            rows="3"
+            class="w-full rounded-lg border border-slate-600/80 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white placeholder:text-slate-500"
+            placeholder="Describe brevemente qué cambiaste y por qué"
+          ></textarea>
+        </div>
+      }
     </div>
     </section>
 

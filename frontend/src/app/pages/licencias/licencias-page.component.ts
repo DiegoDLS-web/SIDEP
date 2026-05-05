@@ -169,8 +169,13 @@ export class LicenciasPageComponent implements OnInit {
     this.paginaHistorial = 1;
   }
 
+  /** Historial “general”: para oficialidad es el listado completo de la compañía; para el resto, solo solicitudes propias. */
+  private historialGeneralFuente(): LicenciaMedicaDto[] {
+    return this.puedeGestionar ? this.gestionLicencias : this.misLicencias;
+  }
+
   get historialFiltrado(): LicenciaMedicaDto[] {
-    return this.misLicencias.filter((l) => {
+    return this.historialGeneralFuente().filter((l) => {
       const nombre = (l.usuario?.nombre || '').toLowerCase();
       const motivo = (l.motivo || '').toLowerCase();
       const estado = l.estado;
@@ -216,7 +221,10 @@ export class LicenciasPageComponent implements OnInit {
         }),
         finalize(() => (this.loading = false)),
       )
-      .subscribe((rows) => (this.misLicencias = rows));
+      .subscribe((rows) => {
+        this.misLicencias = rows;
+        this.paginaHistorial = 1;
+      });
     if (this.puedeGestionar) {
       this.cargarGestion();
       this.cargarResumen();
@@ -236,6 +244,7 @@ export class LicenciasPageComponent implements OnInit {
       .subscribe((rows) => {
         this.gestionLicencias = rows;
         this.paginaGestion = 1;
+        this.paginaHistorial = 1;
         for (const l of rows) {
           this.estadoEdicion[l.id] = l.estado;
           this.observacionEdicion[l.id] = l.observacionResolucion ?? '';

@@ -1,14 +1,19 @@
-<div class="relative sid-auth-shell">
-  <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('assets/login-bg.png')" aria-hidden="true"></div>
-  <div class="absolute inset-0 bg-black/70" aria-hidden="true"></div>
-  <div class="relative z-10 w-full max-w-md">
+<div class="relative sid-auth-shell sid-auth-shell--login overflow-hidden">
+  <!-- Fondos fijos al viewport: evita franja (blanca/negra) al final en móvil con barras del sistema. -->
+  <div class="pointer-events-none fixed inset-0 z-0 bg-[#0a0a0a]" aria-hidden="true"></div>
+  <div
+    class="pointer-events-none fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
+    style="background-image: url('assets/login-bg.png')"
+    aria-hidden="true"
+  ></div>
+  <div class="pointer-events-none fixed inset-0 z-0 bg-black/70" aria-hidden="true"></div>
+  <div class="relative z-10 w-full max-w-lg px-0 sm:max-w-md">
     <div class="sid-hero-premium mb-8 flex flex-col items-center text-center">
       <app-sidep-brand-lockup class="w-full max-w-sm px-2" variant="hero" [subline]="nombreCompaniaTag() ?? 'Compañía'" />
       <h1 class="sr-only">SIDEP · inicio de sesión</h1>
     </div>
 
     <div class="sid-glass-panel sid-panel rounded-xl border border-gray-700/80 bg-[#121212]/90 p-8 backdrop-blur-sm">
-      <span class="sid-eyebrow mb-3">Acceso seguro</span>
       <h2 class="sid-title-balanced mb-2 text-2xl font-bold text-white">Iniciar Sesión</h2>
       <p class="mb-5 text-sm text-gray-400">Si no ingresas datos, entrarás en modo demo automáticamente.</p>
       @if (error) {

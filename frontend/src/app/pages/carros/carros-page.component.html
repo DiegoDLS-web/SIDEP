@@ -147,12 +147,12 @@
       <div
         class="mb-4 flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-end xl:justify-between"
       >
-        <div class="flex min-w-0 flex-1 flex-wrap items-end gap-3">
-          <label class="flex min-w-[10rem] flex-col gap-1 text-sm xl:min-w-[11rem]">
+        <div class="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <label class="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-[10rem] sm:flex-none xl:min-w-[11rem]">
             <span class="text-xs text-gray-500">Unidad</span>
             <select
               [(ngModel)]="filtroUnidadHistorial"
-              class="sid-history-filter min-w-[10rem]"
+              class="sid-history-filter min-w-0 sm:min-w-[10rem]"
             >
               <option [ngValue]="'TODAS'">Todas</option>
               @for (c of vm.carros; track c.id) {
@@ -160,31 +160,31 @@
               }
             </select>
           </label>
-          <label class="flex min-w-[10rem] flex-col gap-1 text-sm">
+          <label class="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-[10rem] sm:flex-none">
             <span class="text-xs text-gray-500">Desde</span>
             <input
               type="date"
               [(ngModel)]="filtroHistorialDesde"
-              class="sid-history-filter dark-date-input"
+              class="sid-history-filter dark-date-input w-full min-w-0"
             />
           </label>
-          <label class="flex min-w-[10rem] flex-col gap-1 text-sm">
+          <label class="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-[10rem] sm:flex-none">
             <span class="text-xs text-gray-500">Hasta</span>
             <input
               type="date"
               [(ngModel)]="filtroHistorialHasta"
-              class="sid-history-filter dark-date-input"
+              class="sid-history-filter dark-date-input w-full min-w-0"
             />
           </label>
           <button
             type="button"
-            class="sid-btn sid-btn-primary rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+            class="sid-btn sid-btn-primary w-full shrink-0 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 sm:w-auto sm:py-2"
             (click)="aplicarFiltrosHistorialGeneral()"
           >
             Aplicar filtros
           </button>
         </div>
-        <div class="flex shrink-0 flex-wrap items-center justify-end gap-2 max-xl:border-t max-xl:border-slate-800/80 max-xl:pt-3">
+        <div class="flex shrink-0 flex-col gap-2 max-sm:[&>button]:w-full sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2 max-xl:border-t max-xl:border-slate-800/80 max-xl:pt-3">
           <button
             type="button"
             class="sid-btn sid-btn-neutral rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-gray-100 hover:bg-gray-700"
@@ -264,7 +264,7 @@
                 <th>Unidad</th>
                 <th>Inspector</th>
                 <th class="hidden md:table-cell">Inspección</th>
-                <th class="text-right">Acciones</th>
+                <th class="text-center">Acciones</th>
               </tr>
             </thead>
             <tbody class="bg-[#121212]">
@@ -285,8 +285,8 @@
                   <td class="hidden whitespace-nowrap text-gray-400 md:table-cell">
                     {{ fechaCorta(row.fechaUltimaInspeccion) }}
                   </td>
-                  <td class="text-right">
-                    <div class="inline-flex items-center justify-end gap-2">
+                  <td class="text-center align-middle">
+                    <div class="inline-flex items-center justify-center gap-2">
                       <button
                         type="button"
                         class="sid-btn sid-btn-info inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
@@ -350,8 +350,8 @@
     </button>
 
     <div class="space-y-5 md:space-y-6">
-      <div class="overflow-hidden rounded-2xl border border-slate-800/90 bg-[#121212] shadow-lg shadow-black/25 ring-1 ring-inset ring-white/5">
-        <div class="relative h-52 md:h-72">
+      <div class="rounded-2xl border border-slate-800/90 bg-[#121212] shadow-lg shadow-black/25 ring-1 ring-inset ring-white/5">
+        <div class="relative h-48 overflow-hidden rounded-t-2xl md:h-72">
           <img
             [src]="imagenCarro(c)"
             [alt]="tituloMostrar(c)"
@@ -381,7 +381,7 @@
           </div>
         </div>
 
-        <div class="p-4 md:p-6">
+        <div class="rounded-b-2xl p-4 md:p-6">
           <h2 class="mb-4 text-lg font-bold text-white md:text-xl">Información general</h2>
           <div class="mb-6 grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3">
             <div class="rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-3 ring-1 ring-inset ring-white/5 md:p-4">
@@ -416,7 +416,9 @@
             </div>
           </div>
 
-          <h2 class="mb-4 text-lg font-bold text-white md:text-xl">Mantenimiento</h2>
+          <h2 id="seccion-mantenimiento-carro" class="scroll-mt-28 mb-4 text-lg font-bold text-white md:text-xl">
+            Mantenimiento
+          </h2>
           @if (alertaMantenimiento(c) || alertaRevisionTecnica(c) || alertaPermisoCirculacion(c)) {
             <div class="mb-4 rounded-lg border border-yellow-600/40 bg-yellow-950/20 p-3 md:p-4">
               @if (alertaMantenimiento(c); as alertaMant) {
@@ -562,7 +564,7 @@
                 <div class="flex min-h-[7.25rem] flex-col justify-between rounded-lg border border-gray-800 bg-[#121212] p-4">
                   <div class="mb-3 flex items-center gap-3">
                     <lucide-icon name="calendar" class="h-5 w-5 text-blue-500" [size]="20" color="currentColor"></lucide-icon>
-                    <p class="font-semibold">Último Mantenimiento</p>
+                    <p class="font-semibold text-gray-100">Último Mantenimiento</p>
                   </div>
                   <p class="text-2xl font-bold leading-none text-gray-100">
                     {{ fechaMantenimiento(c.ultimoMantenimiento) }}
@@ -571,7 +573,7 @@
                 <div class="flex min-h-[7.25rem] flex-col justify-between rounded-lg border border-yellow-600 bg-[#121212] p-4">
                   <div class="mb-3 flex items-center gap-3">
                     <lucide-icon name="wrench" class="h-5 w-5 text-yellow-500" [size]="20" color="currentColor"></lucide-icon>
-                    <p class="font-semibold">Próximo Mantenimiento</p>
+                    <p class="font-semibold text-gray-100">Próximo Mantenimiento</p>
                   </div>
                   <p class="text-2xl font-bold leading-none text-yellow-500">
                     {{ fechaMantenimiento(c.proximoMantenimiento) }}
@@ -580,7 +582,7 @@
                 <div class="flex min-h-[7.25rem] flex-col justify-between rounded-lg border border-gray-800 bg-[#121212] p-4">
                   <div class="mb-3 flex items-center gap-3">
                     <lucide-icon name="shield-check" class="h-5 w-5 text-blue-400" [size]="20" color="currentColor"></lucide-icon>
-                    <p class="font-semibold">Próxima Revisión Técnica</p>
+                    <p class="font-semibold text-gray-100">Próxima Revisión Técnica</p>
                   </div>
                   <p
                     class="text-2xl font-bold leading-none"
@@ -593,7 +595,7 @@
                 <div class="flex min-h-[7.25rem] flex-col justify-between rounded-lg border border-gray-800 bg-[#121212] p-4">
                   <div class="mb-3 flex items-center gap-3">
                     <lucide-icon name="droplet" class="h-5 w-5 text-cyan-400" [size]="20" color="currentColor"></lucide-icon>
-                    <p class="font-semibold">Última Revisión Bomba de Agua</p>
+                    <p class="font-semibold text-gray-100">Última Revisión Bomba de Agua</p>
                   </div>
                   <p
                     class="text-2xl font-bold leading-none"
@@ -606,7 +608,7 @@
                 <div class="flex min-h-[7.25rem] flex-col justify-between rounded-lg border border-gray-800 bg-[#121212] p-4">
                   <div class="mb-3 flex items-center gap-3">
                     <lucide-icon name="clipboard-check" class="h-5 w-5 text-emerald-400" [size]="20" color="currentColor"></lucide-icon>
-                    <p class="font-semibold">Último Inspector</p>
+                    <p class="font-semibold text-gray-100">Último Inspector</p>
                   </div>
                   <p
                     class="text-lg font-bold"
@@ -621,7 +623,7 @@
                 >
                   <div class="mb-2 flex items-center gap-3">
                     <lucide-icon name="pen-tool" class="h-5 w-5 text-fuchsia-400" [size]="20" color="currentColor"></lucide-icon>
-                    <p class="font-semibold">Firma del inspector</p>
+                    <p class="font-semibold text-gray-100">Firma del inspector</p>
                   </div>
                   @if (esFirmaImagen(c.firmaUltimoInspector)) {
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

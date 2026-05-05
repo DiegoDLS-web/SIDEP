@@ -271,24 +271,83 @@ export class AnaliticaPageComponent implements OnInit {
     return 'bg-gray-600/20 text-gray-300';
   }
 
+  /**
+   * Ajustes solo en el documento clonado para PNG: html2canvas rasteriza mal los select nativos
+   * y textos grises muy tenues; no afecta la pantalla.
+   */
+  private aplicarCloneParaExportacionPng(doc: Document, elementoCapturado: HTMLElement): void {
+    const exportId = elementoCapturado.getAttribute('data-export-id');
+    const root: HTMLElement =
+      (exportId ? doc.querySelector<HTMLElement>(`[data-export-id="${exportId}"]`) : null) ??
+      doc.body ??
+      doc.documentElement;
+
+    for (const node of root.querySelectorAll<HTMLElement>('[data-export-hide="true"]')) {
+      node.style.display = 'none';
+    }
+
+    const selects = Array.from(root.querySelectorAll<HTMLSelectElement>('.sid-analitica-mes-select'));
+    for (const sel of selects) {
+      const label = sel.options[sel.selectedIndex]?.text?.trim() ?? '';
+      const mock = doc.createElement('div');
+      mock.textContent = label;
+      const w = sel.offsetWidth;
+      mock.style.boxSizing = 'border-box';
+      mock.style.display = 'flex';
+      mock.style.alignItems = 'center';
+      mock.style.width = w > 48 ? `${w}px` : '100%';
+      mock.style.maxWidth = '16rem';
+      mock.style.minHeight = '44px';
+      mock.style.padding = '10px 36px 10px 12px';
+      mock.style.border = '1px solid rgba(100, 116, 139, 0.9)';
+      mock.style.borderRadius = '12px';
+      mock.style.background = 'linear-gradient(180deg, rgb(10, 10, 10) 0%, rgb(14, 14, 14) 100%)';
+      mock.style.color = '#f8fafc';
+      mock.style.fontSize = '14px';
+      mock.style.fontWeight = '500';
+      mock.style.lineHeight = '1.45';
+      mock.style.fontFamily = 'inherit';
+      mock.style.setProperty('-webkit-font-smoothing', 'antialiased');
+      sel.replaceWith(mock);
+    }
+
+    for (const node of root.querySelectorAll<HTMLElement>('*')) {
+      node.style.boxShadow = 'none';
+      node.style.outline = 'none';
+      node.style.backdropFilter = 'none';
+      node.style.filter = 'none';
+    }
+
+    for (const el of root.querySelectorAll<HTMLElement>('.sid-analitica-mes-pie')) {
+      el.style.color = '#e2e8f0';
+      el.style.fontSize = '13px';
+      el.style.fontWeight = '500';
+      el.style.setProperty('-webkit-font-smoothing', 'antialiased');
+    }
+    for (const el of root.querySelectorAll<HTMLElement>('.sid-analitica-mes-calor')) {
+      el.style.color = '#f8fafc';
+      el.style.fontSize = '13px';
+      el.style.fontWeight = '600';
+      el.style.letterSpacing = '0';
+      el.style.setProperty('-webkit-font-smoothing', 'antialiased');
+    }
+    for (const th of root.querySelectorAll<HTMLElement>('.sid-history-table thead th')) {
+      th.style.fontSize = '11px';
+      th.style.color = '#cbd5e1';
+      th.style.setProperty('-webkit-font-smoothing', 'antialiased');
+    }
+  }
+
   private async capturarElemento(element: HTMLElement): Promise<string> {
     const html2canvas = (await import('html2canvas')).default;
+    /* Mayor escala = PNG más nítido al abrir (solo exportación; no cambia la UI). */
+    const scale = 3;
     const canvas = await html2canvas(element, {
-      scale: 2,
+      scale,
       backgroundColor: '#0a0a0a',
       useCORS: true,
       logging: false,
-      onclone: (doc) => {
-        const hidden = doc.querySelectorAll<HTMLElement>('[data-export-hide="true"]');
-        for (const node of hidden) node.style.display = 'none';
-        const nodes = doc.querySelectorAll<HTMLElement>('*');
-        for (const node of nodes) {
-          // Evita halos/blancos generados por ring/box-shadow de Tailwind en html2canvas.
-          node.style.boxShadow = 'none';
-          node.style.outline = 'none';
-          node.style.backdropFilter = 'none';
-        }
-      },
+      onclone: (doc) => this.aplicarCloneParaExportacionPng(doc, element),
     });
     return canvas.toDataURL('image/png');
   }

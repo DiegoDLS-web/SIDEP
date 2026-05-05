@@ -66,6 +66,7 @@ export class ChecklistUnidadComponent implements OnInit {
   ubicacionesAbiertas: Record<string, boolean> = {};
   editandoPlantilla = false;
   guardandoPlantilla = false;
+  motivoEdicionPlantilla = '';
   private plantillaUbicacionesBackup: Ubicacion[] | null = null;
 
   mensajeFlash: string | null = null;
@@ -153,6 +154,7 @@ export class ChecklistUnidadComponent implements OnInit {
 
   activarEdicionPlantilla(): void {
     if (!this.puedeEditarPlantilla) return;
+    this.motivoEdicionPlantilla = '';
     this.plantillaUbicacionesBackup = this.clonarUbicaciones(this.ubicaciones);
     this.editandoPlantilla = true;
   }
@@ -162,7 +164,14 @@ export class ChecklistUnidadComponent implements OnInit {
       this.ubicaciones = this.clonarUbicaciones(this.plantillaUbicacionesBackup);
     }
     this.plantillaUbicacionesBackup = null;
+    this.motivoEdicionPlantilla = '';
     this.editandoPlantilla = false;
+  }
+
+  resumenEdicionPlantillaLinea(): string {
+    const u = this.auth.usuarioActual?.nombre?.trim() || 'Usuario';
+    const cuando = new Date().toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
+    return `Plantilla · editado por ${u} · ${cuando}`;
   }
 
   private inicializarCanvasFirma(): void {
@@ -923,7 +932,9 @@ export class ChecklistUnidadComponent implements OnInit {
         this.guardandoPlantilla = false;
         this.editandoPlantilla = false;
         this.plantillaUbicacionesBackup = null;
-        this.toast.exito('Plantilla de checklist guardada.');
+        const extra = this.motivoEdicionPlantilla.trim();
+        this.motivoEdicionPlantilla = '';
+        this.toast.exito(extra ? `Plantilla de checklist guardada. Motivo: ${extra}` : 'Plantilla de checklist guardada.');
       },
       error: () => {
         this.guardandoPlantilla = false;

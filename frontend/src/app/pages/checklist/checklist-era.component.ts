@@ -17,6 +17,7 @@ import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
 import { firmaEfectiva } from '../../utils/firma-resolver';
 import type { EstadoChecklist } from '../../models/checklist.dto';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
+import { etiquetaCompletandoOCompletado } from '../../utils/etiqueta-completitud';
 
 export type EraEquipo = {
   numero: number;
@@ -231,6 +232,8 @@ export class ChecklistEraComponent implements OnInit {
   seccionesAbiertas: Record<string, boolean> = {};
   editandoPlantilla = false;
   guardandoPlantilla = false;
+  /** Nota opcional al guardar plantilla; inspector/OBAC/fechas no se usan en modo plantilla. */
+  motivoEdicionPlantilla = '';
   private snapshotPlantillaEra: { equipos: EraEquipo[]; recambios: CilindroRecambio[] } | null = null;
 
   ngOnInit(): void {
@@ -302,6 +305,7 @@ export class ChecklistEraComponent implements OnInit {
 
   activarEdicionPlantilla(): void {
     if (!this.puedeEditarPlantilla) return;
+    this.motivoEdicionPlantilla = '';
     this.snapshotPlantillaEra = {
       equipos: this.clonarListaEquipos(),
       recambios: this.clonarListaRecambios(),
@@ -315,7 +319,15 @@ export class ChecklistEraComponent implements OnInit {
       this.recambios = this.clonarListaRecambiosDesde(this.snapshotPlantillaEra.recambios);
     }
     this.snapshotPlantillaEra = null;
+    this.motivoEdicionPlantilla = '';
     this.editandoPlantilla = false;
+  }
+
+  /** Línea de auditoría automática en modo edición de plantilla (usuario en sesión + marca de tiempo). */
+  resumenEdicionPlantillaLinea(): string {
+    const u = this.auth.usuarioActual?.nombre?.trim() || 'Usuario';
+    const cuando = new Date().toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
+    return `Plantilla · editado por ${u} · ${cuando}`;
   }
 
   guardarPlantillaEra(): void {
@@ -334,7 +346,9 @@ export class ChecklistEraComponent implements OnInit {
         }
         this.editandoPlantilla = false;
         this.snapshotPlantillaEra = null;
-        this.toast.exito('Plantilla ERA guardada.');
+        const extra = this.motivoEdicionPlantilla.trim();
+        this.motivoEdicionPlantilla = '';
+        this.toast.exito(extra ? `Plantilla ERA guardada. Motivo: ${extra}` : 'Plantilla ERA guardada.');
       },
       error: () => {
         this.guardandoPlantilla = false;
@@ -498,6 +512,10 @@ export class ChecklistEraComponent implements OnInit {
       equiposPorUnidad,
       registros: this.totalHistorialEra,
     };
+  }
+
+  etiquetaBarraCompletitudEra(completitud: number): string {
+    return etiquetaCompletandoOCompletado(completitud);
   }
 
   resumenUnidadEra(carro: CarroDto): {

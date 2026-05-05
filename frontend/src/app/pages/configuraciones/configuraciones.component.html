@@ -91,7 +91,7 @@
               <input
                 [(ngModel)]="config.notificaciones.alertasEmergencia"
                 type="checkbox"
-                class="h-4 w-4 shrink-0 rounded"
+                class="sid-checkbox-native mt-0.5 h-[1.125rem] w-[1.125rem] shrink-0 rounded"
               />
             </label>
             <label
@@ -104,7 +104,7 @@
               <input
                 [(ngModel)]="config.notificaciones.alertasInventario"
                 type="checkbox"
-                class="h-4 w-4 shrink-0 rounded"
+                class="sid-checkbox-native mt-0.5 h-[1.125rem] w-[1.125rem] shrink-0 rounded"
               />
             </label>
             <label
@@ -117,7 +117,7 @@
               <input
                 [(ngModel)]="config.notificaciones.recordatoriosChecklist"
                 type="checkbox"
-                class="h-4 w-4 shrink-0 rounded"
+                class="sid-checkbox-native mt-0.5 h-[1.125rem] w-[1.125rem] shrink-0 rounded"
               />
             </label>
             <label
@@ -134,7 +134,7 @@
               <input
                 [(ngModel)]="config.notificaciones.resumenDiarioEmail"
                 type="checkbox"
-                class="h-4 w-4 shrink-0 rounded"
+                class="sid-checkbox-native mt-0.5 h-[1.125rem] w-[1.125rem] shrink-0 self-start rounded sm:self-center"
               />
             </label>
           </div>
@@ -258,7 +258,7 @@
                         >
                           <input
                             type="checkbox"
-                            class="h-4 w-4 rounded border-slate-600 bg-[#161616] text-red-600 focus:ring-red-600/35"
+                            class="sid-checkbox-native h-[1.125rem] w-[1.125rem] shrink-0 rounded"
                             [checked]="tieneRutaEnRol(rol.nombre, op.path)"
                             (change)="alternarRutaMenu(rol.nombre, op.path, ($any($event.target).checked))"
                           />

@@ -66,8 +66,10 @@ function bolsosDesdeDetalle(detalle: unknown): BolsoResumen[] {
 }
 
 /** Si aún no hay checklist TRAUMA, igual mostramos bolsos clicables (misma lógica que el registro). */
+/** Cantidad por unidad si aún no hay plantilla en checklist (numeración 1..N en cada carro). */
 function cantidadBolsosPredeterminada(nomenclatura: string): number {
-  if (nomenclatura === 'R-1' || nomenclatura === 'B-1' || nomenclatura === 'BX-1') return 3;
+  if (nomenclatura === 'R-1') return 2;
+  if (nomenclatura === 'B-1' || nomenclatura === 'BX-1') return 1;
   return 1;
 }
 

@@ -5,10 +5,11 @@ import autoTable from 'jspdf-autotable';
 import type { LogosPdfCabecera } from '../models/configuracion.dto';
 import { ConfiguracionesService } from './configuraciones.service';
 import { logosActivosPorConfig } from '../utils/reportes-logos.util';
-import { COMPANIA_LOGO_TRY_PATHS, SIDEP_MARK_PNG_ABSOLUTE } from '../shared/sidep-branding';
+import { COMPANIA_LOGO_TRY_PATHS, SIDEP_LOGO_FULL_TRANSPARENT_ABSOLUTE } from '../shared/sidep-branding';
 import type { CarroRegistroHistorialDto } from '../models/carro-registro-historial.dto';
 import type { ChecklistRegistroDto } from '../models/checklist.dto';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../utils/checklist-estado';
+import { prepararLogoParaPdf } from '../utils/pdf-logo-embed.util';
 
 type UnidadMaterial = {
   ubicacion: string;
@@ -143,7 +144,7 @@ export class PdfExportService {
 
   private getLogos(): Promise<{ sidep: string | null; compania: string | null }> {
     return Promise.all([
-      this.cargarLogoComoDataUrl(SIDEP_MARK_PNG_ABSOLUTE),
+      this.cargarLogoComoDataUrl(SIDEP_LOGO_FULL_TRANSPARENT_ABSOLUTE),
       this.cargarPrimeraCompaniaDisponible(),
     ]).then(([sidep, compania]) => ({ sidep, compania }));
   }
@@ -173,18 +174,24 @@ export class PdfExportService {
     const pad = 12;
     const top = 10;
     const stripeW = 2.8;
-    const logoSidep = 12.5;
-    /** Logo compañía (sin fondo; el PNG puede ser circular). */
-    const logoCompSlot = 22;
-    const logoCompInset = pad + stripeW + 2;
+    const logoSidepMaxW = 36;
+    const logoSidepMaxH = 12;
+    const logoCompMax = 22;
     const hasSidep = activos.sidep && !!logos.sidep?.startsWith('data:image');
     const hasComp = activos.compania && !!logos.compania?.startsWith('data:image');
-    const reserveRight = (hasComp ? logoCompSlot : 0) + 10;
 
+    const [sidepPrep, compPrep] = await Promise.all([
+      hasSidep && logos.sidep ? prepararLogoParaPdf(logos.sidep, logoSidepMaxW, logoSidepMaxH) : Promise.resolve(null),
+      hasComp && logos.compania ? prepararLogoParaPdf(logos.compania, logoCompMax, logoCompMax) : Promise.resolve(null),
+    ]);
+
+    const sidepReserveW = sidepPrep?.widthMm ?? (hasSidep ? logoSidepMaxW : 0);
+    const compReserveW = compPrep?.widthMm ?? (hasComp ? logoCompMax : 0);
     let titleX = pad + stripeW + 5;
-    if (hasSidep) {
-      titleX = pad + stripeW + 4 + logoSidep + 3;
+    if (sidepReserveW > 0) {
+      titleX = pad + stripeW + 4 + sidepReserveW + 3;
     }
+    const reserveRight = (compReserveW > 0 ? compReserveW : 0) + 10;
     const textRight = pageW - pad - reserveRight;
     const titleMaxW = Math.max(38, textRight - titleX);
 
@@ -204,26 +211,34 @@ export class PdfExportService {
     doc.setFillColor(239, 68, 68);
     doc.rect(pad, top, stripeW + 2, headerH, 'F');
 
-    const logoY = top + (headerH - logoSidep) / 2;
-    if (hasSidep) {
+    if (sidepPrep) {
       try {
-        doc.addImage(logos.sidep!, fmtFirmaParaJsPdf(logos.sidep!), pad + stripeW + 3, logoY, logoSidep, logoSidep);
+        const ly = top + (headerH - sidepPrep.heightMm) / 2;
+        doc.addImage(sidepPrep.dataUrl, sidepPrep.format, pad + stripeW + 3, ly, sidepPrep.widthMm, sidepPrep.heightMm);
+      } catch {
+        /* ignore */
+      }
+    } else if (hasSidep && logos.sidep) {
+      try {
+        const ly = top + (headerH - logoSidepMaxH) / 2;
+        doc.addImage(logos.sidep, fmtFirmaParaJsPdf(logos.sidep), pad + stripeW + 3, ly, logoSidepMaxW, logoSidepMaxH);
       } catch {
         /* ignore */
       }
     }
-    const compSquareX = pageW - logoCompInset - logoCompSlot;
-    if (hasComp) {
+    if (compPrep) {
       try {
-        const cy = top + (headerH - logoCompSlot) / 2;
-        doc.addImage(
-          logos.compania!,
-          fmtFirmaParaJsPdf(logos.compania!),
-          compSquareX,
-          cy,
-          logoCompSlot,
-          logoCompSlot,
-        );
+        const cx = pageW - pad - compPrep.widthMm - 2;
+        const cy = top + (headerH - compPrep.heightMm) / 2;
+        doc.addImage(compPrep.dataUrl, compPrep.format, cx, cy, compPrep.widthMm, compPrep.heightMm);
+      } catch {
+        /* ignore */
+      }
+    } else if (hasComp && logos.compania) {
+      try {
+        const cx = pageW - pad - logoCompMax - 2;
+        const cy = top + (headerH - logoCompMax) / 2;
+        doc.addImage(logos.compania, fmtFirmaParaJsPdf(logos.compania), cx, cy, logoCompMax, logoCompMax);
       } catch {
         /* ignore */
       }
@@ -595,6 +610,10 @@ export class PdfExportService {
     doc.text(`Generado: ${fmtFechaHoraPdf(new Date().toISOString())}`, 14, yHead);
     doc.text(`Registros: ${input.registros.length}`, 150, yHead);
 
+    const pageWmm = doc.internal.pageSize.getWidth();
+    const marginMm = 14;
+    const tableInnerW = pageWmm - marginMm * 2;
+
     autoTable(doc, {
       startY: yHead + 8,
       head: [['Fecha', 'Unidad', 'Bolso', 'Estado', 'Inspector', 'Responsable (OBAC)', 'Guardia']],
@@ -610,9 +629,25 @@ export class PdfExportService {
           registro.grupoGuardia?.trim() || '—',
         ];
       }),
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [200, 30, 30] },
-      alternateRowStyles: { fillColor: [247, 247, 247] },
+      theme: 'grid',
+      styles: {
+        fontSize: 7.5,
+        cellPadding: 1.8,
+        overflow: 'linebreak',
+        valign: 'middle',
+      },
+      headStyles: { fillColor: [180, 30, 30], textColor: 255, fontStyle: 'bold', halign: 'center' },
+      margin: { left: marginMm, right: marginMm },
+      tableWidth: tableInnerW,
+      columnStyles: {
+        0: { cellWidth: 38 },
+        1: { cellWidth: 16 },
+        2: { cellWidth: 14 },
+        3: { cellWidth: 24 },
+        4: { cellWidth: 32 },
+        5: { cellWidth: 38 },
+        6: { cellWidth: 20 },
+      },
     });
 
     let y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yHead + 8;
@@ -626,7 +661,7 @@ export class PdfExportService {
       }
       doc.setFontSize(11);
       doc.text(
-        `${fmtFechaPdf(registro.fecha)} · ${registro.cuartelero.nombre} · ${registro.itemsOk ?? 0}/${registro.totalItems ?? 0}`,
+        `${fmtFechaPdf(registro.fecha)} · ${registro.cuartelero?.nombre ?? '—'} · ${registro.itemsOk ?? 0}/${registro.totalItems ?? 0}`,
         14,
         y,
       );

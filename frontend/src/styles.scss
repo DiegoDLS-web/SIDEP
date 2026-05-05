@@ -10,11 +10,18 @@ html,
 body {
   min-height: 100%;
   min-height: 100dvh;
+  /* Evita franjas blancas (móvil / barra inicio / overscroll) cuando el viewport no rellena. */
+  background-color: #0a0a0a;
 }
 
 body {
   margin: 0;
   overflow-x: hidden;
+}
+
+/* Desplazamiento horizontal más fluido en iOS (tablas / gráficos). */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Mantiene look oscuro también en listas nativas de <select>. */
@@ -77,26 +84,62 @@ input[type='checkbox']:not(.peer):not(.sr-only) {
   border-radius: 0.28rem;
   background-color: #151a21;
   border: 1px solid #526077;
+  color-scheme: dark;
 }
 
-/* Panel Notificaciones (configuración): menos brillo, rojo más profundo al marcar */
+/*
+ * Checkbox dibujado a mano: Safari/iOS a menudo ignora fondo en nativos sin marcar (cuadro blanco).
+ * Usar `.sid-checkbox-native` o envolver en `.sid-notif-checkboxes`.
+ */
+.sid-checkbox-native,
 .sid-notif-checkboxes input[type='checkbox']:not(.peer):not(.sr-only) {
+  -webkit-appearance: none;
+  appearance: none;
+  flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0;
+  vertical-align: middle;
+  border-radius: 0.28rem;
+  border: 2px solid #3d4d61;
+  background-color: #0c1016;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.65);
   accent-color: #7f1d1d;
-  background-color: #05070b;
-  border-color: #2a3544;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.72);
+  cursor: pointer;
   transition:
     border-color 0.15s ease,
+    background-color 0.15s ease,
     box-shadow 0.2s ease;
 }
+
+.sid-checkbox-native:hover,
 .sid-notif-checkboxes input[type='checkbox']:not(.peer):not(.sr-only):hover {
-  border-color: #3d4d61;
+  border-color: #64748b;
 }
+
+.sid-checkbox-native:focus-visible,
 .sid-notif-checkboxes input[type='checkbox']:not(.peer):not(.sr-only):focus-visible {
   outline: none;
   box-shadow:
-    inset 0 1px 2px rgba(0, 0, 0, 0.72),
-    0 0 0 2px rgba(127, 29, 29, 0.45);
+    inset 0 1px 2px rgba(0, 0, 0, 0.65),
+    0 0 0 2px rgba(220, 38, 38, 0.45);
+}
+
+.sid-checkbox-native:checked,
+.sid-notif-checkboxes input[type='checkbox']:not(.peer):not(.sr-only):checked {
+  border-color: #ef4444;
+  background-color: #991b1b;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M3.5 8.2 6.4 11 12.5 4.9' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-size: 0.95rem;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.sid-checkbox-native:disabled,
+.sid-notif-checkboxes input[type='checkbox']:not(.peer):not(.sr-only):disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 /* Autocompletado Chrome/Edge/Safari: sin “caja blanca” sobre tema oscuro */
@@ -348,20 +391,37 @@ body {
   flex-direction: column;
   gap: 1.5rem;
   padding: 1rem;
+  /*
+   * Simetría horizontal: margen para el botón hamburguesa (móvil).
+   * En pantallas estrechas se reduce para aprovechar mejor el ancho.
+   */
+  --sid-hamburger-inset: 1rem;
+  padding-left: max(0.75rem, calc(env(safe-area-inset-left, 0px) + 0.75rem + var(--sid-hamburger-inset)));
+  padding-right: max(0.75rem, calc(env(safe-area-inset-right, 0px) + 0.75rem + var(--sid-hamburger-inset)));
+}
+@media (min-width: 480px) {
+  .sid-page-shell {
+    --sid-hamburger-inset: 1.75rem;
+    padding-left: max(1rem, calc(env(safe-area-inset-left, 0px) + 1rem + var(--sid-hamburger-inset)));
+    padding-right: max(1rem, calc(env(safe-area-inset-right, 0px) + 1rem + var(--sid-hamburger-inset)));
+  }
 }
 @media (min-width: 640px) {
   .sid-page-shell {
-    padding: 1.5rem 1.5rem;
+    padding: 1.5rem;
+    padding-left: max(1.5rem, calc(env(safe-area-inset-left, 0px) + 1rem + var(--sid-hamburger-inset)));
+    padding-right: max(1.5rem, calc(env(safe-area-inset-right, 0px) + 1rem + var(--sid-hamburger-inset)));
   }
 }
 @media (min-width: 768px) {
   .sid-page-shell {
-    padding-left: 2rem;
-    padding-right: 2rem;
+    padding-left: max(2rem, calc(env(safe-area-inset-left, 0px) + 1rem + var(--sid-hamburger-inset)));
+    padding-right: max(2rem, calc(env(safe-area-inset-right, 0px) + 1rem + var(--sid-hamburger-inset)));
   }
 }
 @media (min-width: 1024px) {
   .sid-page-shell {
+    --sid-hamburger-inset: 0rem;
     padding-left: 2.5rem;
     padding-right: 2.5rem;
   }
@@ -492,6 +552,11 @@ body {
   }
 }
 
+/* Evita que el bloque de título empuje el viewport en flex (móvil). */
+.sid-hero-panel__row--split > :first-child {
+  min-width: 0;
+}
+
 /** Variante para filas con mucho texto + botón (p. ej. licencias). */
 @media (min-width: 1024px) {
   .sid-hero-panel__row--split-start {
@@ -507,6 +572,10 @@ body {
   flex-direction: column;
   gap: 0.75rem;
   margin-bottom: 1rem;
+}
+
+.sid-history-head > :first-child {
+  min-width: 0;
 }
 
 .sid-history-actions {
@@ -934,6 +1003,13 @@ body.motion-suave .sid-brand-e-bar {
   justify-content: center;
   background-color: var(--sid-shell-bg);
   padding: 1rem;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Login: un poco más de ancho útil en teléfono (el panel sigue centrado). */
+.sid-auth-shell--login {
+  padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
 }
 
 /* Historiales generales: estilo unificado */
@@ -960,6 +1036,10 @@ body.motion-suave .sid-brand-e-bar {
   background: var(--sid-shell-bg);
   color: #fff;
   min-height: 2.5rem;
+}
+
+/* El padding no aplica a `.sid-input`: si no, se anula `pl-*` de Tailwind (orden en hoja tras @tailwind). */
+.sid-history-filter:not(.sid-input) {
   padding: 0.5rem 0.75rem;
 }
 
@@ -1464,6 +1544,13 @@ textarea:focus-visible,
     0 0 0 4px rgba(248, 113, 113, 0.12);
 }
 
+/* Analítica: mes en <select> centrado en altura (evita recorte al exportar PNG / WebKit). */
+.sid-analitica-mes-select.sid-history-filter {
+  line-height: 1.45;
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+}
+
 .sid-history-table thead th {
   white-space: nowrap;
 }
@@ -1474,6 +1561,16 @@ textarea:focus-visible,
 
 .sid-history-table tbody td:last-child {
   white-space: nowrap;
+}
+
+/** Columna de acciones: alinear encabezado e íconos al centro (checklist historial, etc.). */
+.sid-history-wrap--actions-center .sid-history-table thead th:last-child,
+.sid-history-wrap--actions-center .sid-history-table tbody td:last-child {
+  text-align: center !important;
+}
+
+.sid-history-wrap--actions-center .sid-history-table tbody td:last-child > div {
+  justify-content: center;
 }
 
 .sid-history-table tbody tr {
@@ -2045,4 +2142,12 @@ app-welcome-overlay {
   .sid-welcome-layer--leave {
     opacity: 0;
   }
+}
+
+/*
+ * `.sid-input` va después de @tailwind utilities y su `padding` en shorthand pisa `pl-12` / `pl-*`.
+ * Refuerzo explícito para campos con ícono a la izquierda (p. ej. partes → dirección).
+ */
+.sid-input.pl-12 {
+  padding-left: 3rem;
 }

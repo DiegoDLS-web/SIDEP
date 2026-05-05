@@ -45,7 +45,7 @@ export class BolsosTraumaService {
       id: 2,
       unidad: 'BX-1',
       nombre: 'Carro Multipropósito',
-      cantidadBolsos: 2,
+      cantidadBolsos: 1,
       ultimaRevision: {
         fecha: new Date().toISOString(),
         inspector: 'Inspector Demo',
@@ -53,16 +53,13 @@ export class BolsosTraumaService {
         responsable: 'Modo Demo Local',
         completado: false,
       },
-      bolsos: [
-        { numero: 1, completitud: 88, itemsFaltantes: 1, status: 'incomplete', estadoChecklist: 'PENDIENTE' },
-        { numero: 2, completitud: 100, itemsFaltantes: 0, status: 'complete', estadoChecklist: 'COMPLETADO' },
-      ],
+      bolsos: [{ numero: 1, completitud: 88, itemsFaltantes: 1, status: 'incomplete', estadoChecklist: 'PENDIENTE' }],
     },
     {
       id: 3,
       unidad: 'B-1',
       nombre: 'Carro Bomba',
-      cantidadBolsos: 2,
+      cantidadBolsos: 1,
       ultimaRevision: {
         fecha: new Date().toISOString(),
         inspector: 'Inspector Demo',
@@ -70,10 +67,7 @@ export class BolsosTraumaService {
         responsable: 'Modo Demo Local',
         completado: true,
       },
-      bolsos: [
-        { numero: 1, completitud: 100, itemsFaltantes: 0, status: 'complete', estadoChecklist: 'COMPLETADO' },
-        { numero: 2, completitud: 100, itemsFaltantes: 0, status: 'complete', estadoChecklist: 'COMPLETADO' },
-      ],
+      bolsos: [{ numero: 1, completitud: 100, itemsFaltantes: 0, status: 'complete', estadoChecklist: 'COMPLETADO' }],
     },
   ];
 

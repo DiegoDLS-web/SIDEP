@@ -169,6 +169,7 @@ export class BolsoTraumaRegistroComponent implements OnInit {
   private flashTimer: ReturnType<typeof setTimeout> | null = null;
   editandoPlantilla = false;
   guardandoPlantilla = false;
+  motivoEdicionPlantilla = '';
   /** Acordeón por compartimiento (índice); true = expandido. */
   private ubicacionesExpandidas: Record<number, boolean> = {};
 
@@ -306,11 +307,19 @@ export class BolsoTraumaRegistroComponent implements OnInit {
   }
 
   activarEdicionPlantilla(): void {
+    this.motivoEdicionPlantilla = '';
     this.editandoPlantilla = true;
   }
 
   cancelarEdicionPlantilla(): void {
+    this.motivoEdicionPlantilla = '';
     this.editandoPlantilla = false;
+  }
+
+  resumenEdicionPlantillaLinea(): string {
+    const u = this.auth.usuarioActual?.nombre?.trim() || 'Usuario';
+    const cuando = new Date().toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
+    return `Plantilla · editado por ${u} · ${cuando}`;
   }
 
   guardarPlantillaTrauma(): void {
@@ -343,7 +352,9 @@ export class BolsoTraumaRegistroComponent implements OnInit {
           return;
         }
         this.editandoPlantilla = false;
-        this.toast.exito('Plantilla de trauma guardada.');
+        const extra = this.motivoEdicionPlantilla.trim();
+        this.motivoEdicionPlantilla = '';
+        this.toast.exito(extra ? `Plantilla de trauma guardada. Motivo: ${extra}` : 'Plantilla de trauma guardada.');
       },
       error: () => {
         this.guardandoPlantilla = false;

@@ -224,15 +224,27 @@
 
       <div class="mb-4 flex flex-col gap-2 rounded-xl border border-slate-800/80 bg-black/20 p-3 sm:p-3">
         <p class="text-[11px] text-slate-500">Pestañas = estado. Abajo: texto y fechas de inicio del permiso (compacto).</p>
-        <div class="flex flex-wrap items-end gap-2">
+        <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
           <input
             type="search"
             [(ngModel)]="filtroGestionTexto"
             placeholder="Nombre o motivo"
-            class="sid-history-filter min-w-0 flex-1 py-1.5 text-xs sm:max-w-md"
+            class="sid-history-filter min-w-0 w-full py-1.5 text-xs sm:flex-1 sm:max-w-md"
           />
-          <input type="date" [(ngModel)]="filtroGestionDesde" class="sid-history-filter dark-date-input w-[9.5rem] py-1.5 text-xs" title="Desde" />
-          <input type="date" [(ngModel)]="filtroGestionHasta" class="sid-history-filter dark-date-input w-[9.5rem] py-1.5 text-xs" title="Hasta" />
+          <input
+            type="date"
+            [(ngModel)]="filtroGestionDesde"
+            class="sid-history-filter dark-date-input w-full py-1.5 text-xs sm:w-[9.5rem] sm:min-w-[9rem]"
+            title="Desde"
+            aria-label="Permiso desde"
+          />
+          <input
+            type="date"
+            [(ngModel)]="filtroGestionHasta"
+            class="sid-history-filter dark-date-input w-full py-1.5 text-xs sm:w-[9.5rem] sm:min-w-[9rem]"
+            title="Hasta"
+            aria-label="Permiso hasta"
+          />
         </div>
       </div>
 
@@ -509,7 +521,13 @@
           <lucide-icon name="history" class="h-5 w-5 text-fuchsia-300" [size]="20" color="currentColor"></lucide-icon>
           Historial general de licencias
         </h2>
-        <p class="sid-history-subtitle">Seguimiento de solicitudes y su estado de resolución.</p>
+        <p class="sid-history-subtitle">
+          @if (puedeGestionar) {
+            Listado de todas las solicitudes de la compañía (solo lectura). Usa los filtros y la paginación para recorrer el historial.
+          } @else {
+            Seguimiento de tus solicitudes y su estado de resolución.
+          }
+        </p>
       </div>
       <button
         type="button"
@@ -520,33 +538,41 @@
       </button>
     </div>
 
-    <div class="mb-4 grid grid-cols-1 gap-2 md:grid-cols-4">
+    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12 lg:gap-2">
       <input
         type="search"
         [(ngModel)]="filtroHistorialTexto"
         (ngModelChange)="onFiltroHistorialChange()"
         placeholder="Buscar por nombre o motivo"
-        class="sid-history-filter text-sm md:col-span-2"
+        class="sid-history-filter text-sm lg:col-span-5"
       />
-      <select [(ngModel)]="filtroHistorialEstado" (ngModelChange)="onFiltroHistorialChange()" class="sid-history-filter text-sm">
+      <select
+        [(ngModel)]="filtroHistorialEstado"
+        (ngModelChange)="onFiltroHistorialChange()"
+        class="sid-history-filter text-sm lg:col-span-3"
+      >
         <option value="">Todos los estados</option>
         <option value="PENDIENTE">Pendiente</option>
         <option value="APROBADA">Aprobada</option>
         <option value="RECHAZADA">Rechazada</option>
         <option value="ANULADA">Anulada</option>
       </select>
-      <div class="flex items-center gap-2">
+      <div class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:col-span-4 lg:gap-2">
         <input
           type="date"
           [(ngModel)]="filtroHistorialDesde"
           (ngModelChange)="onFiltroHistorialChange()"
-          class="sid-history-filter dark-date-input w-full text-sm"
+          aria-label="Filtrar desde fecha"
+          title="Desde"
+          class="sid-history-filter dark-date-input w-full min-w-0 text-sm"
         />
         <input
           type="date"
           [(ngModel)]="filtroHistorialHasta"
           (ngModelChange)="onFiltroHistorialChange()"
-          class="sid-history-filter dark-date-input w-full text-sm"
+          aria-label="Filtrar hasta fecha"
+          title="Hasta"
+          class="sid-history-filter dark-date-input w-full min-w-0 text-sm"
         />
       </div>
     </div>
@@ -554,6 +580,12 @@
     <div class="space-y-4 lg:hidden">
       @for (l of historialPaginado; track l.id) {
         <article class="rounded-xl border border-gray-800 bg-[#0a0a0a] p-4 sm:p-5">
+          @if (puedeGestionar) {
+            <p class="mb-1 truncate text-xs font-medium text-fuchsia-200/95">
+              {{ l.usuario?.nombre || ('Usuario #' + l.usuarioId) }}
+              <span class="text-slate-500"> · {{ l.usuario?.rol || '—' }}</span>
+            </p>
+          }
           <div class="mb-2 flex items-center justify-between gap-2">
             <p class="text-sm font-medium text-gray-100">{{ fecha(l.fechaInicio) }} - {{ fecha(l.fechaTermino) }}</p>
             <span class="sid-status-chip" [ngClass]="l.estado === 'APROBADA' ? 'sid-status-chip-ok' : l.estado === 'RECHAZADA' ? 'sid-status-chip-danger' : l.estado === 'ANULADA' ? 'sid-status-chip-neutral' : 'sid-status-chip-warn'">
@@ -591,6 +623,9 @@
       <table class="sid-history-table min-w-full text-sm">
         <thead>
           <tr>
+            @if (puedeGestionar) {
+              <th>Solicitante</th>
+            }
             <th>Período</th>
             <th>Motivo</th>
             <th>Estado</th>
@@ -601,6 +636,12 @@
         <tbody>
           @for (l of historialPaginado; track l.id) {
             <tr>
+              @if (puedeGestionar) {
+                <td class="max-w-[14rem] align-top text-gray-200">
+                  <span class="font-medium text-gray-100">{{ l.usuario?.nombre || ('Usuario #' + l.usuarioId) }}</span>
+                  <p class="text-xs text-slate-500">{{ l.usuario?.rol || '—' }}</p>
+                </td>
+              }
               <td class="text-gray-200">{{ fecha(l.fechaInicio) }} - {{ fecha(l.fechaTermino) }}</td>
               <td class="max-w-[24rem] leading-relaxed text-gray-300">{{ l.motivo }}</td>
               <td>
@@ -640,10 +681,12 @@
     @if (!loading && historialFiltrado.length === 0) {
       <p class="mt-3 text-sm text-gray-500">Sin solicitudes aún.</p>
     }
-    @if (!loading && historialFiltrado.length > 0 && totalPaginasHistorial > 1) {
+    @if (!loading && historialFiltrado.length > 0) {
       <div class="mt-4 flex flex-col gap-3 border-t border-gray-800 pt-4 sm:flex-row sm:items-center sm:justify-between">
         <span class="text-sm text-gray-500">
-          Página {{ paginaHistorialVista }} de {{ totalPaginasHistorial }} · {{ historialFiltrado.length }} registro(s)
+          Página {{ paginaHistorialVista }} de {{ totalPaginasHistorial }}
+          · {{ historialFiltrado.length }} registro(s)
+          · {{ tamanioPaginaHistorial }} por página
         </span>
         <div class="flex flex-wrap gap-2">
           <button

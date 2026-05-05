@@ -7,6 +7,9 @@ export const SIDEP_WORDMARK_PNG = 'assets/branding/sidep-wordmark.png';
 /** Path absoluto (fetch/jsPDF en runtime del navegador). */
 export const SIDEP_MARK_PNG_ABSOLUTE = '/assets/branding/sidep-mark-only.png';
 
+/** Logo horizontal sin fondo blanco (preferido en cabeceras PDF). */
+export const SIDEP_LOGO_FULL_TRANSPARENT_ABSOLUTE = '/assets/branding/sidep-logo-full-transparent.png';
+
 /** Logo compañía: primero subido en servidor (`POST /api/configuraciones/logo-compania`), luego asset por defecto. */
 export const COMPANIA_LOGO_TRY_PATHS = [
   '/uploads/compania-logo.png',

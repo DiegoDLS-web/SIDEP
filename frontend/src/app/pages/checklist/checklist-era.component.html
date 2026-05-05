@@ -20,9 +20,6 @@
             Checklist ERA
           </h1>
           <p class="mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">Registro por unidad de máscaras, cilindros, arnés y recambios.</p>
-          <p class="mt-2 max-w-2xl text-xs text-slate-500">
-            Cada tarjeta muestra la foto del carro de la compañía.
-          </p>
         </div>
       </div>
     </section>
@@ -62,7 +59,7 @@
                 </div>
                 <div class="space-y-1">
                   <div class="flex items-center justify-between text-[11px] sm:text-xs">
-                    <span class="text-white/90">Completitud</span>
+                    <span class="text-white/90">{{ etiquetaBarraCompletitudEra(r.completitud) }}</span>
                     <span class="font-semibold text-white">{{ r.completitud }}%</span>
                   </div>
                   <div class="h-1.5 w-full overflow-hidden rounded-full bg-black/45 sm:h-2">
@@ -199,74 +196,96 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <label class="mb-1.5 block text-xs font-medium text-gray-400"
-              >Nombre del inspector / clave <span class="text-red-400">*</span></label
-            >
-            <input
-              [(ngModel)]="inspector"
-              name="inspector"
-              placeholder="Ej: Juan Pérez · clave 1234"
-              class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white placeholder:text-gray-600"
-            />
-          </div>
-          <div>
-            <label class="mb-1.5 block text-xs font-medium text-gray-400"
-              >Grupo de guardia <span class="text-red-400">*</span></label
-            >
-            <select
-              [(ngModel)]="grupoGuardia"
-              name="grupoGuardia"
-              class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
-            >
-              <option value="">Seleccionar</option>
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-            </select>
-          </div>
-          <div>
-            <label class="mb-1.5 block text-xs font-medium text-gray-400"
-              >Nombre oficial / OBAC a cargo <span class="text-red-400">*</span></label
-            >
-            <select
-              [(ngModel)]="cuarteleroId"
-              name="cuarteleroId"
-              class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
-            >
-              <option [ngValue]="''">Seleccionar</option>
-              @for (u of usuarios; track u.id) {
-                <option [ngValue]="u.id">{{ u.nombre }} ({{ u.rol }})</option>
-              }
-            </select>
-          </div>
-          <div>
-            <label class="mb-1.5 block text-xs font-medium text-gray-400"
-              >Fecha de inspección <span class="text-red-400">*</span></label
-            >
-            <input
-              type="date"
-              [(ngModel)]="fechaInspeccion"
-              name="fechaInspeccion"
-              class="dark-date-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
-            />
-          </div>
-          <div class="md:col-span-2">
-            <label class="mb-1.5 block text-xs font-medium text-gray-400"
-              >Fecha de cierre / firma <span class="text-red-400">*</span></label
-            >
-            <div
-              class="flex min-h-[42px] items-center rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-gray-200"
-            >
-              {{ fechasFormateadaCierreFirma() }}
+        @if (!editandoPlantilla) {
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-gray-400"
+                >Nombre del inspector / clave <span class="text-red-400">*</span></label
+              >
+              <input
+                [(ngModel)]="inspector"
+                name="inspector"
+                placeholder="Ej: Juan Pérez · clave 1234"
+                class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white placeholder:text-gray-600"
+              />
             </div>
-            <p class="mt-1.5 text-xs leading-relaxed text-gray-500">
-              Al firmar abajo como OBAC, aquí se muestra la fecha y hora del cierre (no se usa texto para la firma).
-            </p>
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-gray-400"
+                >Grupo de guardia <span class="text-red-400">*</span></label
+              >
+              <select
+                [(ngModel)]="grupoGuardia"
+                name="grupoGuardia"
+                class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+              >
+                <option value="">Seleccionar</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </select>
+            </div>
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-gray-400"
+                >Nombre oficial / OBAC a cargo <span class="text-red-400">*</span></label
+              >
+              <select
+                [(ngModel)]="cuarteleroId"
+                name="cuarteleroId"
+                class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+              >
+                <option [ngValue]="''">Seleccionar</option>
+                @for (u of usuarios; track u.id) {
+                  <option [ngValue]="u.id">{{ u.nombre }} ({{ u.rol }})</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-gray-400"
+                >Fecha de inspección <span class="text-red-400">*</span></label
+              >
+              <input
+                type="date"
+                [(ngModel)]="fechaInspeccion"
+                name="fechaInspeccion"
+                class="dark-date-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+              />
+            </div>
+            <div class="md:col-span-2">
+              <label class="mb-1.5 block text-xs font-medium text-gray-400"
+                >Fecha de cierre / firma <span class="text-red-400">*</span></label
+              >
+              <div
+                class="flex min-h-[42px] items-center rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-gray-200"
+              >
+                {{ fechasFormateadaCierreFirma() }}
+              </div>
+              <p class="mt-1.5 text-xs leading-relaxed text-gray-500">
+                Al firmar abajo como OBAC, aquí se muestra la fecha y hora del cierre (no se usa texto para la firma).
+              </p>
+            </div>
           </div>
-        </div>
+        } @else {
+          <div
+            class="rounded-xl border border-emerald-800/45 bg-emerald-950/20 p-4 sm:p-5"
+            role="region"
+            aria-label="Resumen de edición de plantilla"
+          >
+            <p class="text-sm font-medium text-emerald-200">{{ resumenEdicionPlantillaLinea() }}</p>
+            <p class="mt-1 text-xs text-emerald-200/70">No hace falta rellenar inspector, OBAC ni fechas mientras ajustas la plantilla base.</p>
+            <label class="mb-1.5 mt-4 block text-xs font-medium text-slate-300" for="era-motivo-plantilla"
+              >Motivo del cambio (opcional)</label
+            >
+            <textarea
+              id="era-motivo-plantilla"
+              name="motivoEdicionPlantilla"
+              [(ngModel)]="motivoEdicionPlantilla"
+              rows="3"
+              class="w-full rounded-lg border border-slate-600/80 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white placeholder:text-slate-500"
+              placeholder="Describe brevemente qué cambiaste y por qué"
+            ></textarea>
+          </div>
+        }
       </div>
 
       <!-- Equipos ERA -->
@@ -920,7 +939,7 @@
                 <th>Guardia</th>
                 <th>Cumplimiento</th>
                 <th>Obs.</th>
-                <th class="text-right">Acciones</th>
+                <th class="text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -945,8 +964,8 @@
                   <td>{{ h.grupoGuardia || '—' }}</td>
                   <td>{{ porcentajeCumplimiento(h) }}</td>
                   <td class="max-w-[200px] truncate text-gray-300">{{ h.observaciones || '—' }}</td>
-                  <td class="text-right">
-                    <div class="inline-flex items-center justify-end gap-2">
+                  <td class="text-center align-middle">
+                    <div class="inline-flex items-center justify-center gap-2">
                       <button
                         type="button"
                         (click)="verRegistroEra(h)"

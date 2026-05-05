@@ -6,10 +6,12 @@ import * as XLSX from 'xlsx';
 import type { ParteEmergenciaDto, ParteMetadataDto } from '../models/parte.dto';
 import { ASISTENCIA_CONTEXTO_OPCIONES, ASISTENCIA_ITEM_LABELS } from '../pages/partes/asistencia-roster.constants';
 import type { LogosPdfCabecera } from '../models/configuracion.dto';
+import { CLAVES_EMERGENCIA } from '../pages/partes/partes.constants';
 import { ConfiguracionesService } from './configuraciones.service';
 import { logosActivosPorConfig } from '../utils/reportes-logos.util';
 import { lineaPieParteOperativoPdf, lineaSubtituloPartePdf, nombreOrganizacionPdf } from '../utils/pdf-branding-text.util';
-import { COMPANIA_LOGO_TRY_PATHS, SIDEP_MARK_PNG_ABSOLUTE } from '../shared/sidep-branding';
+import { COMPANIA_LOGO_TRY_PATHS, SIDEP_LOGO_FULL_TRANSPARENT_ABSOLUTE } from '../shared/sidep-branding';
+import { prepararLogoParaPdf } from '../utils/pdf-logo-embed.util';
 
 type DocWithLast = jsPDF & { lastAutoTable?: { finalY: number } };
 
@@ -25,6 +27,11 @@ const C_BORDER: [number, number, number] = [228, 228, 231];
 
 function lastTableY(doc: jsPDF): number {
   return (doc as DocWithLast).lastAutoTable?.finalY ?? M;
+}
+
+function etiquetaClaveEmergenciaExcel(clave: string): string {
+  const f = CLAVES_EMERGENCIA.find((c) => c.value === clave);
+  return f?.label ?? clave;
 }
 
 function fmtFirmaJsPdf(firma: string): 'PNG' | 'JPEG' {
@@ -212,7 +219,7 @@ export class PartesExportService {
 
   private getLogos(): Promise<{ sidep: string | null; compania: string | null }> {
     return Promise.all([
-      this.cargarLogoComoDataUrl(SIDEP_MARK_PNG_ABSOLUTE),
+      this.cargarLogoComoDataUrl(SIDEP_LOGO_FULL_TRANSPARENT_ABSOLUTE),
       this.cargarPrimeraCompaniaDisponible(),
     ]).then(([sidep, compania]) => ({ sidep, compania }));
   }
@@ -263,37 +270,87 @@ export class PartesExportService {
     const nombreOrg = nombreOrganizacionPdf(brandingPub?.nombreCompania);
     const activos = logosActivosPorConfig(modoPdf);
 
-    // ——— Cabecera principal ———
+    const maxSidepW = 30;
+    const maxSidepH = 10;
+    const maxCompMm = 20;
+    const [sidepPrep, compPrep] = await Promise.all([
+      activos.sidep && logos.sidep ? prepararLogoParaPdf(logos.sidep, maxSidepW, maxSidepH) : Promise.resolve(null),
+      activos.compania && logos.compania
+        ? prepararLogoParaPdf(logos.compania, maxCompMm, maxCompMm)
+        : Promise.resolve(null),
+    ]);
+
+    const headerH = 34;
+    // ——— Cabecera principal (fondo, logos nítidos, textos sin solapar marcas) ———
     doc.setFillColor(...C_ACCENT);
-    doc.roundedRect(M, M, CONTENT_W, 26, 2, 2, 'F');
+    doc.roundedRect(M, M, CONTENT_W, headerH, 2, 2, 'F');
+
+    const idTxt = `N° ${parte.correlativo}`;
+    const leftPad = M + 2.5;
+    let textX = M + 5;
+    if (sidepPrep) {
+      try {
+        const ly = M + (headerH - sidepPrep.heightMm) / 2;
+        doc.addImage(sidepPrep.dataUrl, sidepPrep.format, leftPad, ly, sidepPrep.widthMm, sidepPrep.heightMm);
+        textX = leftPad + sidepPrep.widthMm + 4;
+      } catch {
+        /* ignore */
+      }
+    } else if (activos.sidep && logos.sidep?.startsWith('data:image')) {
+      const rw = 24;
+      const rh = 8;
+      try {
+        const ly = M + (headerH - rh) / 2;
+        doc.addImage(logos.sidep, fmtFirmaJsPdf(logos.sidep), leftPad, ly, rw, rh);
+        textX = leftPad + rw + 4;
+      } catch {
+        /* ignore */
+      }
+    }
+
+    let compReserve = 0;
+    if (compPrep) {
+      try {
+        const cx = M + CONTENT_W - compPrep.widthMm - 3;
+        const cy = M + (headerH - compPrep.heightMm) / 2;
+        doc.addImage(compPrep.dataUrl, compPrep.format, cx, cy, compPrep.widthMm, compPrep.heightMm);
+        compReserve = compPrep.widthMm;
+      } catch {
+        /* ignore */
+      }
+    } else if (activos.compania && logos.compania?.startsWith('data:image')) {
+      const s = 17;
+      try {
+        const cx = M + CONTENT_W - s - 3;
+        const cy = M + (headerH - s) / 2;
+        doc.addImage(logos.compania, fmtFirmaJsPdf(logos.compania), cx, cy, s, s);
+        compReserve = s;
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const textRight = M + CONTENT_W - 4;
+    const subFull = lineaSubtituloPartePdf(nombreOrg);
+    const subMaxW = textRight - textX - (compReserve > 0 ? compReserve + 5 : 2);
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.text(lineaSubtituloPartePdf(nombreOrg), M + 4, M + 7);
+    const subLines = doc.splitTextToSize(subFull, Math.max(24, subMaxW));
+    let lineY = M + 9;
+    for (const line of subLines.slice(0, 2)) {
+      doc.text(line, textX, lineY);
+      lineY += 3.6;
+    }
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(17);
-    doc.text('Registro operativo', M + 4, M + 16);
-    doc.setFontSize(11);
+    doc.setFontSize(16);
+    doc.text('Registro operativo', textX, M + 22);
     doc.setFont('helvetica', 'normal');
-    const idTxt = `N° ${parte.correlativo}`;
-    doc.text(idTxt, M + CONTENT_W - 4, M + 14, { align: 'right' });
-    if (activos.sidep && logos.sidep?.startsWith('data:image')) {
-      try {
-        doc.addImage(logos.sidep, fmtFirmaJsPdf(logos.sidep), M + 1.45, M + 1.55, 10.25, 10.25);
-      } catch {
-        // ignore logo rendering errors
-      }
-    }
-    if (activos.compania && logos.compania?.startsWith('data:image')) {
-      try {
-        doc.addImage(logos.compania, fmtFirmaJsPdf(logos.compania), M + CONTENT_W - 18, M + 1.2, 14, 10);
-      } catch {
-        // ignore logo rendering errors
-      }
-    }
+    doc.setFontSize(10);
+    doc.text(idTxt, textRight, M + 30, { align: 'right' });
     doc.setTextColor(0, 0, 0);
 
-    let y = M + 32;
+    let y = M + headerH + 6;
 
     // Franja resumen (clave, estado, fecha)
     doc.setFillColor(...C_BG_SOFT);
@@ -592,20 +649,51 @@ export class PartesExportService {
   }
 
   exportarExcelListado(partes: ParteEmergenciaDto[]): void {
-    const rows = partes.map((p) => ({
-      ID: p.correlativo,
-      Fecha: new Date(p.fecha).toLocaleDateString('es-CL'),
-      Hora: new Date(p.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
-      Clave: p.claveEmergencia,
-      Direccion: p.direccion,
-      OBAC: p.obac.nombre,
-      Estado: p.estado,
-      Unidades: p.unidades.map((u) => u.carro.nomenclatura).join(', '),
-      Pacientes: (p.pacientes ?? []).length,
-    }));
-    const ws = XLSX.utils.json_to_sheet(rows);
+    const generado = new Date();
+    const encabezado: (string | number)[][] = [
+      ['SIDEP · Partes de emergencia'],
+      [`Generado: ${generado.toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' })}`],
+      [`Registros: ${partes.length}`],
+      [],
+    ];
+    const columnas = [
+      'Correlativo',
+      'Fecha',
+      'Hora',
+      'Tipo de emergencia',
+      'Dirección',
+      'OBAC',
+      'Estado',
+      'Unidades',
+      'Nº pacientes',
+    ];
+    const filas: (string | number)[][] = partes.map((p) => [
+      p.correlativo,
+      new Date(p.fecha).toLocaleDateString('es-CL'),
+      new Date(p.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+      etiquetaClaveEmergenciaExcel(p.claveEmergencia),
+      p.direccion,
+      p.obac.nombre,
+      p.estado,
+      p.unidades.map((u) => u.carro.nomenclatura).join(', '),
+      (p.pacientes ?? []).length,
+    ]);
+    const aoa = [...encabezado, columnas, ...filas];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [
+      { wch: 14 },
+      { wch: 12 },
+      { wch: 9 },
+      { wch: 42 },
+      { wch: 36 },
+      { wch: 28 },
+      { wch: 14 },
+      { wch: 22 },
+      { wch: 12 },
+    ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Partes');
-    XLSX.writeFile(wb, `partes-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    const stamp = generado.toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `SIDEP-partes-${stamp}.xlsx`);
   }
 }

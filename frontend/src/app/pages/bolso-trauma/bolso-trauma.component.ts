@@ -13,6 +13,7 @@ import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
+import { etiquetaCompletandoOCompletado } from '../../utils/etiqueta-completitud';
 
 @Component({
   selector: 'app-bolso-trauma',
@@ -82,6 +83,10 @@ export class BolsoTraumaComponent implements OnInit {
     if (unidad.bolsos.length === 0) return 0;
     const sum = unidad.bolsos.reduce((acc, b) => acc + b.completitud, 0);
     return Math.round(sum / unidad.bolsos.length);
+  }
+
+  etiquetaCompletitudGeneral(unidad: BolsoTraumaSelectorUnidadDto): string {
+    return etiquetaCompletandoOCompletado(this.promedioCompletitud(unidad));
   }
 
   totalItemsFaltantes(unidad: BolsoTraumaSelectorUnidadDto): number {

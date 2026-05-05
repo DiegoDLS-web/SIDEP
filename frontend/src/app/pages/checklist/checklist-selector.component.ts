@@ -10,6 +10,7 @@ import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directi
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
+import { etiquetaCompletandoOCompletado } from '../../utils/etiqueta-completitud';
 
 @Component({
   selector: 'app-checklist-selector',
@@ -54,6 +55,10 @@ export class ChecklistSelectorComponent implements OnInit {
     const ok = Number(u.itemsOk) || 0;
     if (total <= 0) return 0;
     return Math.round((ok / total) * 100);
+  }
+
+  etiquetaBarraCompletitud(u: ChecklistResumenUnidadDto): string {
+    return etiquetaCompletandoOCompletado(this.completitud(u));
   }
 
   /** Texto ítems verificados (evita NaN/undefined en pantalla). */

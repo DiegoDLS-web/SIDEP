@@ -18,13 +18,10 @@
       </p>
       <h1 class="sid-page-hero-title text-2xl font-bold text-white sm:text-3xl">Bolsos de trauma</h1>
       <p class="sid-page-hero-subtitle mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">Elige unidad y bolso para revisar mínimos, óptimos y faltantes antes del servicio.</p>
-      <p class="mt-2 max-w-2xl text-xs text-slate-500">
-        Las tarjetas usan la foto del carro por unidad.
-      </p>
     </section>
 
     @let s = stats();
-    <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
       <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-5">
         <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ s.totalBolsos }}</p>
         <p class="text-xs text-slate-400 sm:text-sm">Total bolsos</p>
@@ -36,10 +33,6 @@
       <div class="rounded-2xl border border-amber-800/50 bg-gradient-to-br from-amber-950/35 to-transparent p-4 ring-1 ring-inset ring-amber-500/10 sm:p-5">
         <p class="mb-0.5 text-2xl font-bold tabular-nums text-amber-400 sm:text-3xl">{{ s.incompletos }}</p>
         <p class="text-xs text-slate-400 sm:text-sm">Pendientes</p>
-      </div>
-      <div class="col-span-2 rounded-2xl border border-cyan-900/40 bg-gradient-to-br from-cyan-950/30 to-transparent p-4 ring-1 ring-inset ring-cyan-500/15 sm:p-5 lg:col-span-1">
-        <p class="mb-0.5 text-sm font-semibold text-white">Vista por unidad</p>
-        <p class="text-xs text-slate-400">Cada card agrupa bolsos, última revisión e items faltantes</p>
       </div>
     </div>
 
@@ -68,7 +61,7 @@
               </div>
               <div class="space-y-2">
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-white/90">Completitud general</span>
+                  <span class="text-white/90">{{ etiquetaCompletitudGeneral(unidad) }}</span>
                   <span class="font-bold text-white tabular-nums">{{ promedioCompletitud(unidad) }}%</span>
                 </div>
                 <div class="h-2 w-full overflow-hidden rounded-full bg-black/35">
@@ -125,7 +118,10 @@
                       <lucide-icon name="briefcase" class="h-5 w-5 shrink-0" [size]="20" color="currentColor"></lucide-icon>
                     </div>
                     <div class="min-w-0 flex-1">
-                      <p class="text-sm font-medium text-white">Bolso {{ bolso.numero }}</p>
+                      <p class="text-sm font-medium text-white">
+                        Bolso {{ bolso.numero }}
+                        <span class="text-xs font-normal text-white/60">· {{ unidad.unidad }}</span>
+                      </p>
                       <div class="mt-1 flex items-center gap-2">
                         <div class="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-gray-800">
                           <div
@@ -166,24 +162,9 @@
               </div>
             </div>
           }
+
         </div>
       }
-    </div>
-
-    <div
-      class="flex flex-col gap-2 rounded-2xl border border-cyan-800/40 bg-gradient-to-br from-cyan-950/40 via-[#0c1418] to-[#0a0a0a] p-5 sm:flex-row sm:items-center sm:gap-4 sm:p-6"
-    >
-      <div
-        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
-      >
-        <lucide-icon name="triangle-alert" class="h-5 w-5" [size]="20" color="currentColor" />
-      </div>
-      <div>
-        <h3 class="text-base font-bold text-cyan-100 sm:text-lg">Aviso de reposición</h3>
-        <p class="text-sm text-slate-300">
-          Ante faltantes en el bolso de trauma, informar de inmediato al oficial a cargo o al encargado de la unidad.
-        </p>
-      </div>
     </div>
 
     <section class="sid-history-card overflow-hidden p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 md:p-6">
@@ -194,69 +175,65 @@
         </div>
       </div>
 
-      <div class="mb-4 flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-end xl:justify-between">
-        <div
-          class="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 xl:items-end"
-        >
-          <div>
-            <label class="mb-1 block text-xs text-gray-400">Unidad</label>
-            <select
-              [(ngModel)]="filtroUnidad"
-              class="sid-history-filter w-full text-sm"
-            >
-              <option value="">Todas</option>
-              @for (u of unidades; track u.id) {
-                <option [value]="u.unidad">{{ u.unidad }}</option>
-              }
-            </select>
-          </div>
-          <div>
-            <label class="mb-1 block text-xs text-gray-400">Estado</label>
-            <select
-              [(ngModel)]="filtroEstado"
-              (ngModelChange)="aplicarFiltrosLocalesHistorial()"
-              class="sid-history-filter w-full text-sm"
-            >
-              <option [ngValue]="'TODOS'">Todos</option>
-              <option [ngValue]="'COMPLETADO'">Completado</option>
-              <option [ngValue]="'PENDIENTE'">Pendiente</option>
-              <option [ngValue]="'CON_OBSERVACION'">Con observación</option>
-            </select>
-          </div>
-          <div class="sm:col-span-2 lg:col-span-1 xl:col-span-2">
-            <label class="mb-1 block text-xs text-gray-400">Inspector u OBAC</label>
-            <input
-              type="search"
-              [(ngModel)]="filtroInspectorObac"
-              (ngModelChange)="aplicarFiltrosLocalesHistorial()"
-              placeholder="Nombre parcial…"
-              class="sid-history-filter w-full text-sm placeholder:text-gray-600"
-            />
-          </div>
-          <div>
-            <label class="mb-1 block text-xs text-gray-400">Desde</label>
-            <input
-              type="date"
-              [(ngModel)]="filtroDesde"
-              class="sid-history-filter dark-date-input w-full text-sm"
-            />
-          </div>
-          <div>
-            <label class="mb-1 block text-xs text-gray-400">Hasta</label>
-            <input
-              type="date"
-              [(ngModel)]="filtroHasta"
-              class="sid-history-filter dark-date-input w-full text-sm"
-            />
-          </div>
+      <div
+        class="mb-4 flex min-w-0 w-full flex-nowrap items-end gap-2 overflow-x-auto pb-0.5 sm:gap-3"
+      >
+        <div class="w-[10.5rem] shrink-0 sm:w-[11rem]">
+          <label class="mb-1 block text-xs text-gray-400">Unidad</label>
+          <select
+            [(ngModel)]="filtroUnidad"
+            class="sid-history-filter w-full text-sm"
+          >
+            <option value="">Todas</option>
+            @for (u of unidades; track u.id) {
+              <option [value]="u.unidad">{{ u.unidad }}</option>
+            }
+          </select>
         </div>
-        <div
-          class="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end max-xl:border-t max-xl:border-slate-800/80 max-xl:pt-3"
-        >
+        <div class="w-[10.5rem] shrink-0 sm:w-[11rem]">
+          <label class="mb-1 block text-xs text-gray-400">Estado</label>
+          <select
+            [(ngModel)]="filtroEstado"
+            (ngModelChange)="aplicarFiltrosLocalesHistorial()"
+            class="sid-history-filter w-full text-sm"
+          >
+            <option [ngValue]="'TODOS'">Todos</option>
+            <option [ngValue]="'COMPLETADO'">Completado</option>
+            <option [ngValue]="'PENDIENTE'">Pendiente</option>
+            <option [ngValue]="'CON_OBSERVACION'">Con observación</option>
+          </select>
+        </div>
+        <div class="w-[12rem] shrink-0 sm:w-[14rem]">
+          <label class="mb-1 block text-xs text-gray-400">Inspector u OBAC</label>
+          <input
+            type="search"
+            [(ngModel)]="filtroInspectorObac"
+            (ngModelChange)="aplicarFiltrosLocalesHistorial()"
+            placeholder="Nombre parcial…"
+            class="sid-history-filter w-full text-sm placeholder:text-gray-600"
+          />
+        </div>
+        <div class="w-[10.5rem] shrink-0">
+          <label class="mb-1 block text-xs text-gray-400">Desde</label>
+          <input
+            type="date"
+            [(ngModel)]="filtroDesde"
+            class="sid-history-filter dark-date-input w-full text-sm"
+          />
+        </div>
+        <div class="w-[10.5rem] shrink-0">
+          <label class="mb-1 block text-xs text-gray-400">Hasta</label>
+          <input
+            type="date"
+            [(ngModel)]="filtroHasta"
+            class="sid-history-filter dark-date-input w-full text-sm"
+          />
+        </div>
+        <div class="flex shrink-0 items-end gap-2 pb-px sm:gap-3">
           <button
             type="button"
             (click)="cargarHistorial()"
-            class="sid-btn sid-btn-neutral inline-flex w-full items-center justify-center gap-2 rounded-xl border-slate-600 bg-[#0a0a0a] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#141414] sm:w-auto"
+            class="sid-btn sid-btn-neutral inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl border-slate-600 bg-[#0a0a0a] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#141414]"
           >
             <lucide-icon name="clipboard-list" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
             Actualizar
@@ -265,7 +242,7 @@
             type="button"
             (click)="exportarHistorialPdf()"
             [disabled]="historialFiltrado().length === 0"
-            class="sid-btn sid-btn-primary inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-900/20 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+            class="sid-btn sid-btn-primary inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-900/20 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
             Descargar PDF
@@ -365,7 +342,7 @@
                 <th>Guardia</th>
                 <th>Cumplimiento</th>
                 <th>Obs.</th>
-                <th class="text-right">Acciones</th>
+                <th class="text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -396,8 +373,8 @@
                   <td class="max-w-[200px] truncate text-gray-300">
                     {{ h.observaciones || '—' }}
                   </td>
-                  <td class="text-right">
-                    <div class="inline-flex items-center justify-end gap-2">
+                  <td class="text-center align-middle">
+                    <div class="inline-flex items-center justify-center gap-2">
                       <button
                         type="button"
                         (click)="abrirDetalle(h)"

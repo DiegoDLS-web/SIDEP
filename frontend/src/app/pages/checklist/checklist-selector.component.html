@@ -18,7 +18,7 @@
     </section>
 
     @let s = stats();
-    <div sidScrollReveal class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+    <div sidScrollReveal class="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
       <div class="sid-card-hover rounded-2xl border border-slate-800 bg-[#121212] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-5">
         <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ s.total }}</p>
         <p class="text-xs text-slate-400 sm:text-sm">Unidades</p>
@@ -31,7 +31,7 @@
         <p class="mb-0.5 text-2xl font-bold tabular-nums text-amber-400 sm:text-3xl">{{ s.incompletas }}</p>
         <p class="text-xs text-slate-400 sm:text-sm">Incompletas</p>
       </div>
-      <div class="sid-card-hover col-span-2 rounded-2xl border border-red-900/45 bg-gradient-to-br from-red-950/35 to-transparent p-4 ring-1 ring-inset ring-red-500/15 sm:p-5 lg:col-span-1">
+      <div class="sid-card-hover rounded-2xl border border-red-900/45 bg-gradient-to-br from-red-950/35 to-transparent p-4 ring-1 ring-inset ring-red-500/15 sm:p-5">
         <p class="mb-0.5 text-2xl font-bold tabular-nums text-red-300 sm:text-3xl">{{ s.faltantes }}</p>
         <p class="text-xs text-slate-400 sm:text-sm">Materiales faltantes</p>
       </div>
@@ -59,7 +59,7 @@
               </div>
               <div class="space-y-2">
                 <div class="flex items-center justify-between text-sm">
-                  <span class="font-medium text-white/90 drop-shadow-sm">Completitud</span>
+                  <span class="font-medium text-white/90 drop-shadow-sm">{{ etiquetaBarraCompletitud(u) }}</span>
                   <span class="font-bold text-white">{{ completitud(u) }}%</span>
                 </div>
                 <div class="h-1.5 w-full overflow-hidden rounded-full bg-black/35 ring-1 ring-white/10 sm:h-2">
@@ -138,7 +138,9 @@
       </div>
 
       <div class="mb-4 flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-end xl:justify-between">
-        <div class="grid min-w-0 flex-1 grid-cols-1 gap-3 md:grid-cols-3 xl:min-w-[280px]">
+        <div
+          class="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:min-w-[280px]"
+        >
           <select
             [(ngModel)]="filtroUnidadHistorial"
             class="sid-history-filter text-sm"
@@ -238,7 +240,7 @@
                   <dd class="text-gray-200">{{ h.itemsOk ?? 0 }}/{{ h.totalItems ?? 0 }}</dd>
                 </div>
               </dl>
-              <div class="mt-3 flex items-center gap-2">
+              <div class="mt-3 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                 <button
                   type="button"
                   (click)="verRegistroHistorial(h)"
@@ -267,8 +269,10 @@
             </div>
           }
         </div>
-        <div class="sid-history-wrap hidden overflow-x-auto [-webkit-overflow-scrolling:touch] lg:block">
-          <table class="sid-history-table min-w-[900px] xl:min-w-full">
+        <div
+          class="sid-history-wrap sid-history-wrap--actions-center hidden overflow-x-auto [-webkit-overflow-scrolling:touch] lg:block"
+        >
+          <table class="sid-history-table min-w-[720px] md:min-w-[840px] xl:min-w-full">
             <thead>
               <tr>
                 <th class="px-3 py-2">Fecha / hora</th>
@@ -277,7 +281,7 @@
                 <th class="px-3 py-2">Inspector</th>
                 <th class="px-3 py-2">OBAC</th>
                 <th class="px-3 py-2">Guardia</th>
-                <th class="px-3 py-2 text-right">Acciones</th>
+                <th class="px-3 py-2 text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -301,8 +305,8 @@
                   <td>{{ h.inspector || '—' }}</td>
                   <td>{{ h.cuartelero ? h.cuartelero.nombre : '—' }}</td>
                   <td>{{ h.grupoGuardia || '—' }}</td>
-                  <td class="text-right">
-                    <div class="inline-flex items-center justify-end gap-2">
+                  <td class="text-center">
+                    <div class="inline-flex items-center justify-center gap-2">
                       <button
                         type="button"
                         (click)="verRegistroHistorial(h)"
