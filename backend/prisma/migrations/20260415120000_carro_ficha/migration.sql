@@ -1,0 +1,16 @@
+-- AlterTable
+ALTER TABLE "Carro" ADD COLUMN     "nombre" TEXT,
+ADD COLUMN "tipo" TEXT,
+ADD COLUMN "marca" TEXT,
+ADD COLUMN "anioFabricacion" INTEGER,
+ADD COLUMN "capacidadAgua" TEXT,
+ADD COLUMN "imagenUrl" TEXT,
+ADD COLUMN "kilometraje" INTEGER,
+ADD COLUMN "ultimoMantenimiento" TIMESTAMP(3),
+ADD COLUMN "proximoMantenimiento" TIMESTAMP(3),
+ADD COLUMN "conductorAsignado" TEXT,
+ADD COLUMN "motor" TEXT,
+ADD COLUMN "transmision" TEXT,
+ADD COLUMN "combustible" TEXT,
+ADD COLUMN "presionBomba" TEXT,
+ADD COLUMN "capacidadTanqueCombustible" TEXT;

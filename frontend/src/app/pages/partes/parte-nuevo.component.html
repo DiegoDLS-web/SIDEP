@@ -1,0 +1,977 @@
+<div class="sid-page min-h-screen bg-[color:var(--sid-shell-bg)] pb-6 text-white lg:pb-36">
+  @if (loading) {
+    <div class="mx-auto flex min-h-[40vh] w-full min-w-0 max-w-none flex-col items-center justify-center gap-3 p-6 text-slate-400">
+      <lucide-icon name="file-text" class="h-10 w-10 animate-pulse text-rose-500" [size]="40" color="currentColor" />
+      <p class="text-sm">Preparando formulario…</p>
+    </div>
+  } @else if (error) {
+    <div class="mx-auto w-full min-w-0 max-w-none space-y-4 p-6">
+      <p class="max-w-md rounded-2xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ error }}</p>
+      <a
+        routerLink="/partes"
+        class="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-[#121212] px-4 py-2.5 text-slate-300 ring-1 ring-inset ring-white/5"
+      >
+        <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+        Volver
+      </a>
+    </div>
+  } @else {
+    <!-- Barra superior -->
+    <header
+      class="border-b border-slate-800/80 bg-[#0a0a0a]/95 backdrop-blur lg:sticky lg:top-0 lg:z-20"
+    >
+      <div
+        class="relative overflow-hidden border-b border-rose-900/25 bg-[radial-gradient(ellipse_at_50%_0%,rgba(244,63,94,0.12),transparent_55%),#0a0a0a]"
+      >
+        <div class="mx-auto flex w-full min-w-0 max-w-none flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 md:px-8 lg:px-10 xl:px-12">
+          <a
+            routerLink="/partes"
+            class="inline-flex w-fit min-w-0 -translate-y-0.5 items-center gap-2 rounded-xl border border-slate-700/80 bg-[#121212] px-3 py-2 text-sm text-slate-300 ring-1 ring-inset ring-white/5 transition-all hover:border-slate-500 hover:text-white sm:translate-y-0"
+          >
+            <lucide-icon name="arrow-left" class="h-4 w-4 shrink-0" [size]="16" color="currentColor"></lucide-icon>
+            Partes
+          </a>
+          <div class="min-w-0 sm:text-left">
+            <p class="mb-1 text-[10px] font-medium uppercase tracking-wide text-rose-200/80 sm:text-xs">
+              {{ esEdicion ? 'Edición completa' : 'Nuevo registro' }}
+            </p>
+            <h1 class="inline-flex items-center gap-2 text-lg font-bold leading-tight text-white sm:text-xl">
+              <lucide-icon name="file-text" class="h-5 w-5 text-rose-400" [size]="20" color="currentColor"></lucide-icon>
+              {{ esEdicion ? 'Editar parte de emergencia' : 'Nuevo parte de emergencia' }}
+            </h1>
+            <p class="text-xs text-slate-500 sm:text-sm">SIDEP · 1ª Cía. Santa Juana</p>
+          </div>
+        </div>
+      </div>
+      <!-- Progreso -->
+      <div class="mx-auto w-full min-w-0 max-w-none px-4 pb-3 pt-2 sm:px-6 md:px-8 lg:px-10 xl:px-12">
+        <div class="flex snap-x snap-mandatory items-center gap-2 overflow-x-auto pb-1 sm:justify-between">
+          @for (p of pasosVisibles; track p; let i = $index) {
+            <button
+              type="button"
+              class="flex min-w-[4.6rem] shrink-0 snap-start flex-col items-center gap-0.5 rounded-xl px-1 py-2 transition-all sm:min-w-0 sm:flex-1 sm:px-2"
+              [class.border]="i === pasoIdx"
+              [class.border-rose-500/40]="i === pasoIdx"
+              [class.bg-rose-600/15]="i === pasoIdx"
+              [class.text-rose-200]="i === pasoIdx"
+              [class.text-slate-500]="i !== pasoIdx"
+              (click)="irAPaso(i)"
+            >
+              <span
+                class="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold shadow-sm sm:h-9 sm:w-9 sm:text-sm"
+                [class.bg-red-600]="i === pasoIdx"
+                [class.text-white]="i === pasoIdx"
+                [class.bg-slate-800]="i !== pasoIdx"
+                [class.ring-1]="i === pasoIdx"
+                [class.ring-rose-400/50]="i === pasoIdx"
+                >{{ i + 1 }}</span
+              >
+              <span
+                class="max-w-[4.75rem] truncate text-center text-[9px] leading-tight sm:max-w-[5.25rem] sm:text-[10px]"
+                >{{ etiquetaCortaPaso(p) }}</span
+              >
+            </button>
+          }
+        </div>
+        <p class="mt-2 text-center text-sm font-medium text-slate-300">{{ tituloPaso }}</p>
+      </div>
+    </header>
+
+    <main class="mx-auto w-full min-w-0 max-w-none space-y-4 px-4 pt-4 sm:px-6 md:px-8 lg:px-10 xl:px-12">
+      @if (guardadoError) {
+        <div class="mb-4 rounded-xl border border-red-800/60 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+          {{ guardadoError }}
+        </div>
+      }
+
+      <div
+        class="rounded-2xl border border-slate-800/90 bg-[#121212] p-4 shadow-2xl shadow-black/30 ring-1 ring-inset ring-white/5 sm:p-6"
+      >
+        <p class="mb-4 text-xs text-slate-500">
+          <span class="text-rose-400" aria-hidden="true">*</span> Campos obligatorios para
+          <span class="text-slate-400">registrar</span> el parte completo (el borrador es más flexible).
+        </p>
+        @switch (pasoActualId) {
+          @case ('basicos') {
+            <div class="space-y-5">
+              <div class="flex items-start gap-3">
+                <lucide-icon name="calendar" class="mt-0.5 h-6 w-6 shrink-0 text-red-500" [size]="24" color="currentColor"></lucide-icon>
+                <div>
+                  <h2 class="text-lg font-bold">Datos básicos</h2>
+                  <p class="text-sm text-gray-500">Fecha, tipo, unidad en despacho y OBAC.</p>
+                </div>
+              </div>
+              <div class="grid gap-3 lg:grid-cols-4">
+                <div>
+                  <label class="mb-1.5 block text-sm font-medium text-gray-400"
+                    >Fecha <span class="text-red-400" aria-hidden="true">*</span></label
+                  >
+                  <div class="relative">
+                    <input
+                      #fechaInput
+                      type="date"
+                      [(ngModel)]="fechaDia"
+                      (ngModelChange)="onFechaAsistenciaChange()"
+                      name="fechaDia"
+                      [style.color-scheme]="'dark'"
+                      class="min-h-[48px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-4 py-3 pr-11 text-base text-white focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                    />
+                    <button
+                      type="button"
+                      class="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-gray-700 bg-[#151515] p-1.5 text-gray-300 hover:text-white"
+                      (click)="abrirPickerFecha(fechaInput)"
+                      aria-label="Abrir calendario"
+                    >
+                      <lucide-icon name="calendar-days" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label class="mb-1.5 block text-sm font-medium text-gray-400"
+                    >Tipo emergencia <span class="text-red-400" aria-hidden="true">*</span></label
+                  >
+                  <select
+                    [(ngModel)]="claveEmergencia"
+                    name="claveEmergencia"
+                    class="min-h-[48px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-4 py-3 text-base text-white focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                  >
+                    <option value="">Seleccionar…</option>
+                    <optgroup label="Clasificación 10-x (operativas)">
+                      @for (c of clavesOperativas; track c.value) {
+                        <option [value]="c.value">{{ c.label }}</option>
+                      }
+                    </optgroup>
+                    <optgroup label="Compañía / servicios">
+                      @for (c of clavesCompania; track c.value) {
+                        <option [value]="c.value">{{ c.label }}</option>
+                      }
+                    </optgroup>
+                  </select>
+                </div>
+                <div>
+                  <label class="mb-1.5 block text-sm font-medium text-gray-400"
+                    >OBAC <span class="text-red-400" aria-hidden="true">*</span></label
+                  >
+                  <input
+                    list="obac-sugerencias"
+                    [(ngModel)]="obacInput"
+                    (input)="onObacInputChange()"
+                    name="obacInput"
+                    placeholder="Escribe nombre y dos apellidos, o clave"
+                    class="min-h-[48px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-4 py-3 text-base text-white placeholder:text-gray-600 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                  />
+                  <datalist id="obac-sugerencias">
+                    @for (u of usuarios; track u.id) {
+                      <option [value]="u.nombre + ' — ' + u.rol"></option>
+                      <option [value]="u.nombre"></option>
+                      <option [value]="u.rol"></option>
+                    }
+                  </datalist>
+                  <p class="mt-1 text-xs text-gray-500">Sugerencia: selecciona una opción de la lista para evitar errores.</p>
+                </div>
+                <div>
+                  <label class="mb-1.5 block text-sm font-medium text-gray-400"
+                    >Hora llamado <span class="text-red-400" aria-hidden="true">*</span></label
+                  >
+                  <input
+                    type="time"
+                    [(ngModel)]="horaDelLlamado"
+                    name="horaDelLlamado"
+                    class="min-h-[48px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-4 py-3 text-base text-white focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                  />
+                </div>
+              </div>
+              <div class="space-y-4 border-t border-gray-800 pt-4">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <h3 class="flex items-center gap-2 text-base font-semibold">
+                    <lucide-icon name="truck" class="h-5 w-5 text-red-500" [size]="20" color="currentColor"></lucide-icon>
+                    Unidades en despacho <span class="text-sm font-normal text-red-400">*</span>
+                  </h3>
+                  <div class="flex gap-2">
+                    <button
+                      type="button"
+                      class="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+                      (click)="agregarUnidad()"
+                    >
+                      <lucide-icon name="plus" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                      Agregar unidad
+                    </button>
+                    <button
+                      type="button"
+                      class="inline-flex min-h-[44px] items-center rounded-xl border border-gray-700 px-4 py-2 text-sm text-gray-400 hover:bg-gray-800"
+                      (click)="quitarUltimaUnidad()"
+                    >
+                      Quitar última
+                    </button>
+                  </div>
+                </div>
+                @for (u of unidades; track $index; let i = $index) {
+                  <div class="rounded-xl border border-gray-800 bg-[#0a0a0a] p-3 sm:p-4">
+                    <p class="mb-3 text-xs font-medium uppercase tracking-wide text-gray-500">Despacho unidad {{ i + 1 }}</p>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <div class="flex flex-col overflow-hidden rounded-xl border border-gray-700 bg-[#121212]">
+                        <div class="border-b border-gray-700 p-2">
+                          <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">Unidad</label>
+                          <select
+                            [(ngModel)]="u.carroId"
+                            [name]="'carro_' + i"
+                            class="min-h-[44px] w-full rounded-lg border border-gray-600 bg-[#0a0a0a] px-2 py-2 text-sm"
+                          >
+                            <option [ngValue]="''">Seleccionar…</option>
+                            @for (c of carrosDisponiblesParaUnidad(i); track c.id) {
+                              <option [ngValue]="c.id">{{ c.nomenclatura }}</option>
+                            }
+                          </select>
+                        </div>
+                        <div class="p-2">
+                          <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">Conductor</label>
+                          <select
+                            [(ngModel)]="u.conductor"
+                            [name]="'cond_' + i"
+                            class="min-h-[44px] w-full rounded-lg border border-gray-600 bg-[#0a0a0a] px-2 py-2 text-sm"
+                          >
+                            <option value="">Seleccionar conductor…</option>
+                            @for (v of voluntariosConductores; track v.id) {
+                              <option [value]="v.nombre">{{ v.nombre }} — {{ v.rol }}</option>
+                            }
+                          </select>
+                        </div>
+                      </div>
+                      <div class="flex flex-col overflow-hidden rounded-xl border border-gray-700 bg-[#121212]">
+                        <div class="border-b border-gray-700 p-2">
+                          <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">KM salida</label>
+                          <input
+                            type="number"
+                            inputmode="numeric"
+                            [(ngModel)]="u.kmSalida"
+                            [name]="'kms_' + i"
+                            class="min-h-[44px] w-full rounded-lg border border-gray-600 bg-[#0a0a0a] px-2 py-2 text-sm"
+                          />
+                        </div>
+                        <div class="p-2">
+                          <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">KM llegada</label>
+                          <input
+                            type="number"
+                            inputmode="numeric"
+                            [(ngModel)]="u.kmLlegada"
+                            [name]="'kml_' + i"
+                            class="min-h-[44px] w-full rounded-lg border border-gray-600 bg-[#0a0a0a] px-2 py-2 text-sm"
+                          />
+                        </div>
+                      </div>
+                      <div class="flex flex-col overflow-hidden rounded-xl border border-gray-700 bg-[#121212]">
+                        <div class="border-b border-gray-700 p-2">
+                          <label class="mb-1 block text-xs font-semibold text-amber-200/90">6-0</label>
+                          <input
+                            type="time"
+                            [(ngModel)]="u.hora6_0"
+                            [name]="'h60_' + i"
+                            class="min-h-[44px] w-full rounded-lg border border-gray-600 bg-[#0a0a0a] px-2 py-2 text-sm"
+                          />
+                        </div>
+                        <div class="p-2">
+                          <label class="mb-1 block text-xs font-semibold text-amber-200/90">6-3</label>
+                          <input
+                            type="time"
+                            [(ngModel)]="u.hora6_3"
+                            [name]="'h63_' + i"
+                            class="min-h-[44px] w-full rounded-lg border border-gray-600 bg-[#0a0a0a] px-2 py-2 text-sm"
+                          />
+                        </div>
+                      </div>
+                      <div class="flex flex-col overflow-hidden rounded-xl border border-gray-700 bg-[#121212]">
+                        <div class="border-b border-gray-700 p-2">
+                          <label class="mb-1 block text-xs font-semibold text-amber-200/90">6-9</label>
+                          <input
+                            type="time"
+                            [(ngModel)]="u.hora6_9"
+                            [name]="'h69_' + i"
+                            class="min-h-[44px] w-full rounded-lg border border-gray-600 bg-[#0a0a0a] px-2 py-2 text-sm"
+                          />
+                        </div>
+                        <div class="p-2">
+                          <label class="mb-1 block text-xs font-semibold text-amber-200/90">6-10</label>
+                          <input
+                            type="time"
+                            [(ngModel)]="u.hora6_10"
+                            [name]="'h610_' + i"
+                            class="min-h-[44px] w-full rounded-lg border border-gray-600 bg-[#0a0a0a] px-2 py-2 text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+          @case ('emergencia') {
+            <div class="space-y-4">
+              <div class="flex items-start gap-3">
+                <lucide-icon name="map-pin" class="mt-0.5 h-6 w-6 shrink-0 text-red-500" [size]="24" color="currentColor"></lucide-icon>
+                <div>
+                  <h2 class="text-lg font-bold">Emergencia</h2>
+                  <p class="text-sm text-gray-500">Lugar y situación.</p>
+                </div>
+              </div>
+                <div>
+                <label class="mb-1.5 block text-sm font-medium text-gray-400"
+                  >Dirección o referencia <span class="text-red-400" aria-hidden="true">*</span></label
+                >
+                <input
+                  [(ngModel)]="direccion"
+                  name="direccion"
+                  placeholder="Calle, número, comuna, punto de encuentro…"
+                  class="min-h-[52px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-4 py-3 text-base placeholder:text-gray-600 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                />
+              </div>
+              <div>
+                <label class="mb-1.5 block text-sm font-medium text-gray-400"
+                  >Descripción <span class="text-red-400" aria-hidden="true">*</span></label
+                >
+                <textarea
+                  [(ngModel)]="descripcionEmergencia"
+                  name="descripcionEmergencia"
+                  rows="6"
+                  placeholder="Qué se encontró al llegar, riesgos, condiciones…"
+                  class="w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-4 py-3 text-base leading-relaxed placeholder:text-gray-600 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                ></textarea>
+              </div>
+              <details class="rounded-xl border border-gray-800 bg-[#0a0a0a]">
+                  <summary
+                    class="flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl px-4 py-3 font-medium text-gray-200 marker:content-none [&::-webkit-details-marker]:hidden"
+                  >
+                    <span class="flex items-center gap-2">
+                      <lucide-icon name="heart-pulse" class="h-5 w-5 text-red-500" [size]="20" color="currentColor"></lucide-icon>
+                      Pacientes / lesionados (opcional)
+                    </span>
+                    <lucide-icon name="chevron-down" class="h-5 w-5 shrink-0 text-gray-500" [size]="20" color="currentColor"></lucide-icon>
+                  </summary>
+                  <div class="space-y-4 border-t border-gray-800 p-4">
+                    <button
+                      type="button"
+                      class="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-gray-800 py-3 text-base font-medium hover:bg-gray-700"
+                      (click)="agregarPaciente()"
+                    >
+                      <lucide-icon name="plus" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
+                      Agregar paciente
+                    </button>
+                    @for (p of pacientes; track $index; let i = $index) {
+                      <div class="rounded-xl border border-gray-800 bg-[#121212] p-4">
+                        <div class="mb-3 flex items-center justify-between">
+                          <span class="text-sm font-medium text-gray-400">Paciente {{ i + 1 }}</span>
+                          <button type="button" class="text-sm text-red-400 hover:text-red-300" (click)="quitarPaciente(i)">Quitar</button>
+                        </div>
+                        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                          <div class="sm:col-span-2">
+                            <label class="mb-1 block text-xs text-gray-500">Nombre <span class="text-red-400">*</span></label>
+                            <input
+                              [(ngModel)]="p.nombre"
+                              [name]="'pn_' + i"
+                              class="min-h-[48px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-3 py-3 text-base"
+                            />
+                          </div>
+                          <div>
+                            <label class="mb-1 block text-xs text-gray-500">Edad <span class="text-red-400">*</span></label>
+                            <input
+                              type="number"
+                              inputmode="numeric"
+                              [(ngModel)]="p.edad"
+                              [name]="'pe_' + i"
+                              class="min-h-[48px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-3 py-3 text-base"
+                            />
+                          </div>
+                          <div>
+                            <label class="mb-1 block text-xs text-gray-500">RUT <span class="text-red-400">*</span></label>
+                            <input
+                              [(ngModel)]="p.rut"
+                              (ngModelChange)="onPacienteRutInput(i, $event)"
+                              [name]="'pr_' + i"
+                              placeholder="12.345.678-5"
+                              class="min-h-[48px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-3 py-3 text-base"
+                            />
+                          </div>
+                          <div class="lg:col-span-2">
+                            <label class="mb-1 block text-xs text-gray-500">Estado (START) <span class="text-red-400">*</span></label>
+                            <div class="grid grid-cols-[auto_1fr] items-center gap-2 rounded-xl border border-gray-700 bg-[#0a0a0a] px-3">
+                              <span class="inline-flex h-3 w-3 rounded-full" [ngClass]="{
+                                'bg-emerald-400': p.triage === 'VERDE',
+                                'bg-amber-400': p.triage === 'AMARILLO',
+                                'bg-red-500': p.triage === 'ROJO',
+                                'bg-gray-400': p.triage === 'NEGRO'
+                              }"></span>
+                              <select
+                                [(ngModel)]="p.triage"
+                                [name]="'pt_' + i"
+                                class="min-h-[48px] w-full bg-transparent py-3 text-base"
+                                [ngClass]="triageClass(p.triage)"
+                              >
+                                @for (t of triageOpciones; track t.v) {
+                                  <option [value]="t.v">{{ t.l }}</option>
+                                }
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </details>
+              <details class="rounded-xl border border-gray-800 bg-[#0a0a0a]">
+                <summary
+                  class="flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl px-4 py-3 font-medium text-gray-200 marker:content-none [&::-webkit-details-marker]:hidden"
+                >
+                  <span class="flex items-center gap-2">
+                    <lucide-icon name="car" class="h-5 w-5 text-red-500" [size]="20" color="currentColor"></lucide-icon>
+                    Vehículos (opcional)
+                  </span>
+                  <lucide-icon name="chevron-down" class="h-5 w-5 shrink-0 text-gray-500" [size]="20" color="currentColor"></lucide-icon>
+                </summary>
+                <div class="space-y-4 border-t border-gray-800 p-4">
+                  <button
+                    type="button"
+                    class="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-gray-800 py-3 text-base font-medium hover:bg-gray-700"
+                    (click)="agregarVehiculo()"
+                  >
+                    <lucide-icon name="plus" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
+                    Agregar vehículo
+                  </button>
+                  @for (v of vehiculos; track $index; let i = $index) {
+                    <div class="rounded-lg border border-gray-800 bg-[#121212] p-3">
+                      <div class="mb-2 flex justify-between">
+                        <span class="text-xs text-gray-500">Vehículo {{ i + 1 }}</span>
+                        <button type="button" class="text-xs text-red-400" (click)="quitarVehiculo(i)">Quitar</button>
+                      </div>
+                      <div class="grid gap-2 sm:grid-cols-2">
+                        <input [(ngModel)]="v.tipo" placeholder="Tipo *" [name]="'vt_' + i" class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm" />
+                        <input [(ngModel)]="v.patente" (ngModelChange)="onVehiculoPatenteInput(i, $event)" placeholder="Patente * (AB-CD34)" [name]="'vp_' + i" class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm" />
+                        <input [(ngModel)]="v.marca" placeholder="Marca *" [name]="'vm_' + i" class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm" />
+                        <input [(ngModel)]="v.conductor" placeholder="Conductor *" [name]="'vc_' + i" class="rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm" />
+                        <input [(ngModel)]="v.rut" (ngModelChange)="onVehiculoRutInput(i, $event)" placeholder="RUT * (12.345.678-5)" [name]="'vr_' + i" class="sm:col-span-2 rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm" />
+                      </div>
+                    </div>
+                  }
+                </div>
+              </details>
+            </div>
+          }
+          @case ('trabajo') {
+            <div class="space-y-4">
+              <div class="flex items-start gap-3">
+                <lucide-icon name="clipboard-list" class="mt-0.5 h-6 w-6 shrink-0 text-red-500" [size]="24" color="currentColor"></lucide-icon>
+                <div>
+                  <h2 class="text-lg font-bold">
+                    Trabajo realizado <span class="text-base font-normal text-red-400">*</span>
+                  </h2>
+                  <p class="text-sm text-gray-500">Tareas, líneas, rescate, ventilación, etc.</p>
+                </div>
+              </div>
+              <textarea
+                [(ngModel)]="trabajoRealizado"
+                name="trabajoRealizado"
+                rows="8"
+                placeholder="Describe el despliegue y resultado. Puede ser breve."
+                class="w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-4 py-3 text-base leading-relaxed placeholder:text-gray-600 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+              ></textarea>
+              <div>
+                <label class="mb-1.5 block text-sm font-medium text-gray-400">Material utilizado</label>
+                <div class="mb-2 flex flex-wrap gap-2">
+                  @for (m of materialesSugeridos; track m) {
+                    <button
+                      type="button"
+                      class="rounded-full border px-3 py-1 text-xs transition-colors"
+                      [class.border-red-500]="materialMarcado(m)"
+                      [class.bg-red-600/20]="materialMarcado(m)"
+                      [class.text-red-200]="materialMarcado(m)"
+                      [class.border-gray-700]="!materialMarcado(m)"
+                      [class.text-gray-300]="!materialMarcado(m)"
+                      (click)="toggleMaterial(m)"
+                    >
+                      {{ m }}
+                    </button>
+                  }
+                </div>
+                <textarea
+                  [(ngModel)]="materialUtilizado"
+                  name="materialUtilizado"
+                  rows="5"
+                  placeholder="Líneas, equipos, espuma, EPP, etc."
+                  class="w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-4 py-3 text-base leading-relaxed placeholder:text-gray-600 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                ></textarea>
+              </div>
+            </div>
+          }
+          @case ('asistencia') {
+            <div class="space-y-5">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div class="flex items-start gap-3">
+                  <lucide-icon name="users" class="mt-0.5 h-6 w-6 shrink-0 text-red-500" [size]="24" color="currentColor"></lucide-icon>
+                  <div>
+                    <h2 class="text-lg font-bold">Asistencia</h2>
+                    <p class="text-sm text-gray-500">
+                      Elige el <strong class="font-medium text-gray-400">motivo</strong> de asistencia y marca el padrón. La misma persona puede figurar en varios motivos.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" role="tablist" aria-label="Motivo de asistencia">
+                @for (ctx of asistenciaContextos; track ctx.key) {
+                  <button
+                    type="button"
+                    role="tab"
+                    [attr.aria-selected]="contextoAsistenciaActivo === ctx.key"
+                    class="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl border px-3 py-2 text-center text-xs font-medium transition-colors sm:justify-start sm:text-sm"
+                    [class.border-red-500]="contextoAsistenciaActivo === ctx.key"
+                    [class.bg-red-600/20]="contextoAsistenciaActivo === ctx.key"
+                    [class.text-red-300]="contextoAsistenciaActivo === ctx.key"
+                    [class.border-gray-700]="contextoAsistenciaActivo !== ctx.key"
+                    [class.text-gray-400]="contextoAsistenciaActivo !== ctx.key"
+                    (click)="contextoAsistenciaActivo = ctx.key"
+                  >
+                    {{ ctx.label }}
+                    @if (conteoMarcasEnContexto(ctx.key) > 0) {
+                      <span class="rounded-full bg-gray-800 px-1.5 py-0.5 text-[10px] text-gray-300">{{
+                        conteoMarcasEnContexto(ctx.key)
+                      }}</span>
+                    }
+                  </button>
+                }
+              </div>
+              @if (bloqueoAsistenciaMensaje) {
+                <p class="rounded-lg border border-amber-700/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-100">
+                  {{ bloqueoAsistenciaMensaje }}
+                </p>
+              }
+              <div class="rounded-xl border border-gray-800 bg-[#0a0a0a]/80 p-3">
+                <div class="min-w-0">
+                  <label class="mb-1 block text-xs font-medium text-gray-500" for="filtroAsistencia">Buscar en el padrón</label>
+                  <div class="relative">
+                    <lucide-icon
+                      name="search"
+                      class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
+                      [size]="16"
+                      color="currentColor"
+                    ></lucide-icon>
+                    <input
+                      id="filtroAsistencia"
+                      type="search"
+                      [(ngModel)]="filtroAsistencia"
+                      name="filtroAsistencia"
+                      placeholder="Nombre, cargo o código (ej. vh-05)…"
+                      autocomplete="off"
+                      class="min-h-[44px] w-full rounded-lg border border-gray-700 bg-[#121212] py-2.5 pl-10 pr-3 text-sm text-white placeholder:text-gray-600 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div
+                class="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border border-gray-800/80 bg-[#0f0f0f]/90 px-3 py-2.5 text-[11px] leading-snug text-gray-400 sm:text-xs"
+                role="note"
+              >
+                <span class="font-semibold text-gray-300">Leyenda de puntos:</span>
+                <span class="inline-flex items-center gap-1.5"
+                  ><span class="h-2 w-2 shrink-0 rounded-full bg-emerald-400" aria-hidden="true"></span>Disponible para marcar</span
+                >
+                <span class="inline-flex items-center gap-1.5"
+                  ><span class="h-2 w-2 shrink-0 rounded-full bg-yellow-400" aria-hidden="true"></span>Con licencia médica activa (texto en amarillo)</span
+                >
+                <span class="inline-flex items-center gap-1.5"
+                  ><span class="h-2 w-2 shrink-0 rounded-full bg-red-500" aria-hidden="true"></span>No seleccionable (inactivo / suspendido)</span
+                >
+              </div>
+              @if (asistenciaFiltroSinCoincidencias) {
+                <p class="rounded-lg border border-amber-800/50 bg-amber-950/30 px-3 py-2 text-sm text-amber-100/90">
+                  Ninguna fila del padrón coincide con el filtro. Prueba otra palabra o borra la búsqueda.
+                </p>
+              }
+              <div class="grid gap-3 lg:grid-cols-3 lg:gap-4">
+                @for (col of asistenciaLayoutVista; track $index) {
+                  <div class="space-y-3 lg:max-h-[min(72vh,760px)] lg:overflow-y-auto lg:pr-1 [scrollbar-color:#4b5563_#111827] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-[#111827] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-600">
+                    @for (sec of col.secciones; track sec.titulo) {
+                      @if (itemsAsistenciaFiltrados(sec.items).length > 0) {
+                        <div class="rounded-xl border border-gray-800 bg-[#0a0a0a] p-3">
+                          <p
+                            class="mb-2 border-b border-gray-800 pb-1.5 text-[10px] font-bold uppercase tracking-wide text-red-500/90 sm:text-[11px]"
+                          >
+                            {{ sec.titulo }}
+                          </p>
+                          <div class="space-y-1">
+                            @for (it of itemsAsistenciaFiltrados(sec.items); track it.id) {
+                              <label
+                                class="flex cursor-pointer items-start gap-2 rounded-lg border border-transparent px-2 py-1.5 text-sm text-gray-200 transition-colors hover:bg-gray-800/50"
+                                [class.opacity-60]="
+                                  asistenciaBloqueadaPorOtroContexto(it.id) || asistenciaNoSeleccionable(it.id)
+                                "
+                                [class.border-emerald-600/55]="asistenciaMarcada(it.id)"
+                                [class.bg-emerald-950/40]="asistenciaMarcada(it.id)"
+                                [class.ring-2]="asistenciaMarcada(it.id)"
+                                [class.ring-emerald-500/35]="asistenciaMarcada(it.id)"
+                              >
+                                <input
+                                  type="checkbox"
+                                  class="mt-0.5 h-4 w-4 shrink-0 appearance-none rounded border border-gray-500 bg-[#0f1115] checked:border-red-500 checked:bg-red-600 focus:ring-1 focus:ring-red-500"
+                                  [checked]="asistenciaMarcada(it.id)"
+                                  [disabled]="
+                                    asistenciaBloqueadaPorOtroContexto(it.id) || asistenciaNoSeleccionable(it.id)
+                                  "
+                                  (change)="onToggleAsistencia(it.id, $event)"
+                                />
+                                <span
+                                  class="leading-snug"
+                                  [class.text-yellow-300]="estadoDisponibilidadAsistencia(it.id) === 'licencia'"
+                                  [class.text-gray-500]="estadoDisponibilidadAsistencia(it.id) === 'bloqueado'"
+                                >
+                                  <span
+                                    class="mr-1 inline-block h-2 w-2 rounded-full align-middle"
+                                    [ngClass]="colorPuntoDisponibilidadAsistencia(it.id)"
+                                  ></span>
+                                  {{ it.label }}
+                                  @if (asistenciaBloqueadaPorOtroContexto(it.id)) {
+                                    <span class="ml-1 text-[10px] text-amber-300">(en {{ asistenciaContextoBloqueante(it.id) }})</span>
+                                  }
+                                  @if (!asistenciaBloqueadaPorOtroContexto(it.id) && motivoDisponibilidadAsistencia(it.id)) {
+                                    <span class="ml-1 text-[10px] text-yellow-300">
+                                      ({{ motivoDisponibilidadAsistencia(it.id) }})
+                                    </span>
+                                  }
+                                </span>
+                              </label>
+                            }
+                          </div>
+                        </div>
+                      }
+                    }
+                  </div>
+                }
+              </div>
+              <div class="border-t border-gray-800 pt-4">
+                <p class="mb-3 text-xs font-medium uppercase text-gray-500">Datos adicionales</p>
+                <div class="space-y-4">
+                  <div class="flex items-center justify-between gap-2">
+                    <p class="text-xs font-medium uppercase text-gray-500">Comando incidente</p>
+                    <button
+                      type="button"
+                      class="inline-flex min-h-[34px] items-center gap-1.5 rounded-lg border border-gray-700 bg-[#121212] px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800"
+                      (click)="mostrarComandoIncidente = !mostrarComandoIncidente"
+                    >
+                      <lucide-icon name="plus" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+                      {{ mostrarComandoIncidente ? 'Ocultar' : 'Agregar' }}
+                    </button>
+                  </div>
+                  @if (mostrarComandoIncidente) {
+                    <div class="space-y-3">
+                      <div class="rounded-lg border border-gray-800 bg-[#121212] p-3">
+                        <label class="mb-1 block text-[11px] font-medium text-gray-500">C. I</label>
+                        <input
+                          [(ngModel)]="asistencia.comandoIncidenteCi"
+                          name="as_cmd_ci"
+                          placeholder="Nombre o clave"
+                          class="min-h-[40px] w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm placeholder:text-gray-600"
+                        />
+                      </div>
+                      <div class="rounded-lg border border-gray-800 bg-[#121212] p-3">
+                        <label class="mb-1 block text-[11px] font-medium text-gray-500">J. S</label>
+                        <input
+                          [(ngModel)]="asistencia.comandoIncidenteJs"
+                          name="as_cmd_js"
+                          placeholder="Nombre o clave"
+                          class="min-h-[40px] w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm placeholder:text-gray-600"
+                        />
+                      </div>
+                      <div class="rounded-lg border border-gray-800 bg-[#121212] p-3">
+                        <label class="mb-1 block text-[11px] font-medium text-gray-500">J. O</label>
+                        <input
+                          [(ngModel)]="asistencia.comandoIncidenteJo"
+                          name="as_cmd_jo"
+                          placeholder="Nombre o clave"
+                          class="min-h-[40px] w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm placeholder:text-gray-600"
+                        />
+                      </div>
+                    </div>
+                  }
+                  <div class="border-t border-gray-800 pt-3">
+                    <div class="mb-2 flex items-center justify-between gap-2">
+                      <p class="text-xs font-medium uppercase text-gray-500">Otra compañía</p>
+                      <button
+                        type="button"
+                        class="inline-flex min-h-[34px] items-center gap-1.5 rounded-lg border border-gray-700 bg-[#121212] px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800"
+                        (click)="agregarOtraCompania()"
+                      >
+                        <lucide-icon name="plus" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+                        Agregar
+                      </button>
+                    </div>
+                    <div class="space-y-2">
+                      @for (oc of otrasCompanias; track $index; let i = $index) {
+                        <div class="rounded-lg border border-gray-800 bg-[#121212] p-3">
+                          <div class="mb-2 flex items-center justify-between">
+                            <p class="text-xs text-gray-500">Otra compañía {{ i + 1 }}</p>
+                            <button type="button" class="text-xs text-red-400" (click)="quitarOtraCompania(i)">Quitar</button>
+                          </div>
+                          <div class="grid gap-2 sm:grid-cols-3">
+                            <input
+                              [(ngModel)]="oc.obac"
+                              [name]="'oc_obac_' + i"
+                              placeholder="OBAC *"
+                              class="min-h-[42px] rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm"
+                            />
+                            <input
+                              [(ngModel)]="oc.compania"
+                              [name]="'oc_comp_' + i"
+                              placeholder="Compañía *"
+                              class="min-h-[42px] rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm"
+                            />
+                            <input
+                              [(ngModel)]="oc.unidad"
+                              [name]="'oc_unid_' + i"
+                              placeholder="Unidad *"
+                              class="min-h-[42px] rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm"
+                            />
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+          @case ('apoyo') {
+            <details class="rounded-xl border border-gray-800 bg-[#0a0a0a]">
+              <summary
+                class="flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl px-4 py-3 font-medium text-gray-200 marker:content-none [&::-webkit-details-marker]:hidden"
+              >
+                <span class="flex items-center gap-2">
+                  <lucide-icon name="building-2" class="h-5 w-5 text-red-500" [size]="20" color="currentColor"></lucide-icon>
+                  Apoyo externo
+                </span>
+                <lucide-icon name="chevron-down" class="h-5 w-5 shrink-0 text-gray-500" [size]="20" color="currentColor"></lucide-icon>
+              </summary>
+              <div class="space-y-4 border-t border-gray-800 p-4">
+                <button
+                  type="button"
+                  class="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-gray-800 py-3 text-base font-medium hover:bg-gray-700"
+                  (click)="agregarApoyo()"
+                >
+                  <lucide-icon name="plus" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
+                  Agregar institución
+                </button>
+                @for (a of apoyos; track $index; let i = $index) {
+                  <div class="rounded-lg border border-gray-800 bg-[#121212] p-3">
+                    <div class="mb-2 flex justify-between">
+                      <span class="text-xs text-gray-500">Apoyo {{ i + 1 }}</span>
+                      <button type="button" class="text-xs text-red-400" (click)="quitarApoyo(i)">Quitar</button>
+                    </div>
+                    <div class="grid gap-2 rounded-lg border border-gray-700 bg-[#0a0a0a] p-2 sm:grid-cols-4">
+                      <div class="sm:col-span-4">
+                        <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">Institución *</label>
+                        <select [(ngModel)]="a.tipo" [name]="'at_' + i" class="w-full rounded-lg border border-gray-700 bg-[#111111] px-3 py-2 text-sm">
+                        @for (t of tiposApoyoExterno; track t.id) {
+                          <option [value]="t.id">{{ t.label }}</option>
+                        }
+                      </select>
+                      </div>
+                      <div>
+                        <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">P: Patente *</label>
+                        <input [(ngModel)]="a.patente" (ngModelChange)="onApoyoPatenteInput(i, $event)" placeholder="Patente" [name]="'ap_' + i" class="w-full rounded-lg border border-gray-700 bg-[#111111] px-3 py-2 text-sm" />
+                      </div>
+                      @if (apoyoMuestraConductor(a.tipo)) {
+                        <div>
+                          <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">C: Conductor *</label>
+                          <input [(ngModel)]="a.conductor" placeholder="Nombre y apellidos" [name]="'aco_' + i" class="w-full rounded-lg border border-gray-700 bg-[#111111] px-3 py-2 text-sm" />
+                        </div>
+                      }
+                      @if (apoyoMuestraNombre(a.tipo)) {
+                        <div>
+                          <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">N: Nombre *</label>
+                          <input [(ngModel)]="a.nombre" placeholder="Nombre y apellidos" [name]="'an_' + i" class="w-full rounded-lg border border-gray-700 bg-[#111111] px-3 py-2 text-sm" />
+                        </div>
+                      }
+                      @if (apoyoRequiereCargo(a.tipo)) {
+                        <div>
+                          <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">Cargo *</label>
+                          <input [(ngModel)]="a.cargo" placeholder="Cargo" [name]="'ac_' + i" class="w-full rounded-lg border border-gray-700 bg-[#111111] px-3 py-2 text-sm" />
+                        </div>
+                      }
+                      @if (a.tipo === 'SAMU') {
+                        <div>
+                          <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">PA: Paramédico *</label>
+                          <input [(ngModel)]="a.cargo" placeholder="Nombre paramédico" [name]="'ac_' + i" class="w-full rounded-lg border border-gray-700 bg-[#111111] px-3 py-2 text-sm" />
+                        </div>
+                      }
+                    </div>
+                    @if (a.tipo === 'OTRO') {
+                      <p class="mt-2 text-xs text-red-400">* Poner nombre y 2 apellidos *</p>
+                    }
+                  </div>
+                }
+              </div>
+            </details>
+          }
+          @case ('obs') {
+            <div class="space-y-8">
+              <div class="flex items-start gap-3">
+                <lucide-icon name="file-text" class="mt-0.5 h-6 w-6 shrink-0 text-red-500" [size]="24" color="currentColor"></lucide-icon>
+                <div>
+                  <h2 class="text-lg font-bold">Observaciones y cierre</h2>
+                  <p class="text-sm text-gray-500">Cierre de asistencia al final; luego notas libres.</p>
+                </div>
+              </div>
+
+              <div class="space-y-5 rounded-xl border border-gray-800 bg-[#0a0a0a]/60 p-4 sm:p-5">
+                <p class="text-sm font-semibold text-gray-200">Cierre de asistencia</p>
+
+                <div class="rounded-xl border border-gray-700 bg-[#0a0a0a]/80 p-4">
+                  <label class="mb-1 block text-xs font-medium uppercase text-gray-500">Asistencia total</label>
+                  <p class="text-2xl font-bold tabular-nums text-red-400">{{ totalVoluntariosAsistencia() }}</p>
+                  <p class="mt-1 text-xs text-gray-500">Suma automática de voluntarios honorarios y activos marcados en el paso Asistencia.</p>
+                </div>
+
+                <div>
+                  <label class="mb-1 block text-xs font-medium text-gray-500">Oficial 12-8 (quien estuvo)</label>
+                  <input
+                    [(ngModel)]="asistencia.oficial128"
+                    name="as_of128"
+                    placeholder="Nombre o clave"
+                    class="min-h-[44px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-base placeholder:text-gray-600"
+                  />
+                </div>
+
+                <div class="rounded-xl border border-gray-800 bg-[#0f0f10] p-3">
+                  <p class="mb-2 text-xs font-medium uppercase text-gray-500">Radios utilizadas</p>
+                  <div class="grid gap-2 sm:grid-cols-3">
+                    @for (r of radiosParteOpciones; track r.id) {
+                      <div class="rounded-lg border border-gray-700 bg-[#151516] p-2.5">
+                        <label class="flex cursor-pointer items-center gap-2 text-sm text-gray-200">
+                          <input
+                            type="checkbox"
+                            class="h-4 w-4 shrink-0 appearance-none rounded border border-gray-500 bg-[#0f1115] checked:border-red-500 checked:bg-red-600 focus:ring-1 focus:ring-red-500"
+                            [checked]="radioMarcada(r.id)"
+                            (change)="onToggleRadio(r.id, $event)"
+                          />
+                          <span class="font-medium">{{ r.label }}</span>
+                        </label>
+                        @if (radioMarcada(r.id)) {
+                          <label class="mt-2 block pl-6">
+                            <span class="mb-1 block text-[11px] text-gray-500">Nombre o clave (quien usa la radio)</span>
+                            <input
+                              [(ngModel)]="radiosDetalle[r.id]"
+                              [name]="'rd_' + r.id"
+                              placeholder="Nombre o clave"
+                              class="min-h-[38px] w-full rounded-lg border border-gray-700 bg-[#0d0d0f] px-3 py-2 text-sm placeholder:text-gray-600"
+                            />
+                          </label>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+
+              <div class="grid gap-4 border-t border-gray-800 pt-4 lg:grid-cols-2">
+                  <div class="space-y-2 rounded-xl border border-gray-800 bg-[#0f0f10] p-3">
+                    <label class="mb-1 block text-xs font-medium text-gray-500">Encargado de tomar datos</label>
+                    <input
+                      [(ngModel)]="asistencia.encargadoDatos"
+                      name="as_enc"
+                      placeholder="Nombre o clave"
+                      class="min-h-[44px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-base placeholder:text-gray-600"
+                    />
+                    <p class="text-xs text-gray-500">Firma</p>
+                    <app-signature-pad
+                      [dark]="true"
+                      [value]="firmaEncargadoDatos"
+                      (valueChange)="firmaEncargadoDatos = $event"
+                    />
+                  </div>
+                  <div class="space-y-2 rounded-xl border border-gray-800 bg-[#0f0f10] p-3">
+                    <label class="mb-1 block text-xs font-medium text-gray-500">OBAC</label>
+                    <input
+                      [(ngModel)]="asistencia.nombreObac"
+                      name="as_nobac"
+                      placeholder="Nombre o clave"
+                      class="min-h-[44px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-base placeholder:text-gray-600"
+                    />
+                    <p class="text-xs text-gray-500">Firma</p>
+                    <app-signature-pad
+                      [dark]="true"
+                      [value]="firmaObac"
+                      (valueChange)="firmaObac = $event"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label class="mb-1.5 block text-sm font-medium text-gray-400">Observaciones (opcional)</label>
+                <textarea
+                  [(ngModel)]="observaciones"
+                  name="observaciones"
+                  rows="6"
+                  placeholder="Notas adicionales, pendientes, daños, etc."
+                  class="w-full rounded-xl border border-gray-700 bg-[#121212] px-4 py-3 text-base leading-relaxed placeholder:text-gray-600 focus:border-red-500 focus:outline-none"
+                ></textarea>
+              </div>
+            </div>
+          }
+        }
+      </div>
+
+      <p class="mt-4 text-center text-xs text-slate-600">
+        Un paso a la vez para no saturar. Puedes guardar borrador en cualquier momento.
+      </p>
+    </main>
+
+    <!-- Pie fijo: navegación + acciones -->
+    <footer
+      class="border-t border-slate-800/90 bg-[#0a0a0a]/95 shadow-[0_-8px_32px_rgba(0,0,0,0.35)] backdrop-blur lg:fixed lg:bottom-0 lg:left-64 lg:right-0 lg:z-30"
+    >
+      <div class="mx-auto grid w-full min-w-0 max-w-none gap-2 px-4 py-3 sm:px-6 md:px-8 lg:grid-cols-2 lg:px-10 xl:px-12">
+        <div class="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            class="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold shadow-sm transition-all disabled:cursor-not-allowed"
+            [ngClass]="
+              pasoIdx === 0
+                ? 'border-gray-800 bg-[#121212] text-gray-500'
+                : 'border-slate-500/70 bg-slate-700 text-white hover:-translate-y-0.5 hover:bg-slate-600'
+            "
+            [disabled]="pasoIdx === 0"
+            (click)="anteriorPaso()"
+          >
+            <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            Anterior
+          </button>
+          <button
+            type="button"
+            class="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl bg-gray-700 px-4 text-sm font-semibold text-white shadow-sm disabled:opacity-40"
+            [disabled]="esUltimoPaso"
+            (click)="siguientePaso()"
+          >
+            Siguiente
+            <lucide-icon name="chevron-right" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+          </button>
+        </div>
+        <div class="grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            class="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl border border-amber-700/50 bg-amber-950/40 px-4 text-sm font-semibold text-amber-100 hover:bg-amber-950/60 disabled:opacity-50"
+            [disabled]="submitting"
+            (click)="guardarBorrador()"
+          >
+            <lucide-icon name="save" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            {{ esEdicion ? 'Actualizar borrador' : 'Guardar borrador' }}
+          </button>
+          <button
+            type="button"
+            class="sid-btn sid-btn-primary inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+            [disabled]="submitting"
+            (click)="guardarParte()"
+          >
+            <lucide-icon name="send" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            {{ esEdicion ? 'Actualizar parte' : 'Registrar parte' }}
+          </button>
+        </div>
+      </div>
+    </footer>
+  }
+</div>

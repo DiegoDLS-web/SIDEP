@@ -44,6 +44,15 @@ To execute unit tests with the [Karma](https://karma-runner.github.io) test runn
 ng test
 ```
 
+**SIDEP:** pruebas enfocadas en lógica crítica (`mapLoginUsuarioASesion`, guards de ruta, interceptor HTTP). Ejecución headless:
+
+```bash
+npx ng test --no-watch --browsers=ChromeHeadless
+```
+
+- Checklist manual para anexos / tesis: `../docs/anexos/checklist-pruebas-manuales-sidep.md`
+- Notas de seguridad (demo, guards, interceptor): `../docs/seguridad/revision-demo-e-interceptor.md`
+
 ## Running end-to-end tests
 
 For end-to-end (e2e) testing, run:
