@@ -10,22 +10,84 @@ datasource db {
 
 model CatalogoClaveEmergencia {
   id      Int               @id @default(autoincrement())
-  codigo  String            @unique // Ej: 10-0
-  nombre  String            // Ej: Incendio Estructural
+  codigo  String            @unique
+  nombre  String
   partes  ParteEmergencia[]
 
   @@map("catalogo_claves_emergencia")
 }
 
 model RolUsuario {
-  id        Int      @id @default(autoincrement())
-  nombre    String   @unique
-  activo    Boolean  @default(true)
+  id        Int       @id @default(autoincrement())
+  nombre    String    @unique
+  activo    Boolean   @default(true)
   usuarios  Usuario[]
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
   @@map("roles_usuario")
+}
+
+model CatalogoEstadoParte {
+  id          Int               @id @default(autoincrement())
+  codigo      String            @unique
+  nombre      String
+  descripcion String?
+  activo      Boolean           @default(true)
+  partes      ParteEmergencia[]
+
+  @@map("catalogo_estado_parte")
+}
+
+model CatalogoTriage {
+  id        Int                  @id @default(autoincrement())
+  codigo    String               @unique
+  nombre    String
+  activo    Boolean              @default(true)
+  pacientes PacienteEmergencia[]
+
+  @@map("catalogo_triage")
+}
+
+model CatalogoGrupoSanguineo {
+  id       Int       @id @default(autoincrement())
+  codigo   String    @unique
+  nombre   String
+  activo   Boolean   @default(true)
+  usuarios Usuario[]
+
+  @@map("catalogo_grupo_sanguineo")
+}
+
+model CatalogoEstadoVoluntario {
+  id       Int       @id @default(autoincrement())
+  codigo   String    @unique
+  nombre   String
+  activo   Boolean   @default(true)
+  usuarios Usuario[]
+
+  @@map("catalogo_estado_voluntario")
+}
+
+model CatalogoCargoOficialidad {
+  id       Int       @id @default(autoincrement())
+  codigo   String    @unique
+  nombre   String
+  activo   Boolean   @default(true)
+  usuarios Usuario[]
+
+  @@map("catalogo_cargo_oficialidad")
+}
+
+model CatalogoEstadoLicencia {
+  id          Int              @id @default(autoincrement())
+  codigo      String           @unique
+  nombre      String
+  descripcion String?
+  activo      Boolean          @default(true)
+  licencias   LicenciaMedica[]
+
+  @@map("catalogo_estado_licencia")
 }
 
 // --- NÚCLEO DEL SISTEMA ---
@@ -39,16 +101,22 @@ model Usuario {
   telefono               String?
   activo                 Boolean              @default(true)
   
-  // Relación con Rol (Catálogo)
+  // Relaciones con Catálogos
   rolId                  Int                  @map("rol_id")
   rol                    RolUsuario           @relation(fields: [rolId], references: [id])
+  
+  grupoSanguineoId       Int?                 @map("grupo_sanguineo_id")
+  grupoSanguineo         CatalogoGrupoSanguineo? @relation(fields: [grupoSanguineoId], references: [id])
+
+  estadoVoluntarioId     Int?                 @map("estado_voluntario_id")
+  estadoVoluntario       CatalogoEstadoVoluntario? @relation(fields: [estadoVoluntarioId], references: [id])
+
+  cargoOficialidadId     Int?                 @map("cargo_oficialidad_id")
+  cargoOficialidad       CatalogoCargoOficialidad? @relation(fields: [cargoOficialidadId], references: [id])
 
   nombres                String?
   apellidoPaterno        String?              @map("apellido_paterno")
   apellidoMaterno        String?              @map("apellido_materno")
-  grupoSanguineo         String?              @map("grupo_sanguineo")
-  estadoVoluntario       String?              @default("VIGENTE") @map("estado_voluntario")
-  cargoOficialidad       String?              @map("cargo_oficialidad")
   requiereCambioPassword Boolean              @default(false) @map("requiere_cambio_password")
   fotoPerfil             String?              @map("foto_perfil")
   autorizadoConducir     Boolean              @default(false) @map("autorizado_conducir")
@@ -68,9 +136,11 @@ model ParteEmergencia {
   correlativo        String               @unique
   direccion          String
   fecha              DateTime             @default(now())
-  estado             String               @default("PENDIENTE")
   
-  // Relación con Clave (Catálogo)
+  // Relaciones con Catálogos
+  estadoId           Int                  @map("estado_id")
+  estado             CatalogoEstadoParte  @relation(fields: [estadoId], references: [id])
+  
   claveId            Int                  @map("clave_id")
   clave              CatalogoClaveEmergencia @relation(fields: [claveId], references: [id])
 
@@ -111,7 +181,6 @@ model UnidadEnEmergencia {
   kmSalida        Int             @map("km_salida")
   kmLlegada       Int             @map("km_llegada")
   
-  // Tiempos de radio (6-0, 6-3, etc)
   hora6_0         String          @default("00:00")
   hora6_10        String          @default("00:00")
   
@@ -121,7 +190,7 @@ model UnidadEnEmergencia {
   @@map("unidades_en_emergencia")
 }
 
-// --- OTROS MODELOS (Se mantienen para no romper lógica de equipo) ---
+// --- OTROS MODELOS ---
 
 model LicenciaMedica {
   id                    Int      @id @default(autoincrement())
@@ -129,7 +198,11 @@ model LicenciaMedica {
   fechaInicio           DateTime @map("fecha_inicio")
   fechaTermino          DateTime @map("fecha_termino")
   motivo                String
-  estado                String   @default("PENDIENTE")
+  
+  // Relación con Catálogo
+  estadoId              Int      @map("estado_id")
+  estado                CatalogoEstadoLicencia @relation(fields: [estadoId], references: [id])
+
   resueltoPorId         Int?     @map("resuelto_por_id")
   
   resueltoPor           Usuario? @relation("LicenciaMedica_resueltoPorIdToUsuario", fields: [resueltoPorId], references: [id])
@@ -154,7 +227,10 @@ model PacienteEmergencia {
   id              Int             @id @default(autoincrement())
   parteId         Int             @map("parte_id")
   nombre          String
-  triage          String          // Se mantiene String por ahora para facilitar UI
+  
+  // Relación con Catálogo
+  triageId        Int             @map("triage_id")
+  triage          CatalogoTriage  @relation(fields: [triageId], references: [id])
   
   parteEmergencia ParteEmergencia @relation(fields: [parteId], references: [id])
 
