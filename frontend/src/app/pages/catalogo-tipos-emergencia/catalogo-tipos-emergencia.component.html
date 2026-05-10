@@ -1,0 +1,111 @@
+<div class="sid-page sid-page-shell w-full min-w-0">
+  <a routerLink="/partes" class="sid-back-link mb-1">
+    <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
+    Volver a partes
+  </a>
+
+  <section sidScrollReveal class="sid-hero-panel sid-hero-panel--institutional">
+    <div>
+      <p class="sid-page-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs text-red-200">
+        Catálogo institucional
+      </p>
+      <h1 class="sid-page-hero-title text-2xl font-bold sm:text-3xl">Tipos de emergencia</h1>
+      <p class="sid-page-hero-subtitle mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">
+        Define los códigos y descripciones que aparecen al crear o editar partes. Solo administrador y capitán pueden
+        modificar esta lista.
+      </p>
+    </div>
+  </section>
+
+  @if (error) {
+    <div class="sid-feedback rounded-xl border border-red-800/60 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+      {{ error }}
+    </div>
+  }
+  @if (exito) {
+    <div class="sid-feedback rounded-xl border border-emerald-800/60 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
+      {{ exito }}
+    </div>
+  }
+
+  @if (loading) {
+    <div class="flex min-h-[10rem] items-center justify-center rounded-2xl border border-slate-800 bg-[#121212] text-slate-400">
+      Cargando…
+    </div>
+  } @else {
+    <div class="overflow-hidden rounded-2xl border border-slate-800 bg-[#121212] shadow-lg shadow-black/20">
+      <div class="border-b border-slate-800 px-4 py-3 sm:px-6">
+        <p class="text-sm text-slate-400">
+          <strong class="text-slate-200">Código</strong> es el valor guardado en el parte (ej. <code class="text-red-300">10-4-1</code> o
+          <code class="text-red-300">ACUARTELAMIENTO</code>). Sin espacios.
+        </p>
+        <p class="mt-2 text-sm text-slate-500">
+          La <strong class="font-medium text-slate-300">descripción</strong> es la etiqueta que ve la brigada en pantalla; el
+          <strong class="font-medium text-slate-300">código</strong> es el identificador estable que queda en base de datos para reportes,
+          estadísticas y cruces. Si cambias solo la descripción, el histórico sigue asociado al mismo código.
+        </p>
+      </div>
+      <div class="max-h-[min(70vh,520px)] overflow-auto">
+        <table class="w-full min-w-[640px] border-collapse text-left text-sm">
+          <thead class="sticky top-0 z-[1] bg-[#1a1a1a] text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th class="border-b border-slate-800 px-4 py-3 font-semibold sm:px-6">Código</th>
+              <th class="border-b border-slate-800 px-4 py-3 font-semibold sm:px-6">Descripción</th>
+              <th class="border-b border-slate-800 px-4 py-3 font-semibold sm:px-6 w-24"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (f of filas; track $index) {
+              <tr class="border-b border-slate-800/80">
+                <td class="px-4 py-2 align-top sm:px-6">
+                  <input
+                    [(ngModel)]="f.value"
+                    [name]="'cv_' + $index"
+                    class="sid-input w-full font-mono text-sm"
+                    placeholder="10-0-1"
+                    autocomplete="off"
+                  />
+                </td>
+                <td class="px-4 py-2 align-top sm:px-6">
+                  <input
+                    [(ngModel)]="f.label"
+                    [name]="'cl_' + $index"
+                    class="sid-input w-full text-sm"
+                    placeholder="Descripción visible en listados"
+                    autocomplete="off"
+                  />
+                </td>
+                <td class="px-4 py-2 align-top sm:px-6">
+                  <button
+                    type="button"
+                    class="text-xs font-medium text-red-400 hover:text-red-300"
+                    (click)="quitarFila($index)"
+                  >
+                    Quitar
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="flex flex-col gap-3 border-t border-slate-800 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <button
+          type="button"
+          class="sid-btn sid-btn-neutral rounded-xl border-slate-600 px-4 py-2.5 text-sm font-medium"
+          (click)="agregarFila()"
+        >
+          Añadir tipo
+        </button>
+        <button
+          type="button"
+          class="sid-btn sid-btn-primary min-h-[44px] rounded-xl px-6 font-semibold disabled:opacity-50"
+          (click)="guardar()"
+          [disabled]="guardando"
+        >
+          {{ guardando ? 'Guardando…' : 'Guardar catálogo' }}
+        </button>
+      </div>
+    </div>
+  }
+</div>

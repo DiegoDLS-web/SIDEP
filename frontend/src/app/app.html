@@ -1,18 +1,2 @@
-<div style="padding: 20px; font-family: sans-serif;">
-  <h1>SIDEP - Panel de Emergencias</h1>
-  <hr>
-  
-  <h2>Lista de Carros (Desde Neon)</h2>
-  
-  <div *ngIf="carros.length > 0; else noData">
-    <ul>
-      <li *ngFor="let carro of carros">
-        <strong>{{ carro.nomenclatura }}</strong> - Patente: {{ carro.patente }}
-      </li>
-    </ul>
-  </div>
-
-  <ng-template #noData>
-    <p>No se encontraron carros. Si la lista está vacía, es porque Neon no tiene registros aún.</p>
-  </ng-template>
-</div>
+<router-outlet />
+<app-toast-container />

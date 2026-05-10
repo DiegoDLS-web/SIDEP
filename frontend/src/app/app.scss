@@ -1,0 +1,7 @@
+/* Raíz de la app: ocupa el viewport y hereda fondo oscuro (evita bandas blancas en login / rutas huérfanas). */
+:host {
+  display: block;
+  min-height: 100dvh;
+  min-height: 100vh;
+  background-color: #0a0a0a;
+}

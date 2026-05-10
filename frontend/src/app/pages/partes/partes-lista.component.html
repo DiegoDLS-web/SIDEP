@@ -1,0 +1,792 @@
+<div class="sid-page sid-page-shell w-full min-w-0 lg:py-7">
+  @if (loading) {
+    <div class="space-y-6" role="status" aria-live="polite" aria-busy="true">
+      <span class="sr-only">Cargando listado de partes…</span>
+      <div class="h-10 max-w-md sid-skeleton rounded-xl"></div>
+      <div class="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-4">
+        @for (sk of [1, 2, 3, 4]; track sk) {
+          <div class="h-28 rounded-2xl border border-[var(--sid-border)] sid-skeleton"></div>
+        }
+      </div>
+      <div class="h-64 rounded-2xl border border-[var(--sid-border)] sid-skeleton"></div>
+    </div>
+  } @else if (error) {
+    <div class="sid-feedback rounded-2xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-200" role="alert">
+      <p class="font-medium">Error al cargar partes</p>
+      <p class="mt-1 text-red-300/90">{{ error }}</p>
+    </div>
+  } @else {
+    <section sidScrollReveal class="sid-hero-panel sid-hero-panel--rose">
+      <div class="sid-hero-panel__row sid-hero-panel__row--split">
+        <div>
+          <p class="sid-page-hero-badge mb-2 inline-flex rounded-full border border-rose-500/35 bg-rose-500/10 px-3 py-1 text-xs text-rose-200">
+            Gestión operativa
+          </p>
+          <h1 class="sid-page-hero-title text-2xl font-bold tracking-tight text-white sm:text-3xl">Partes de emergencia</h1>
+          <p class="sid-page-hero-subtitle mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">Historial, filtros y exportación de partes</p>
+        </div>
+        <a
+          routerLink="/partes/nuevo"
+          class="sid-btn sid-btn-primary inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl !p-0 text-sm font-semibold shadow-lg shadow-red-900/30 sm:h-auto sm:w-auto sm:rounded-lg sm:!px-6 sm:!py-3 sm:text-base"
+          aria-label="Nuevo parte de emergencia"
+          title="Nuevo parte"
+        >
+          <lucide-icon name="plus" class="h-5 w-5" [size]="20" color="currentColor" aria-hidden="true"></lucide-icon>
+          <span class="sr-only">Nuevo parte</span>
+        </a>
+      </div>
+    </section>
+
+    <div sidScrollReveal class="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-4">
+      <div class="sid-card-hover rounded-2xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-5">
+        <div class="mb-1.5 flex items-center justify-between">
+          <lucide-icon name="file-text" class="h-7 w-7 text-sky-400" [size]="28" color="currentColor" aria-hidden="true"></lucide-icon>
+        </div>
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ statsAnio() }}</p>
+        <p class="text-xs font-medium text-slate-400 sm:text-sm">Partes año actual</p>
+      </div>
+      <div class="sid-card-hover rounded-2xl border border-[var(--sid-border)] bg-gradient-to-br from-rose-950/40 to-transparent p-4 ring-1 ring-inset ring-rose-500/10 sm:p-5">
+        <div class="mb-1.5 flex items-center justify-between">
+          <lucide-icon name="calendar-days" class="h-7 w-7 text-rose-400" [size]="28" color="currentColor" aria-hidden="true"></lucide-icon>
+        </div>
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ statsMes() }}</p>
+        <p class="text-xs font-medium text-slate-400 sm:text-sm">Este mes</p>
+      </div>
+      <div class="sid-card-hover rounded-2xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-5">
+        <div class="mb-1.5 flex items-center justify-between">
+          <lucide-icon name="clock" class="h-7 w-7 text-amber-400" [size]="28" color="currentColor" aria-hidden="true"></lucide-icon>
+        </div>
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ totalSistema() }}</p>
+        <p class="text-xs font-medium text-slate-400 sm:text-sm">Total registrados</p>
+      </div>
+      <div
+        class="sid-card-hover rounded-2xl border border-emerald-900/50 bg-gradient-to-br from-emerald-950/35 to-transparent p-4 ring-1 ring-inset ring-emerald-500/15 sm:p-5"
+      >
+        <div class="mb-1.5 flex items-center justify-between">
+          <lucide-icon name="users" class="h-7 w-7 text-emerald-400" [size]="28" color="currentColor" aria-hidden="true"></lucide-icon>
+        </div>
+        <p class="mb-0.5 min-h-[2.25rem] text-2xl font-bold tabular-nums text-white sm:min-h-[2.5rem] sm:text-3xl">{{ totalFiltrado }}</p>
+        <p class="text-xs font-medium text-slate-300 sm:text-sm">Con filtros actuales</p>
+      </div>
+    </div>
+
+    <!-- overflow-visible: los listboxes absolutos no deben recortarse por la tarjeta -->
+    <section
+      sidScrollReveal
+      class="sid-history-card sid-partes-filtros-card relative z-30 w-full overflow-visible p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 md:p-6"
+    >
+      <div class="relative z-10 w-full min-w-0 overflow-visible">
+        <div class="mb-8 border-b border-slate-800/90 pb-8 sm:mb-9 sm:pb-9">
+          <div class="flex flex-wrap items-center gap-2.5">
+            <lucide-icon name="funnel" class="h-5 w-5 shrink-0 text-red-500" [size]="20" color="currentColor" aria-hidden="true"></lucide-icon>
+            <h3 class="text-lg font-bold leading-tight text-white">Filtros de búsqueda</h3>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-6 overflow-visible md:grid-cols-2 xl:grid-cols-6 md:gap-x-8 md:gap-y-6">
+          <div id="partes-filtro-tipo-wrap" class="relative z-[100] min-w-0">
+            <label
+              class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400"
+              id="partes-filtro-tipo-lbl"
+              for="partes-filtro-tipo-btn"
+              >Tipo de emergencia</label
+            >
+            <button
+              type="button"
+              id="partes-filtro-tipo-btn"
+              class="sid-input sid-history-filter flex min-h-[var(--sid-control-height)] w-full items-center justify-between gap-2 rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 pl-3 pr-2.5 text-left text-sm text-white focus-visible:outline-none"
+              aria-haspopup="listbox"
+              [attr.aria-expanded]="filtroTipoPanelAbierto"
+              [attr.aria-controls]="filtroTipoPanelAbierto ? 'partes-filtro-tipo-listbox' : null"
+              [attr.aria-labelledby]="'partes-filtro-tipo-lbl'"
+              (click)="toggleFiltroTipoPanel($event)"
+            >
+              <span class="min-w-0 flex-1 truncate leading-snug">{{ etiquetaFiltroTipoActual() }}</span>
+              <lucide-icon
+                name="chevron-down"
+                class="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200"
+                [class.rotate-180]="filtroTipoPanelAbierto"
+                [size]="16"
+                color="currentColor"
+                aria-hidden="true"
+              ></lucide-icon>
+            </button>
+            @if (filtroTipoPanelAbierto) {
+              <div
+                id="partes-filtro-tipo-listbox"
+                class="sid-partes-filtro-tipo-listbox sid-scroll-dark absolute left-0 right-0 top-full z-[200] mt-1.5 max-h-[min(22rem,52vh)] overflow-y-auto rounded-xl border border-slate-600/80 bg-[var(--sid-surface-inset)] py-1.5 shadow-xl ring-1 ring-black/30"
+                role="listbox"
+                aria-labelledby="partes-filtro-tipo-lbl"
+                aria-multiselectable="true"
+              >
+                <button
+                  type="button"
+                  role="option"
+                  class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-slate-100 transition-colors hover:bg-slate-800/90"
+                  [class.bg-red-950/50]="filtroTipos.length === 0"
+                  [class.text-white]="filtroTipos.length === 0"
+                  [attr.aria-selected]="filtroTipos.length === 0"
+                  (click)="limpiarSeleccionTipos($event)"
+                >
+                  <span
+                    class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                    [class.border-red-400]="filtroTipos.length === 0"
+                    [class.bg-red-500]="filtroTipos.length === 0"
+                    [class.border-slate-500]="filtroTipos.length > 0"
+                  >
+                    @if (filtroTipos.length === 0) {
+                      <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                    }
+                  </span>
+                  Todos los tipos
+                </button>
+                <p class="mx-3 mb-1 mt-3 border-b border-slate-700/50 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  Clasificación 10-x (operativas)
+                </p>
+                @for (c of catalogoEmergencias.operativas(); track c.value) {
+                  <button
+                    type="button"
+                    role="option"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-red-950/35]="tipoFiltroSeleccionado(c.value)"
+                    [attr.aria-selected]="tipoFiltroSeleccionado(c.value)"
+                    (click)="toggleSeleccionTipo(c.value, $event)"
+                  >
+                    <span
+                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                      [class.border-red-400]="tipoFiltroSeleccionado(c.value)"
+                      [class.bg-red-500]="tipoFiltroSeleccionado(c.value)"
+                      [class.border-slate-500]="!tipoFiltroSeleccionado(c.value)"
+                    >
+                      @if (tipoFiltroSeleccionado(c.value)) {
+                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                      }
+                    </span>
+                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{
+                      textoEtiquetaTipoOpcion(c)
+                    }}</span>
+                  </button>
+                }
+                <p class="mx-3 mb-1 mt-4 border-b border-slate-700/50 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  Compañía / servicios
+                </p>
+                @for (c of catalogoEmergencias.companiaServicios(); track c.value) {
+                  <button
+                    type="button"
+                    role="option"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-red-950/35]="tipoFiltroSeleccionado(c.value)"
+                    [attr.aria-selected]="tipoFiltroSeleccionado(c.value)"
+                    (click)="toggleSeleccionTipo(c.value, $event)"
+                  >
+                    <span
+                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                      [class.border-red-400]="tipoFiltroSeleccionado(c.value)"
+                      [class.bg-red-500]="tipoFiltroSeleccionado(c.value)"
+                      [class.border-slate-500]="!tipoFiltroSeleccionado(c.value)"
+                    >
+                      @if (tipoFiltroSeleccionado(c.value)) {
+                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                      }
+                    </span>
+                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{
+                      textoEtiquetaTipoOpcion(c)
+                    }}</span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+          <div id="partes-filtro-carros-wrap" class="relative z-[100] min-w-0">
+            <label
+              class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400"
+              id="partes-filtro-carros-lbl"
+              for="partes-filtro-carros-btn"
+              >Unidades / carros</label
+            >
+            <button
+              type="button"
+              id="partes-filtro-carros-btn"
+              class="sid-input sid-history-filter flex min-h-[var(--sid-control-height)] w-full items-center justify-between gap-2 rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 pl-3 pr-2.5 text-left text-sm text-white focus-visible:outline-none"
+              aria-haspopup="listbox"
+              [attr.aria-expanded]="filtroCarrosPanelAbierto"
+              [attr.aria-controls]="filtroCarrosPanelAbierto ? 'partes-filtro-carros-listbox' : null"
+              [attr.aria-labelledby]="'partes-filtro-carros-lbl'"
+              (click)="toggleFiltroCarrosPanel($event)"
+            >
+              <span class="min-w-0 flex-1 truncate leading-snug">{{ etiquetaFiltroCarrosActual() }}</span>
+              <lucide-icon
+                name="chevron-down"
+                class="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200"
+                [class.rotate-180]="filtroCarrosPanelAbierto"
+                [size]="16"
+                color="currentColor"
+                aria-hidden="true"
+              ></lucide-icon>
+            </button>
+            @if (filtroCarrosPanelAbierto) {
+              <div
+                id="partes-filtro-carros-listbox"
+                class="sid-partes-filtro-tipo-listbox sid-scroll-dark absolute left-0 right-0 top-full z-[200] mt-1.5 max-h-[min(22rem,52vh)] overflow-y-auto rounded-xl border border-slate-600/80 bg-[var(--sid-surface-inset)] py-1.5 shadow-xl ring-1 ring-black/30"
+                role="listbox"
+                aria-labelledby="partes-filtro-carros-lbl"
+                aria-multiselectable="true"
+              >
+                <button
+                  type="button"
+                  role="option"
+                  class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-slate-100 transition-colors hover:bg-slate-800/90"
+                  [class.bg-emerald-950/40]="filtroCarroIds.length === 0"
+                  [class.text-white]="filtroCarroIds.length === 0"
+                  [attr.aria-selected]="filtroCarroIds.length === 0"
+                  (click)="limpiarSeleccionCarros($event)"
+                >
+                  <span
+                    class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                    [class.border-emerald-400]="filtroCarroIds.length === 0"
+                    [class.bg-emerald-600]="filtroCarroIds.length === 0"
+                    [class.border-slate-500]="filtroCarroIds.length > 0"
+                  >
+                    @if (filtroCarroIds.length === 0) {
+                      <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                    }
+                  </span>
+                  Todas las unidades
+                </button>
+                @for (cr of carrosLista; track cr.id) {
+                  <button
+                    type="button"
+                    role="option"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-emerald-950/30]="carroFiltroSeleccionado(cr.id)"
+                    [attr.aria-selected]="carroFiltroSeleccionado(cr.id)"
+                    (click)="toggleSeleccionCarro(cr.id, $event)"
+                  >
+                    <span
+                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                      [class.border-emerald-400]="carroFiltroSeleccionado(cr.id)"
+                      [class.bg-emerald-600]="carroFiltroSeleccionado(cr.id)"
+                      [class.border-slate-500]="!carroFiltroSeleccionado(cr.id)"
+                    >
+                      @if (carroFiltroSeleccionado(cr.id)) {
+                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                      }
+                    </span>
+                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{ textoCarroLinea(cr) }}</span>
+                    <span class="shrink-0 text-xs tabular-nums text-slate-500">{{ cr.patente }}</span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+          <div class="min-w-0">
+            <label class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400" for="partes-filtro-estado"
+              >Estado del parte</label
+            >
+            <select
+              id="partes-filtro-estado"
+              [(ngModel)]="filtroEstadoParte"
+              (ngModelChange)="onEstadoParteChange()"
+              class="sid-history-filter sid-partes-select min-h-[var(--sid-control-height)] w-full rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] px-3 py-2.5 text-sm text-white"
+            >
+              <option value="">Todos los estados</option>
+              <option value="COMPLETADO">Completado</option>
+              <option value="PENDIENTE">Pendiente</option>
+              <option value="BORRADOR">Borrador</option>
+            </select>
+          </div>
+          <div class="min-w-0">
+            <label class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400" for="partes-filtro-persona"
+              >Inspector u OBAC</label
+            >
+            <input
+              id="partes-filtro-persona"
+              type="search"
+              [(ngModel)]="filtroPersonaObac"
+              (ngModelChange)="onPersonaObacInput()"
+              placeholder="Nombre parcial…"
+              class="sid-input sid-history-filter min-h-[var(--sid-control-height)] w-full rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] px-3 py-2.5 text-sm text-white placeholder:text-slate-500"
+            />
+          </div>
+          <div class="min-w-0 md:col-span-2 xl:col-span-2">
+            <label class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400" for="partes-filtro-dir"
+              >Dirección</label
+            >
+            <div class="relative">
+              <lucide-icon
+                name="search"
+                class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
+                [size]="16"
+                color="currentColor"
+                aria-hidden="true"
+              ></lucide-icon>
+              <input
+                id="partes-filtro-dir"
+                type="text"
+                [(ngModel)]="filtroDireccionDraft"
+                (ngModelChange)="onDireccionDraftChanged()"
+                (blur)="flushDireccionDraft()"
+                (keydown.enter)="flushDireccionDraft()"
+                [attr.aria-busy]="actualizandoTabla"
+                placeholder="Buscar por dirección…"
+                autocomplete="off"
+                class="sid-input sid-history-filter min-h-[var(--sid-control-height)] w-full rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 pl-12 pr-3 text-sm text-white placeholder:text-slate-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3 xl:grid-cols-4 md:gap-x-8 md:gap-y-6">
+          <div class="min-w-0">
+            <label class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">Desde</label>
+            <app-sid-date-input
+              preset="filter"
+              [dense]="true"
+              inputClass="sid-history-filter dark-date-input w-full min-w-0"
+              [(ngModel)]="filtroRangoDesde"
+              (ngModelChange)="onRangoFiltroChange()"
+            />
+          </div>
+          <div class="min-w-0">
+            <label class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">Hasta</label>
+            <app-sid-date-input
+              preset="filter"
+              [dense]="true"
+              inputClass="sid-history-filter dark-date-input w-full min-w-0"
+              [(ngModel)]="filtroRangoHasta"
+              (ngModelChange)="onRangoFiltroChange()"
+            />
+          </div>
+          <div class="min-w-0 md:col-span-2">
+            <label class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400" for="partes-filtro-fecha"
+              >Fecha del parte (opcional)</label
+            >
+            <input
+              id="partes-filtro-fecha"
+              type="text"
+              [(ngModel)]="filtroFecha"
+              (ngModelChange)="onFechaFiltroInput()"
+              [attr.aria-invalid]="fechaFiltroError ? 'true' : null"
+              [attr.aria-describedby]="fechaFiltroError ? 'partes-filtro-fecha-err' : null"
+              placeholder="DD/MM/AAAA · con filtro rápido o solo día"
+              [class.ring-1]="fechaFiltroError"
+              [class.ring-red-500/55]="fechaFiltroError"
+              class="sid-input sid-history-filter min-h-[var(--sid-control-height)] w-full rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] px-3 py-2.5 text-sm text-white placeholder:text-slate-500"
+            />
+            @if (fechaFiltroError) {
+              <p id="partes-filtro-fecha-err" class="mt-1.5 text-xs text-red-400" role="alert">{{ fechaFiltroError }}</p>
+            }
+          </div>
+        </div>
+
+        <div
+          class="mt-6 flex flex-col gap-2 border-t border-slate-800/80 pt-6 max-xl:[&>button]:w-full sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2"
+        >
+          <button
+            type="button"
+            class="sid-btn sid-btn-primary order-first inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 sm:order-none"
+            (click)="aplicarFiltrosPartes()"
+          >
+            Aplicar filtros
+          </button>
+          <button
+            type="button"
+            class="sid-btn sid-btn-neutral inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900/70 px-4 py-2.5 text-sm text-slate-100 hover:bg-slate-800 disabled:opacity-40"
+            [disabled]="!hayFiltrosActivos()"
+            (click)="limpiarFiltros()"
+          >
+            Limpiar filtros
+          </button>
+          <button
+            type="button"
+            class="sid-btn sid-btn-neutral inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900/70 px-4 py-2.5 text-sm text-slate-100 hover:bg-slate-800"
+            (click)="actualizarListadoPartes()"
+          >
+            <lucide-icon name="refresh-cw" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
+            Actualizar
+          </button>
+          <button
+            type="button"
+            class="sid-btn sid-btn-primary inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40"
+            [disabled]="totalFiltrado === 0"
+            (click)="exportarPdf()"
+          >
+            <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
+            Descargar PDF
+          </button>
+          <button
+            type="button"
+            class="sid-btn sid-btn-success inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
+            [disabled]="totalFiltrado === 0"
+            (click)="exportarExcel()"
+          >
+            <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
+            Descargar Excel
+          </button>
+        </div>
+
+        <div class="mt-8 md:mt-10">
+          <p class="mb-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">Filtro rápido (fecha / período)</p>
+          <div
+            class="grid grid-cols-4 gap-1.5 sm:gap-3"
+            role="group"
+            aria-label="Filtrar partes por período"
+          >
+            <button
+              type="button"
+              class="flex min-h-[40px] w-full items-center justify-center rounded-lg px-1.5 text-xs font-semibold transition-colors sm:min-h-[42px] sm:px-3 sm:text-sm"
+              [attr.aria-pressed]="filtroPeriodo === 'todos'"
+              [class.bg-red-600]="filtroPeriodo === 'todos'"
+              [class.text-white]="filtroPeriodo === 'todos'"
+              [class.shadow-md]="filtroPeriodo === 'todos'"
+              [class.shadow-red-900/25]="filtroPeriodo === 'todos'"
+              [class.bg-slate-800/95]="filtroPeriodo !== 'todos'"
+              [class.text-slate-200]="filtroPeriodo !== 'todos'"
+              [class.ring-1]="filtroPeriodo !== 'todos'"
+              [class.ring-slate-600/65]="filtroPeriodo !== 'todos'"
+              (click)="setPeriodo('todos')"
+            >
+              Todos
+            </button>
+            <button
+              type="button"
+              class="flex min-h-[40px] w-full items-center justify-center rounded-lg px-1.5 text-xs font-semibold transition-colors sm:min-h-[42px] sm:px-3 sm:text-sm"
+              [attr.aria-pressed]="filtroPeriodo === 'hoy'"
+              [class.bg-red-600]="filtroPeriodo === 'hoy'"
+              [class.text-white]="filtroPeriodo === 'hoy'"
+              [class.shadow-md]="filtroPeriodo === 'hoy'"
+              [class.shadow-red-900/25]="filtroPeriodo === 'hoy'"
+              [class.bg-slate-800/95]="filtroPeriodo !== 'hoy'"
+              [class.text-slate-200]="filtroPeriodo !== 'hoy'"
+              [class.ring-1]="filtroPeriodo !== 'hoy'"
+              [class.ring-slate-600/65]="filtroPeriodo !== 'hoy'"
+              (click)="setPeriodo('hoy')"
+            >
+              Hoy
+            </button>
+            <button
+              type="button"
+              class="flex min-h-[40px] w-full items-center justify-center rounded-lg px-1.5 text-xs font-semibold transition-colors sm:min-h-[42px] sm:px-3 sm:text-sm"
+              [attr.aria-pressed]="filtroPeriodo === 'semana'"
+              [class.bg-red-600]="filtroPeriodo === 'semana'"
+              [class.text-white]="filtroPeriodo === 'semana'"
+              [class.shadow-md]="filtroPeriodo === 'semana'"
+              [class.shadow-red-900/25]="filtroPeriodo === 'semana'"
+              [class.bg-slate-800/95]="filtroPeriodo !== 'semana'"
+              [class.text-slate-200]="filtroPeriodo !== 'semana'"
+              [class.ring-1]="filtroPeriodo !== 'semana'"
+              [class.ring-slate-600/65]="filtroPeriodo !== 'semana'"
+              (click)="setPeriodo('semana')"
+            >
+              Esta semana
+            </button>
+            <button
+              type="button"
+              class="flex min-h-[40px] w-full items-center justify-center rounded-lg px-1.5 text-xs font-semibold transition-colors sm:min-h-[42px] sm:px-3 sm:text-sm"
+              [attr.aria-pressed]="filtroPeriodo === 'mes'"
+              [class.bg-red-600]="filtroPeriodo === 'mes'"
+              [class.text-white]="filtroPeriodo === 'mes'"
+              [class.shadow-md]="filtroPeriodo === 'mes'"
+              [class.shadow-red-900/25]="filtroPeriodo === 'mes'"
+              [class.bg-slate-800/95]="filtroPeriodo !== 'mes'"
+              [class.text-slate-200]="filtroPeriodo !== 'mes'"
+              [class.ring-1]="filtroPeriodo !== 'mes'"
+              [class.ring-slate-600/65]="filtroPeriodo !== 'mes'"
+              (click)="setPeriodo('mes')"
+              title="Partes del mes calendario actual"
+            >
+              Mes en curso
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sid-partes-historial-shell min-h-[26rem] md:min-h-[34rem]">
+    <div class="relative mb-4 space-y-3 lg:hidden">
+      <div class="space-y-3">
+      @for (parte of filtradosPaginados(); track parte.id) {
+        <div
+          class="rounded-2xl border border-slate-800/90 bg-[#121212] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5"
+        >
+          <div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+            <span class="min-w-0 text-sm font-semibold leading-snug text-white">{{ etiquetaClave(parte.claveEmergencia) }}</span>
+            <span class="inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold" [ngClass]="estadoClase(parte.estado)">
+              {{ parte.estado }}
+            </span>
+          </div>
+          <div class="mb-2">
+            <p class="text-xs font-medium text-gray-300">{{ splitFechaHora(parte.fecha).fecha }}</p>
+            <p class="text-xs text-gray-500">{{ splitFechaHora(parte.fecha).hora }}</p>
+          </div>
+          <p class="mb-3 text-xs text-gray-400">{{ parte.direccion }}</p>
+          <p class="mb-3 text-xs text-gray-500">
+            Unidades:
+            @for (nom of parte.unidades; track nom.id) {
+              <span class="mr-1 font-mono text-amber-100/90">{{ nom.carro.nomenclatura }}</span>
+            } @empty {
+              —
+            }
+          </p>
+          <p class="mb-4 text-xs text-gray-400">OBAC: {{ parte.obac.nombre }}</p>
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              class="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-sky-700 text-white transition-colors hover:bg-sky-600"
+              aria-label="Ver parte"
+              title="Ver"
+              (click)="abrirVistaSoloLectura(parte)"
+            >
+              <lucide-icon name="eye" class="h-5 w-5" [size]="20" color="currentColor" aria-hidden="true"></lucide-icon>
+            </button>
+            <a
+              [routerLink]="['/partes/nuevo']"
+              [queryParams]="{ editar: parte.id }"
+              class="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-slate-600 bg-slate-800 text-white transition-colors hover:bg-slate-700"
+              aria-label="Editar parte"
+              title="Editar"
+            >
+              <lucide-icon name="pencil" class="h-5 w-5" [size]="20" color="currentColor" aria-hidden="true"></lucide-icon>
+            </a>
+            <button
+              type="button"
+              class="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-red-600 text-white transition-colors hover:bg-red-500"
+              aria-label="Descargar PDF del parte"
+              title="PDF"
+              (click)="exportarPdfParte(parte)"
+            >
+              <lucide-icon name="download" class="h-5 w-5" [size]="20" color="currentColor" aria-hidden="true"></lucide-icon>
+            </button>
+          </div>
+        </div>
+      } @empty {
+        <app-sid-empty-state
+          title="Sin resultados"
+          description="No hay partes que coincidan con los filtros. Prueba otro tipo, dirección o período."
+        />
+      }
+      </div>
+    </div>
+    @if (totalFiltrado > 0) {
+      <div class="mb-6 flex flex-col gap-2 px-1 lg:hidden sm:flex-row sm:items-center sm:justify-between">
+        <span class="text-sm text-gray-400">
+          Página {{ paginaPartes }} de {{ totalPaginasPartes() }} · {{ totalFiltrado }} resultado(s)
+        </span>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            [disabled]="paginaPartes <= 1 || actualizandoTabla"
+            (click)="cambiarPaginaPartes(-1)"
+            class="rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-white disabled:opacity-40"
+          >
+            Anterior
+          </button>
+          <button
+            type="button"
+            [disabled]="paginaPartes >= totalPaginasPartes() || actualizandoTabla"
+            (click)="cambiarPaginaPartes(1)"
+            class="rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-white disabled:opacity-40"
+          >
+            Siguiente
+          </button>
+        </div>
+      </div>
+    }
+
+    <div
+      sidScrollReveal
+      class="relative z-0 hidden overflow-hidden rounded-2xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 lg:block"
+    >
+      <div class="sid-history-head !mb-0 border-b border-slate-800/80 p-4 sm:p-5">
+        <div>
+          <h2 class="text-lg font-bold text-white sm:text-xl">
+            Historial de partes
+            <span class="ml-2 text-sm font-normal text-slate-500 sm:text-base">({{ totalFiltrado }})</span>
+          </h2>
+          <p class="text-xs text-slate-500 sm:text-sm">Listado con paginación; usa los botones de exportación en los filtros.</p>
+        </div>
+      </div>
+      <div class="sid-scroll-dark overflow-x-auto">
+        <table class="sid-history-table min-w-[48rem] text-sm">
+          <thead>
+            <tr>
+              <th scope="col">Fecha / hora</th>
+              <th scope="col" class="min-w-[10rem]">Tipo</th>
+              <th scope="col" class="min-w-[12rem]">Dirección</th>
+              <th scope="col">Unidad</th>
+              <th scope="col" class="min-w-[8rem]">OBAC</th>
+              <th scope="col">Estado</th>
+              <th scope="col" class="text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (parte of filtradosPaginados(); track parte.id) {
+              <tr>
+                <td>
+                  <div>
+                    <p class="font-medium text-white">{{ splitFechaHora(parte.fecha).fecha }}</p>
+                    <p class="text-xs text-slate-500">{{ splitFechaHora(parte.fecha).hora }}</p>
+                  </div>
+                </td>
+                <td>
+                  <span class="line-clamp-2 text-slate-200">{{ etiquetaClave(parte.claveEmergencia) }}</span>
+                </td>
+                <td class="max-w-xs">
+                  <span class="text-slate-200">{{ parte.direccion }}</span>
+                </td>
+                <td>
+                  <span
+                    class="inline-flex flex-wrap gap-1 font-mono text-xs font-semibold text-amber-200/90"
+                  >
+                    @for (nom of parte.unidades; track nom.id) {
+                      <span class="rounded-md bg-zinc-800/90 px-2 py-0.5 ring-1 ring-zinc-600/80">{{ nom.carro.nomenclatura }}</span>
+                    } @empty {
+                      <span class="text-slate-500">—</span>
+                    }
+                  </span>
+                </td>
+                <td>
+                  <span class="text-slate-200">{{ parte.obac.nombre }}</span>
+                </td>
+                <td>
+                  <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold" [ngClass]="estadoClase(parte.estado)">
+                    {{ parte.estado }}
+                  </span>
+                </td>
+                <td class="text-right">
+                  <div class="inline-flex flex-wrap items-center justify-end gap-1.5">
+                    <button
+                      type="button"
+                      class="rounded-lg bg-sky-700/90 p-2 text-white transition-colors hover:bg-sky-600"
+                      title="Ver parte (solo lectura)"
+                      (click)="abrirVistaSoloLectura(parte)"
+                    >
+                      <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                    </button>
+                    <a
+                      [routerLink]="['/partes/nuevo']"
+                      [queryParams]="{ editar: parte.id }"
+                      class="rounded-lg border border-slate-600 bg-slate-800 p-2 text-white transition-colors hover:bg-slate-700"
+                      title="Editar este parte"
+                    >
+                      <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                    </a>
+                    <button
+                      type="button"
+                      class="rounded-lg bg-red-600 p-2 text-white transition-colors hover:bg-red-500"
+                      title="Descargar PDF"
+                      (click)="exportarPdfParte(parte)"
+                    >
+                      <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="px-4 py-12 text-center text-sm text-slate-500">
+                  No se encontraron partes con los filtros aplicados.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (totalFiltrado > 0) {
+        <div class="flex flex-col gap-3 border-t border-slate-800/80 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <span class="text-sm text-slate-500">
+            Página {{ paginaPartes }} de {{ totalPaginasPartes() }} · {{ totalFiltrado }} resultado(s)
+          </span>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              [disabled]="paginaPartes <= 1 || actualizandoTabla"
+              (click)="cambiarPaginaPartes(-1)"
+              class="rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-sm text-white transition-colors hover:bg-slate-800 disabled:opacity-40"
+            >
+              Anterior
+            </button>
+            <button
+              type="button"
+              [disabled]="paginaPartes >= totalPaginasPartes() || actualizandoTabla"
+              (click)="cambiarPaginaPartes(1)"
+              class="rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-sm text-white transition-colors hover:bg-slate-800 disabled:opacity-40"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+    </section>
+  }
+
+  @if (vistaModalAbierta) {
+    <div
+      class="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-0 pb-[env(safe-area-inset-bottom)] backdrop-blur-[2px] sm:items-center sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="parte-vista-modal-titulo"
+      (click)="cerrarVistaModal()"
+    >
+      <div
+        class="flex max-h-[min(92vh,900px)] w-full max-w-3xl flex-col rounded-t-2xl border border-slate-700 bg-[#0d0d0d] shadow-2xl shadow-black/50 sm:rounded-2xl"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-800 px-4 py-3 sm:px-5">
+          <div class="min-w-0">
+            <h2 id="parte-vista-modal-titulo" class="text-base font-bold text-white sm:text-lg">Vista del parte</h2>
+            @if (vistaModalParte) {
+              <p class="mt-1 text-sm text-slate-300">{{ etiquetaClave(vistaModalParte.claveEmergencia) }}</p>
+              <p class="mt-0.5 text-xs text-slate-500">
+                {{ splitFechaHora(vistaModalParte.fecha).fecha }} · {{ splitFechaHora(vistaModalParte.fecha).hora }}
+              </p>
+              <p class="mt-2">
+                <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold" [ngClass]="estadoClase(vistaModalParte.estado)">
+                  {{ vistaModalParte.estado }}
+                </span>
+              </p>
+            }
+          </div>
+          <button
+            type="button"
+            class="shrink-0 rounded-lg border border-slate-600 bg-slate-900/80 p-2 text-slate-200 transition-colors hover:bg-slate-800"
+            title="Cerrar"
+            (click)="cerrarVistaModal()"
+          >
+            <lucide-icon name="x" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
+          </button>
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5 [scrollbar-color:#4b5563_#111827]">
+          @if (vistaModalCargando) {
+            <div class="flex flex-col items-center justify-center gap-3 py-16 text-slate-400">
+              <lucide-icon name="file-text" class="h-10 w-10 animate-pulse text-rose-400/90" [size]="40" color="currentColor" />
+              <p class="text-sm">Cargando parte…</p>
+            </div>
+          } @else if (vistaModalError) {
+            <p class="rounded-xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ vistaModalError }}</p>
+          } @else if (vistaModalParte) {
+            <app-parte-vista-solo-lectura [parte]="vistaModalParte" />
+          }
+        </div>
+        <div class="shrink-0 border-t border-slate-800 px-4 py-3 sm:px-5">
+          @if (vistaModalParte) {
+            <p class="text-center text-[11px] text-slate-500">
+              Solo lectura.
+              <a
+                [routerLink]="['/partes', vistaModalParte.id]"
+                class="font-medium text-sky-400 underline-offset-2 hover:text-sky-300 hover:underline"
+                (click)="cerrarVistaModal()"
+              >
+                Abrir ficha completa
+              </a>
+              (incluye analítica) · Editar o PDF desde las acciones de la tabla.
+            </p>
+          } @else {
+            <p class="text-center text-[11px] text-slate-500">Solo lectura.</p>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>
