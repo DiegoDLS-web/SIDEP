@@ -51,6 +51,8 @@ export interface BolsoTraumaUnidadResponseDto {
 export interface BolsoTraumaHistorialDto {
   id: number;
   fecha: string;
+  /** Coincide con `ChecklistCarro.tipo` (p. ej. TRAUMA). */
+  tipo?: string | null;
   unidad: string;
   carroNombre: string | null;
   inspector: string | null;

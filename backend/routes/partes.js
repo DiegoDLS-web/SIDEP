@@ -19,6 +19,33 @@ const includeParte = {
     },
     pacientes: true,
 };
+/** Listado paginado: sin pacientes/metadata pesados ni firma del OBAC. */
+const selectPartePagina = {
+    id: true,
+    correlativo: true,
+    claveEmergencia: true,
+    direccion: true,
+    fecha: true,
+    estado: true,
+    obacId: true,
+    obac: { select: { id: true, nombre: true, rut: true, rol: true } },
+    unidades: {
+        select: {
+            id: true,
+            parteId: true,
+            carroId: true,
+            horaSalida: true,
+            horaLlegada: true,
+            hora6_0: true,
+            hora6_3: true,
+            hora6_9: true,
+            hora6_10: true,
+            kmSalida: true,
+            kmLlegada: true,
+            carro: { select: { id: true, nomenclatura: true, patente: true } },
+        },
+    },
+};
 function firstQueryString(q) {
     if (typeof q === 'string')
         return q;
@@ -26,11 +53,46 @@ function firstQueryString(q) {
         return q[0];
     return undefined;
 }
+function parseListaCsv(q) {
+    const raw = firstQueryString(q);
+    if (!raw?.trim())
+        return [];
+    return raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+}
+function parseEnterosCsv(q) {
+    const raw = firstQueryString(q);
+    if (!raw?.trim())
+        return [];
+    const out = [];
+    for (const p of raw.split(',')) {
+        const n = parseInt(p.trim(), 10);
+        if (Number.isFinite(n) && n > 0)
+            out.push(n);
+    }
+    return out;
+}
 function buildParteListWhere(query) {
     const where = {};
-    const tipo = firstQueryString(query.tipo);
-    if (tipo && tipo !== 'todos') {
-        where.claveEmergencia = tipo;
+    let tipos = parseListaCsv(query.tipos);
+    const tipoLegacy = firstQueryString(query.tipo);
+    if (tipos.length === 0 && tipoLegacy && tipoLegacy !== 'todos') {
+        tipos = [tipoLegacy];
+    }
+    if (tipos.length === 1) {
+        const solo = tipos[0];
+        if (solo !== undefined) {
+            where.claveEmergencia = solo;
+        }
+    }
+    else if (tipos.length > 1) {
+        where.claveEmergencia = { in: tipos };
+    }
+    const carros = parseEnterosCsv(query.carros);
+    if (carros.length > 0) {
+        where.unidades = { some: { carroId: { in: carros } } };
     }
     const q = firstQueryString(query.q);
     if (q && q.trim()) {
@@ -64,11 +126,12 @@ exports.partesRouter.get('/pagina', async (req, res) => {
                 orderBy: { fecha: 'desc' },
                 skip: (page - 1) * pageSize,
                 take: pageSize,
-                include: includeParte,
+                select: selectPartePagina,
             }),
         ]);
         const items = rows.map((p) => ({
             ...p,
+            pacientes: [],
             fechaLegible: (0, fechaChile_js_1.formatFechaHoraChile)(p.fecha),
         }));
         const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -187,9 +250,16 @@ function parseUnidades(unidades, esBorrador) {
     }
     return out;
 }
+function claveEmergenciaExigeUnidadesEnDespacho(clave) {
+    const k = (clave ?? '').trim();
+    if (!k)
+        return true;
+    return /^10/.test(k);
+}
 exports.partesRouter.post('/', (0, roles_js_1.requireRoles)('TENIENTE', 'CAPITAN', 'ADMIN'), async (req, res) => {
     const body = req.body;
     const esBorrador = body.estado === 'BORRADOR' || body.borrador === true;
+    const claveEmergenciaTrim = typeof body.claveEmergencia === 'string' ? body.claveEmergencia.trim() : '';
     if (body.obacId === undefined || typeof body.obacId !== 'number' || !Number.isFinite(body.obacId)) {
         (0, apiError_js_1.sendApiError)(res, 400, 'PARTES_OBAC_REQUERIDO', 'obacId es requerido.');
         return;
@@ -199,11 +269,13 @@ exports.partesRouter.post('/', (0, roles_js_1.requireRoles)('TENIENTE', 'CAPITAN
         (0, apiError_js_1.sendApiError)(res, 400, 'PARTES_UNIDAD_INVALIDA', 'Datos de unidad inv�lidos.');
         return;
     }
-    if (!esBorrador && unidadesParsed.length === 0) {
+    if (!esBorrador &&
+        unidadesParsed.length === 0 &&
+        claveEmergenciaExigeUnidadesEnDespacho(claveEmergenciaTrim)) {
         (0, apiError_js_1.sendApiError)(res, 400, 'PARTES_UNIDAD_VACIA', 'Debe incluir al menos una unidad.');
         return;
     }
-    let claveEmergencia = typeof body.claveEmergencia === 'string' ? body.claveEmergencia.trim() : '';
+    let claveEmergencia = claveEmergenciaTrim;
     let direccion = typeof body.direccion === 'string' ? body.direccion.trim() : '';
     if (!esBorrador) {
         if (!claveEmergencia) {
@@ -363,7 +435,19 @@ exports.partesRouter.patch('/:id', (0, roles_js_1.requireRoles)('TENIENTE', 'CAP
             (0, apiError_js_1.sendApiError)(res, 400, 'PARTES_UNIDAD_INVALIDA', 'Datos de unidad inv�lidos.');
             return;
         }
-        if (!esBorrador && unidadesParsed.length === 0) {
+        let claveParaUnidades = typeof body.claveEmergencia === 'string' && body.claveEmergencia.trim()
+            ? body.claveEmergencia.trim()
+            : '';
+        if (!claveParaUnidades) {
+            const snap = await prisma_js_1.prisma.parteEmergencia.findUnique({
+                where: { id },
+                select: { claveEmergencia: true },
+            });
+            claveParaUnidades = snap?.claveEmergencia ?? '';
+        }
+        if (!esBorrador &&
+            unidadesParsed.length === 0 &&
+            claveEmergenciaExigeUnidadesEnDespacho(claveParaUnidades)) {
             (0, apiError_js_1.sendApiError)(res, 400, 'PARTES_UNIDAD_VACIA', 'Debe incluir al menos una unidad.');
             return;
         }

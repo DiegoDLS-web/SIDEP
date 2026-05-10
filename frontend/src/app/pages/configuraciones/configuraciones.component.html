@@ -27,6 +27,31 @@
     </div>
   } @else {
     <div class="flex flex-col gap-6">
+        <section
+          class="rounded-2xl border border-sky-800/50 bg-gradient-to-br from-sky-950/40 to-[#121212] p-5 sm:p-6 shadow-lg shadow-black/20 ring-1 ring-inset ring-sky-500/10"
+        >
+          <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex items-start gap-3">
+              <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-600/20 ring-1 ring-sky-500/35">
+                <lucide-icon name="tags" class="h-5 w-5 text-sky-300" [size]="20" color="currentColor" />
+              </div>
+              <div>
+                <h2 class="text-lg font-bold text-white sm:text-xl">Catálogo · tipos de emergencia</h2>
+                <p class="mt-0.5 max-w-2xl text-sm text-slate-400">
+                  Códigos y nombres para nuevos partes, filtros del historial y PDF. Los ítems Checklist, ERA y Bolso comparten el mismo listado.
+                </p>
+              </div>
+            </div>
+            <a
+              routerLink="/catalogo-emergencias"
+              class="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-sky-600/50 bg-sky-700/30 px-4 py-2.5 text-sm font-semibold text-sky-100 transition-colors hover:bg-sky-600/40 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500/50"
+            >
+              <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
+              Editar tipos de emergencia
+            </a>
+          </div>
+        </section>
+
         <section class="rounded-2xl border border-slate-800 bg-[#121212] p-5 sm:p-6 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5">
           <div class="mb-6 flex items-start gap-3 border-b border-slate-800/80 pb-4">
             <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-red-600/90 to-red-800 shadow-md">
@@ -65,7 +90,7 @@
             </div>
             <div>
               <label class="mb-2 block text-sm font-medium text-slate-300">Fecha de fundación</label>
-              <input [(ngModel)]="config.compania.fechaFundacion" type="date" class="sid-input dark-date-input w-full" />
+              <app-sid-date-input preset="sid" [(ngModel)]="config.compania.fechaFundacion" />
             </div>
           </div>
         </section>

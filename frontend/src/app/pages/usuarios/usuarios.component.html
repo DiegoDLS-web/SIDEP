@@ -117,34 +117,52 @@
         <div>
           <label class="mb-2 block text-sm font-medium text-slate-300">
             Nombres
-            @if (!editandoId) {
+            @if (!editandoId || esAdmin) {
               <span class="text-red-400">*</span>
             }
           </label>
-          <input [(ngModel)]="form.nombres" type="text" class="sid-input w-full" [disabled]="!!editandoId" />
+          <input
+            [(ngModel)]="form.nombres"
+            (ngModelChange)="syncClaveNominaDesdePadron()"
+            type="text"
+            class="sid-input w-full"
+            [disabled]="!!editandoId && !esAdmin"
+          />
         </div>
         <div>
           <label class="mb-2 block text-sm font-medium text-slate-300">
             Apellido paterno
-            @if (!editandoId) {
+            @if (!editandoId || esAdmin) {
               <span class="text-red-400">*</span>
             }
           </label>
-          <input [(ngModel)]="form.apellidoPaterno" type="text" class="sid-input w-full" [disabled]="!!editandoId" />
+          <input
+            [(ngModel)]="form.apellidoPaterno"
+            (ngModelChange)="syncClaveNominaDesdePadron()"
+            type="text"
+            class="sid-input w-full"
+            [disabled]="!!editandoId && !esAdmin"
+          />
         </div>
         <div>
           <label class="mb-2 block text-sm font-medium text-slate-300">
             Apellido materno
-            @if (!editandoId) {
+            @if (!editandoId || esAdmin) {
               <span class="text-red-400">*</span>
             }
           </label>
-          <input [(ngModel)]="form.apellidoMaterno" type="text" class="sid-input w-full" [disabled]="!!editandoId" />
+          <input
+            [(ngModel)]="form.apellidoMaterno"
+            (ngModelChange)="syncClaveNominaDesdePadron()"
+            type="text"
+            class="sid-input w-full"
+            [disabled]="!!editandoId && !esAdmin"
+          />
         </div>
         <div>
           <label class="mb-2 block text-sm font-medium text-slate-300">
             RUT
-            @if (!editandoId) {
+            @if (!editandoId || esAdmin) {
               <span class="text-red-400">*</span>
             }
           </label>
@@ -155,17 +173,17 @@
             inputmode="text"
             placeholder="12.345.678-9"
             class="sid-input w-full"
-            [disabled]="!!editandoId"
+            [disabled]="!!editandoId && !esAdmin"
           />
         </div>
         <div>
           <label class="mb-2 block text-sm font-medium text-slate-300">
             Nacionalidad
-            @if (!editandoId) {
+            @if (!editandoId || esAdmin) {
               <span class="text-red-400">*</span>
             }
           </label>
-          <input [(ngModel)]="form.nacionalidad" type="text" class="sid-input w-full" [disabled]="!!editandoId" />
+          <input [(ngModel)]="form.nacionalidad" type="text" class="sid-input w-full" [disabled]="!!editandoId && !esAdmin" />
         </div>
         <div>
           <label class="mb-2 block text-sm font-medium text-slate-300">Grupo sanguíneo (opcional)</label>
@@ -247,7 +265,7 @@
               <span class="text-red-400">*</span>
             }
           </label>
-          <input [(ngModel)]="form.fechaNacimiento" type="date" class="sid-input dark-date-input w-full" />
+          <app-sid-date-input preset="sid" [(ngModel)]="form.fechaNacimiento" />
         </div>
         <div>
           <label class="mb-2 block text-sm font-medium text-slate-300">
@@ -256,7 +274,7 @@
               <span class="text-red-400">*</span>
             }
           </label>
-          <input [(ngModel)]="form.fechaIngreso" type="date" class="sid-input dark-date-input w-full" />
+          <app-sid-date-input preset="sid" [(ngModel)]="form.fechaIngreso" />
         </div>
         <div>
           <label class="mb-2 block text-sm font-medium text-slate-300">Email <span class="text-red-400">*</span></label>
@@ -307,7 +325,11 @@
         </div>
         <div class="md:col-span-2">
           <label class="mb-2 block text-sm font-medium text-slate-300">Oficialidad (cargo) <span class="text-red-400">*</span></label>
-          <select [(ngModel)]="form.cargoOficialidad" class="sid-input w-full">
+          <select
+            [(ngModel)]="form.cargoOficialidad"
+            (ngModelChange)="syncClaveNominaDesdePadron()"
+            class="sid-input w-full"
+          >
             @for (c of cargosOrden; track c) {
               <option [ngValue]="c">{{ etiquetasCargo[c] || c }}</option>
             }
@@ -331,6 +353,32 @@
             <p class="mt-1 text-xs text-slate-500">Solo administración o mando puede cambiar el rol.</p>
           }
         </div>
+        @if (esAdmin) {
+          <div class="md:col-span-2 lg:col-span-3">
+            <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-700/80 bg-[#0a0a0a]/60 px-4 py-3">
+              <input type="checkbox" [(ngModel)]="form.autorizadoConducir" name="autorizadoConducir" class="mt-1 h-4 w-4 rounded border-slate-600" />
+              <span>
+                <span class="block text-sm font-medium text-slate-200">Conductor</span>
+                <span class="mt-0.5 block text-xs text-slate-500">
+                  Aparece como opción de conductor al crear partes y en mantención de carros.
+                </span>
+              </span>
+            </label>
+          </div>
+          <div class="md:col-span-2 lg:col-span-3">
+            <label class="mb-2 block text-sm font-medium text-slate-300">Clave de nómina</label>
+            <input
+              [(ngModel)]="form.claveNomina"
+              name="claveNomina"
+              class="sid-input w-full font-mono text-sm"
+              placeholder="Ej. 133 o 106-A"
+              autocomplete="off"
+            />
+            <p class="mt-1 text-xs text-slate-500">
+              Opcional. Coincide con el padrón para elegir OBAC por número y búsqueda en el directorio.
+            </p>
+          </div>
+        }
       </div>
 
       <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-red-400/95">Firma para documentos (PNG/JPEG)</h3>
@@ -440,7 +488,21 @@
             <div class="min-w-0 flex-1 text-center sm:pt-1 sm:text-left">
               <h3 class="break-words text-lg font-bold leading-snug text-white">{{ usuario.nombre }}</h3>
               <p class="mt-2 text-sm text-slate-500">{{ usuario.rut }}</p>
+              @if (usuario.claveNomina?.trim()) {
+                <p class="mt-1 font-mono text-xs text-slate-400">Clave {{ usuario.claveNomina }}</p>
+              }
               <p class="mt-1.5 text-sm font-medium text-slate-300">{{ etiquetaTipoVoluntario(usuario.tipoVoluntario) }}</p>
+              @if (usuario.autorizadoConducir) {
+                <p class="mt-2">
+                  <span
+                    class="inline-flex items-center gap-1.5 rounded-full bg-sky-500/15 px-2.5 py-1 text-[11px] font-semibold leading-snug text-sky-200 ring-1 ring-sky-500/40"
+                    title="Marcado para conducir unidades en partes y mantención"
+                  >
+                    <lucide-icon name="truck" class="h-3.5 w-3.5 shrink-0" [size]="14" color="currentColor" aria-hidden="true" />
+                    Conductor
+                  </span>
+                </p>
+              }
             </div>
           </div>
 

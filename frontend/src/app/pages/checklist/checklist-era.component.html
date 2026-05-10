@@ -244,11 +244,11 @@
               <label class="mb-1.5 block text-xs font-medium text-gray-400"
                 >Fecha de inspección <span class="text-red-400">*</span></label
               >
-              <input
-                type="date"
-                [(ngModel)]="fechaInspeccion"
+              <app-sid-date-input
+                preset="none"
                 name="fechaInspeccion"
-                class="dark-date-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+                inputClass="dark-date-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 pr-11 text-sm text-white"
+                [(ngModel)]="fechaInspeccion"
               />
             </div>
             <div class="md:col-span-2">
@@ -801,35 +801,92 @@
 
       <div class="mb-4 flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-end xl:justify-between">
         <div class="flex min-w-0 flex-1 flex-wrap items-end gap-3">
-          <div class="w-full min-w-[10rem] sm:w-auto sm:max-w-[16rem]">
-            <label class="mb-1 block text-xs text-gray-400">Unidad</label>
-            <select
-              [(ngModel)]="filtroUnidad"
-              (ngModelChange)="aplicarFiltrosHistorialEra()"
-              class="sid-history-filter w-full text-sm"
+          <div id="era-hist-unidades-wrap" class="relative z-[60] w-full min-w-[10rem] sm:w-auto sm:max-w-[18rem]">
+            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Unidades</label>
+            <button
+              type="button"
+              class="sid-input sid-history-filter flex min-h-[var(--sid-control-height)] w-full items-center justify-between gap-2 rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 pl-3 pr-2.5 text-left text-sm text-white"
+              aria-haspopup="listbox"
+              [attr.aria-expanded]="filtroUnidadesEraPanelAbierto"
+              (click)="toggleFiltroUnidadesEraPanel($event)"
             >
-              <option value="">Todas</option>
-              @for (c of carrosOrdenados(); track c.id) {
-                <option [value]="c.nomenclatura">{{ c.nomenclatura }}</option>
-              }
-            </select>
+              <span class="min-w-0 flex-1 truncate">{{ etiquetaFiltroUnidadesEra() }}</span>
+              <lucide-icon
+                name="chevron-down"
+                class="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200"
+                [class.rotate-180]="filtroUnidadesEraPanelAbierto"
+                [size]="16"
+                color="currentColor"
+                aria-hidden="true"
+              ></lucide-icon>
+            </button>
+            @if (filtroUnidadesEraPanelAbierto) {
+              <div
+                class="sid-partes-filtro-tipo-listbox sid-scroll-dark absolute left-0 right-0 top-full z-[80] mt-1.5 max-h-[min(20rem,48vh)] overflow-y-auto rounded-xl border border-slate-600/80 bg-[var(--sid-surface-inset)] py-1.5 shadow-xl ring-1 ring-black/30"
+                role="listbox"
+                aria-multiselectable="true"
+              >
+                <button
+                  type="button"
+                  role="option"
+                  class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-slate-100 transition-colors hover:bg-slate-800/90"
+                  [class.bg-violet-950/40]="filtroUnidadesEra.length === 0"
+                  (click)="limpiarUnidadesEra($event)"
+                >
+                  <span
+                    class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                    [class.border-violet-400]="filtroUnidadesEra.length === 0"
+                    [class.bg-violet-600]="filtroUnidadesEra.length === 0"
+                    [class.border-slate-500]="filtroUnidadesEra.length > 0"
+                  >
+                    @if (filtroUnidadesEra.length === 0) {
+                      <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                    }
+                  </span>
+                  Todas las unidades
+                </button>
+                @for (c of carrosOrdenados(); track c.id) {
+                  <button
+                    type="button"
+                    role="option"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-violet-950/30]="unidadEraSeleccionada(c.nomenclatura)"
+                    (click)="toggleUnidadEra(c.nomenclatura, $event)"
+                  >
+                    <span
+                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                      [class.border-violet-400]="unidadEraSeleccionada(c.nomenclatura)"
+                      [class.bg-violet-600]="unidadEraSeleccionada(c.nomenclatura)"
+                      [class.border-slate-500]="!unidadEraSeleccionada(c.nomenclatura)"
+                    >
+                      @if (unidadEraSeleccionada(c.nomenclatura)) {
+                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                      }
+                    </span>
+                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{ c.nomenclatura }}</span>
+                  </button>
+                }
+              </div>
+            }
           </div>
           <div class="min-w-[10rem] flex-1 sm:flex-initial">
             <label class="mb-1 block text-xs text-gray-400">Desde</label>
-            <input
-              type="date"
+            <app-sid-date-input
+              preset="filter"
+              [dense]="true"
+              inputClass="sid-history-filter dark-date-input w-full text-sm"
               [(ngModel)]="filtroDesde"
               (ngModelChange)="aplicarFiltrosHistorialEra()"
-              class="sid-history-filter dark-date-input w-full text-sm"
             />
           </div>
           <div class="min-w-[10rem] flex-1 sm:flex-initial">
             <label class="mb-1 block text-xs text-gray-400">Hasta</label>
-            <input
-              type="date"
+            <app-sid-date-input
+              preset="filter"
+              [dense]="true"
+              inputClass="sid-history-filter dark-date-input w-full text-sm"
               [(ngModel)]="filtroHasta"
               (ngModelChange)="aplicarFiltrosHistorialEra()"
-              class="sid-history-filter dark-date-input w-full text-sm"
             />
           </div>
           <button

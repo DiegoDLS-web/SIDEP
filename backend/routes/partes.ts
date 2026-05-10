@@ -53,11 +53,44 @@ function firstQueryString(q: unknown): string | undefined {
   return undefined;
 }
 
+function parseListaCsv(q: unknown): string[] {
+  const raw = firstQueryString(q);
+  if (!raw?.trim()) return [];
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function parseEnterosCsv(q: unknown): number[] {
+  const raw = firstQueryString(q);
+  if (!raw?.trim()) return [];
+  const out: number[] = [];
+  for (const p of raw.split(',')) {
+    const n = parseInt(p.trim(), 10);
+    if (Number.isFinite(n) && n > 0) out.push(n);
+  }
+  return out;
+}
+
 function buildParteListWhere(query: Record<string, unknown>): Prisma.ParteEmergenciaWhereInput {
   const where: Prisma.ParteEmergenciaWhereInput = {};
-  const tipo = firstQueryString(query.tipo);
-  if (tipo && tipo !== 'todos') {
-    where.claveEmergencia = tipo;
+  let tipos = parseListaCsv(query.tipos);
+  const tipoLegacy = firstQueryString(query.tipo);
+  if (tipos.length === 0 && tipoLegacy && tipoLegacy !== 'todos') {
+    tipos = [tipoLegacy];
+  }
+  if (tipos.length === 1) {
+    const solo = tipos[0];
+    if (solo !== undefined) {
+      where.claveEmergencia = solo;
+    }
+  } else if (tipos.length > 1) {
+    where.claveEmergencia = { in: tipos };
+  }
+  const carros = parseEnterosCsv(query.carros);
+  if (carros.length > 0) {
+    where.unidades = { some: { carroId: { in: carros } } };
   }
   const q = firstQueryString(query.q);
   if (q && q.trim()) {
@@ -72,6 +105,17 @@ function buildParteListWhere(query: Record<string, unknown>): Prisma.ParteEmerge
     if (desdeOk) fechaFilter.gte = new Date(desde!);
     if (hastaOk) fechaFilter.lte = new Date(hasta!);
     where.fecha = fechaFilter;
+  }
+  const estadosFiltro = parseListaCsv(query.estado);
+  if (estadosFiltro.length === 1) {
+    const e0 = estadosFiltro[0];
+    if (e0 !== undefined) where.estado = e0;
+  } else if (estadosFiltro.length > 1) {
+    where.estado = { in: estadosFiltro };
+  }
+  const persona = firstQueryString(query.persona);
+  if (persona?.trim()) {
+    where.obac = { nombre: { contains: persona.trim(), mode: 'insensitive' } };
   }
   return where;
 }
@@ -178,6 +222,13 @@ type UnidadInput = {
 
 type PacienteInput = { nombre: string; triage: string; edad?: number; rut?: string };
 
+/** Clasificación 10-x: exige al menos una unidad; compañía/servicios puede ir sin despacho. */
+function claveEmergenciaExigeUnidadesEnDespacho(clave: string): boolean {
+  const k = (clave ?? '').trim();
+  if (!k) return true;
+  return /^10/.test(k);
+}
+
 /** Parsea unidades; en modo borrador omite filas sin carro v?lido. */
 function parseUnidades(unidades: unknown, esBorrador: boolean): UnidadInput[] | null {
   if (!Array.isArray(unidades)) {
@@ -243,6 +294,7 @@ partesRouter.post('/', requireRoles('TENIENTE', 'CAPITAN', 'ADMIN'), async (req,
   };
 
   const esBorrador = body.estado === 'BORRADOR' || body.borrador === true;
+  const claveEmergenciaTrim = typeof body.claveEmergencia === 'string' ? body.claveEmergencia.trim() : '';
 
   if (body.obacId === undefined || typeof body.obacId !== 'number' || !Number.isFinite(body.obacId)) {
     sendApiError(res, 400, 'PARTES_OBAC_REQUERIDO', 'obacId es requerido.');
@@ -254,12 +306,16 @@ partesRouter.post('/', requireRoles('TENIENTE', 'CAPITAN', 'ADMIN'), async (req,
     sendApiError(res, 400, 'PARTES_UNIDAD_INVALIDA', 'Datos de unidad inv�lidos.');
     return;
   }
-  if (!esBorrador && unidadesParsed.length === 0) {
+  if (
+    !esBorrador &&
+    unidadesParsed.length === 0 &&
+    claveEmergenciaExigeUnidadesEnDespacho(claveEmergenciaTrim)
+  ) {
     sendApiError(res, 400, 'PARTES_UNIDAD_VACIA', 'Debe incluir al menos una unidad.');
     return;
   }
 
-  let claveEmergencia = typeof body.claveEmergencia === 'string' ? body.claveEmergencia.trim() : '';
+  let claveEmergencia = claveEmergenciaTrim;
   let direccion = typeof body.direccion === 'string' ? body.direccion.trim() : '';
 
   if (!esBorrador) {
@@ -450,7 +506,22 @@ partesRouter.patch('/:id', requireRoles('TENIENTE', 'CAPITAN', 'ADMIN'), async (
       sendApiError(res, 400, 'PARTES_UNIDAD_INVALIDA', 'Datos de unidad inv�lidos.');
       return;
     }
-    if (!esBorrador && unidadesParsed.length === 0) {
+    let claveParaUnidades =
+      typeof body.claveEmergencia === 'string' && body.claveEmergencia.trim()
+        ? body.claveEmergencia.trim()
+        : '';
+    if (!claveParaUnidades) {
+      const snap = await prisma.parteEmergencia.findUnique({
+        where: { id },
+        select: { claveEmergencia: true },
+      });
+      claveParaUnidades = snap?.claveEmergencia ?? '';
+    }
+    if (
+      !esBorrador &&
+      unidadesParsed.length === 0 &&
+      claveEmergenciaExigeUnidadesEnDespacho(claveParaUnidades)
+    ) {
       sendApiError(res, 400, 'PARTES_UNIDAD_VACIA', 'Debe incluir al menos una unidad.');
       return;
     }

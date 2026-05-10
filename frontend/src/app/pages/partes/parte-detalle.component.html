@@ -84,12 +84,12 @@
                   <option [ngValue]="form.claveEmergencia">{{ form.claveEmergencia }} (valor actual / histórico)</option>
                 }
                 <optgroup label="Clasificación 10-x (operativas)">
-                  @for (c of clavesOperativas; track c.value) {
+                  @for (c of catalogoEmergencias.operativas(); track c.value) {
                     <option [ngValue]="c.value">{{ c.label }}</option>
                   }
                 </optgroup>
                 <optgroup label="Compañía / servicios">
-                  @for (c of clavesCompania; track c.value) {
+                  @for (c of catalogoEmergencias.companiaServicios(); track c.value) {
                     <option [ngValue]="c.value">{{ c.label }}</option>
                   }
                 </optgroup>

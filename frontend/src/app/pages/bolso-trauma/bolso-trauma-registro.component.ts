@@ -12,6 +12,7 @@ import { ToastService } from '../../services/toast.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { AuthService } from '../../services/auth.service';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
+import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { firmaEfectiva } from '../../utils/firma-resolver';
 import { ubicacionesPlantillaTraumaOficial } from './trauma-plantilla-oficial';
@@ -128,7 +129,7 @@ function fusionarBolsosConPlantillaCanon(bolsos: Bolso[], unidad: string): Bolso
 @Component({
   selector: 'app-bolso-trauma-registro',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidDateInputComponent],
   templateUrl: './bolso-trauma-registro.component.html',
 })
 export class BolsoTraumaRegistroComponent implements OnInit {

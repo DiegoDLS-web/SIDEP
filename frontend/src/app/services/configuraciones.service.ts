@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import type { ConfiguracionSistemaDto } from '../models/configuracion.dto';
+import type { ConfiguracionSistemaDto, TipoEmergenciaItemDto } from '../models/configuracion.dto';
 
 @Injectable({ providedIn: 'root' })
 export class ConfiguracionesService {
@@ -18,6 +18,13 @@ export class ConfiguracionesService {
 
   guardar(payload: ConfiguracionSistemaDto): Observable<ConfiguracionSistemaDto> {
     return this.http.put<ConfiguracionSistemaDto>('/api/configuraciones', payload);
+  }
+
+  /** Solo ADMIN y CAPITÁN (backend). */
+  guardarTiposEmergencia(tiposEmergencia: TipoEmergenciaItemDto[]): Observable<ConfiguracionSistemaDto> {
+    return this.http.put<ConfiguracionSistemaDto>('/api/configuraciones/tipos-emergencia', {
+      tiposEmergencia,
+    });
   }
 
   /** PNG o JPEG, máx. 2 MB. El archivo queda en `/uploads/compania-logo.*` y los PDF lo usan con prioridad. */

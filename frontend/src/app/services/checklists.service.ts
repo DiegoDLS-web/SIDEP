@@ -241,12 +241,16 @@ export class ChecklistsService {
     page: number;
     pageSize: number;
     unidad?: string;
+    /** Varias nomenclaturas, separadas por comas (API `unidades`). */
+    unidades?: string;
     desde?: string;
     hasta?: string;
   }): Observable<ChecklistEraPaginaDto> {
     let params = new HttpParams().set('page', String(opts.page)).set('pageSize', String(opts.pageSize));
     const u = opts.unidad?.trim();
     if (u) params = params.set('unidad', u);
+    const us = opts.unidades?.trim();
+    if (us) params = params.set('unidades', us);
     const desde = opts.desde?.trim();
     if (desde) params = params.set('desde', desde);
     const hasta = opts.hasta?.trim();

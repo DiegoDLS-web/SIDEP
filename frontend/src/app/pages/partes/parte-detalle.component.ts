@@ -10,7 +10,7 @@ import { ToastService } from '../../services/toast.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { ASISTENCIA_CONTEXTO_OPCIONES, ASISTENCIA_ITEM_LABELS } from './asistencia-roster.constants';
 import type { AsistenciaContextoKey } from '../../models/parte.dto';
-import { CLAVES_COMPANIA_SERVICIOS, CLAVES_NUEVO_PARTE, CLAVES_OPERATIVAS, etiquetaClave } from './partes.constants';
+import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
 
 type DetalleVm =
   | { status: 'loading' }
@@ -38,6 +38,7 @@ export class ParteDetalleComponent {
   private readonly partesApi = inject(PartesService);
   private readonly exportador = inject(PartesExportService);
   private readonly toast = inject(ToastService);
+  readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
 
   readonly vm$ = this.route.paramMap.pipe(
     map((pm) => pm.get('id')),
@@ -64,13 +65,14 @@ export class ParteDetalleComponent {
     ),
   );
 
-  etiquetaClave = etiquetaClave;
-  readonly clavesOperativas = CLAVES_OPERATIVAS;
-  readonly clavesCompania = CLAVES_COMPANIA_SERVICIOS;
   readonly asistenciaContextos = ASISTENCIA_CONTEXTO_OPCIONES;
 
+  etiquetaClave(clave: string): string {
+    return this.catalogoEmergencias.etiqueta(clave);
+  }
+
   claveEnCatalogo(v: string): boolean {
-    return CLAVES_NUEVO_PARTE.some((c) => c.value === v);
+    return this.catalogoEmergencias.claveEnCatalogo(v);
   }
   editando = false;
   guardando = false;

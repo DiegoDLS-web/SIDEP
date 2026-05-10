@@ -139,20 +139,186 @@
 
       <div class="mb-4 flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-end xl:justify-between">
         <div
-          class="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:min-w-[280px]"
+          class="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:min-w-[280px]"
         >
-          <select
-            [(ngModel)]="filtroUnidadHistorial"
-            class="sid-history-filter text-sm"
-          >
-            <option value="TODAS">Todas las unidades</option>
-            @for (u of unidades; track u.unidad) {
-              <option [value]="u.unidad">{{ u.unidad }} · {{ u.nombre }}</option>
+          <div id="checklist-hist-unidades-wrap" class="relative z-[60] min-w-0">
+            <label
+              class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500"
+              for="checklist-hist-unidades-btn"
+              >Unidades</label
+            >
+            <button
+              type="button"
+              id="checklist-hist-unidades-btn"
+              class="sid-input sid-history-filter flex min-h-[var(--sid-control-height)] w-full items-center justify-between gap-2 rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 pl-3 pr-2.5 text-left text-sm text-white"
+              aria-haspopup="listbox"
+              [attr.aria-expanded]="filtroUnidadesPanelAbierto"
+              (click)="toggleFiltroUnidadesPanel($event)"
+            >
+              <span class="min-w-0 flex-1 truncate">{{ etiquetaFiltroUnidadesHistorial() }}</span>
+              <lucide-icon
+                name="chevron-down"
+                class="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200"
+                [class.rotate-180]="filtroUnidadesPanelAbierto"
+                [size]="16"
+                color="currentColor"
+                aria-hidden="true"
+              ></lucide-icon>
+            </button>
+            @if (filtroUnidadesPanelAbierto) {
+              <div
+                class="sid-partes-filtro-tipo-listbox sid-scroll-dark absolute left-0 right-0 top-full z-[80] mt-1.5 max-h-[min(20rem,48vh)] overflow-y-auto rounded-xl border border-slate-600/80 bg-[var(--sid-surface-inset)] py-1.5 shadow-xl ring-1 ring-black/30"
+                role="listbox"
+                aria-multiselectable="true"
+              >
+                <button
+                  type="button"
+                  role="option"
+                  class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-slate-100 transition-colors hover:bg-slate-800/90"
+                  [class.bg-emerald-950/40]="filtroUnidadesHistorial.length === 0"
+                  (click)="limpiarUnidadesHistorial($event)"
+                >
+                  <span
+                    class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                    [class.border-emerald-400]="filtroUnidadesHistorial.length === 0"
+                    [class.bg-emerald-600]="filtroUnidadesHistorial.length === 0"
+                    [class.border-slate-500]="filtroUnidadesHistorial.length > 0"
+                  >
+                    @if (filtroUnidadesHistorial.length === 0) {
+                      <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                    }
+                  </span>
+                  Todas las unidades
+                </button>
+                @for (u of unidades; track u.unidad) {
+                  <button
+                    type="button"
+                    role="option"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-emerald-950/30]="unidadHistorialSeleccionada(u.unidad)"
+                    (click)="toggleUnidadHistorial(u.unidad, $event)"
+                  >
+                    <span
+                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                      [class.border-emerald-400]="unidadHistorialSeleccionada(u.unidad)"
+                      [class.bg-emerald-600]="unidadHistorialSeleccionada(u.unidad)"
+                      [class.border-slate-500]="!unidadHistorialSeleccionada(u.unidad)"
+                    >
+                      @if (unidadHistorialSeleccionada(u.unidad)) {
+                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                      }
+                    </span>
+                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{ u.unidad }} · {{ u.nombre }}</span>
+                  </button>
+                }
+              </div>
             }
-          </select>
+          </div>
+
+          <div id="checklist-hist-tipo-emergencia-wrap" class="relative z-[60] min-w-0">
+            <label
+              class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500"
+              for="checklist-hist-tipo-btn"
+              >Tipo de emergencia</label
+            >
+            <button
+              type="button"
+              id="checklist-hist-tipo-btn"
+              class="sid-input sid-history-filter flex min-h-[var(--sid-control-height)] w-full items-center justify-between gap-2 rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 pl-3 pr-2.5 text-left text-sm text-white"
+              aria-haspopup="listbox"
+              [attr.aria-expanded]="filtroTipoEmergenciaPanelAbierto"
+              (click)="toggleFiltroTipoEmergenciaPanel($event)"
+            >
+              <span class="min-w-0 flex-1 truncate">{{ etiquetaFiltroTipoEmergenciaHistorial() }}</span>
+              <lucide-icon
+                name="chevron-down"
+                class="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200"
+                [class.rotate-180]="filtroTipoEmergenciaPanelAbierto"
+                [size]="16"
+                color="currentColor"
+                aria-hidden="true"
+              ></lucide-icon>
+            </button>
+            @if (filtroTipoEmergenciaPanelAbierto) {
+              <div
+                class="sid-partes-filtro-tipo-listbox sid-scroll-dark absolute left-0 right-0 top-full z-[80] mt-1.5 max-h-[min(22rem,52vh)] overflow-y-auto rounded-xl border border-slate-600/80 bg-[var(--sid-surface-inset)] py-1.5 shadow-xl ring-1 ring-black/30"
+                role="listbox"
+                aria-multiselectable="true"
+              >
+                <button
+                  type="button"
+                  role="option"
+                  class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-slate-100 transition-colors hover:bg-slate-800/90"
+                  [class.bg-red-950/50]="filtroTiposEmergenciaHistorial.length === 0"
+                  (click)="limpiarTiposEmergenciaHistorial($event)"
+                >
+                  <span
+                    class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                    [class.border-red-400]="filtroTiposEmergenciaHistorial.length === 0"
+                    [class.bg-red-500]="filtroTiposEmergenciaHistorial.length === 0"
+                    [class.border-slate-500]="filtroTiposEmergenciaHistorial.length > 0"
+                  >
+                    @if (filtroTiposEmergenciaHistorial.length === 0) {
+                      <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                    }
+                  </span>
+                  Todos los tipos
+                </button>
+                <p class="mx-3 mb-1 mt-3 border-b border-slate-700/50 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  Clasificación 10-x (operativas)
+                </p>
+                @for (c of catalogoEmergencias.operativas(); track c.value) {
+                  <button
+                    type="button"
+                    role="option"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-red-950/35]="tipoEmergenciaHistorialSeleccionado(c.value)"
+                    (click)="toggleTipoEmergenciaHistorial(c.value, $event)"
+                  >
+                    <span
+                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                      [class.border-red-400]="tipoEmergenciaHistorialSeleccionado(c.value)"
+                      [class.bg-red-500]="tipoEmergenciaHistorialSeleccionado(c.value)"
+                      [class.border-slate-500]="!tipoEmergenciaHistorialSeleccionado(c.value)"
+                    >
+                      @if (tipoEmergenciaHistorialSeleccionado(c.value)) {
+                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                      }
+                    </span>
+                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{ textoEtiquetaTipoOpcion(c) }}</span>
+                  </button>
+                }
+                <p class="mx-3 mb-1 mt-4 border-b border-slate-700/50 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  Compañía / servicios
+                </p>
+                @for (c of catalogoEmergencias.companiaServicios(); track c.value) {
+                  <button
+                    type="button"
+                    role="option"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-red-950/35]="tipoEmergenciaHistorialSeleccionado(c.value)"
+                    (click)="toggleTipoEmergenciaHistorial(c.value, $event)"
+                  >
+                    <span
+                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                      [class.border-red-400]="tipoEmergenciaHistorialSeleccionado(c.value)"
+                      [class.bg-red-500]="tipoEmergenciaHistorialSeleccionado(c.value)"
+                      [class.border-slate-500]="!tipoEmergenciaHistorialSeleccionado(c.value)"
+                    >
+                      @if (tipoEmergenciaHistorialSeleccionado(c.value)) {
+                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                      }
+                    </span>
+                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{ textoEtiquetaTipoOpcion(c) }}</span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
 
           <select
             [(ngModel)]="filtroEstadoHistorial"
+            (ngModelChange)="paginaHistorial = 1"
             class="sid-history-filter text-sm"
           >
             <option value="TODOS">Todos los estados</option>
@@ -161,15 +327,59 @@
             <option value="CON_OBSERVACION">Con observación</option>
           </select>
 
-          <input
-            [(ngModel)]="filtroTextoHistorial"
-            placeholder="Buscar por unidad, inspector, OBAC u observación"
-            class="sid-history-filter text-sm md:col-span-1"
-          />
+          <div class="min-w-0">
+            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500" for="chk-hist-insp"
+              >Inspector u OBAC</label
+            >
+            <input
+              id="chk-hist-insp"
+              [(ngModel)]="filtroTextoHistorial"
+              (ngModelChange)="paginaHistorial = 1"
+              placeholder="Nombre parcial…"
+              title="Unidad, inspector, OBAC u observación"
+              class="sid-history-filter w-full text-sm"
+            />
+          </div>
+        </div>
+        <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:col-span-4 xl:grid-cols-2">
+          <div class="min-w-0">
+            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Desde</label>
+            <app-sid-date-input
+              preset="filter"
+              [dense]="true"
+              inputClass="sid-history-filter dark-date-input w-full min-w-0 text-sm"
+              [(ngModel)]="filtroHistorialDesde"
+              (ngModelChange)="paginaHistorial = 1"
+            />
+          </div>
+          <div class="min-w-0">
+            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Hasta</label>
+            <app-sid-date-input
+              preset="filter"
+              [dense]="true"
+              inputClass="sid-history-filter dark-date-input w-full min-w-0 text-sm"
+              [(ngModel)]="filtroHistorialHasta"
+              (ngModelChange)="paginaHistorial = 1"
+            />
+          </div>
         </div>
         <div
-          class="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end max-xl:border-t max-xl:border-slate-800/80 max-xl:pt-3"
+          class="flex w-full shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end max-xl:border-t max-xl:border-slate-800/80 max-xl:pt-3 xl:col-span-4"
         >
+          <button
+            type="button"
+            (click)="aplicarFiltrosHistorial()"
+            class="sid-btn sid-btn-primary inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 sm:w-auto"
+          >
+            Aplicar filtros
+          </button>
+          <button
+            type="button"
+            (click)="limpiarFiltrosHistorial()"
+            class="sid-btn sid-btn-neutral inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gray-700 bg-[#0a0a0a] px-4 py-2 text-sm font-medium text-white hover:bg-[#161616] sm:w-auto"
+          >
+            Limpiar filtros
+          </button>
           <button
             type="button"
             (click)="actualizarHistorial()"
@@ -186,6 +396,15 @@
           >
             <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
             Descargar PDF
+          </button>
+          <button
+            type="button"
+            (click)="exportarHistorialExcel()"
+            [disabled]="filasHistorial.length === 0"
+            class="sid-btn sid-btn-success inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+          >
+            <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            Descargar Excel
           </button>
         </div>
       </div>

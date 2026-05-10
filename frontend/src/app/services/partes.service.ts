@@ -161,14 +161,26 @@ export class PartesService {
   listarPagina(opts: {
     page: number;
     pageSize: number;
+    /** Compatibilidad: un solo código de emergencia. */
     tipo?: string;
+    /** Varios códigos separados por coma (backend `tipos`). */
+    tipos?: string;
+    /** IDs de carro separados por coma (backend `carros`). */
+    carros?: string;
     q?: string;
     desde?: string;
     hasta?: string;
+    estado?: string;
+    persona?: string;
   }): Observable<PartesPaginaResp> {
     let p = new HttpParams().set('page', String(opts.page)).set('pageSize', String(opts.pageSize));
-    if (opts.tipo) {
+    if (opts.tipos) {
+      p = p.set('tipos', opts.tipos);
+    } else if (opts.tipo) {
       p = p.set('tipo', opts.tipo);
+    }
+    if (opts.carros) {
+      p = p.set('carros', opts.carros);
     }
     if (opts.q) {
       p = p.set('q', opts.q);
@@ -178,6 +190,12 @@ export class PartesService {
     }
     if (opts.hasta) {
       p = p.set('hasta', opts.hasta);
+    }
+    if (opts.estado) {
+      p = p.set('estado', opts.estado);
+    }
+    if (opts.persona) {
+      p = p.set('persona', opts.persona);
     }
     return this.http.get<PartesPaginaResp>('/api/partes/pagina', { params: p }).pipe(
       catchError(() => of(this.demoPagina(opts))),
@@ -193,13 +211,38 @@ export class PartesService {
     page: number;
     pageSize: number;
     tipo?: string;
+    tipos?: string;
+    carros?: string;
     q?: string;
     desde?: string;
     hasta?: string;
+    estado?: string;
+    persona?: string;
   }): PartesPaginaResp {
     let rows = [...this.demoPartes];
-    if (opts.tipo) {
-      rows = rows.filter((p) => p.claveEmergencia === opts.tipo);
+    const codigosTipo = opts.tipos
+      ? opts.tipos
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : opts.tipo
+        ? [opts.tipo]
+        : [];
+    if (codigosTipo.length === 1) {
+      rows = rows.filter((p) => p.claveEmergencia === codigosTipo[0]);
+    } else if (codigosTipo.length > 1) {
+      const set = new Set(codigosTipo);
+      rows = rows.filter((p) => set.has(p.claveEmergencia));
+    }
+    if (opts.carros?.trim()) {
+      const ids = opts.carros
+        .split(',')
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => Number.isFinite(n) && n > 0);
+      if (ids.length > 0) {
+        const want = new Set(ids);
+        rows = rows.filter((p) => p.unidades.some((u) => want.has(u.carroId)));
+      }
     }
     if (opts.q) {
       const qq = opts.q.toLowerCase();
@@ -212,6 +255,14 @@ export class PartesService {
     if (opts.hasta) {
       const d1 = new Date(opts.hasta).getTime();
       rows = rows.filter((p) => new Date(p.fecha).getTime() <= d1);
+    }
+    if (opts.estado?.trim()) {
+      const e = opts.estado.trim().toUpperCase();
+      rows = rows.filter((p) => (p.estado ?? '').toUpperCase() === e);
+    }
+    if (opts.persona?.trim()) {
+      const t = opts.persona.trim().toLowerCase();
+      rows = rows.filter((p) => (p.obac?.nombre ?? '').toLowerCase().includes(t));
     }
     const total = rows.length;
     const i = (opts.page - 1) * opts.pageSize;

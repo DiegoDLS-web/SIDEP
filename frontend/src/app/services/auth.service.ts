@@ -12,6 +12,7 @@ import {
   tap,
 } from 'rxjs';
 import { AuthLocalStorageService, mapLoginUsuarioASesion } from '../core/auth';
+import { limpiarBienvenidaSesionAlLogout } from '../core/welcome-overlay-session';
 import type { LoginResponseDto, SesionUsuarioDto } from '../models/auth.dto';
 
 /**
@@ -136,6 +137,7 @@ export class AuthService {
     this.http.post('/api/auth/logout', {}).pipe(catchError(() => of(null))).subscribe();
     this.clearLocal();
     this.userSubject.next(null);
+    limpiarBienvenidaSesionAlLogout();
     void this.router.navigateByUrl('/login');
   }
 

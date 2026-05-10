@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const prisma_1 = require("../lib/prisma");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const clave_nomina_por_nombre_js_1 = require("../lib/clave-nomina-por-nombre.js");
 function pick(arr, i) {
     return arr[Math.abs(i) % arr.length];
 }
@@ -182,7 +183,27 @@ async function main() {
         { nombre: 'Alison Erices Burdiles', rol: 'VOLUNTARIOS' },
         { nombre: 'Catalina Mora Gutiérrez', rol: 'VOLUNTARIOS' },
         { nombre: 'Nicolás Hidalgo Carrera', rol: 'VOLUNTARIOS' },
+        { nombre: 'Eliecer Arriaga Neira', rol: 'VOLUNTARIOS' },
+        { nombre: 'Humberto López Larenas', rol: 'VOLUNTARIOS' },
+        { nombre: 'Nicole Ponce Ramírez', rol: 'VOLUNTARIOS' },
+        { nombre: 'Reynaldo Muñoz Astudillo', rol: 'VOLUNTARIOS' },
     ];
+    /** Autorizados para conductor en partes y mantención de carros (ADMIN también puede marcar otros en BD). */
+    const autorizadosConducir = new Set([
+        'Bernardo Valenzuela Palma',
+        'Nicolás Ponce Ramírez',
+        'Felipe López Flores',
+        'Francisco López Flores',
+        'Freddy Pezo Mardones',
+        'Juan José Salazar Erices',
+        'Sergio Ariel Contreras Gutierrez',
+        'Luis Molina Castro',
+        'Hector González Duran',
+        'Jonathan Mora Bustamante',
+        'Eliecer Arriaga Neira',
+    ]);
+    /** Cuarteleros: categoría distinta a voluntario / honorario (no deben quedar como VOLUNTARIO genérico). */
+    const cuarteleros = new Set(['Eliecer Arriaga Neira']);
     const honorarios = new Set([
         'Eduardo Pezo Espinoza',
         'Hector González Duran',
@@ -194,6 +215,7 @@ async function main() {
         'Claudio Venegas Martinez',
         'Carlos Urrutia Fernandez',
         'Nelson Gutierrez Colipi',
+        'Humberto López Larenas',
         'Francisco López Flores',
         'Felipe López Flores',
         'Juan José Salazar Erices',
@@ -215,7 +237,7 @@ async function main() {
         'Catalina Mora Gutiérrez',
         'Nicolás Hidalgo Carrera',
     ]);
-    const insignes = new Set([...cadetes]);
+    const insignes = new Set([...cadetes, 'Reynaldo Muñoz Astudillo']);
     const cargosPorNombre = {
         'Nicolás Ponce Ramírez': 'CAPITAN_COMPANIA',
         'Luciano Rodriguez Burdiles': 'SECRETARIO_COMPANIA',
@@ -295,15 +317,19 @@ async function main() {
             continue;
         nombreYaRegistrado.add(claveNombre);
         const rut = `55.${String(100000 + i).slice(0, 3)}.${String(300 + i).padStart(3, '0')}-${((i + 3) % 9) + 1}`;
-        const tipoVoluntario = honorarios.has(n.nombre)
-            ? 'HONORARIO'
-            : canjes.has(n.nombre)
-                ? 'CANJE'
-                : insignes.has(n.nombre)
-                    ? 'INSIGNE'
-                    : 'VOLUNTARIO';
+        const tipoVoluntario = cuarteleros.has(n.nombre)
+            ? 'CUARTELERO'
+            : honorarios.has(n.nombre)
+                ? 'HONORARIO'
+                : canjes.has(n.nombre)
+                    ? 'CANJE'
+                    : insignes.has(n.nombre)
+                        ? 'INSIGNE'
+                        : 'VOLUNTARIO';
         const cargoOficialidad = cargosPorNombre[n.nombre] ?? 'VOLUNTARIO';
         const fotoPerfilSeed = fotoPerfilPorNombre[n.nombre];
+        const puedeConducir = autorizadosConducir.has(n.nombre);
+        const claveNomina = (0, clave_nomina_por_nombre_js_1.claveNominaParaNombreCompleto)(n.nombre);
         await prisma_1.prisma.usuario.upsert({
             where: { rut },
             update: {
@@ -317,6 +343,8 @@ async function main() {
                 telefono: `+56 9 6100 ${String(1000 + i)}`,
                 activo: true,
                 password: hashDefault,
+                autorizadoConducir: puedeConducir,
+                claveNomina,
                 ...(fotoPerfilSeed ? { fotoPerfil: fotoPerfilSeed } : {}),
             },
             create: {
@@ -332,6 +360,8 @@ async function main() {
                 activo: true,
                 password: hashDefault,
                 fotoPerfil: fotoPerfilSeed ?? null,
+                autorizadoConducir: puedeConducir,
+                claveNomina,
             },
         });
     }
@@ -363,7 +393,11 @@ async function main() {
             OR: [
                 { tipoVoluntario: null },
                 { tipoVoluntario: '' },
-                { tipoVoluntario: { in: ['ACTIVO', 'OFICIAL', 'CADETE', 'ASPIRANTE', 'CUARTELERO', 'CONFEDERADO'] } },
+                {
+                    tipoVoluntario: {
+                        in: ['ACTIVO', 'OFICIAL', 'CADETE', 'ASPIRANTE', 'CONFEDERADO'],
+                    },
+                },
             ],
         },
         data: { tipoVoluntario: 'VOLUNTARIO' },

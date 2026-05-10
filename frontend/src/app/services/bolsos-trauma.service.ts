@@ -119,11 +119,14 @@ export class BolsosTraumaService {
 
   historial(params?: {
     unidad?: string;
+    /** Varias nomenclaturas, separadas por comas. */
+    unidades?: string;
     desde?: string;
     hasta?: string;
   }): Observable<BolsoTraumaHistorialDto[]> {
     const sp = new URLSearchParams();
     if (params?.unidad) sp.set('unidad', params.unidad);
+    if (params?.unidades) sp.set('unidades', params.unidades);
     if (params?.desde) sp.set('desde', params.desde);
     if (params?.hasta) sp.set('hasta', params.hasta);
     const q = sp.toString();
@@ -134,7 +137,7 @@ export class BolsosTraumaService {
           {
             id: 1,
             fecha: new Date().toISOString(),
-            unidad: params?.unidad || 'R-1',
+            unidad: params?.unidades?.split(',')[0]?.trim() || params?.unidad || 'R-1',
             carroNombre: 'Carro Rescate',
             inspector: 'Modo Demo Local',
             responsable: 'Modo Demo Local',

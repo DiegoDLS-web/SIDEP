@@ -7,6 +7,7 @@ require("dotenv/config");
 const node_path_1 = __importDefault(require("node:path"));
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
+const compression_1 = __importDefault(require("compression"));
 const prisma_js_1 = require("./lib/prisma.js");
 const apiError_js_1 = require("./lib/apiError.js");
 const partes_js_1 = require("./routes/partes.js");
@@ -26,6 +27,7 @@ const resumen_diario_email_js_1 = require("./lib/resumen-diario-email.js");
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3000;
 app.use((0, cors_1.default)());
+app.use((0, compression_1.default)({ threshold: 1024 }));
 app.use(express_1.default.json({ limit: '12mb' }));
 const uploadsRoot = node_path_1.default.join(process.cwd(), 'uploads');
 app.use('/uploads', express_1.default.static(uploadsRoot, {

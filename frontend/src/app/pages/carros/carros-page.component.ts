@@ -8,14 +8,21 @@ import type {
   CarroRegistroHistorialDto,
 } from '../../models/carro-registro-historial.dto';
 import type { CarroDto } from '../../models/carro.dto';
+import type { UsuarioListaDto } from '../../models/usuario.dto';
 import { CarrosService } from '../../services/carros.service';
+import { UsuariosService } from '../../services/usuarios.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { ToastService } from '../../services/toast.service';
 import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
+import { SidDateInputComponent } from '../../shared/sid-date-input.component';
+import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 type CarrosView =
   | { status: 'loading' }
@@ -34,13 +41,17 @@ type CarrosView =
     SignaturePadComponent,
     SidScrollRevealDirective,
     SidEmptyStateComponent,
+    SidDateInputComponent,
   ],
   templateUrl: './carros-page.component.html',
 })
 export class CarrosPageComponent {
+  readonly nombreListaSoloPersona = nombreListaSoloPersona;
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly carrosApi = inject(CarrosService);
+  private readonly usuariosApi = inject(UsuariosService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly toast = inject(ToastService);
 
@@ -55,6 +66,9 @@ export class CarrosPageComponent {
     'https://images.unsplash.com/photo-1588662880295-13d2b28127c6?w=1080&q=80&fm=jpg';
   readonly splitFh = splitFechaHoraEsCl;
 
+  /** Para selector de conductor en mantención (misma lista que partes). */
+  usuariosConductoresAutorizados: UsuarioListaDto[] = [];
+
   editando = false;
   guardando = false;
   mensajeEdicion = '';
@@ -67,6 +81,8 @@ export class CarrosPageComponent {
   filtroUnidadHistorial: number | 'TODAS' = 'TODAS';
   filtroHistorialDesde = '';
   filtroHistorialHasta = '';
+  /** Filtro local sobre inspector tras cargar el historial. */
+  filtroInspectorHistorial = '';
   paginaHistorialGeneral = 1;
   readonly tamanioPaginaHistorialGeneral = 10;
   readonly editForm: {
@@ -114,6 +130,16 @@ export class CarrosPageComponent {
       }
       return this.carrosApi.obtener(id).pipe(
         switchMap((carro) => this.hidratarDetalleDesdeHistorialSiFalta(carro)),
+        switchMap((carro) =>
+          this.usuariosApi.listar().pipe(
+            map((usuarios) => {
+              this.usuariosConductoresAutorizados = usuarios
+                .filter((u) => u.activo && u.autorizadoConducir === true)
+                .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+              return carro;
+            }),
+          ),
+        ),
         map((carro): CarrosView => ({ status: 'detail', carro })),
         tap(() => {
           this.historialGeneralFilas = [];
@@ -165,16 +191,63 @@ export class CarrosPageComponent {
     this.filtroUnidadHistorial = 'TODAS';
     this.filtroHistorialDesde = '';
     this.filtroHistorialHasta = '';
+    this.filtroInspectorHistorial = '';
     this.cargarHistorialGeneral();
   }
 
+  historialGeneralFiltrado(): CarroHistorialGeneralFila[] {
+    const t = this.filtroInspectorHistorial.trim().toLowerCase();
+    if (!t) return this.historialGeneralFilas;
+    return this.historialGeneralFilas.filter((r) => (r.ultimoInspector ?? '').toLowerCase().includes(t));
+  }
+
   totalPaginasHistorialGeneral(): number {
-    return Math.max(1, Math.ceil(this.historialGeneralFilas.length / this.tamanioPaginaHistorialGeneral));
+    return Math.max(1, Math.ceil(this.historialGeneralFiltrado().length / this.tamanioPaginaHistorialGeneral));
   }
 
   historialGeneralPaginado(): CarroHistorialGeneralFila[] {
+    const filas = this.historialGeneralFiltrado();
     const i = (this.paginaHistorialGeneral - 1) * this.tamanioPaginaHistorialGeneral;
-    return this.historialGeneralFilas.slice(i, i + this.tamanioPaginaHistorialGeneral);
+    return filas.slice(i, i + this.tamanioPaginaHistorialGeneral);
+  }
+
+  aplicarFiltroInspectorHistorial(): void {
+    this.paginaHistorialGeneral = 1;
+  }
+
+  exportarHistorialGeneralExcel(): void {
+    const filas = this.historialGeneralFiltrado();
+    if (filas.length === 0) return;
+    const columnas = ['Guardado', 'Unidad', 'Inspector', 'Inspección'];
+    const body = filas.map((row) => {
+      const g = this.splitFh(row.creadoEn);
+      return [g.fecha + ' ' + g.hora, row.carro.nomenclatura, row.ultimoInspector ?? '', this.fechaCorta(row.fechaUltimaInspeccion)];
+    });
+    const aoa = [['SIDEP · Historial mantención'], [`Registros: ${filas.length}`], [], columnas, ...body];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Historial');
+    XLSX.writeFile(wb, `SIDEP-historial-mantencion-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
+  exportarHistorialGeneralPdf(): void {
+    const filas = this.historialGeneralFiltrado();
+    if (filas.length === 0) return;
+    const doc = new jsPDF({ orientation: 'landscape' });
+    doc.setFontSize(11);
+    doc.text('SIDEP · Historial general de mantención', 14, 14);
+    const body = filas.map((row) => {
+      const g = this.splitFh(row.creadoEn);
+      return [g.fecha + ' ' + g.hora, row.carro.nomenclatura, row.ultimoInspector ?? '', this.fechaCorta(row.fechaUltimaInspeccion)];
+    });
+    autoTable(doc, {
+      startY: 20,
+      head: [['Guardado', 'Unidad', 'Inspector', 'Inspección']],
+      body,
+      styles: { fontSize: 8 },
+      margin: { left: 14, right: 14 },
+    });
+    doc.save(`SIDEP-historial-mantencion-${new Date().toISOString().slice(0, 10)}.pdf`);
   }
 
   cambiarPaginaHistorialGeneral(delta: number): void {
@@ -218,6 +291,15 @@ export class CarrosPageComponent {
 
   tituloMostrar(c: CarroDto): string {
     return c.nombre?.trim() || `Unidad ${c.nomenclatura}`;
+  }
+
+  /** Valor de mantención previo que no está en la lista de autorizados. */
+  ultimoConductorLegadoNoEnLista(): boolean {
+    const cur = this.editForm.ultimoConductor?.trim();
+    if (!cur) {
+      return false;
+    }
+    return !this.usuariosConductoresAutorizados.some((u) => u.nombre.trim() === cur);
   }
 
   imagenCarro(c: CarroDto): string {

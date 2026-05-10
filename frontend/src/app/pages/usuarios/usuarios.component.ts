@@ -11,6 +11,7 @@ import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { ToastService } from '../../services/toast.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
+import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import {
   CARGOS_OFICIALIDAD_ORDEN,
@@ -22,6 +23,7 @@ import {
   TIPOS_VOLUNTARIO_ORDEN,
   etiquetaOficialidadCargo,
 } from './usuario-registro.constants';
+import { claveNominaParaNombreCompleto } from '../../data/clave-nomina-por-nombre';
 
 type FormUsuario = {
   nombres: string;
@@ -47,12 +49,14 @@ type FormUsuario = {
   observacionesRegistro: string;
   firmaImagen: string;
   fotoPerfil: string;
+  autorizadoConducir: boolean;
+  claveNomina: string;
 };
 
 @Component({
   selector: 'app-usuarios',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidScrollRevealDirective],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidScrollRevealDirective, SidDateInputComponent],
   templateUrl: './usuarios.component.html',
 })
 export class UsuariosComponent implements OnInit {
@@ -140,6 +144,8 @@ export class UsuariosComponent implements OnInit {
       observacionesRegistro: '',
       firmaImagen: '',
       fotoPerfil: '',
+      autorizadoConducir: false,
+      claveNomina: '',
     };
   }
 
@@ -347,6 +353,8 @@ export class UsuariosComponent implements OnInit {
       observacionesRegistro: usuario.observacionesRegistro ?? '',
       firmaImagen: usuario.firmaImagen ?? '',
       fotoPerfil: usuario.fotoPerfil?.trim() ? usuario.fotoPerfil! : '',
+      autorizadoConducir: usuario.autorizadoConducir === true,
+      claveNomina: usuario.claveNomina?.trim() ?? '',
     };
   }
 
@@ -596,6 +604,16 @@ export class UsuariosComponent implements OnInit {
   private validarEdicion(): string | null {
     const f = this.form;
     this.form.rut = this.formatearRut(this.form.rut);
+    if (this.esAdmin && this.editandoId) {
+      for (const k of ['nombres', 'apellidoPaterno', 'apellidoMaterno', 'nacionalidad'] as const) {
+        if (!String(f[k]).trim()) {
+          return 'Completa todos los campos obligatorios (marcados con *).';
+        }
+      }
+      if (!this.rutEsValido(f.rut)) {
+        return 'El RUT no es válido.';
+      }
+    }
     const obr = [
       'direccion',
       'region',
@@ -661,6 +679,13 @@ export class UsuariosComponent implements OnInit {
         activo: this.form.estadoVoluntario === 'VIGENTE',
         observacionesRegistro: this.form.observacionesRegistro.trim() || null,
       };
+      if (this.esAdmin) {
+        payload.nombres = this.form.nombres.trim();
+        payload.apellidoPaterno = this.form.apellidoPaterno.trim();
+        payload.apellidoMaterno = this.form.apellidoMaterno.trim();
+        payload.rut = this.formatearRut(this.form.rut);
+        payload.nacionalidad = this.form.nacionalidad.trim();
+      }
       if (this.form.fechaNacimiento.trim()) {
         payload.fechaNacimiento = this.form.fechaNacimiento;
       }
@@ -679,6 +704,10 @@ export class UsuariosComponent implements OnInit {
       }
       if (this.puedeEditarRol) {
         payload.rol = this.form.rol.trim();
+      }
+      if (this.esAdmin) {
+        payload.autorizadoConducir = this.form.autorizadoConducir;
+        payload.claveNomina = this.form.claveNomina.trim() || null;
       }
 
       this.usuariosApi.actualizar(this.editandoId, payload).subscribe({
@@ -732,6 +761,10 @@ export class UsuariosComponent implements OnInit {
       firmaImagen: this.form.firmaImagen.trim() || null,
       fotoPerfil: this.form.fotoPerfil.trim() || null,
     };
+    if (this.esAdmin) {
+      crear.autorizadoConducir = this.form.autorizadoConducir;
+      crear.claveNomina = this.form.claveNomina.trim() || null;
+    }
 
     this.usuariosApi.crear(crear).subscribe({
       next: () => {
@@ -770,6 +803,21 @@ export class UsuariosComponent implements OnInit {
           this.toast.error(msg);
         },
       });
+  }
+
+  /** ADMIN: al cambiar oficialidad o nombre coincide con el padrón, propone la clave de nómina. */
+  syncClaveNominaDesdePadron(): void {
+    if (!this.esAdmin || !this.mostrandoFormulario) {
+      return;
+    }
+    const nombre = [this.form.nombres, this.form.apellidoPaterno, this.form.apellidoMaterno]
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .join(' ');
+    const clave = nombre ? claveNominaParaNombreCompleto(nombre) : null;
+    if (clave) {
+      this.form.claveNomina = clave;
+    }
   }
 
   etiquetaCargo(codigo: string | null | undefined): string {

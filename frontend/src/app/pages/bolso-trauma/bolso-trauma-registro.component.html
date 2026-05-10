@@ -142,11 +142,11 @@
             <label class="mb-1.5 block text-xs font-medium text-gray-400"
               >Fecha de inspección <span class="text-red-400">*</span></label
             >
-            <input
-              type="date"
-              [(ngModel)]="fechaInspeccion"
+            <app-sid-date-input
+              preset="none"
               name="fechaInspeccion"
-              class="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
+              inputClass="w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 pr-11 text-sm text-white"
+              [(ngModel)]="fechaInspeccion"
             />
           </div>
           <div class="md:col-span-2">

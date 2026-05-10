@@ -13,6 +13,7 @@ const usuario_perfil_js_1 = require("../lib/usuario-perfil.js");
 const apiError_js_1 = require("../lib/apiError.js");
 const httpQuery_js_1 = require("../lib/httpQuery.js");
 const usuario_resumen_operativo_js_1 = require("../lib/usuario-resumen-operativo.js");
+const clave_nomina_por_nombre_js_1 = require("../lib/clave-nomina-por-nombre.js");
 exports.usuariosRouter = (0, express_1.Router)();
 const ROLES_PUEDEN_ASIGNAR = new Set(['ADMIN', 'CAPITAN', 'TENIENTE']);
 const selectUsuario = {
@@ -43,9 +44,14 @@ const selectUsuario = {
     firmaImagen: true,
     fotoPerfil: true,
     requiereCambioPassword: true,
+    autorizadoConducir: true,
+    claveNomina: true,
     createdAt: true,
     updatedAt: true,
 };
+function esAdminReq(req) {
+    return req.user?.rol?.trim().toUpperCase() === 'ADMIN';
+}
 function buildUsuarioListWhere(qRaw) {
     const q = qRaw?.trim();
     if (!q)
@@ -63,8 +69,22 @@ function buildUsuarioListWhere(qRaw) {
             { rol: ic },
             { tipoVoluntario: ic },
             { cargoOficialidad: ic },
+            { claveNomina: ic },
         ],
     };
+}
+/** Clave de nómina (ej. 133, 106-A). Vacío → null. */
+function normalizarClaveNomina(v) {
+    if (v === undefined || v === null || v === '')
+        return null;
+    const s = String(v).trim();
+    if (!s)
+        return null;
+    if (s.length > 32)
+        return null;
+    if (!/^[\dA-Za-z][\dA-Za-z-]*$/.test(s))
+        return null;
+    return s;
 }
 function puedeAsignarRol(req) {
     const r = req.user?.rol?.trim().toUpperCase();
@@ -278,7 +298,37 @@ exports.usuariosRouter.post('/', async (req, res) => {
         const grupoSanguineo = gsRaw != null && String(gsRaw).trim() !== '' ? String(gsRaw).trim() : null;
         const actRaw = body.actividad;
         const actividad = actRaw != null && String(actRaw).trim() !== '' ? String(actRaw).trim() : null;
+        let claveNomina = null;
+        let claveNominaExplicita = false;
+        if (body.claveNomina !== undefined) {
+            claveNominaExplicita = true;
+            const rawCn = body.claveNomina;
+            const tieneValor = rawCn !== null && String(rawCn).trim() !== '';
+            if (tieneValor && !esAdminReq(req)) {
+                (0, apiError_js_1.sendApiError)(res, 403, 'USUARIOS_CLAVE_NOMINA_ROL', 'Solo ADMIN puede asignar la clave de nómina.');
+                return;
+            }
+            const cn = normalizarClaveNomina(body.claveNomina);
+            if (cn === null && tieneValor) {
+                (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_CLAVE_NOMINA', 'Clave de nómina inválida (use números, letras o guion; máx. 32 caracteres).');
+                return;
+            }
+            claveNomina = cn;
+        }
+        if (!claveNominaExplicita) {
+            const auto = (0, clave_nomina_por_nombre_js_1.claveNominaParaNombreCompleto)(nombre);
+            if (auto)
+                claveNomina = auto;
+        }
         const passwordInicial = 'primera1958';
+        let autorizadoConducir = false;
+        if (body.autorizadoConducir !== undefined && Boolean(body.autorizadoConducir)) {
+            if (!esAdminReq(req)) {
+                (0, apiError_js_1.sendApiError)(res, 403, 'USUARIOS_CONDUCTOR_ROL', 'Solo ADMIN puede marcar autorización para conducir');
+                return;
+            }
+            autorizadoConducir = true;
+        }
         const creado = await prisma_js_1.prisma.usuario.create({
             data: {
                 nombre,
@@ -309,6 +359,8 @@ exports.usuariosRouter.post('/', async (req, res) => {
                 rol: bodyRol,
                 activo,
                 requiereCambioPassword: true,
+                autorizadoConducir,
+                claveNomina,
                 password: await bcryptjs_1.default.hash(passwordInicial, 10),
             },
             select: selectUsuario,
@@ -322,6 +374,15 @@ exports.usuariosRouter.post('/', async (req, res) => {
         res.status(201).json(creado);
     }
     catch (e) {
+        if (e instanceof client_1.Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+            const target = e.meta?.target ?? [];
+            if (target.includes('claveNomina')) {
+                (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_CLAVE_DUPLICADA', 'Esa clave de nómina ya está asignada a otra persona.');
+                return;
+            }
+            (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_DUPLICADO', 'El correo o RUT ya está registrado en otra cuenta.');
+            return;
+        }
         console.error(e);
         (0, apiError_js_1.sendApiError)(res, 500, 'USUARIOS_CREAR', 'Error al crear usuario (revisa rut/email únicos)');
     }
@@ -333,6 +394,14 @@ exports.usuariosRouter.patch('/:id', async (req, res) => {
         return;
     }
     const body = req.body;
+    if (body.autorizadoConducir !== undefined && !esAdminReq(req)) {
+        (0, apiError_js_1.sendApiError)(res, 403, 'USUARIOS_CONDUCTOR_ROL', 'Solo ADMIN puede marcar autorización para conducir');
+        return;
+    }
+    if (body.claveNomina !== undefined && !esAdminReq(req)) {
+        (0, apiError_js_1.sendApiError)(res, 403, 'USUARIOS_CLAVE_NOMINA_ROL', 'Solo ADMIN puede modificar la clave de nómina.');
+        return;
+    }
     if (body.rol !== undefined && !puedeAsignarRol(req)) {
         (0, apiError_js_1.sendApiError)(res, 403, 'USUARIOS_ROL_SIN_PERMISO', 'No autorizado a modificar el rol');
         return;
@@ -445,6 +514,22 @@ exports.usuariosRouter.patch('/:id', async (req, res) => {
         }
         if (body.activo !== undefined)
             data.activo = Boolean(body.activo);
+        if (body.autorizadoConducir !== undefined)
+            data.autorizadoConducir = Boolean(body.autorizadoConducir);
+        if (body.claveNomina !== undefined) {
+            const raw = body.claveNomina;
+            if (raw === null || raw === '') {
+                data.claveNomina = null;
+            }
+            else {
+                const cn = normalizarClaveNomina(raw);
+                if (cn === null) {
+                    (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_CLAVE_NOMINA', 'Clave de nómina inválida (use números, letras o guion; máx. 32 caracteres).');
+                    return;
+                }
+                data.claveNomina = cn;
+            }
+        }
         if (body.rol !== undefined)
             data.rol = String(body.rol).trim().toUpperCase();
         if (body.fechaNacimiento !== undefined) {
@@ -484,6 +569,16 @@ exports.usuariosRouter.patch('/:id', async (req, res) => {
         if (comp) {
             data.nombre = comp;
         }
+        const nombreFinal = (typeof data.nombre === 'string' ? data.nombre : undefined) ?? actual.nombre;
+        const tocaIdentidad = body.nombres !== undefined ||
+            body.apellidoPaterno !== undefined ||
+            body.apellidoMaterno !== undefined ||
+            body.nombre !== undefined;
+        if (body.claveNomina === undefined && (tocaIdentidad || body.cargoOficialidad !== undefined)) {
+            const autoClave = (0, clave_nomina_por_nombre_js_1.claveNominaParaNombreCompleto)(nombreFinal);
+            if (autoClave)
+                data.claveNomina = autoClave;
+        }
         if (Object.keys(data).length === 0) {
             const u = await prisma_js_1.prisma.usuario.findUnique({ where: { id }, select: selectUsuario });
             if (!u) {
@@ -508,6 +603,11 @@ exports.usuariosRouter.patch('/:id', async (req, res) => {
     }
     catch (e) {
         if (e instanceof client_1.Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+            const target = e.meta?.target ?? [];
+            if (target.includes('claveNomina')) {
+                (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_CLAVE_DUPLICADA', 'Esa clave de nómina ya está asignada a otra persona.');
+                return;
+            }
             (0, apiError_js_1.sendApiError)(res, 400, 'USUARIOS_DUPLICADO', 'El correo o RUT ya está registrado en otra cuenta.');
             return;
         }

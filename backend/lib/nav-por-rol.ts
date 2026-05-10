@@ -4,6 +4,7 @@
 export const RUTAS_MENU_SIDEP = [
   '/',
   '/partes',
+  '/catalogo-emergencias',
   '/carros',
   '/checklist',
   '/checklist-era',
@@ -19,9 +20,24 @@ export type RutaMenuSidep = (typeof RUTAS_MENU_SIDEP)[number];
 
 const WHITELIST = new Set<string>(RUTAS_MENU_SIDEP);
 
-const OPERATIVOS_BASE: RutaMenuSidep[] = [
+/** Operativo estándar sin pantalla de catálogo de tipos (tenientes / voluntarios). */
+const OPERATIVOS_SIN_CATALOGO_EMERG: RutaMenuSidep[] = [
   '/',
   '/partes',
+  '/carros',
+  '/checklist',
+  '/checklist-era',
+  '/bolso-trauma',
+  '/licencias-medicas',
+  '/analitica-operacional',
+  '/perfil',
+];
+
+/** Incluye edición de tipos de emergencia (solo ADMIN y CAPITÁN en guard de ruta). */
+const OPERATIVOS_CON_CATALOGO_EMERG: RutaMenuSidep[] = [
+  '/',
+  '/partes',
+  '/catalogo-emergencias',
   '/carros',
   '/checklist',
   '/checklist-era',
@@ -34,10 +50,10 @@ const OPERATIVOS_BASE: RutaMenuSidep[] = [
 /** Valores por defecto alineados con el menú típico de SIDEP. */
 export function defaultNavegacionPorRol(): Record<string, string[]> {
   return {
-    ADMIN: [...OPERATIVOS_BASE, '/usuarios', '/configuraciones'],
-    CAPITAN: [...OPERATIVOS_BASE, '/usuarios'],
-    TENIENTE: [...OPERATIVOS_BASE, '/usuarios'],
-    VOLUNTARIOS: [...OPERATIVOS_BASE],
+    ADMIN: [...OPERATIVOS_CON_CATALOGO_EMERG, '/usuarios', '/configuraciones'],
+    CAPITAN: [...OPERATIVOS_CON_CATALOGO_EMERG, '/usuarios'],
+    TENIENTE: [...OPERATIVOS_SIN_CATALOGO_EMERG, '/usuarios'],
+    VOLUNTARIOS: [...OPERATIVOS_SIN_CATALOGO_EMERG],
   };
 }
 
@@ -67,7 +83,7 @@ export function mergeNavegacionPorRol(raw: unknown): Record<string, string[]> {
 export function rutasPermitidasParaRol(rolRaw: string | undefined | null, navegacionPorRol: Record<string, string[]>): string[] {
   const r = rolRaw?.trim().toUpperCase() || 'VOLUNTARIOS';
   const defs = defaultNavegacionPorRol();
-  const fallbackVol = defs['VOLUNTARIOS'] ?? OPERATIVOS_BASE;
+  const fallbackVol = defs['VOLUNTARIOS'] ?? OPERATIVOS_SIN_CATALOGO_EMERG;
   const base =
     navegacionPorRol[r] ??
     navegacionPorRol['VOLUNTARIOS'] ??

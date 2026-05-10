@@ -45,6 +45,10 @@ model Usuario {
   activo           Boolean            @default(true)
   /// Tras alta con contraseña provisional, el usuario debe cambiarla en el primer acceso.
   requiereCambioPassword Boolean      @default(false)
+  /// Solo ADMIN marca en BD; usado en partes (conductor por unidad) y mantención de carros.
+  autorizadoConducir     Boolean      @default(false)
+  /// Número o clave de nómina (búsqueda OBAC, listados). Única si está definida.
+  claveNomina            String?      @unique
   password         String
   partesObac       ParteEmergencia[]  @relation("ObacRelation")
   checklists       ChecklistCarro[]

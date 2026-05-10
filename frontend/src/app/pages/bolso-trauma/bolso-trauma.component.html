@@ -175,78 +175,248 @@
         </div>
       </div>
 
-      <div
-        class="mb-4 flex min-w-0 w-full flex-nowrap items-end gap-2 overflow-x-auto pb-0.5 sm:gap-3"
-      >
-        <div class="w-[10.5rem] shrink-0 sm:w-[11rem]">
-          <label class="mb-1 block text-xs text-gray-400">Unidad</label>
-          <select
-            [(ngModel)]="filtroUnidad"
-            class="sid-history-filter w-full text-sm"
-          >
-            <option value="">Todas</option>
-            @for (u of unidades; track u.id) {
-              <option [value]="u.unidad">{{ u.unidad }}</option>
+      <div class="mb-4 flex flex-col gap-4">
+        <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div id="bolso-hist-unidades-wrap" class="relative z-[60] min-w-0">
+            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Unidades</label>
+            <button
+              type="button"
+              class="sid-input sid-history-filter flex min-h-[var(--sid-control-height)] w-full items-center justify-between gap-2 rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 pl-3 pr-2.5 text-left text-sm text-white"
+              aria-haspopup="listbox"
+              [attr.aria-expanded]="filtroUnidadesBolsoPanelAbierto"
+              (click)="toggleFiltroUnidadesBolsoPanel($event)"
+            >
+              <span class="min-w-0 flex-1 truncate">{{ etiquetaFiltroUnidadesBolso() }}</span>
+              <lucide-icon
+                name="chevron-down"
+                class="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200"
+                [class.rotate-180]="filtroUnidadesBolsoPanelAbierto"
+                [size]="16"
+                color="currentColor"
+                aria-hidden="true"
+              ></lucide-icon>
+            </button>
+            @if (filtroUnidadesBolsoPanelAbierto) {
+              <div
+                class="sid-partes-filtro-tipo-listbox sid-scroll-dark absolute left-0 right-0 top-full z-[80] mt-1.5 max-h-[min(18rem,45vh)] overflow-y-auto rounded-xl border border-slate-600/80 bg-[var(--sid-surface-inset)] py-1.5 shadow-xl ring-1 ring-black/30"
+                role="listbox"
+                aria-multiselectable="true"
+              >
+                <button
+                  type="button"
+                  role="option"
+                  class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-slate-100 transition-colors hover:bg-slate-800/90"
+                  [class.bg-cyan-950/40]="filtroUnidadesBolso.length === 0"
+                  (click)="limpiarUnidadesBolso($event)"
+                >
+                  <span
+                    class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                    [class.border-cyan-400]="filtroUnidadesBolso.length === 0"
+                    [class.bg-cyan-600]="filtroUnidadesBolso.length === 0"
+                    [class.border-slate-500]="filtroUnidadesBolso.length > 0"
+                  >
+                    @if (filtroUnidadesBolso.length === 0) {
+                      <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                    }
+                  </span>
+                  Todas las unidades
+                </button>
+                @for (u of unidades; track u.id) {
+                  <button
+                    type="button"
+                    role="option"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-cyan-950/30]="unidadBolsoSeleccionada(u.unidad)"
+                    (click)="toggleUnidadBolso(u.unidad, $event)"
+                  >
+                    <span
+                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                      [class.border-cyan-400]="unidadBolsoSeleccionada(u.unidad)"
+                      [class.bg-cyan-600]="unidadBolsoSeleccionada(u.unidad)"
+                      [class.border-slate-500]="!unidadBolsoSeleccionada(u.unidad)"
+                    >
+                      @if (unidadBolsoSeleccionada(u.unidad)) {
+                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                      }
+                    </span>
+                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{ u.unidad }}</span>
+                  </button>
+                }
+              </div>
             }
-          </select>
+          </div>
+
+          <div id="bolso-hist-tipo-wrap" class="relative z-[60] min-w-0">
+            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Tipo de emergencia</label>
+            <button
+              type="button"
+              class="sid-input sid-history-filter flex min-h-[var(--sid-control-height)] w-full items-center justify-between gap-2 rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 pl-3 pr-2.5 text-left text-sm text-white"
+              aria-haspopup="listbox"
+              [attr.aria-expanded]="filtroTipoBolsoPanelAbierto"
+              (click)="toggleFiltroTipoBolsoPanel($event)"
+            >
+              <span class="min-w-0 flex-1 truncate">{{ etiquetaFiltroTipoBolso() }}</span>
+              <lucide-icon
+                name="chevron-down"
+                class="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200"
+                [class.rotate-180]="filtroTipoBolsoPanelAbierto"
+                [size]="16"
+                color="currentColor"
+                aria-hidden="true"
+              ></lucide-icon>
+            </button>
+            @if (filtroTipoBolsoPanelAbierto) {
+              <div
+                class="sid-partes-filtro-tipo-listbox sid-scroll-dark absolute left-0 right-0 top-full z-[80] mt-1.5 max-h-[min(22rem,52vh)] overflow-y-auto rounded-xl border border-slate-600/80 bg-[var(--sid-surface-inset)] py-1.5 shadow-xl ring-1 ring-black/30"
+                role="listbox"
+                aria-multiselectable="true"
+              >
+                <button
+                  type="button"
+                  role="option"
+                  class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-slate-100 transition-colors hover:bg-slate-800/90"
+                  [class.bg-red-950/50]="filtroTiposEmergenciaBolso.length === 0"
+                  (click)="limpiarTiposBolso($event)"
+                >
+                  <span
+                    class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                    [class.border-red-400]="filtroTiposEmergenciaBolso.length === 0"
+                    [class.bg-red-500]="filtroTiposEmergenciaBolso.length === 0"
+                    [class.border-slate-500]="filtroTiposEmergenciaBolso.length > 0"
+                  >
+                    @if (filtroTiposEmergenciaBolso.length === 0) {
+                      <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                    }
+                  </span>
+                  Todos los tipos
+                </button>
+                <p class="mx-3 mb-1 mt-3 border-b border-slate-700/50 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  Clasificación 10-x (operativas)
+                </p>
+                @for (c of catalogoEmergencias.operativas(); track c.value) {
+                  <button
+                    type="button"
+                    role="option"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-red-950/35]="tipoBolsoSeleccionado(c.value)"
+                    (click)="toggleTipoBolso(c.value, $event)"
+                  >
+                    <span
+                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                      [class.border-red-400]="tipoBolsoSeleccionado(c.value)"
+                      [class.bg-red-500]="tipoBolsoSeleccionado(c.value)"
+                      [class.border-slate-500]="!tipoBolsoSeleccionado(c.value)"
+                    >
+                      @if (tipoBolsoSeleccionado(c.value)) {
+                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                      }
+                    </span>
+                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{ textoEtiquetaTipoOpcion(c) }}</span>
+                  </button>
+                }
+                <p class="mx-3 mb-1 mt-4 border-b border-slate-700/50 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  Compañía / servicios
+                </p>
+                @for (c of catalogoEmergencias.companiaServicios(); track c.value) {
+                  <button
+                    type="button"
+                    role="option"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-red-950/35]="tipoBolsoSeleccionado(c.value)"
+                    (click)="toggleTipoBolso(c.value, $event)"
+                  >
+                    <span
+                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                      [class.border-red-400]="tipoBolsoSeleccionado(c.value)"
+                      [class.bg-red-500]="tipoBolsoSeleccionado(c.value)"
+                      [class.border-slate-500]="!tipoBolsoSeleccionado(c.value)"
+                    >
+                      @if (tipoBolsoSeleccionado(c.value)) {
+                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                      }
+                    </span>
+                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{ textoEtiquetaTipoOpcion(c) }}</span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+
+          <div class="min-w-0">
+            <label class="mb-1 block text-xs text-gray-400">Estado</label>
+            <select
+              [(ngModel)]="filtroEstado"
+              (ngModelChange)="aplicarFiltrosLocalesHistorial()"
+              class="sid-history-filter w-full text-sm"
+            >
+              <option [ngValue]="'TODOS'">Todos</option>
+              <option [ngValue]="'COMPLETADO'">Completado</option>
+              <option [ngValue]="'PENDIENTE'">Pendiente</option>
+              <option [ngValue]="'CON_OBSERVACION'">Con observación</option>
+            </select>
+          </div>
+          <div class="min-w-0">
+            <label class="mb-1 block text-xs text-gray-400">Inspector u OBAC</label>
+            <input
+              type="search"
+              [(ngModel)]="filtroInspectorObac"
+              (ngModelChange)="aplicarFiltrosLocalesHistorial()"
+              placeholder="Nombre parcial…"
+              class="sid-history-filter w-full text-sm placeholder:text-gray-600"
+            />
+          </div>
         </div>
-        <div class="w-[10.5rem] shrink-0 sm:w-[11rem]">
-          <label class="mb-1 block text-xs text-gray-400">Estado</label>
-          <select
-            [(ngModel)]="filtroEstado"
-            (ngModelChange)="aplicarFiltrosLocalesHistorial()"
-            class="sid-history-filter w-full text-sm"
-          >
-            <option [ngValue]="'TODOS'">Todos</option>
-            <option [ngValue]="'COMPLETADO'">Completado</option>
-            <option [ngValue]="'PENDIENTE'">Pendiente</option>
-            <option [ngValue]="'CON_OBSERVACION'">Con observación</option>
-          </select>
-        </div>
-        <div class="w-[12rem] shrink-0 sm:w-[14rem]">
-          <label class="mb-1 block text-xs text-gray-400">Inspector u OBAC</label>
-          <input
-            type="search"
-            [(ngModel)]="filtroInspectorObac"
-            (ngModelChange)="aplicarFiltrosLocalesHistorial()"
-            placeholder="Nombre parcial…"
-            class="sid-history-filter w-full text-sm placeholder:text-gray-600"
-          />
-        </div>
-        <div class="w-[10.5rem] shrink-0">
-          <label class="mb-1 block text-xs text-gray-400">Desde</label>
-          <input
-            type="date"
-            [(ngModel)]="filtroDesde"
-            class="sid-history-filter dark-date-input w-full text-sm"
-          />
-        </div>
-        <div class="w-[10.5rem] shrink-0">
-          <label class="mb-1 block text-xs text-gray-400">Hasta</label>
-          <input
-            type="date"
-            [(ngModel)]="filtroHasta"
-            class="sid-history-filter dark-date-input w-full text-sm"
-          />
-        </div>
-        <div class="flex shrink-0 items-end gap-2 pb-px sm:gap-3">
-          <button
-            type="button"
-            (click)="cargarHistorial()"
-            class="sid-btn sid-btn-neutral inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl border-slate-600 bg-[#0a0a0a] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#141414]"
-          >
-            <lucide-icon name="clipboard-list" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-            Actualizar
-          </button>
-          <button
-            type="button"
-            (click)="exportarHistorialPdf()"
-            [disabled]="historialFiltrado().length === 0"
-            class="sid-btn sid-btn-primary inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-900/20 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-            Descargar PDF
-          </button>
+        <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <div class="w-full min-w-0 sm:w-auto sm:max-w-[11rem]">
+            <label class="mb-1 block text-xs text-gray-400">Desde</label>
+            <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter dark-date-input w-full text-sm" [(ngModel)]="filtroDesde" />
+          </div>
+          <div class="w-full min-w-0 sm:w-auto sm:max-w-[11rem]">
+            <label class="mb-1 block text-xs text-gray-400">Hasta</label>
+            <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter dark-date-input w-full text-sm" [(ngModel)]="filtroHasta" />
+          </div>
+          <div class="flex w-full flex-wrap items-end gap-2 sm:ml-auto sm:w-auto">
+            <button
+              type="button"
+              (click)="aplicarFiltrosBolsoHistorial()"
+              class="sid-btn sid-btn-primary inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-900/20 hover:bg-red-700 sm:flex-initial"
+            >
+              Aplicar filtros
+            </button>
+            <button
+              type="button"
+              (click)="limpiarFiltrosBolsoHistorial()"
+              class="sid-btn sid-btn-neutral inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl border-slate-600 bg-[#0a0a0a] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#141414] sm:flex-initial"
+            >
+              Limpiar filtros
+            </button>
+            <button
+              type="button"
+              (click)="cargarHistorial()"
+              class="sid-btn sid-btn-neutral inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl border-slate-600 bg-[#0a0a0a] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#141414] sm:flex-initial"
+            >
+              <lucide-icon name="clipboard-list" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+              Actualizar
+            </button>
+            <button
+              type="button"
+              (click)="exportarHistorialPdf()"
+              [disabled]="historialFiltrado().length === 0"
+              class="sid-btn sid-btn-primary inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-900/20 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial"
+            >
+              <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+              Descargar PDF
+            </button>
+            <button
+              type="button"
+              (click)="exportarHistorialExcelBolso()"
+              [disabled]="historialFiltrado().length === 0"
+              class="sid-btn sid-btn-success inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-900/20 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial"
+            >
+              <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+              Descargar Excel
+            </button>
+          </div>
         </div>
       </div>
 

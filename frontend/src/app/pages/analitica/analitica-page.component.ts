@@ -8,7 +8,7 @@ import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { DashboardService } from '../../services/dashboard.service';
 import { ReportesService } from '../../services/reportes.service';
 import type { AnaliticaOperacionalDto } from '../../models/reportes.dto';
-import { CLAVES_EMERGENCIA } from '../partes/partes.constants';
+import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
 
 @Component({
   selector: 'app-analitica-page',
@@ -19,6 +19,7 @@ import { CLAVES_EMERGENCIA } from '../partes/partes.constants';
 export class AnaliticaPageComponent implements OnInit {
   private readonly reportesApi = inject(ReportesService);
   private readonly dashboardApi = inject(DashboardService);
+  private readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
   private readonly nf = new Intl.NumberFormat('es-CL');
   @ViewChild('reporteAnalitica') reporteAnalitica?: ElementRef<HTMLElement>;
 
@@ -28,8 +29,6 @@ export class AnaliticaPageComponent implements OnInit {
   error: string | null = null;
   datos: AnaliticaOperacionalDto | null = null;
   dashboardDatos: DashboardResumenDto | null = null;
-  readonly clavesTipo = CLAVES_EMERGENCIA;
-
   anio = new Date().getFullYear();
   mes = new Date().getMonth() + 1;
   mesAsistenciaSeleccionado = new Date().getMonth() + 1;
@@ -260,8 +259,7 @@ export class AnaliticaPageComponent implements OnInit {
   }
 
   etiquetaClaveDashboard(clave: string): string {
-    const f = this.clavesTipo.find((c) => c.value === clave);
-    return f?.label ?? clave;
+    return this.catalogoEmergencias.etiqueta(clave);
   }
 
   estadoParteClassDashboard(estado: string): string {

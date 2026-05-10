@@ -17,8 +17,9 @@ import { PartesService } from '../../services/partes.service';
 import { ToastService } from '../../services/toast.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { LicenciasService } from '../../services/licencias.service';
+import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
-import { CLAVES_COMPANIA_SERVICIOS, CLAVES_OPERATIVAS, CLAVE_BORRADOR_DEFAULT } from './partes.constants';
+import { CLAVE_BORRADOR_DEFAULT, claveEmergenciaExigeUnidadesEnDespacho } from './partes.constants';
 import {
   ASISTENCIA_CONTEXTO_OPCIONES,
   ASISTENCIA_LAYOUT,
@@ -26,8 +27,9 @@ import {
   type AsistenciaColumnaDef,
   type AsistenciaItemDef,
 } from './asistencia-roster.constants';
-import { etiquetaDirectorioVoluntario } from '../usuarios/usuario-registro.constants';
+import { etiquetaDirectorioVoluntario, nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
+import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 
 type FilaUnidad = {
   carroId: number | '';
@@ -52,10 +54,17 @@ type PasoId = 'basicos' | 'emergencia' | 'trabajo' | 'asistencia' | 'apoyo' | 'o
 @Component({
   selector: 'app-parte-nuevo',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidDateInputComponent],
   templateUrl: './parte-nuevo.component.html',
 })
 export class ParteNuevoComponent implements OnInit {
+  /** Template: nombre sin « — ROL» en conductores y similares. */
+  readonly nombreListaSoloPersona = nombreListaSoloPersona;
+
+  get exigeUnidadesDespacho(): boolean {
+    return claveEmergenciaExigeUnidadesEnDespacho(this.claveEmergencia);
+  }
+
   private readonly route = inject(ActivatedRoute);
   private readonly carrosApi = inject(CarrosService);
   private readonly usuariosApi = inject(UsuariosService);
@@ -63,9 +72,8 @@ export class ParteNuevoComponent implements OnInit {
   private readonly licenciasApi = inject(LicenciasService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
 
-  readonly clavesOperativas = CLAVES_OPERATIVAS;
-  readonly clavesCompania = CLAVES_COMPANIA_SERVICIOS;
   readonly asistenciaLayout = ASISTENCIA_LAYOUT;
   asistenciaLayoutVista: AsistenciaColumnaDef[] = ASISTENCIA_LAYOUT;
   readonly asistenciaContextos = ASISTENCIA_CONTEXTO_OPCIONES;
@@ -101,8 +109,7 @@ export class ParteNuevoComponent implements OnInit {
   fechaDia = '';
   /** Hora aproximada del parte / incidente. */
   horaIncidente = '';
-  obacId: number | '' = '';
-  obacInput = '';
+  obacId: number | null = null;
   estado = 'PENDIENTE';
 
   descripcionEmergencia = '';
@@ -223,10 +230,6 @@ export class ParteNuevoComponent implements OnInit {
         this.usuarios = usuarios;
         this.aplicarLicenciasActivas(licencias);
         this.reconstruirAsistenciaLayout();
-        if (usuarios.length > 0) {
-          this.obacId = usuarios[0].id;
-          this.obacInput = this.formatoObac(usuarios[0]);
-        }
         for (const r of this.radiosParteOpciones) {
           if (this.radiosDetalle[r.id] === undefined) {
             this.radiosDetalle[r.id] = '';
@@ -529,7 +532,8 @@ export class ParteNuevoComponent implements OnInit {
     const id = `usr-${u.id}`;
     this.usuarioAsistenciaPorId[id] = u;
     const marca = etiquetaDirectorioVoluntario(u.tipoVoluntario, u.cargoOficialidad);
-    return { id, label: marca ? `${u.nombre} · ${marca}` : u.nombre };
+    const nombre = nombreListaSoloPersona(u);
+    return { id, label: marca ? `${nombre} · ${marca}` : nombre };
   }
 
   private esHonorario(u: UsuarioListaDto): boolean {
@@ -679,43 +683,120 @@ export class ParteNuevoComponent implements OnInit {
     this.otrasCompanias.splice(index, 1);
   }
 
-  private formatoObac(u: UsuarioListaDto): string {
-    return `${u.nombre} — ${u.rol}`;
+  /** Texto para el combo OBAC (sin rol de sistema): nombre o «clave · nombre». */
+  etiquetaObacSeleccion(u: UsuarioListaDto): string {
+    const persona = nombreListaSoloPersona(u);
+    const cn = u.claveNomina?.trim();
+    return cn ? `${cn} · ${persona}` : persona;
   }
 
-  onObacInputChange(): void {
-    const q = this.obacInput.trim().toLowerCase();
-    if (!q) {
-      return;
-    }
-    const u = this.usuarios.find((x) => {
-      const full = this.formatoObac(x).toLowerCase();
-      return (
-        full === q ||
-        x.nombre.toLowerCase() === q ||
-        x.rol.toLowerCase() === q ||
-        String(x.id) === q
-      );
-    });
-    if (u) {
-      this.obacId = u.id;
-      this.obacInput = this.formatoObac(u);
-    }
+  private debePriorizarAlFinalParaObac(u: UsuarioListaDto): boolean {
+    return (u.rol ?? '').trim().toUpperCase() === 'ADMIN';
   }
 
-  /** Lista sugerida de voluntarios conductores; fallback a personal activo. */
+  /** OBAC: voluntarios vigentes distintos de aspirante (no aplican a oficialidad/categoría). */
+  get usuariosElegiblesObac(): UsuarioListaDto[] {
+    return this.usuarios
+      .filter((u) => u.activo && !this.esAspirante(u))
+      .sort((a, b) => {
+        const da = this.debePriorizarAlFinalParaObac(a) ? 1 : 0;
+        const db = this.debePriorizarAlFinalParaObac(b) ? 1 : 0;
+        if (da !== db) return da - db;
+        return a.nombre.localeCompare(b.nombre, 'es');
+      });
+  }
+
+  private esAspirante(u: UsuarioListaDto): boolean {
+    return (u.tipoVoluntario ?? '').trim().toUpperCase() === 'ASPIRANTE';
+  }
+
+  private rutSinFormato(rut: string): string {
+    return (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+  }
+
+  /** Voluntarios marcados en usuarios como autorizados para conducir (solo ADMIN). */
   get voluntariosConductores(): UsuarioListaDto[] {
-    const activos = this.usuarios.filter((u) => u.activo);
-    const re = /(conductor|chofer|maquinista|maquina)/i;
-    const conductores = activos.filter((u) => re.test(u.rol) || re.test(u.nombre));
-    return conductores.length > 0 ? conductores : activos;
+    return this.usuarios
+      .filter((u) => u.activo && u.autorizadoConducir === true)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   }
 
-  abrirPickerFecha(input: HTMLInputElement): void {
-    if (typeof input.showPicker === 'function') {
-      input.showPicker();
+  /** Conductores disponibles para esta fila: no se repite la misma persona en dos unidades. */
+  conductoresParaFila(indiceFila: number): UsuarioListaDto[] {
+    const otros = new Set(
+      this.unidades
+        .map((fil, idx) => (idx === indiceFila ? '' : (fil.conductor ?? '').trim()))
+        .filter(Boolean),
+    );
+    return this.voluntariosConductores.filter((v) => !otros.has(nombreListaSoloPersona(v)));
+  }
+
+  /** Al elegir conductor, quitamos ese nombre del resto de filas para evitar duplicados. */
+  onConductorUnidadChange(indiceFila: number): void {
+    const mio = (this.unidades[indiceFila]?.conductor ?? '').trim();
+    if (!mio) return;
+    for (let j = 0; j < this.unidades.length; j++) {
+      if (j === indiceFila) continue;
+      if ((this.unidades[j]?.conductor ?? '').trim() === mio) {
+        this.unidades[j]!.conductor = '';
+      }
     }
-    input.focus();
+  }
+
+  private sanearConductoresDuplicadosUnidades(): void {
+    const visto = new Set<string>();
+    for (const fil of this.unidades) {
+      const c = (fil.conductor ?? '').trim();
+      if (!c) continue;
+      if (visto.has(c)) {
+        fil.conductor = '';
+      } else {
+        visto.add(c);
+      }
+    }
+  }
+
+  private hayConductorRepetidoEnUnidades(): boolean {
+    const xs = this.unidades.map((u) => (u.conductor ?? '').trim()).filter(Boolean);
+    return xs.length !== new Set(xs).size;
+  }
+
+  private filaUnidadIncompleta(u: FilaUnidad): boolean {
+    return (
+      !u.conductor.trim() ||
+      !u.hora6_0.trim() ||
+      !u.hora6_3.trim() ||
+      !u.hora6_9.trim() ||
+      !u.hora6_10.trim() ||
+      !u.kmSalida.trim() ||
+      !u.kmLlegada.trim()
+    );
+  }
+
+  /** Datos de tiempo/KM/conductor sin haber elegido carro (inconsistente). */
+  private filaTieneBasuraSinCarro(u: FilaUnidad): boolean {
+    if (u.carroId !== '') return false;
+    return !!(
+      u.conductor.trim() ||
+      u.hora6_0.trim() ||
+      u.hora6_3.trim() ||
+      u.hora6_9.trim() ||
+      u.hora6_10.trim() ||
+      u.kmSalida.trim() ||
+      u.kmLlegada.trim()
+    );
+  }
+
+  private unidadesFormularioInvalidasParaGuardar(): boolean {
+    const exige = claveEmergenciaExigeUnidadesEnDespacho(this.claveEmergencia);
+    if (this.unidades.some((u) => this.filaTieneBasuraSinCarro(u))) return true;
+
+    if (exige) {
+      const conCarro = this.unidades.filter((u) => u.carroId !== '');
+      if (conCarro.length === 0) return true;
+      return conCarro.some((u) => this.filaUnidadIncompleta(u));
+    }
+    return this.unidades.some((u) => u.carroId !== '' && this.filaUnidadIncompleta(u));
   }
 
   apoyoRequiereCargo(tipo: string): boolean {
@@ -1004,12 +1085,11 @@ export class ParteNuevoComponent implements OnInit {
   }
 
   private resolverObacId(): number | null {
-    this.onObacInputChange();
-    if (this.obacId !== '') {
-      return this.obacId as number;
+    if (typeof this.obacId === 'number' && this.obacId > 0) {
+      const ok = this.usuariosElegiblesObac.some((u) => u.id === this.obacId);
+      if (ok) return this.obacId;
     }
-    const u = this.usuarios[0];
-    return u ? u.id : null;
+    return null;
   }
 
   private cargarParteEnFormulario(parte: ParteEmergenciaDto): void {
@@ -1021,9 +1101,7 @@ export class ParteNuevoComponent implements OnInit {
       this.fechaDia = this.toDateInput(fechaParte);
       this.horaIncidente = this.toTimeInput(fechaParte);
     }
-    this.obacId = parte.obacId;
-    const obac = this.usuarios.find((u) => u.id === parte.obacId);
-    this.obacInput = obac ? this.formatoObac(obac) : '';
+    this.obacId = parte.obacId > 0 ? parte.obacId : null;
 
     const meta = (parte.metadata ?? {}) as ParteMetadataDto;
     this.descripcionEmergencia = meta.descripcionEmergencia ?? '';
@@ -1094,6 +1172,8 @@ export class ParteNuevoComponent implements OnInit {
             },
           ];
 
+    this.sanearConductoresDuplicadosUnidades();
+
     this.pacientes = (parte.pacientes ?? []).map((p) => ({
       nombre: p.nombre ?? '',
       edad: p.edad == null ? '' : String(p.edad),
@@ -1120,7 +1200,14 @@ export class ParteNuevoComponent implements OnInit {
     this.guardadoError = null;
     const obac = this.resolverObacId();
     if (obac === null) {
-      this.guardadoError = 'No hay OBAC disponible. Carga usuarios o revisa la conexión.';
+      this.guardadoError =
+        this.usuariosElegiblesObac.length === 0
+          ? 'No hay OBAC disponible. Carga usuarios o revisa la conexión.'
+          : 'Selecciona OBAC en datos básicos.';
+      return;
+    }
+    if (this.hayConductorRepetidoEnUnidades()) {
+      this.guardadoError = 'Un conductor no puede estar en más de una unidad en despacho.';
       return;
     }
     const fechaIso = this.buildFechaIso() ?? new Date().toISOString();
@@ -1224,23 +1311,21 @@ export class ParteNuevoComponent implements OnInit {
     }
 
     const unidadesPayload = this.parseUnidadesPayload();
-    if (unidadesPayload.length === 0) {
+    const exigeUnidades = claveEmergenciaExigeUnidadesEnDespacho(this.claveEmergencia);
+    if (exigeUnidades && unidadesPayload.length === 0) {
       this.guardadoError = 'Agrega al menos una unidad con carro asignado.';
       return;
     }
-    const unidadesInvalidas = this.unidades.some(
-      (u) =>
-        u.carroId === '' ||
-        !u.conductor.trim() ||
-        !u.hora6_0.trim() ||
-        !u.hora6_3.trim() ||
-        !u.hora6_9.trim() ||
-        !u.hora6_10.trim() ||
-        !u.kmSalida.trim() ||
-        !u.kmLlegada.trim(),
-    );
-    if (unidadesInvalidas) {
-      this.guardadoError = 'En unidades, completa conductor, KM y tiempos 6-0/6-3/6-9/6-10.';
+    if (this.hayConductorRepetidoEnUnidades()) {
+      this.guardadoError = 'Un conductor no puede estar en más de una unidad en despacho.';
+      this.pasoIdx = this.pasosVisibles.indexOf('basicos');
+      return;
+    }
+    if (this.unidadesFormularioInvalidasParaGuardar()) {
+      this.guardadoError = exigeUnidades
+        ? 'En unidades en despacho, completa conductor, KM y tiempos 6-0/6-3/6-9/6-10.'
+        : 'Si indicas unidad en despacho, completa carro, conductor, KM y tiempos; no dejes datos sin unidad.';
+      this.pasoIdx = this.pasosVisibles.indexOf('basicos');
       return;
     }
 

@@ -23,10 +23,18 @@ export interface ConfiguracionReportesDto {
   orientacionPdf: 'VERTICAL' | 'HORIZONTAL';
 }
 
+/** Ítem del catálogo editable por ADMIN / CAPITÁN (`claveEmergencia` en partes). */
+export interface TipoEmergenciaItemDto {
+  value: string;
+  label: string;
+}
+
 export interface ConfiguracionSistemaDto {
   compania: ConfiguracionCompaniaDto;
   notificaciones: ConfiguracionNotificacionesDto;
   reportes: ConfiguracionReportesDto;
   /** rutas permitidas (`routerLink`) por rol — configurable solo por administradores. */
   navegacionPorRol?: Record<string, string[]>;
+  /** Catálogo de tipos (persistido); si falta, el cliente usa `partes.constants`. */
+  tiposEmergencia?: TipoEmergenciaItemDto[];
 }

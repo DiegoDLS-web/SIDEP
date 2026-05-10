@@ -14,6 +14,10 @@ import { ConfiguracionesService } from '../services/configuraciones.service';
 import { SidepBrandLockupComponent } from '../shared/sidep-brand-lockup.component';
 import type { SesionUsuarioDto } from '../models/auth.dto';
 import { WelcomeOverlayComponent } from '../shared/welcome-overlay.component';
+import {
+  bienvenidaYaMostradaEnEstaPestana,
+  marcarBienvenidaCompletadaEnSesion,
+} from '../core/welcome-overlay-session';
 
 type NavItem = {
   routerLink: string;
@@ -55,7 +59,7 @@ export class MainLayoutComponent implements OnDestroy {
   sidebarAbierto = false;
   routeTransitioning = false;
 
-  /** Splash de bienvenida cada vez que el layout arranca autenticado (login, F5, URL directa con token). */
+  /** Splash de bienvenida al entrar con sesión; una vez por pestaña hasta cerrar sesión (F5 no la repite). */
   readonly bienvenidaVisible = signal(false);
   readonly bienvenidaSalida = signal(false);
   readonly nombreBienvenida = signal('');
@@ -68,6 +72,7 @@ export class MainLayoutComponent implements OnDestroy {
       items: [
         { routerLink: '/', label: 'Estadísticas', icon: 'layout-dashboard', exact: true },
         { routerLink: '/partes', label: 'Partes', icon: 'file-text' },
+        { routerLink: '/catalogo-emergencias', label: 'Tipos de emergencia', icon: 'tags' },
       ],
     },
     {
@@ -153,6 +158,9 @@ export class MainLayoutComponent implements OnDestroy {
   }
 
   private mostrarBienvenidaSesionActivada(u: SesionUsuarioDto): void {
+    if (bienvenidaYaMostradaEnEstaPestana()) {
+      return;
+    }
     const nombre = (u.nombre ?? '').trim() || 'Usuario';
     this.nombreBienvenida.set(nombre);
     this.bienvenidaSalida.set(false);
@@ -172,6 +180,7 @@ export class MainLayoutComponent implements OnDestroy {
       this.bienvenidaVisible.set(false);
       this.bienvenidaSalida.set(false);
       this.bienvenidaCierreTimer = null;
+      marcarBienvenidaCompletadaEnSesion();
     }, 520);
   }
 
@@ -185,21 +194,35 @@ export class MainLayoutComponent implements OnDestroy {
 
   private seccionesFallbackLegacy(rolRaw: string | undefined): NavSection[] {
     const rol = rolRaw?.toUpperCase();
+    const ocultarCatalogoTipos = rol !== 'ADMIN' && rol !== 'CAPITAN';
+    const sinCatalogoSiAplica = (sections: NavSection[]): NavSection[] =>
+      ocultarCatalogoTipos
+        ? sections.map((section) =>
+            section.title !== 'PRINCIPAL'
+              ? section
+              : {
+                  ...section,
+                  items: section.items.filter((item) => item.routerLink !== '/catalogo-emergencias'),
+                },
+          )
+        : sections;
     if (rol === 'ADMIN') {
       return this.baseSections;
     }
     if (rol === 'CAPITAN' || rol === 'TENIENTE') {
-      return this.baseSections.map((section) => {
-        if (section.title !== 'SISTEMA') {
-          return section;
-        }
-        return {
-          ...section,
-          items: section.items.filter((item) => item.routerLink !== '/configuraciones'),
-        };
-      });
+      return sinCatalogoSiAplica(
+        this.baseSections.map((section) => {
+          if (section.title !== 'SISTEMA') {
+            return section;
+          }
+          return {
+            ...section,
+            items: section.items.filter((item) => item.routerLink !== '/configuraciones'),
+          };
+        }),
+      );
     }
-    return this.baseSections.filter((section) => section.title !== 'SISTEMA');
+    return sinCatalogoSiAplica(this.baseSections.filter((section) => section.title !== 'SISTEMA'));
   }
 
   private filtrarSeccionesPorRutas(allowed: ReadonlySet<string>): NavSection[] {

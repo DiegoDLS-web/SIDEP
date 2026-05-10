@@ -47,6 +47,8 @@ const selectMiPerfil = {
     cargoOficialidad: true,
     observacionesRegistro: true,
     fotoPerfil: true,
+    autorizadoConducir: true,
+    claveNomina: true,
     createdAt: true,
     updatedAt: true,
 };

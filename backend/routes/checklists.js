@@ -35,9 +35,19 @@ function enrichVigencia(items) {
 }
 function buildEraListWhere(query) {
     const where = { tipo: 'ERA' };
-    const unidad = (0, httpQuery_js_1.firstQueryString)(query.unidad)?.trim();
-    if (unidad) {
-        where.carro = { nomenclatura: unidad };
+    const unidadesCsv = (0, httpQuery_js_1.firstQueryString)(query.unidades)?.trim();
+    const unidadLegacy = (0, httpQuery_js_1.firstQueryString)(query.unidad)?.trim();
+    const noms = unidadesCsv
+        ? [...new Set(unidadesCsv.split(',').map((s) => s.trim()).filter(Boolean))]
+        : unidadLegacy
+            ? [unidadLegacy]
+            : [];
+    if (noms.length === 1) {
+        const only = noms[0];
+        where.carro = { nomenclatura: only };
+    }
+    else if (noms.length > 1) {
+        where.carro = { nomenclatura: { in: noms } };
     }
     const desde = (0, httpQuery_js_1.firstQueryString)(query.desde);
     const hasta = (0, httpQuery_js_1.firstQueryString)(query.hasta);

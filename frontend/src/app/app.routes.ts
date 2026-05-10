@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './guards/auth.guard';
 import { adminGuard } from './guards/admin.guard';
 import { gestionUsuariosGuard } from './guards/gestion-usuarios.guard';
+import { catalogoEmergenciasGuard } from './guards/catalogo-emergencias.guard';
 import { guestGuard } from './guards/guest.guard';
 import {
   loadBolsoTraumaComponent,
@@ -13,6 +14,7 @@ import {
   loadChecklistEraComponent,
   loadChecklistSelectorComponent,
   loadChecklistUnidadComponent,
+  loadCatalogoTiposEmergenciaComponent,
   loadConfiguracionesComponent,
   loadDashboardComponent,
   loadLoginComponent,
@@ -70,6 +72,12 @@ export const routes: Routes = [
         path: 'partes',
         title: 'Partes de emergencia · SIDEP',
         loadComponent: loadPartesListaComponent,
+      },
+      {
+        path: 'catalogo-emergencias',
+        canActivate: [catalogoEmergenciasGuard],
+        title: 'Tipos de emergencia · SIDEP',
+        loadComponent: loadCatalogoTiposEmergenciaComponent,
       },
       {
         path: 'carros/:id',

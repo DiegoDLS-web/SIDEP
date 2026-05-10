@@ -13,7 +13,39 @@ const prisma_js_1 = require("../lib/prisma.js");
 const nav_por_rol_js_1 = require("../lib/nav-por-rol.js");
 const roles_js_1 = require("../middleware/roles.js");
 const apiError_js_1 = require("../lib/apiError.js");
+const tipos_emergencia_default_js_1 = require("../lib/tipos-emergencia-default.js");
 const CLAVE = 'SISTEMA_GENERAL';
+const VALUE_TIPO_EMERG_RE = /^[A-Za-z0-9_.-]+$/;
+function normalizeTiposEmergencia(raw) {
+    if (!Array.isArray(raw) || raw.length === 0) {
+        return (0, tipos_emergencia_default_js_1.defaultTiposEmergencia)();
+    }
+    const parsed = parseTiposEmergenciaLista(raw);
+    return parsed.length > 0 ? parsed : (0, tipos_emergencia_default_js_1.defaultTiposEmergencia)();
+}
+/** Solo entradas válidas (sin fallback). */
+function parseTiposEmergenciaLista(raw) {
+    if (!Array.isArray(raw)) {
+        return [];
+    }
+    const out = [];
+    const seen = new Set();
+    for (const item of raw) {
+        if (!item || typeof item !== 'object')
+            continue;
+        const value = String(item.value ?? '').trim();
+        const label = String(item.label ?? '').trim();
+        if (!value || !label || seen.has(value))
+            continue;
+        if (value.length > 80 || label.length > 500)
+            continue;
+        if (!VALUE_TIPO_EMERG_RE.test(value))
+            continue;
+        seen.add(value);
+        out.push({ value, label });
+    }
+    return out;
+}
 const defaultConfig = {
     compania: {
         nombreCompania: '1ª Compañía Santa Juana',
@@ -35,6 +67,7 @@ const defaultConfig = {
         orientacionPdf: 'VERTICAL',
     },
     navegacionPorRol: (0, nav_por_rol_js_1.mergeNavegacionPorRol)(undefined),
+    tiposEmergencia: (0, tipos_emergencia_default_js_1.defaultTiposEmergencia)(),
 };
 const FORMATOS = ['PDF', 'XLSX', 'CSV'];
 const ORIENTACIONES = ['VERTICAL', 'HORIZONTAL'];
@@ -76,7 +109,8 @@ function mergeConfig(raw) {
         orientacionPdf,
     };
     const navegacionPorRol = (0, nav_por_rol_js_1.mergeNavegacionPorRol)(r.navegacionPorRol);
-    return { compania, notificaciones, reportes, navegacionPorRol };
+    const tiposEmergencia = normalizeTiposEmergencia(r.tiposEmergencia);
+    return { compania, notificaciones, reportes, navegacionPorRol, tiposEmergencia };
 }
 /** Lectura unificada para auth y otras rutas. */
 async function obtenerConfigSistema() {
@@ -162,8 +196,9 @@ exports.configuracionesRouter.put('/', (0, roles_js_1.requireRoles)('ADMIN'), as
         (0, apiError_js_1.sendApiError)(res, 400, 'CONFIG_PAYLOAD', 'Payload de configuraciones inválido');
         return;
     }
-    const sanitized = mergeConfig(body);
     try {
+        const prev = await obtenerConfigSistema();
+        const sanitized = mergeConfig({ ...prev, ...body });
         await prisma_js_1.prisma.$executeRaw `
       INSERT INTO "ConfiguracionSistema" (clave, valor, "updatedAt")
       VALUES (${CLAVE}, ${JSON.stringify(sanitized)}::jsonb, now())
@@ -175,6 +210,33 @@ exports.configuracionesRouter.put('/', (0, roles_js_1.requireRoles)('ADMIN'), as
     catch (e) {
         console.error(e);
         (0, apiError_js_1.sendApiError)(res, 500, 'CONFIG_SAVE', 'Error al guardar configuraciones');
+    }
+});
+exports.configuracionesRouter.put('/tipos-emergencia', (0, roles_js_1.requireRoles)('ADMIN', 'CAPITAN'), async (req, res) => {
+    const raw = req.body?.tiposEmergencia;
+    if (!Array.isArray(raw) || raw.length === 0) {
+        (0, apiError_js_1.sendApiError)(res, 400, 'CONFIG_TIPOS_EMERG', 'Envía al menos un tipo de emergencia válido.');
+        return;
+    }
+    const tipos = parseTiposEmergenciaLista(raw);
+    if (tipos.length === 0) {
+        (0, apiError_js_1.sendApiError)(res, 400, 'CONFIG_TIPOS_EMERG', 'Ningún tipo válido: código (letras, números, -, _, .) y descripción obligatorios.');
+        return;
+    }
+    try {
+        const prev = await obtenerConfigSistema();
+        const sanitized = mergeConfig({ ...prev, tiposEmergencia: tipos });
+        await prisma_js_1.prisma.$executeRaw `
+      INSERT INTO "ConfiguracionSistema" (clave, valor, "updatedAt")
+      VALUES (${CLAVE}, ${JSON.stringify(sanitized)}::jsonb, now())
+      ON CONFLICT (clave)
+      DO UPDATE SET valor = EXCLUDED.valor, "updatedAt" = now()
+    `;
+        res.json(sanitized);
+    }
+    catch (e) {
+        console.error(e);
+        (0, apiError_js_1.sendApiError)(res, 500, 'CONFIG_SAVE', 'Error al guardar tipos de emergencia');
     }
 });
 //# sourceMappingURL=configuraciones.js.map

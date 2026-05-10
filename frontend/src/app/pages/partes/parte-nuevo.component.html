@@ -98,7 +98,7 @@
                 <lucide-icon name="calendar" class="mt-0.5 h-6 w-6 shrink-0 text-red-500" [size]="24" color="currentColor"></lucide-icon>
                 <div>
                   <h2 class="text-lg font-bold">Datos básicos</h2>
-                  <p class="text-sm text-gray-500">Fecha, tipo, unidad en despacho y OBAC.</p>
+                  <p class="text-sm text-gray-500">Fecha, tipo, OBAC; unidades en despacho cuando el tipo es 10-x.</p>
                 </div>
               </div>
               <div class="grid gap-3 lg:grid-cols-4">
@@ -106,25 +106,14 @@
                   <label class="mb-1.5 block text-sm font-medium text-gray-400"
                     >Fecha <span class="text-red-400" aria-hidden="true">*</span></label
                   >
-                  <div class="relative">
-                    <input
-                      #fechaInput
-                      type="date"
-                      [(ngModel)]="fechaDia"
-                      (ngModelChange)="onFechaAsistenciaChange()"
-                      name="fechaDia"
-                      [style.color-scheme]="'dark'"
-                      class="min-h-[48px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-4 py-3 pr-11 text-base text-white focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-                    />
-                    <button
-                      type="button"
-                      class="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg border border-gray-700 bg-[#151515] p-1.5 text-gray-300 hover:text-white"
-                      (click)="abrirPickerFecha(fechaInput)"
-                      aria-label="Abrir calendario"
-                    >
-                      <lucide-icon name="calendar-days" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-                    </button>
-                  </div>
+                  <app-sid-date-input
+                    name="fechaDia"
+                    [(ngModel)]="fechaDia"
+                    (ngModelChange)="onFechaAsistenciaChange()"
+                    preset="lg"
+                    ariaLabel="Fecha del parte"
+                    calendarAriaLabel="Abrir calendario"
+                  />
                 </div>
                 <div>
                   <label class="mb-1.5 block text-sm font-medium text-gray-400"
@@ -133,16 +122,16 @@
                   <select
                     [(ngModel)]="claveEmergencia"
                     name="claveEmergencia"
-                    class="min-h-[48px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-4 py-3 text-base text-white focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                    class="sid-tipo-emergencia-select min-h-[48px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-4 py-3 text-base text-white focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
                   >
                     <option value="">Seleccionar…</option>
                     <optgroup label="Clasificación 10-x (operativas)">
-                      @for (c of clavesOperativas; track c.value) {
+                      @for (c of catalogoEmergencias.operativas(); track c.value) {
                         <option [value]="c.value">{{ c.label }}</option>
                       }
                     </optgroup>
                     <optgroup label="Compañía / servicios">
-                      @for (c of clavesCompania; track c.value) {
+                      @for (c of catalogoEmergencias.companiaServiciosParte(); track c.value) {
                         <option [value]="c.value">{{ c.label }}</option>
                       }
                     </optgroup>
@@ -152,22 +141,17 @@
                   <label class="mb-1.5 block text-sm font-medium text-gray-400"
                     >OBAC <span class="text-red-400" aria-hidden="true">*</span></label
                   >
-                  <input
-                    list="obac-sugerencias"
-                    [(ngModel)]="obacInput"
-                    (input)="onObacInputChange()"
-                    name="obacInput"
-                    placeholder="Escribe nombre y dos apellidos, o clave"
-                    class="min-h-[48px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-4 py-3 text-base text-white placeholder:text-gray-600 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-                  />
-                  <datalist id="obac-sugerencias">
-                    @for (u of usuarios; track u.id) {
-                      <option [value]="u.nombre + ' — ' + u.rol"></option>
-                      <option [value]="u.nombre"></option>
-                      <option [value]="u.rol"></option>
+                  <select
+                    [(ngModel)]="obacId"
+                    name="obacId"
+                    autocomplete="off"
+                    class="sid-obac-select min-h-[48px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-4 py-3 text-base text-white focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                  >
+                    <option [ngValue]="null">Seleccionar OBAC…</option>
+                    @for (u of usuariosElegiblesObac; track u.id) {
+                      <option [ngValue]="u.id">{{ etiquetaObacSeleccion(u) }}</option>
                     }
-                  </datalist>
-                  <p class="mt-1 text-xs text-gray-500">Sugerencia: selecciona una opción de la lista para evitar errores.</p>
+                  </select>
                 </div>
                 <div>
                   <label class="mb-1.5 block text-sm font-medium text-gray-400"
@@ -185,7 +169,12 @@
                 <div class="flex flex-wrap items-center justify-between gap-2">
                   <h3 class="flex items-center gap-2 text-base font-semibold">
                     <lucide-icon name="truck" class="h-5 w-5 text-red-500" [size]="20" color="currentColor"></lucide-icon>
-                    Unidades en despacho <span class="text-sm font-normal text-red-400">*</span>
+                    Unidades en despacho
+                    @if (exigeUnidadesDespacho) {
+                      <span class="text-sm font-normal text-red-400">*</span>
+                    } @else {
+                      <span class="text-xs font-normal text-gray-500"> (opcional)</span>
+                    }
                   </h3>
                   <div class="flex gap-2">
                     <button
@@ -227,14 +216,22 @@
                           <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">Conductor</label>
                           <select
                             [(ngModel)]="u.conductor"
+                            (ngModelChange)="onConductorUnidadChange(i)"
                             [name]="'cond_' + i"
                             class="min-h-[44px] w-full rounded-lg border border-gray-600 bg-[#0a0a0a] px-2 py-2 text-sm"
                           >
                             <option value="">Seleccionar conductor…</option>
-                            @for (v of voluntariosConductores; track v.id) {
-                              <option [value]="v.nombre">{{ v.nombre }} — {{ v.rol }}</option>
+                            @for (v of conductoresParaFila(i); track v.id) {
+                              <option [value]="nombreListaSoloPersona(v)">{{ nombreListaSoloPersona(v) }}</option>
                             }
                           </select>
+                          @if (voluntariosConductores.length === 0) {
+                            <p class="mt-1 text-[11px] text-amber-300/95">
+                              No hay conductores registrados. Un administrador debe marcarlos en Gestión de usuarios.
+                            </p>
+                          } @else if (conductoresParaFila(i).length === 0) {
+                            <p class="mt-1 text-[11px] text-amber-300/95">Todos los conductores autorizados ya están en otra unidad de este despacho.</p>
+                          }
                         </div>
                       </div>
                       <div class="flex flex-col overflow-hidden rounded-xl border border-gray-700 bg-[#121212]">

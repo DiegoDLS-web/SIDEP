@@ -161,19 +161,43 @@
             </select>
           </label>
           <label class="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-[10rem] sm:flex-none">
-            <span class="text-xs text-gray-500">Desde</span>
+            <span class="text-xs text-gray-500">Tipo de emergencia</span>
+            <select disabled class="sid-history-filter min-w-0 cursor-not-allowed opacity-60 sm:min-w-[10rem]">
+              <option>No aplica</option>
+            </select>
+          </label>
+          <label class="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-[10rem] sm:flex-none">
+            <span class="text-xs text-gray-500">Estado</span>
+            <select disabled class="sid-history-filter min-w-0 cursor-not-allowed opacity-60 sm:min-w-[10rem]">
+              <option>No aplica</option>
+            </select>
+          </label>
+          <label class="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-[12rem] sm:flex-none">
+            <span class="text-xs text-gray-500">Inspector u OBAC</span>
             <input
-              type="date"
+              type="search"
+              [(ngModel)]="filtroInspectorHistorial"
+              (ngModelChange)="paginaHistorialGeneral = 1"
+              placeholder="Nombre parcial…"
+              class="sid-history-filter min-w-0 py-2"
+            />
+          </label>
+          <label class="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-[10rem] sm:flex-none">
+            <span class="text-xs text-gray-500">Desde</span>
+            <app-sid-date-input
+              preset="filter"
+              [dense]="true"
+              inputClass="sid-history-filter dark-date-input w-full min-w-0"
               [(ngModel)]="filtroHistorialDesde"
-              class="sid-history-filter dark-date-input w-full min-w-0"
             />
           </label>
           <label class="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-[10rem] sm:flex-none">
             <span class="text-xs text-gray-500">Hasta</span>
-            <input
-              type="date"
+            <app-sid-date-input
+              preset="filter"
+              [dense]="true"
+              inputClass="sid-history-filter dark-date-input w-full min-w-0"
               [(ngModel)]="filtroHistorialHasta"
-              class="sid-history-filter dark-date-input w-full min-w-0"
             />
           </label>
           <button
@@ -201,6 +225,22 @@
           >
             Actualizar
           </button>
+          <button
+            type="button"
+            class="sid-btn sid-btn-primary rounded-lg bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-40"
+            [disabled]="historialGeneralFiltrado().length === 0"
+            (click)="exportarHistorialGeneralPdf()"
+          >
+            Descargar PDF
+          </button>
+          <button
+            type="button"
+            class="sid-btn sid-btn-success rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700 disabled:opacity-40"
+            [disabled]="historialGeneralFiltrado().length === 0"
+            (click)="exportarHistorialGeneralExcel()"
+          >
+            Descargar Excel
+          </button>
         </div>
       </div>
 
@@ -209,6 +249,10 @@
       } @else if (historialGeneralFilas.length === 0) {
         <p class="rounded-lg border border-dashed border-gray-700 bg-[#0a0a0a] p-4 text-sm text-gray-500">
           Sin registros en el rango seleccionado.
+        </p>
+      } @else if (historialGeneralFiltrado().length === 0) {
+        <p class="rounded-lg border border-dashed border-amber-900/50 bg-[#0a0a0a] p-4 text-sm text-amber-200/90">
+          Ningún registro coincide con el filtro de inspector. Prueba otro criterio o limpia filtros.
         </p>
       } @else {
         <div class="space-y-3 md:hidden">
@@ -470,42 +514,56 @@
               <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                 <label class="text-sm">
                   <span class="mb-1 block text-gray-400">Último Conductor <span class="text-red-400">*</span></span>
-                  <input
-                    type="text"
+                  <select
                     [(ngModel)]="editForm.ultimoConductor"
-                    class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 text-white"
-                  />
+                    class="w-full min-h-[44px] rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 text-white"
+                  >
+                    <option value="">Seleccione conductor</option>
+                    @if (ultimoConductorLegadoNoEnLista()) {
+                      <option [value]="editForm.ultimoConductor">{{ editForm.ultimoConductor }} (registro anterior)</option>
+                    }
+                    @for (v of usuariosConductoresAutorizados; track v.id) {
+                      <option [value]="nombreListaSoloPersona(v)">{{ nombreListaSoloPersona(v) }}</option>
+                    }
+                  </select>
+                  @if (usuariosConductoresAutorizados.length === 0) {
+                    <p class="mt-1 text-xs text-amber-300">Sin conductores autorizados en el sistema; pide a un administrador que los marque en Usuarios.</p>
+                  }
                 </label>
                 <label class="text-sm">
                   <span class="mb-1 block text-gray-400">Último Mantenimiento <span class="text-red-400">*</span></span>
-                  <input
-                    type="date"
+                  <app-sid-date-input
+                    preset="none"
+                    [dense]="true"
+                    inputClass="dark-date-input w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 pr-11 text-white"
                     [(ngModel)]="editForm.ultimoMantenimiento"
-                    class="dark-date-input w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 text-white"
                   />
                 </label>
                 <label class="text-sm">
                   <span class="mb-1 block text-gray-400">Próximo Mantenimiento <span class="text-red-400">*</span></span>
-                  <input
-                    type="date"
+                  <app-sid-date-input
+                    preset="none"
+                    [dense]="true"
+                    inputClass="dark-date-input w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 pr-11 text-white"
                     [(ngModel)]="editForm.proximoMantenimiento"
-                    class="dark-date-input w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 text-white"
                   />
                 </label>
                 <label class="text-sm">
                   <span class="mb-1 block text-gray-400">Próxima Revisión Técnica <span class="text-red-400">*</span></span>
-                  <input
-                    type="date"
+                  <app-sid-date-input
+                    preset="none"
+                    [dense]="true"
+                    inputClass="dark-date-input w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 pr-11 text-white"
                     [(ngModel)]="editForm.proximaRevisionTecnica"
-                    class="dark-date-input w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 text-white"
                   />
                 </label>
                 <label class="text-sm">
                   <span class="mb-1 block text-gray-400">Última Revisión Bomba de Agua <span class="text-red-400">*</span></span>
-                  <input
-                    type="date"
+                  <app-sid-date-input
+                    preset="none"
+                    [dense]="true"
+                    inputClass="dark-date-input w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 pr-11 text-white"
                     [(ngModel)]="editForm.ultimaRevisionBombaAgua"
-                    class="dark-date-input w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 text-white"
                   />
                 </label>
                 <label class="text-sm">
@@ -527,10 +585,11 @@
                 </div>
                 <label class="text-sm">
                   <span class="mb-1 block text-gray-400">Fecha de Inspección <span class="text-red-400">*</span></span>
-                  <input
-                    type="date"
+                  <app-sid-date-input
+                    preset="none"
+                    [dense]="true"
+                    inputClass="dark-date-input w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 pr-11 text-white"
                     [(ngModel)]="editForm.fechaUltimaInspeccion"
-                    class="dark-date-input w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 text-white"
                   />
                 </label>
                 <label class="text-sm md:col-span-2 xl:col-span-3">

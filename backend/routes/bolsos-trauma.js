@@ -44,9 +44,12 @@ function bolsosDesdeDetalle(detalle) {
     });
 }
 /** Si aún no hay checklist TRAUMA, igual mostramos bolsos clicables (misma lógica que el registro). */
+/** Cantidad por unidad si aún no hay plantilla en checklist (numeración 1..N en cada carro). */
 function cantidadBolsosPredeterminada(nomenclatura) {
-    if (nomenclatura === 'R-1' || nomenclatura === 'B-1' || nomenclatura === 'BX-1')
-        return 3;
+    if (nomenclatura === 'R-1')
+        return 2;
+    if (nomenclatura === 'B-1' || nomenclatura === 'BX-1')
+        return 1;
     return 1;
 }
 function bolsosParaSelector(nomenclatura, detalle) {
@@ -63,7 +66,13 @@ function bolsosParaSelector(nomenclatura, detalle) {
     }));
 }
 exports.bolsosTraumaRouter.get('/historial', async (req, res) => {
-    const unidad = typeof req.query.unidad === 'string' ? req.query.unidad.trim() : '';
+    const unidadLegacy = typeof req.query.unidad === 'string' ? req.query.unidad.trim() : '';
+    const unidadesCsv = typeof req.query.unidades === 'string' ? req.query.unidades.trim() : '';
+    const noms = unidadesCsv
+        ? [...new Set(unidadesCsv.split(',').map((s) => s.trim()).filter(Boolean))]
+        : unidadLegacy
+            ? [unidadLegacy]
+            : [];
     const desdeRaw = typeof req.query.desde === 'string' ? req.query.desde.trim() : '';
     const hastaRaw = typeof req.query.hasta === 'string' ? req.query.hasta.trim() : '';
     const fechaFilter = {};
@@ -87,7 +96,7 @@ exports.bolsosTraumaRouter.get('/historial', async (req, res) => {
     try {
         const where = {
             tipo: 'TRAUMA',
-            ...(unidad ? { carro: { nomenclatura: unidad } } : {}),
+            ...(noms.length > 0 ? { carro: { nomenclatura: { in: noms } } } : {}),
             ...(fechaFilter.gte || fechaFilter.lte ? { fecha: fechaFilter } : {}),
         };
         const rows = await prisma_js_1.prisma.checklistCarro.findMany({
@@ -101,6 +110,7 @@ exports.bolsosTraumaRouter.get('/historial', async (req, res) => {
             return {
                 id: r.id,
                 fecha: r.fecha,
+                tipo: r.tipo,
                 unidad: r.carro.nomenclatura,
                 carroNombre: r.carro.nombre,
                 inspector: r.inspector,

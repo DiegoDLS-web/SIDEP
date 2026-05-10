@@ -2,6 +2,7 @@
 export const OPCIONES_MENU_SIDEP: ReadonlyArray<{ path: string; label: string }> = [
   { path: '/', label: 'Estadísticas' },
   { path: '/partes', label: 'Partes' },
+  { path: '/catalogo-emergencias', label: 'Tipos de emergencia' },
   { path: '/carros', label: 'Carros' },
   { path: '/checklist', label: 'Checklist' },
   { path: '/checklist-era', label: 'Checklist ERA' },
@@ -15,17 +16,24 @@ export const OPCIONES_MENU_SIDEP: ReadonlyArray<{ path: string; label: string }>
 
 /** Fallback local si falla `/api/auth/mi-navegacion` (misma lógica previa por rol). */
 export function rutasMenuFallbackPorRol(rolRaw: string | undefined): string[] {
-  const operativos = OPCIONES_MENU_SIDEP.filter(
+  const sinCatalogoNiAdmin = OPCIONES_MENU_SIDEP.filter(
     (x) =>
       x.path !== '/usuarios' &&
-      x.path !== '/configuraciones',
+      x.path !== '/configuraciones' &&
+      x.path !== '/catalogo-emergencias',
+  ).map((x) => x.path);
+  const operativosAdminCapitan = OPCIONES_MENU_SIDEP.filter(
+    (x) => x.path !== '/usuarios' && x.path !== '/configuraciones',
   ).map((x) => x.path);
   const r = rolRaw?.trim().toUpperCase() ?? '';
   if (r === 'ADMIN') {
     return OPCIONES_MENU_SIDEP.map((x) => x.path);
   }
-  if (r === 'CAPITAN' || r === 'TENIENTE') {
-    return [...operativos, '/usuarios'];
+  if (r === 'CAPITAN') {
+    return [...operativosAdminCapitan, '/usuarios'];
   }
-  return operativos;
+  if (r === 'TENIENTE') {
+    return [...sinCatalogoNiAdmin, '/usuarios'];
+  }
+  return sinCatalogoNiAdmin;
 }

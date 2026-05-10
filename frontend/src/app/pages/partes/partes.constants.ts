@@ -1,3 +1,12 @@
+/** Módulos SIDEP (mismo campo `claveEmergencia` que el resto; aparecen en filtros aparte). */
+export const CLAVES_MODULOS_SIDEP: { value: string; label: string }[] = [
+  { value: 'CHECKLIST_UNIDAD', label: 'Checklist de unidad' },
+  { value: 'CHECKLIST_ERA', label: 'Checklist ERA' },
+  { value: 'BOLSO_TRAUMA', label: 'Bolso de trauma' },
+];
+
+export const VALORES_CLAVE_MODULO_SIDEP = new Set(CLAVES_MODULOS_SIDEP.map((c) => c.value));
+
 /** Claves de emergencia y servicios (valor almacenado en `claveEmergencia`). */
 export const CLAVES_EMERGENCIA: { value: string; label: string }[] = [
   { value: 'todos', label: 'Todos los tipos' },
@@ -27,6 +36,9 @@ export const CLAVES_EMERGENCIA: { value: string; label: string }[] = [
   { value: '10-17', label: '10-17 — Llamado por inundación o anegamiento.' },
   { value: '10-18', label: '10-18 — Emergencia Marítimo / Portuaria.' },
 
+  // —— Checklist / ERA / Bolso (módulos) ——
+  ...CLAVES_MODULOS_SIDEP,
+
   // —— Servicios / administrativos ——
   { value: 'ACUARTELAMIENTO', label: 'Acuartelamiento' },
   { value: 'ACUARTELAMIENTO_PREVENTIVO', label: 'Acuartelamiento Preventivo' },
@@ -46,11 +58,20 @@ export const CLAVES_NUEVO_PARTE = CLAVES_EMERGENCIA.filter((c) => c.value !== 't
 /** Claves que empiezan con `10-…` (emergencias operativas). */
 export const CLAVES_OPERATIVAS = CLAVES_NUEVO_PARTE.filter((c) => /^10/.test(c.value));
 
-/** Acuartelamientos, reuniones, asambleas, etc. */
-export const CLAVES_COMPANIA_SERVICIOS = CLAVES_NUEVO_PARTE.filter((c) => !/^10/.test(c.value));
+/** Acuartelamientos, reuniones, asambleas, etc. (sin módulos Checklist/ERA/Bolso). */
+export const CLAVES_COMPANIA_SERVICIOS = CLAVES_NUEVO_PARTE.filter(
+  (c) => !/^10/.test(c.value) && !VALORES_CLAVE_MODULO_SIDEP.has(c.value),
+);
 
 /** Valor por defecto en borradores cuando no se eligió tipo (genérico). */
 export const CLAVE_BORRADOR_DEFAULT = '10-9';
+
+/** Clasificación 10-x en despacho: exige unidades completas; compañía/servicios permite sin despacho. */
+export function claveEmergenciaExigeUnidadesEnDespacho(clave: string): boolean {
+  const k = (clave ?? '').trim();
+  if (!k) return true;
+  return /^10/.test(k);
+}
 
 export function etiquetaClave(clave: string): string {
   const found = CLAVES_EMERGENCIA.find((c) => c.value === clave);

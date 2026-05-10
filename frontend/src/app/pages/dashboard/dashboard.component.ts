@@ -12,7 +12,7 @@ import { DashboardService } from '../../services/dashboard.service';
 import { ReportesService } from '../../services/reportes.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
-import { CLAVES_EMERGENCIA } from '../partes/partes.constants';
+import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
 import type { CuadroHonorDto } from '../../models/reportes.dto';
 
 type StatCard = {
@@ -34,8 +34,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private readonly dashboardApi = inject(DashboardService);
   private readonly carrosApi = inject(CarrosService);
   private readonly reportesApi = inject(ReportesService);
-
-  readonly clavesTipo = CLAVES_EMERGENCIA;
+  readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
 
   loading = true;
   error: string | null = null;
@@ -274,8 +273,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   etiquetaClave(clave: string): string {
-    const f = this.clavesTipo.find((c) => c.value === clave);
-    return f?.label ?? clave;
+    return this.catalogoEmergencias.etiqueta(clave);
   }
 
   /** Tooltip en filtros cuando el texto visible queda truncado en móvil. */

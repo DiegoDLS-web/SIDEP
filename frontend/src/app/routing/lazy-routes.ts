@@ -59,6 +59,11 @@ export const loadUsuariosComponent = () =>
 export const loadConfiguracionesComponent = () =>
   import('../pages/configuraciones/configuraciones.component').then((m) => m.ConfiguracionesComponent);
 
+export const loadCatalogoTiposEmergenciaComponent = () =>
+  import('../pages/catalogo-tipos-emergencia/catalogo-tipos-emergencia.component').then(
+    (m) => m.CatalogoTiposEmergenciaComponent,
+  );
+
 export const loadCambiarPasswordInicialComponent = () =>
   import('../pages/auth/cambiar-password-inicial.component').then((m) => m.CambiarPasswordInicialComponent);
 

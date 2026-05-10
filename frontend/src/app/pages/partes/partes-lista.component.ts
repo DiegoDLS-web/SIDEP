@@ -10,11 +10,14 @@ import type { PartesMetricasResp, PartesPaginaResp } from '../../services/partes
 import { PartesService } from '../../services/partes.service';
 import { ToastService } from '../../services/toast.service';
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
+import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
 import { mensajeApiError } from '../../utils/api-error.util';
-import { CLAVES_COMPANIA_SERVICIOS, CLAVES_OPERATIVAS, etiquetaClave } from './partes.constants';
+import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
+import { CarrosService } from '../../services/carros.service';
+import type { CarroDto } from '../../models/carro.dto';
 import { mensajeErrorFechaParteSiHay, rangoIsoListadoPartes, type PartesPeriodoFilter } from './partes-filtros-fecha.util';
 import { ParteVistaSoloLecturaComponent } from './parte-vista-solo-lectura.component';
 
@@ -36,6 +39,7 @@ function parsePeriodoQuery(v: string | null): PartesPeriodoFilter {
     ParteVistaSoloLecturaComponent,
     SidScrollRevealDirective,
     SidEmptyStateComponent,
+    SidDateInputComponent,
   ],
   templateUrl: './partes-lista.component.html',
 })
@@ -46,9 +50,8 @@ export class PartesListaComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
-
-  readonly clavesOperativasFiltro = CLAVES_OPERATIVAS;
-  readonly clavesCompaniaFiltro = CLAVES_COMPANIA_SERVICIOS;
+  readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
+  private readonly carrosApi = inject(CarrosService);
 
   partes: ParteEmergenciaDto[] = [];
   metricas: PartesMetricasResp | null = null;
@@ -61,12 +64,24 @@ export class PartesListaComponent implements OnInit {
   filtroDireccionDraft = '';
   /** Valor aplicado contra el backend / URL `q`. */
   filtroDireccion = '';
-  filtroTipo = 'todos';
+  /** Códigos de catálogo seleccionados; vacío = todos los tipos. */
+  filtroTipos: string[] = [];
   /** Reemplazo del select nativo: lista siempre debajo del control y scrollbar oscura. */
   filtroTipoPanelAbierto = false;
+  /** IDs de carro; vacío = todas las unidades. */
+  filtroCarroIds: number[] = [];
+  filtroCarrosPanelAbierto = false;
+  /** Lista para el panel de filtros (orden estable). */
+  carrosLista: CarroDto[] = [];
   filtroFecha = '';
   filtroPeriodo: PartesPeriodoFilter = 'todos';
   fechaFiltroError: string | null = null;
+  /** Rango explícito (YYYY-MM-DD); si hay valor, tiene prioridad sobre fecha rápida + período. */
+  filtroRangoDesde = '';
+  filtroRangoHasta = '';
+  /** Vacío = todos los estados. */
+  filtroEstadoParte: '' | 'BORRADOR' | 'PENDIENTE' | 'COMPLETADO' = '';
+  filtroPersonaObac = '';
 
   /** Listado refrescándose tras el primer pintado completo de la página. */
   actualizandoTabla = false;
@@ -82,9 +97,21 @@ export class PartesListaComponent implements OnInit {
   private lastQuerySig = '';
   private direccionCommitTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly direccionCommitMs = 350;
+  private filtrosReloadTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Acumula clics rápidos en período/tipo/unidades antes de URL + API (menos tirones). */
+  private readonly filtrosReloadMs = 520;
+  /** Evita parpadeo del estado "actualizando" si la API responde en milisegundos. */
+  private readonly actualizandoTablaDelayMs = 140;
+  private actualizandoTablaDelayTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Descarta respuestas HTTP obsoletas si el usuario cambia filtros rápido. */
+  private tablaLoadGen = 0;
   private prefetchSiguiente: { clave: string; resp: PartesPaginaResp } | null = null;
 
   ngOnInit(): void {
+    this.destroyRef.onDestroy(() => {
+      this.cancelarRecargaFiltrosPendiente();
+      this.limpiarTimerOverlayTabla();
+    });
     this.hidratarDesdeParams(this.route.snapshot.queryParamMap);
     this.filtroDireccionDraft = this.filtroDireccion;
     this.actualizarErroresFecha();
@@ -97,9 +124,13 @@ export class PartesListaComponent implements OnInit {
         pageSize: this.tamanioPaginaPartes,
         ...this.filtrosApi(),
       }),
+      carros: this.carrosApi.listar(),
     }).subscribe({
-      next: ({ metricas, pagina }) => {
+      next: ({ metricas, pagina, carros }) => {
         this.metricas = metricas;
+        this.carrosLista = carros
+          .slice()
+          .sort((a, b) => a.nomenclatura.localeCompare(b.nomenclatura, 'es'));
         this.aplicarRespuestaPagina(pagina);
         this.loading = false;
         this.error = null;
@@ -119,52 +150,146 @@ export class PartesListaComponent implements OnInit {
         this.lastQuerySig = entrante;
         this.hidratarDesdeParams(pm);
         this.filtroTipoPanelAbierto = false;
+        this.filtroCarrosPanelAbierto = false;
         this.filtroDireccionDraft = this.filtroDireccion;
         this.actualizarErroresFecha();
         if (!this.loading) this.recargarTablaInner(true);
       });
   }
 
-  etiquetaClave = etiquetaClave;
+  etiquetaClave(clave: string): string {
+    return this.catalogoEmergencias.etiqueta(clave);
+  }
+
+  textoEtiquetaTipoOpcion(c: { value: string; label?: string | null }): string {
+    const s = (c.label ?? '').trim();
+    if (s) return s;
+    return this.catalogoEmergencias.etiqueta(c.value);
+  }
+
+  textoCarroLinea(cr: CarroDto): string {
+    const n = (cr.nomenclatura ?? '').trim();
+    if (n) return n;
+    const nombre = (cr.nombre ?? '').trim();
+    if (nombre) return nombre;
+    return `Unidad ${cr.id}`;
+  }
 
   etiquetaFiltroTipoActual(): string {
-    if (this.filtroTipo === 'todos') {
+    const n = this.filtroTipos.length;
+    if (n === 0) {
       return 'Todos los tipos';
     }
-    return this.etiquetaClave(this.filtroTipo);
+    if (n === 1) {
+      return this.etiquetaClave(this.filtroTipos[0]!);
+    }
+    return `${n} tipos seleccionados`;
+  }
+
+  etiquetaFiltroCarrosActual(): string {
+    const n = this.filtroCarroIds.length;
+    if (n === 0) {
+      return 'Todas las unidades';
+    }
+    if (n === 1) {
+      const id = this.filtroCarroIds[0]!;
+      const c = this.carrosLista.find((x) => x.id === id);
+      return c?.nomenclatura ?? `Unidad ${id}`;
+    }
+    return `${n} unidades seleccionadas`;
   }
 
   toggleFiltroTipoPanel(ev: MouseEvent): void {
     ev.stopPropagation();
     this.filtroTipoPanelAbierto = !this.filtroTipoPanelAbierto;
+    if (this.filtroTipoPanelAbierto) {
+      this.filtroCarrosPanelAbierto = false;
+    }
   }
 
-  seleccionarFiltroTipo(valor: string): void {
-    this.filtroTipoPanelAbierto = false;
-    if (this.filtroTipo === valor) {
-      return;
+  toggleFiltroCarrosPanel(ev: MouseEvent): void {
+    ev.stopPropagation();
+    this.filtroCarrosPanelAbierto = !this.filtroCarrosPanelAbierto;
+    if (this.filtroCarrosPanelAbierto) {
+      this.filtroTipoPanelAbierto = false;
     }
-    this.filtroTipo = valor;
-    this.alCambiarFiltroPartes();
+  }
+
+  tipoFiltroSeleccionado(valor: string): boolean {
+    return this.filtroTipos.includes(valor);
+  }
+
+  toggleSeleccionTipo(valor: string, ev?: MouseEvent): void {
+    ev?.stopPropagation();
+    if (valor === 'todos') {
+      if (this.filtroTipos.length === 0) return;
+      this.filtroTipos = [];
+    } else {
+      const i = this.filtroTipos.indexOf(valor);
+      if (i >= 0) {
+        this.filtroTipos = this.filtroTipos.filter((_, j) => j !== i);
+      } else {
+        this.filtroTipos = [...this.filtroTipos, valor];
+      }
+    }
+    this.programarRecargaFiltros();
+  }
+
+  carroFiltroSeleccionado(id: number): boolean {
+    return this.filtroCarroIds.includes(id);
+  }
+
+  toggleSeleccionCarro(id: number, ev?: MouseEvent): void {
+    ev?.stopPropagation();
+    const i = this.filtroCarroIds.indexOf(id);
+    if (i >= 0) {
+      this.filtroCarroIds = this.filtroCarroIds.filter((_, j) => j !== i);
+    } else {
+      this.filtroCarroIds = [...this.filtroCarroIds, id];
+    }
+    this.programarRecargaFiltros();
+  }
+
+  limpiarSeleccionTipos(ev: MouseEvent): void {
+    ev.stopPropagation();
+    if (this.filtroTipos.length === 0) return;
+    this.filtroTipos = [];
+    this.programarRecargaFiltros();
+  }
+
+  limpiarSeleccionCarros(ev: MouseEvent): void {
+    ev.stopPropagation();
+    if (this.filtroCarroIds.length === 0) return;
+    this.filtroCarroIds = [];
+    this.programarRecargaFiltros();
   }
 
   @HostListener('document:click', ['$event'])
   cerrarFiltroTipoPanelSiClickFuera(ev: MouseEvent): void {
-    if (!this.filtroTipoPanelAbierto) return;
     const t = ev.target;
     if (!(t instanceof Node)) return;
-    const wrap = document.getElementById('partes-filtro-tipo-wrap');
-    if (wrap?.contains(t)) return;
-    this.filtroTipoPanelAbierto = false;
+    const wrapTipo = document.getElementById('partes-filtro-tipo-wrap');
+    const wrapCarros = document.getElementById('partes-filtro-carros-wrap');
+    if (this.filtroTipoPanelAbierto && !wrapTipo?.contains(t)) {
+      this.filtroTipoPanelAbierto = false;
+    }
+    if (this.filtroCarrosPanelAbierto && !wrapCarros?.contains(t)) {
+      this.filtroCarrosPanelAbierto = false;
+    }
   }
 
   /** Firma estable para ignorar emits redundantes del router. */
   private firmaQueriesDesdeEstado(): string {
     return JSON.stringify({
-      t: this.filtroTipo,
+      tipos: [...this.filtroTipos].sort().join(','),
+      carros: [...this.filtroCarroIds].sort((a, b) => a - b).join(','),
       q: this.filtroDireccion.trim(),
+      fd: this.filtroRangoDesde.trim(),
+      fh: this.filtroRangoHasta.trim(),
       f: this.filtroFecha.trim(),
       p: this.filtroPeriodo,
+      est: this.filtroEstadoParte,
+      pers: this.filtroPersonaObac.trim(),
       n: this.paginaPartes,
     });
   }
@@ -174,19 +299,67 @@ export class PartesListaComponent implements OnInit {
     const pi = pg != null ? parseInt(pg, 10) : 1;
     const pn = Number.isFinite(pi) && pi >= 1 ? pi : 1;
     return JSON.stringify({
-      t: pm.get('tipo') ?? 'todos',
+      tipos: this.normalizarTiposCsvDesdeParamMap(pm),
+      carros: this.normalizarCarrosCsvDesdeParamMap(pm),
       q: (pm.get('q') ?? '').trim(),
-      f: pm.get('fecha') ?? '',
-      p: pm.get('periodo') ?? 'todos',
+      fd: (pm.get('fd') ?? '').trim(),
+      fh: (pm.get('fh') ?? '').trim(),
+      f: (pm.get('fecha') ?? '').trim(),
+      p: parsePeriodoQuery(pm.get('periodo')),
+      est: pm.get('estado') ?? '',
+      pers: (pm.get('persona') ?? '').trim(),
       n: pn,
     });
   }
 
+  /** Coincide con `filtroTipos` serializado. */
+  private normalizarTiposCsvDesdeParamMap(pm: ParamMap): string {
+    const csv = pm.get('tipos')?.trim();
+    if (csv) {
+      return [...new Set(csv.split(',').map((s) => s.trim()).filter(Boolean))].sort().join(',');
+    }
+    const legacy = pm.get('tipo');
+    if (legacy && legacy !== 'todos') return legacy;
+    return '';
+  }
+
+  private normalizarCarrosCsvDesdeParamMap(pm: ParamMap): string {
+    const csv = pm.get('carros')?.trim();
+    if (!csv) return '';
+    const nums = csv
+      .split(',')
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    return [...new Set(nums)].sort((a, b) => a - b).join(',');
+  }
+
   private hidratarDesdeParams(pm: ParamMap): void {
-    this.filtroTipo = pm.get('tipo') ?? 'todos';
+    const tiposCsv = pm.get('tipos')?.trim();
+    if (tiposCsv) {
+      this.filtroTipos = [...new Set(tiposCsv.split(',').map((s) => s.trim()).filter(Boolean))].sort();
+    } else {
+      const legacy = pm.get('tipo');
+      this.filtroTipos = legacy && legacy !== 'todos' ? [legacy] : [];
+    }
+    const carCsv = pm.get('carros')?.trim();
+    if (carCsv) {
+      const nums = carCsv
+        .split(',')
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => Number.isFinite(n) && n > 0);
+      this.filtroCarroIds = [...new Set(nums)].sort((a, b) => a - b);
+    } else {
+      this.filtroCarroIds = [];
+    }
     this.filtroDireccion = (pm.get('q') ?? '').trim();
+    this.filtroRangoDesde = (pm.get('fd') ?? '').trim();
+    this.filtroRangoHasta = (pm.get('fh') ?? '').trim();
     this.filtroFecha = pm.get('fecha') ?? '';
     this.filtroPeriodo = parsePeriodoQuery(pm.get('periodo'));
+    const est = pm.get('estado');
+    this.filtroEstadoParte =
+      est === 'BORRADOR' || est === 'PENDIENTE' || est === 'COMPLETADO' ? est : '';
+    this.filtroPersonaObac = (pm.get('persona') ?? '').trim();
     const pg = pm.get('page');
     const pi = pg != null ? parseInt(pg, 10) : 1;
     this.paginaPartes = Number.isFinite(pi) && pi >= 1 ? pi : 1;
@@ -194,12 +367,24 @@ export class PartesListaComponent implements OnInit {
 
   private construirParamsQueryParaRouter(): Record<string, string | number> {
     const qp: Record<string, string | number> = {};
-    if (this.filtroTipo !== 'todos') qp['tipo'] = this.filtroTipo;
+    if (this.filtroTipos.length > 0) {
+      qp['tipos'] = [...this.filtroTipos].sort().join(',');
+    }
+    if (this.filtroCarroIds.length > 0) {
+      qp['carros'] = [...this.filtroCarroIds].sort((a, b) => a - b).join(',');
+    }
     const q = this.filtroDireccion.trim();
     if (q) qp['q'] = q;
+    const frd = this.filtroRangoDesde.trim();
+    const frh = this.filtroRangoHasta.trim();
+    if (frd) qp['fd'] = frd;
+    if (frh) qp['fh'] = frh;
     const fd = this.filtroFecha.trim();
     if (fd) qp['fecha'] = fd;
     if (this.filtroPeriodo !== 'todos') qp['periodo'] = this.filtroPeriodo;
+    if (this.filtroEstadoParte) qp['estado'] = this.filtroEstadoParte;
+    const pers = this.filtroPersonaObac.trim();
+    if (pers) qp['persona'] = pers;
     if (this.paginaPartes > 1) qp['page'] = this.paginaPartes;
     return qp;
   }
@@ -215,25 +400,61 @@ export class PartesListaComponent implements OnInit {
     });
   }
 
-  private filtrosApi(): { tipo?: string; q?: string; desde?: string; hasta?: string } {
-    const o: { tipo?: string; q?: string; desde?: string; hasta?: string } = {};
-    if (this.filtroTipo !== 'todos') {
-      o.tipo = this.filtroTipo;
+  private rangoFechasParaApi(): { desde?: string; hasta?: string } {
+    const a = this.filtroRangoDesde.trim();
+    const b = this.filtroRangoHasta.trim();
+    if (a || b) {
+      const o: { desde?: string; hasta?: string } = {};
+      if (a) {
+        const d = new Date(`${a}T00:00:00`);
+        if (!Number.isNaN(d.getTime())) o.desde = d.toISOString();
+      }
+      if (b) {
+        const d = new Date(`${b}T23:59:59.999`);
+        if (!Number.isNaN(d.getTime())) o.hasta = d.toISOString();
+      }
+      return o;
+    }
+    return rangoIsoListadoPartes({
+      filtroFechaTrim: this.filtroFecha.trim(),
+      filtroPeriodo: this.filtroPeriodo,
+    });
+  }
+
+  private filtrosApi(): {
+    tipos?: string;
+    carros?: string;
+    q?: string;
+    desde?: string;
+    hasta?: string;
+    estado?: string;
+    persona?: string;
+  } {
+    const o: {
+      tipos?: string;
+      carros?: string;
+      q?: string;
+      desde?: string;
+      hasta?: string;
+      estado?: string;
+      persona?: string;
+    } = {};
+    if (this.filtroTipos.length > 0) {
+      o.tipos = [...this.filtroTipos].sort().join(',');
+    }
+    if (this.filtroCarroIds.length > 0) {
+      o.carros = [...this.filtroCarroIds].sort((a, b) => a - b).join(',');
     }
     const qApi = this.filtroDireccion.trim();
     if (qApi) {
       o.q = qApi;
     }
-    const r = rangoIsoListadoPartes({
-      filtroFechaTrim: this.filtroFecha.trim(),
-      filtroPeriodo: this.filtroPeriodo,
-    });
-    if (r.desde) {
-      o.desde = r.desde;
-    }
-    if (r.hasta) {
-      o.hasta = r.hasta;
-    }
+    const r = this.rangoFechasParaApi();
+    if (r.desde) o.desde = r.desde;
+    if (r.hasta) o.hasta = r.hasta;
+    if (this.filtroEstadoParte) o.estado = this.filtroEstadoParte;
+    const pers = this.filtroPersonaObac.trim();
+    if (pers) o.persona = pers;
     return o;
   }
 
@@ -286,10 +507,24 @@ export class PartesListaComponent implements OnInit {
   }
 
   /** Cambio desde debounce aplicado sobre dirección. */
+  private limpiarTimerOverlayTabla(): void {
+    if (this.actualizandoTablaDelayTimer) {
+      clearTimeout(this.actualizandoTablaDelayTimer);
+      this.actualizandoTablaDelayTimer = null;
+    }
+  }
+
   private recargarTablaInner(showOverlay: boolean): void {
+    const gen = ++this.tablaLoadGen;
     this.prefetchSiguiente = null;
+    this.limpiarTimerOverlayTabla();
+    this.actualizandoTabla = false;
     if (showOverlay && !this.loading) {
-      this.actualizandoTabla = true;
+      this.actualizandoTablaDelayTimer = setTimeout(() => {
+        this.actualizandoTablaDelayTimer = null;
+        if (gen !== this.tablaLoadGen) return;
+        this.actualizandoTabla = true;
+      }, this.actualizandoTablaDelayMs);
     }
     this.partesApi
       .listarPagina({
@@ -299,36 +534,64 @@ export class PartesListaComponent implements OnInit {
       })
       .subscribe({
         next: (pagina) => {
+          if (gen !== this.tablaLoadGen) {
+            return;
+          }
+          this.limpiarTimerOverlayTabla();
           this.actualizandoTabla = false;
           this.aplicarRespuestaPagina(pagina);
           this.error = null;
           this.tryPrefetchPaginaSiguiente();
         },
         error: (err) => {
+          if (gen !== this.tablaLoadGen) {
+            return;
+          }
+          this.limpiarTimerOverlayTabla();
           this.actualizandoTabla = false;
           this.error = mensajeApiError(err, 'No se pudo actualizar el listado.');
         },
       });
   }
 
-  /** Tipo de emergencia, fecha o período rápido. */
-  alCambiarFiltroPartes(): void {
+  /** Debounce corto para tipo, unidades, fecha y período rápido (evita tirones y peticiones obsoletas). */
+  private programarRecargaFiltros(): void {
     this.actualizarErroresFecha();
     this.paginaPartes = 1;
-    this.persistirFiltrosEnUrl();
-    this.recargarTablaInner(!this.loading);
+    if (this.filtrosReloadTimer) clearTimeout(this.filtrosReloadTimer);
+    this.filtrosReloadTimer = setTimeout(() => {
+      this.filtrosReloadTimer = null;
+      this.persistirFiltrosEnUrl();
+      this.recargarTablaInner(!this.loading);
+    }, this.filtrosReloadMs);
+  }
+
+  private cancelarRecargaFiltrosPendiente(): void {
+    if (this.filtrosReloadTimer) {
+      clearTimeout(this.filtrosReloadTimer);
+      this.filtrosReloadTimer = null;
+    }
   }
 
   onFechaFiltroInput(): void {
-    this.actualizarErroresFecha();
-    this.paginaPartes = 1;
-    this.persistirFiltrosEnUrl();
-    this.recargarTablaInner(!this.loading);
+    this.programarRecargaFiltros();
   }
 
   setPeriodo(p: PartesPeriodoFilter): void {
     this.filtroPeriodo = p;
-    this.alCambiarFiltroPartes();
+    this.programarRecargaFiltros();
+  }
+
+  onRangoFiltroChange(): void {
+    this.programarRecargaFiltros();
+  }
+
+  onEstadoParteChange(): void {
+    this.programarRecargaFiltros();
+  }
+
+  onPersonaObacInput(): void {
+    this.programarRecargaFiltros();
   }
 
   onDireccionDraftChanged(): void {
@@ -351,6 +614,7 @@ export class PartesListaComponent implements OnInit {
   private confirmarDireccionDesdeDraft(_desdeInteraction: boolean): void {
     const next = this.filtroDireccionDraft.trim();
     if (next === this.filtroDireccion) return;
+    this.cancelarRecargaFiltrosPendiente();
     this.filtroDireccion = next;
     this.paginaPartes = 1;
     this.persistirFiltrosEnUrl();
@@ -362,12 +626,19 @@ export class PartesListaComponent implements OnInit {
       clearTimeout(this.direccionCommitTimer);
       this.direccionCommitTimer = null;
     }
+    this.cancelarRecargaFiltrosPendiente();
     this.filtroTipoPanelAbierto = false;
-    this.filtroTipo = 'todos';
+    this.filtroCarrosPanelAbierto = false;
+    this.filtroTipos = [];
+    this.filtroCarroIds = [];
     this.filtroDireccion = '';
     this.filtroDireccionDraft = '';
     this.filtroFecha = '';
     this.filtroPeriodo = 'todos';
+    this.filtroRangoDesde = '';
+    this.filtroRangoHasta = '';
+    this.filtroEstadoParte = '';
+    this.filtroPersonaObac = '';
     this.fechaFiltroError = null;
     this.paginaPartes = 1;
     this.persistirFiltrosEnUrl();
@@ -376,12 +647,29 @@ export class PartesListaComponent implements OnInit {
 
   hayFiltrosActivos(): boolean {
     return (
-      this.filtroTipo !== 'todos' ||
+      this.filtroTipos.length > 0 ||
+      this.filtroCarroIds.length > 0 ||
       this.filtroDireccion.trim().length > 0 ||
       this.filtroFecha.trim().length > 0 ||
+      this.filtroRangoDesde.trim().length > 0 ||
+      this.filtroRangoHasta.trim().length > 0 ||
+      this.filtroEstadoParte !== '' ||
+      this.filtroPersonaObac.trim().length > 0 ||
       this.filtroPeriodo !== 'todos' ||
       this.paginaPartes > 1
     );
+  }
+
+  aplicarFiltrosPartes(): void {
+    this.cancelarRecargaFiltrosPendiente();
+    this.paginaPartes = 1;
+    this.actualizarErroresFecha();
+    this.persistirFiltrosEnUrl();
+    this.recargarTablaInner(!this.loading);
+  }
+
+  actualizarListadoPartes(): void {
+    this.recargarTablaInner(!this.loading);
   }
 
   totalPaginasPartes(): number {
@@ -394,6 +682,7 @@ export class PartesListaComponent implements OnInit {
 
   cambiarPaginaPartes(delta: number): void {
     if (this.actualizandoTabla) return;
+    this.cancelarRecargaFiltrosPendiente();
     const total = this.totalPaginasPartes();
     const destino = Math.min(Math.max(this.paginaPartes + delta, 1), total);
 
@@ -443,6 +732,30 @@ export class PartesListaComponent implements OnInit {
 
   totalSistema(): number {
     return this.metricas?.totalSistema ?? 0;
+  }
+
+  exportarPdf(): void {
+    const cap = 2000;
+    const pageSize = Math.min(cap, Math.max(this.totalFiltrado, this.tamanioPaginaPartes));
+    this.partesApi
+      .listarPagina({
+        page: 1,
+        pageSize,
+        ...this.filtrosApi(),
+      })
+      .subscribe({
+        next: (pagina) => {
+          if (this.totalFiltrado > pagina.items.length) {
+            this.toast.info(
+              `Se exportan ${pagina.items.length} de ${this.totalFiltrado} registros (máx. ${cap} por archivo PDF).`,
+            );
+          }
+          this.exportador.exportarPdfListado(pagina.items);
+        },
+        error: (err) => {
+          this.toast.error(mensajeApiError(err, 'No se pudo preparar el PDF.'));
+        },
+      });
   }
 
   exportarExcel(): void {
@@ -502,6 +815,10 @@ export class PartesListaComponent implements OnInit {
   onEscapeCerrarVistaModal(): void {
     if (this.filtroTipoPanelAbierto) {
       this.filtroTipoPanelAbierto = false;
+      return;
+    }
+    if (this.filtroCarrosPanelAbierto) {
+      this.filtroCarrosPanelAbierto = false;
       return;
     }
     if (this.vistaModalAbierta) {

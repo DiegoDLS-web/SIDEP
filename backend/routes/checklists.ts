@@ -43,9 +43,18 @@ function enrichVigencia<T extends { id: number }>(items: T[]): Array<T & { vigen
 
 function buildEraListWhere(query: Record<string, unknown>): Prisma.ChecklistCarroWhereInput {
   const where: Prisma.ChecklistCarroWhereInput = { tipo: 'ERA' };
-  const unidad = firstQueryString(query.unidad)?.trim();
-  if (unidad) {
-    where.carro = { nomenclatura: unidad };
+  const unidadesCsv = firstQueryString(query.unidades)?.trim();
+  const unidadLegacy = firstQueryString(query.unidad)?.trim();
+  const noms = unidadesCsv
+    ? [...new Set(unidadesCsv.split(',').map((s) => s.trim()).filter(Boolean))]
+    : unidadLegacy
+      ? [unidadLegacy]
+      : [];
+  if (noms.length === 1) {
+    const only = noms[0]!;
+    where.carro = { nomenclatura: only };
+  } else if (noms.length > 1) {
+    where.carro = { nomenclatura: { in: noms } };
   }
   const desde = firstQueryString(query.desde);
   const hasta = firstQueryString(query.hasta);

@@ -50,6 +50,35 @@ select.sid-partes-select:focus-visible {
     0 0 0 3px rgba(239, 68, 68, 0.12);
 }
 
+/* Nuevo parte: lista larga de tipos 10-x / compañía — scroll más oscuro donde el motor lo permite. */
+select.sid-tipo-emergencia-select,
+select.sid-obac-select {
+  color-scheme: dark;
+  scrollbar-color: #3f3f46 #0a0a0a;
+  scrollbar-width: thin;
+}
+
+select.sid-tipo-emergencia-select::-webkit-scrollbar,
+select.sid-obac-select::-webkit-scrollbar {
+  width: 8px;
+}
+
+select.sid-tipo-emergencia-select::-webkit-scrollbar-track,
+select.sid-obac-select::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+select.sid-tipo-emergencia-select::-webkit-scrollbar-thumb,
+select.sid-obac-select::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 4px;
+}
+
+select.sid-tipo-emergencia-select::-webkit-scrollbar-thumb:hover,
+select.sid-obac-select::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
 /* Partes: lista tipo de emergencia (reemplazo del select nativo). */
 button#partes-filtro-tipo-btn.sid-input:focus-visible {
   border-color: rgba(239, 68, 68, 0.75);
@@ -60,6 +89,17 @@ button#partes-filtro-tipo-btn.sid-input:focus-visible {
 
 .sid-partes-filtro-tipo-listbox {
   scrollbar-gutter: stable;
+}
+
+.sid-partes-filtro-tipo-listbox button[role='option'] {
+  color: #e2e8f0;
+}
+
+.sid-filtro-opcion-label {
+  color: #e2e8f0;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
 }
 
 /* Calendario nativo coherente con tema oscuro (Chrome/Edge/Safari). */
@@ -1017,6 +1057,11 @@ body.motion-suave .sid-brand-e-bar {
   border: 1px solid var(--sid-border);
   border-radius: 0.9rem;
   background: var(--sid-shell-aside);
+}
+
+/** Partes: listboxes del filtro deben poder salir del borde redondeado sin recortarse. */
+.sid-partes-filtros-card {
+  overflow: visible !important;
 }
 
 .sid-history-title {

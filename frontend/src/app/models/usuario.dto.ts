@@ -25,6 +25,10 @@ export interface UsuarioListaDto {
   observacionesRegistro: string | null;
   firmaImagen: string | null;
   fotoPerfil?: string | null;
+  /** Solo ADMIN lo cambia; lista conductores en partes y mantención de carros. */
+  autorizadoConducir?: boolean;
+  /** Clave de nómina institucional (OBAC, búsquedas). Opcional; única si existe. */
+  claveNomina?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -70,6 +74,8 @@ export interface UsuarioCrearDto {
   observacionesRegistro?: string | null;
   firmaImagen?: string | null;
   fotoPerfil?: string | null;
+  autorizadoConducir?: boolean;
+  claveNomina?: string | null;
 }
 
 export interface UsuarioActualizarDto {
@@ -98,4 +104,6 @@ export interface UsuarioActualizarDto {
   observacionesRegistro?: string | null;
   firmaImagen?: string | null;
   fotoPerfil?: string | null;
+  autorizadoConducir?: boolean;
+  claveNomina?: string | null;
 }

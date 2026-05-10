@@ -1,10 +1,10 @@
 import { CommonModule, formatDate } from '@angular/common';
-import { Component, Input } from '@angular/core';
+import { Component, Input, inject } from '@angular/core';
 import type { ParteAsistenciaMetadata, ParteEmergenciaDto, ParteMetadataDto } from '../../models/parte.dto';
 import type { AsistenciaContextoKey } from '../../models/parte.dto';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { ASISTENCIA_CONTEXTO_OPCIONES, ASISTENCIA_ITEM_LABELS } from './asistencia-roster.constants';
-import { etiquetaClave } from './partes.constants';
+import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
 
 /**
  * Bloque de presentación solo lectura del parte (reutilizado en modal del historial).
@@ -18,7 +18,11 @@ import { etiquetaClave } from './partes.constants';
 export class ParteVistaSoloLecturaComponent {
   @Input({ required: true }) parte!: ParteEmergenciaDto;
 
-  readonly etiquetaClave = etiquetaClave;
+  private readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
+
+  etiquetaClave(clave: string): string {
+    return this.catalogoEmergencias.etiqueta(clave);
+  }
   readonly asistenciaContextos = ASISTENCIA_CONTEXTO_OPCIONES;
 
   readonly etiquetasAsistencia: Array<{

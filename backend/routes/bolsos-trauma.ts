@@ -87,7 +87,13 @@ function bolsosParaSelector(nomenclatura: string, detalle: unknown): BolsoResume
 }
 
 bolsosTraumaRouter.get('/historial', async (req, res) => {
-  const unidad = typeof req.query.unidad === 'string' ? req.query.unidad.trim() : '';
+  const unidadLegacy = typeof req.query.unidad === 'string' ? req.query.unidad.trim() : '';
+  const unidadesCsv = typeof req.query.unidades === 'string' ? req.query.unidades.trim() : '';
+  const noms = unidadesCsv
+    ? [...new Set(unidadesCsv.split(',').map((s) => s.trim()).filter(Boolean))]
+    : unidadLegacy
+      ? [unidadLegacy]
+      : [];
   const desdeRaw = typeof req.query.desde === 'string' ? req.query.desde.trim() : '';
   const hastaRaw = typeof req.query.hasta === 'string' ? req.query.hasta.trim() : '';
 
@@ -113,7 +119,7 @@ bolsosTraumaRouter.get('/historial', async (req, res) => {
   try {
     const where = {
       tipo: 'TRAUMA',
-      ...(unidad ? { carro: { nomenclatura: unidad } } : {}),
+      ...(noms.length > 0 ? { carro: { nomenclatura: { in: noms } } } : {}),
       ...(fechaFilter.gte || fechaFilter.lte ? { fecha: fechaFilter } : {}),
     } as const;
 
@@ -132,6 +138,7 @@ bolsosTraumaRouter.get('/historial', async (req, res) => {
       return {
         id: r.id,
         fecha: r.fecha,
+        tipo: r.tipo,
         unidad: r.carro.nomenclatura,
         carroNombre: r.carro.nombre,
         inspector: r.inspector,

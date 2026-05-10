@@ -65,37 +65,26 @@
         <div class="mb-1.5 flex items-center justify-between">
           <lucide-icon name="users" class="h-7 w-7 text-emerald-400" [size]="28" color="currentColor" aria-hidden="true"></lucide-icon>
         </div>
-        <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ totalFiltrado }}</p>
+        <p class="mb-0.5 min-h-[2.25rem] text-2xl font-bold tabular-nums text-white sm:min-h-[2.5rem] sm:text-3xl">{{ totalFiltrado }}</p>
         <p class="text-xs font-medium text-slate-300 sm:text-sm">Con filtros actuales</p>
       </div>
     </div>
 
+    <!-- overflow-visible: los listboxes absolutos no deben recortarse por la tarjeta -->
     <section
       sidScrollReveal
-      class="sid-history-card w-full overflow-hidden p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 md:p-6"
+      class="sid-history-card sid-partes-filtros-card relative z-30 w-full overflow-visible p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 md:p-6"
     >
-      <div class="w-full min-w-0">
+      <div class="relative z-10 w-full min-w-0 overflow-visible">
         <div class="mb-8 border-b border-slate-800/90 pb-8 sm:mb-9 sm:pb-9">
-          <div class="flex flex-wrap items-center justify-between gap-4">
-            <div class="flex items-center gap-2.5">
-              <lucide-icon name="funnel" class="h-5 w-5 shrink-0 text-red-500" [size]="20" color="currentColor" aria-hidden="true"></lucide-icon>
-              <h3 class="text-lg font-bold leading-tight text-white">Filtros de búsqueda</h3>
-            </div>
-            <button
-              type="button"
-              class="shrink-0 rounded-lg border border-slate-600/80 bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
-              [disabled]="!hayFiltrosActivos()"
-              [attr.aria-disabled]="!hayFiltrosActivos()"
-              title="Restablecer tipo, dirección, fecha, período y página"
-              (click)="limpiarFiltros()"
-            >
-              Limpiar filtros
-            </button>
+          <div class="flex flex-wrap items-center gap-2.5">
+            <lucide-icon name="funnel" class="h-5 w-5 shrink-0 text-red-500" [size]="20" color="currentColor" aria-hidden="true"></lucide-icon>
+            <h3 class="text-lg font-bold leading-tight text-white">Filtros de búsqueda</h3>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-x-8 md:gap-y-6">
-          <div id="partes-filtro-tipo-wrap" class="relative min-w-0">
+        <div class="grid grid-cols-1 gap-6 overflow-visible md:grid-cols-2 xl:grid-cols-6 md:gap-x-8 md:gap-y-6">
+          <div id="partes-filtro-tipo-wrap" class="relative z-[100] min-w-0">
             <label
               class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400"
               id="partes-filtro-tipo-lbl"
@@ -125,57 +114,201 @@
             @if (filtroTipoPanelAbierto) {
               <div
                 id="partes-filtro-tipo-listbox"
-                class="sid-partes-filtro-tipo-listbox sid-scroll-dark absolute left-0 right-0 top-full z-[45] mt-1.5 max-h-[min(22rem,52vh)] overflow-y-auto rounded-xl border border-slate-600/80 bg-[var(--sid-surface-inset)] py-1.5 shadow-xl ring-1 ring-black/30"
+                class="sid-partes-filtro-tipo-listbox sid-scroll-dark absolute left-0 right-0 top-full z-[200] mt-1.5 max-h-[min(22rem,52vh)] overflow-y-auto rounded-xl border border-slate-600/80 bg-[var(--sid-surface-inset)] py-1.5 shadow-xl ring-1 ring-black/30"
                 role="listbox"
                 aria-labelledby="partes-filtro-tipo-lbl"
+                aria-multiselectable="true"
               >
                 <button
                   type="button"
                   role="option"
-                  class="mx-1 flex w-[calc(100%-0.5rem)] rounded-lg px-3 py-2.5 text-left text-sm text-slate-100 transition-colors hover:bg-slate-800/90"
-                  [class.bg-red-950/50]="filtroTipo === 'todos'"
-                  [class.text-white]="filtroTipo === 'todos'"
-                  [attr.aria-selected]="filtroTipo === 'todos'"
-                  (click)="seleccionarFiltroTipo('todos')"
+                  class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-slate-100 transition-colors hover:bg-slate-800/90"
+                  [class.bg-red-950/50]="filtroTipos.length === 0"
+                  [class.text-white]="filtroTipos.length === 0"
+                  [attr.aria-selected]="filtroTipos.length === 0"
+                  (click)="limpiarSeleccionTipos($event)"
                 >
+                  <span
+                    class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                    [class.border-red-400]="filtroTipos.length === 0"
+                    [class.bg-red-500]="filtroTipos.length === 0"
+                    [class.border-slate-500]="filtroTipos.length > 0"
+                  >
+                    @if (filtroTipos.length === 0) {
+                      <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                    }
+                  </span>
                   Todos los tipos
                 </button>
                 <p class="mx-3 mb-1 mt-3 border-b border-slate-700/50 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                   Clasificación 10-x (operativas)
                 </p>
-                @for (c of clavesOperativasFiltro; track c.value) {
+                @for (c of catalogoEmergencias.operativas(); track c.value) {
                   <button
                     type="button"
                     role="option"
-                    class="mx-1 flex w-[calc(100%-0.5rem)] rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
-                    [class.bg-red-950/50]="filtroTipo === c.value"
-                    [class.text-white]="filtroTipo === c.value"
-                    [attr.aria-selected]="filtroTipo === c.value"
-                    (click)="seleccionarFiltroTipo(c.value)"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-red-950/35]="tipoFiltroSeleccionado(c.value)"
+                    [attr.aria-selected]="tipoFiltroSeleccionado(c.value)"
+                    (click)="toggleSeleccionTipo(c.value, $event)"
                   >
-                    {{ c.label }}
+                    <span
+                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                      [class.border-red-400]="tipoFiltroSeleccionado(c.value)"
+                      [class.bg-red-500]="tipoFiltroSeleccionado(c.value)"
+                      [class.border-slate-500]="!tipoFiltroSeleccionado(c.value)"
+                    >
+                      @if (tipoFiltroSeleccionado(c.value)) {
+                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                      }
+                    </span>
+                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{
+                      textoEtiquetaTipoOpcion(c)
+                    }}</span>
                   </button>
                 }
                 <p class="mx-3 mb-1 mt-4 border-b border-slate-700/50 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                   Compañía / servicios
                 </p>
-                @for (c of clavesCompaniaFiltro; track c.value) {
+                @for (c of catalogoEmergencias.companiaServicios(); track c.value) {
                   <button
                     type="button"
                     role="option"
-                    class="mx-1 flex w-[calc(100%-0.5rem)] rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
-                    [class.bg-red-950/50]="filtroTipo === c.value"
-                    [class.text-white]="filtroTipo === c.value"
-                    [attr.aria-selected]="filtroTipo === c.value"
-                    (click)="seleccionarFiltroTipo(c.value)"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-red-950/35]="tipoFiltroSeleccionado(c.value)"
+                    [attr.aria-selected]="tipoFiltroSeleccionado(c.value)"
+                    (click)="toggleSeleccionTipo(c.value, $event)"
                   >
-                    {{ c.label }}
+                    <span
+                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                      [class.border-red-400]="tipoFiltroSeleccionado(c.value)"
+                      [class.bg-red-500]="tipoFiltroSeleccionado(c.value)"
+                      [class.border-slate-500]="!tipoFiltroSeleccionado(c.value)"
+                    >
+                      @if (tipoFiltroSeleccionado(c.value)) {
+                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                      }
+                    </span>
+                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{
+                      textoEtiquetaTipoOpcion(c)
+                    }}</span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+          <div id="partes-filtro-carros-wrap" class="relative z-[100] min-w-0">
+            <label
+              class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400"
+              id="partes-filtro-carros-lbl"
+              for="partes-filtro-carros-btn"
+              >Unidades / carros</label
+            >
+            <button
+              type="button"
+              id="partes-filtro-carros-btn"
+              class="sid-input sid-history-filter flex min-h-[var(--sid-control-height)] w-full items-center justify-between gap-2 rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 pl-3 pr-2.5 text-left text-sm text-white focus-visible:outline-none"
+              aria-haspopup="listbox"
+              [attr.aria-expanded]="filtroCarrosPanelAbierto"
+              [attr.aria-controls]="filtroCarrosPanelAbierto ? 'partes-filtro-carros-listbox' : null"
+              [attr.aria-labelledby]="'partes-filtro-carros-lbl'"
+              (click)="toggleFiltroCarrosPanel($event)"
+            >
+              <span class="min-w-0 flex-1 truncate leading-snug">{{ etiquetaFiltroCarrosActual() }}</span>
+              <lucide-icon
+                name="chevron-down"
+                class="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200"
+                [class.rotate-180]="filtroCarrosPanelAbierto"
+                [size]="16"
+                color="currentColor"
+                aria-hidden="true"
+              ></lucide-icon>
+            </button>
+            @if (filtroCarrosPanelAbierto) {
+              <div
+                id="partes-filtro-carros-listbox"
+                class="sid-partes-filtro-tipo-listbox sid-scroll-dark absolute left-0 right-0 top-full z-[200] mt-1.5 max-h-[min(22rem,52vh)] overflow-y-auto rounded-xl border border-slate-600/80 bg-[var(--sid-surface-inset)] py-1.5 shadow-xl ring-1 ring-black/30"
+                role="listbox"
+                aria-labelledby="partes-filtro-carros-lbl"
+                aria-multiselectable="true"
+              >
+                <button
+                  type="button"
+                  role="option"
+                  class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-slate-100 transition-colors hover:bg-slate-800/90"
+                  [class.bg-emerald-950/40]="filtroCarroIds.length === 0"
+                  [class.text-white]="filtroCarroIds.length === 0"
+                  [attr.aria-selected]="filtroCarroIds.length === 0"
+                  (click)="limpiarSeleccionCarros($event)"
+                >
+                  <span
+                    class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                    [class.border-emerald-400]="filtroCarroIds.length === 0"
+                    [class.bg-emerald-600]="filtroCarroIds.length === 0"
+                    [class.border-slate-500]="filtroCarroIds.length > 0"
+                  >
+                    @if (filtroCarroIds.length === 0) {
+                      <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                    }
+                  </span>
+                  Todas las unidades
+                </button>
+                @for (cr of carrosLista; track cr.id) {
+                  <button
+                    type="button"
+                    role="option"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-emerald-950/30]="carroFiltroSeleccionado(cr.id)"
+                    [attr.aria-selected]="carroFiltroSeleccionado(cr.id)"
+                    (click)="toggleSeleccionCarro(cr.id, $event)"
+                  >
+                    <span
+                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                      [class.border-emerald-400]="carroFiltroSeleccionado(cr.id)"
+                      [class.bg-emerald-600]="carroFiltroSeleccionado(cr.id)"
+                      [class.border-slate-500]="!carroFiltroSeleccionado(cr.id)"
+                    >
+                      @if (carroFiltroSeleccionado(cr.id)) {
+                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                      }
+                    </span>
+                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{ textoCarroLinea(cr) }}</span>
+                    <span class="shrink-0 text-xs tabular-nums text-slate-500">{{ cr.patente }}</span>
                   </button>
                 }
               </div>
             }
           </div>
           <div class="min-w-0">
+            <label class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400" for="partes-filtro-estado"
+              >Estado del parte</label
+            >
+            <select
+              id="partes-filtro-estado"
+              [(ngModel)]="filtroEstadoParte"
+              (ngModelChange)="onEstadoParteChange()"
+              class="sid-history-filter sid-partes-select min-h-[var(--sid-control-height)] w-full rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] px-3 py-2.5 text-sm text-white"
+            >
+              <option value="">Todos los estados</option>
+              <option value="COMPLETADO">Completado</option>
+              <option value="PENDIENTE">Pendiente</option>
+              <option value="BORRADOR">Borrador</option>
+            </select>
+          </div>
+          <div class="min-w-0">
+            <label class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400" for="partes-filtro-persona"
+              >Inspector u OBAC</label
+            >
+            <input
+              id="partes-filtro-persona"
+              type="search"
+              [(ngModel)]="filtroPersonaObac"
+              (ngModelChange)="onPersonaObacInput()"
+              placeholder="Nombre parcial…"
+              class="sid-input sid-history-filter min-h-[var(--sid-control-height)] w-full rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] px-3 py-2.5 text-sm text-white placeholder:text-slate-500"
+            />
+          </div>
+          <div class="min-w-0 md:col-span-2 xl:col-span-2">
             <label class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400" for="partes-filtro-dir"
               >Dirección</label
             >
@@ -195,15 +328,38 @@
                 (blur)="flushDireccionDraft()"
                 (keydown.enter)="flushDireccionDraft()"
                 [attr.aria-busy]="actualizandoTabla"
-                placeholder="Buscar por dirección..."
+                placeholder="Buscar por dirección…"
                 autocomplete="off"
                 class="sid-input sid-history-filter min-h-[var(--sid-control-height)] w-full rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 pl-12 pr-3 text-sm text-white placeholder:text-slate-500"
               />
             </div>
           </div>
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3 xl:grid-cols-4 md:gap-x-8 md:gap-y-6">
           <div class="min-w-0">
+            <label class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">Desde</label>
+            <app-sid-date-input
+              preset="filter"
+              [dense]="true"
+              inputClass="sid-history-filter dark-date-input w-full min-w-0"
+              [(ngModel)]="filtroRangoDesde"
+              (ngModelChange)="onRangoFiltroChange()"
+            />
+          </div>
+          <div class="min-w-0">
+            <label class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">Hasta</label>
+            <app-sid-date-input
+              preset="filter"
+              [dense]="true"
+              inputClass="sid-history-filter dark-date-input w-full min-w-0"
+              [(ngModel)]="filtroRangoHasta"
+              (ngModelChange)="onRangoFiltroChange()"
+            />
+          </div>
+          <div class="min-w-0 md:col-span-2">
             <label class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400" for="partes-filtro-fecha"
-              >Fecha del parte</label
+              >Fecha del parte (opcional)</label
             >
             <input
               id="partes-filtro-fecha"
@@ -212,7 +368,7 @@
               (ngModelChange)="onFechaFiltroInput()"
               [attr.aria-invalid]="fechaFiltroError ? 'true' : null"
               [attr.aria-describedby]="fechaFiltroError ? 'partes-filtro-fecha-err' : null"
-              placeholder="DD/MM/YYYY"
+              placeholder="DD/MM/AAAA · con filtro rápido o solo día"
               [class.ring-1]="fechaFiltroError"
               [class.ring-red-500/55]="fechaFiltroError"
               class="sid-input sid-history-filter min-h-[var(--sid-control-height)] w-full rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] px-3 py-2.5 text-sm text-white placeholder:text-slate-500"
@@ -223,8 +379,54 @@
           </div>
         </div>
 
+        <div
+          class="mt-6 flex flex-col gap-2 border-t border-slate-800/80 pt-6 max-xl:[&>button]:w-full sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2"
+        >
+          <button
+            type="button"
+            class="sid-btn sid-btn-primary order-first inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 sm:order-none"
+            (click)="aplicarFiltrosPartes()"
+          >
+            Aplicar filtros
+          </button>
+          <button
+            type="button"
+            class="sid-btn sid-btn-neutral inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900/70 px-4 py-2.5 text-sm text-slate-100 hover:bg-slate-800 disabled:opacity-40"
+            [disabled]="!hayFiltrosActivos()"
+            (click)="limpiarFiltros()"
+          >
+            Limpiar filtros
+          </button>
+          <button
+            type="button"
+            class="sid-btn sid-btn-neutral inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900/70 px-4 py-2.5 text-sm text-slate-100 hover:bg-slate-800"
+            (click)="actualizarListadoPartes()"
+          >
+            <lucide-icon name="refresh-cw" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
+            Actualizar
+          </button>
+          <button
+            type="button"
+            class="sid-btn sid-btn-primary inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40"
+            [disabled]="totalFiltrado === 0"
+            (click)="exportarPdf()"
+          >
+            <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
+            Descargar PDF
+          </button>
+          <button
+            type="button"
+            class="sid-btn sid-btn-success inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
+            [disabled]="totalFiltrado === 0"
+            (click)="exportarExcel()"
+          >
+            <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
+            Descargar Excel
+          </button>
+        </div>
+
         <div class="mt-8 md:mt-10">
-          <p class="mb-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">Filtro rápido</p>
+          <p class="mb-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">Filtro rápido (fecha / período)</p>
           <div
             class="grid grid-cols-4 gap-1.5 sm:gap-3"
             role="group"
@@ -300,21 +502,9 @@
       </div>
     </section>
 
-    <div class="mb-3 flex justify-end md:hidden">
-      <button
-        type="button"
-        class="sid-btn sid-btn-success inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 p-0 text-white shadow-lg shadow-emerald-900/30"
-        aria-label="Exportar listado a Excel"
-        title="Exportar Excel"
-        (click)="exportarExcel()"
-      >
-        <lucide-icon name="download" class="h-5 w-5" [size]="20" color="currentColor" aria-hidden="true"></lucide-icon>
-        <span class="sr-only">Exportar Excel</span>
-      </button>
-    </div>
-
-    <div class="relative mb-4 space-y-3 md:hidden">
-      <div class="space-y-3 transition-opacity" [class.pointer-events-none]="actualizandoTabla" [class.opacity-50]="actualizandoTabla">
+    <section class="sid-partes-historial-shell min-h-[26rem] md:min-h-[34rem]">
+    <div class="relative mb-4 space-y-3 lg:hidden">
+      <div class="space-y-3">
       @for (parte of filtradosPaginados(); track parte.id) {
         <div
           class="rounded-2xl border border-slate-800/90 bg-[#121212] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5"
@@ -376,16 +566,9 @@
         />
       }
       </div>
-      @if (actualizandoTabla) {
-        <div class="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center rounded-2xl bg-black/35 backdrop-blur-[1px]" role="status" aria-live="polite">
-          <span class="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-neutral-950/90 px-3 py-2 text-xs font-medium text-white shadow-lg">
-            Actualizando listado…
-          </span>
-        </div>
-      }
     </div>
     @if (totalFiltrado > 0) {
-      <div class="mb-6 flex flex-col gap-2 px-1 md:hidden sm:flex-row sm:items-center sm:justify-between">
+      <div class="mb-6 flex flex-col gap-2 px-1 lg:hidden sm:flex-row sm:items-center sm:justify-between">
         <span class="text-sm text-gray-400">
           Página {{ paginaPartes }} de {{ totalPaginasPartes() }} · {{ totalFiltrado }} resultado(s)
         </span>
@@ -412,7 +595,7 @@
 
     <div
       sidScrollReveal
-      class="relative hidden overflow-hidden rounded-2xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 md:block"
+      class="relative z-0 hidden overflow-hidden rounded-2xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 lg:block"
     >
       <div class="sid-history-head !mb-0 border-b border-slate-800/80 p-4 sm:p-5">
         <div>
@@ -420,22 +603,10 @@
             Historial de partes
             <span class="ml-2 text-sm font-normal text-slate-500 sm:text-base">({{ totalFiltrado }})</span>
           </h2>
-          <p class="text-xs text-slate-500 sm:text-sm">Listado con paginación; exporta el conjunto filtrado a Excel</p>
-        </div>
-        <div class="sid-history-actions w-full sm:w-auto">
-          <button
-            type="button"
-            class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-900/25 transition-colors hover:bg-emerald-500 sm:h-10 sm:w-10"
-            aria-label="Exportar listado filtrado a Excel"
-            title="Exportar Excel"
-            (click)="exportarExcel()"
-          >
-            <lucide-icon name="download" class="h-5 w-5" [size]="20" color="currentColor" aria-hidden="true"></lucide-icon>
-            <span class="sr-only">Exportar Excel</span>
-          </button>
+          <p class="text-xs text-slate-500 sm:text-sm">Listado con paginación; usa los botones de exportación en los filtros.</p>
         </div>
       </div>
-      <div class="overflow-x-auto transition-opacity" [class.pointer-events-none]="actualizandoTabla" [class.opacity-50]="actualizandoTabla">
+      <div class="sid-scroll-dark overflow-x-auto">
         <table class="sid-history-table min-w-[48rem] text-sm">
           <thead>
             <tr>
@@ -546,14 +717,8 @@
           </div>
         </div>
       }
-      @if (actualizandoTabla) {
-        <div class="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center bg-black/25 backdrop-blur-[1px]" role="status" aria-live="polite">
-          <span class="mx-4 inline-flex items-center gap-2 rounded-lg border border-white/12 bg-neutral-950/95 px-3 py-2 text-xs font-semibold text-white shadow-xl">
-            Actualizando tabla…
-          </span>
-        </div>
-      }
     </div>
+    </section>
   }
 
   @if (vistaModalAbierta) {

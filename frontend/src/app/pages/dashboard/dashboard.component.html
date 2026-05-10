@@ -39,7 +39,7 @@
             [attr.title]="tituloSelectTipoDashboard()"
             class="sid-history-filter w-full min-w-0 py-1.5 text-[11px] text-white sm:text-xs"
           >
-            @for (c of clavesTipo; track c.value) {
+            @for (c of catalogoEmergencias.clavesEmergencia(); track c.value) {
               <option [ngValue]="c.value">{{ c.label }}</option>
             }
           </select>

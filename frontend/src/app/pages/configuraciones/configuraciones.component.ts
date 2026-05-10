@@ -1,18 +1,20 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import type { ConfiguracionSistemaDto, LogosPdfCabecera } from '../../models/configuracion.dto';
 import type { RolUsuarioDto } from '../../models/rol.dto';
 import { ConfiguracionesService } from '../../services/configuraciones.service';
 import { RolesService } from '../../services/roles.service';
 import { ToastService } from '../../services/toast.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
+import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { OPCIONES_MENU_SIDEP, rutasMenuFallbackPorRol } from '../../layout/nav-menu-opciones';
 
 @Component({
   selector: 'app-configuraciones',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidepIconsModule],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidDateInputComponent],
   templateUrl: './configuraciones.component.html',
 })
 export class ConfiguracionesComponent implements OnInit {

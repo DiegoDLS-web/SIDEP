@@ -6,8 +6,8 @@ import * as XLSX from 'xlsx';
 import type { ParteEmergenciaDto, ParteMetadataDto } from '../models/parte.dto';
 import { ASISTENCIA_CONTEXTO_OPCIONES, ASISTENCIA_ITEM_LABELS } from '../pages/partes/asistencia-roster.constants';
 import type { LogosPdfCabecera } from '../models/configuracion.dto';
-import { CLAVES_EMERGENCIA } from '../pages/partes/partes.constants';
 import { ConfiguracionesService } from './configuraciones.service';
+import { CatalogoTiposEmergenciaService } from './catalogo-tipos-emergencia.service';
 import { logosActivosPorConfig } from '../utils/reportes-logos.util';
 import { lineaPieParteOperativoPdf, lineaSubtituloPartePdf, nombreOrganizacionPdf } from '../utils/pdf-branding-text.util';
 import { COMPANIA_LOGO_TRY_PATHS, SIDEP_LOGO_FULL_TRANSPARENT_ABSOLUTE } from '../shared/sidep-branding';
@@ -27,11 +27,6 @@ const C_BORDER: [number, number, number] = [228, 228, 231];
 
 function lastTableY(doc: jsPDF): number {
   return (doc as DocWithLast).lastAutoTable?.finalY ?? M;
-}
-
-function etiquetaClaveEmergenciaExcel(clave: string): string {
-  const f = CLAVES_EMERGENCIA.find((c) => c.value === clave);
-  return f?.label ?? clave;
 }
 
 function fmtFirmaJsPdf(firma: string): 'PNG' | 'JPEG' {
@@ -175,6 +170,7 @@ function resumenAsistencia(m: ParteMetadataDto | null | undefined): string {
 @Injectable({ providedIn: 'root' })
 export class PartesExportService {
   private readonly configApi = inject(ConfiguracionesService);
+  private readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
 
   private resolverUrlLogo(path: string): string {
     const p = path.startsWith('/') ? path.slice(1) : path;
@@ -648,6 +644,40 @@ export class PartesExportService {
     doc.save(`SIDEP-parte-${parte.correlativo}-${stampFechaArchivo()}.pdf`);
   }
 
+  exportarPdfListado(partes: ParteEmergenciaDto[]): void {
+    if (partes.length === 0) return;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(24, 24, 27);
+    doc.text('SIDEP · Partes de emergencia', M, 14);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(82, 82, 91);
+    const gen = new Date().toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
+    doc.text(`Generado: ${gen} · Registros: ${partes.length}`, M, 20);
+    doc.setTextColor(0, 0, 0);
+    const body = partes.map((p) => [
+      p.correlativo,
+      fmtFechaHora(p.fecha),
+      this.catalogoEmergencias.etiqueta(p.claveEmergencia),
+      (p.direccion ?? '').slice(0, 80),
+      p.obac?.nombre ?? '—',
+      p.estado ?? '—',
+      p.unidades.map((u) => u.carro.nomenclatura).join(', '),
+    ]);
+    autoTable(doc, {
+      startY: 24,
+      head: [['Correlativo', 'Fecha', 'Tipo', 'Dirección', 'OBAC', 'Estado', 'Unidades']],
+      body,
+      styles: { fontSize: 7, cellPadding: 1.5 },
+      headStyles: { fillColor: [185, 28, 28], textColor: 255 },
+      margin: { left: M, right: M },
+    });
+    const stamp = new Date().toISOString().slice(0, 10);
+    doc.save(`SIDEP-partes-${stamp}.pdf`);
+  }
+
   exportarExcelListado(partes: ParteEmergenciaDto[]): void {
     const generado = new Date();
     const encabezado: (string | number)[][] = [
@@ -671,7 +701,7 @@ export class PartesExportService {
       p.correlativo,
       new Date(p.fecha).toLocaleDateString('es-CL'),
       new Date(p.fecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
-      etiquetaClaveEmergenciaExcel(p.claveEmergencia),
+      this.catalogoEmergencias.etiqueta(p.claveEmergencia),
       p.direccion,
       p.obac.nombre,
       p.estado,

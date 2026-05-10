@@ -231,19 +231,21 @@
             placeholder="Nombre o motivo"
             class="sid-history-filter min-w-0 w-full py-1.5 text-xs sm:flex-1 sm:max-w-md"
           />
-          <input
-            type="date"
-            [(ngModel)]="filtroGestionDesde"
-            class="sid-history-filter dark-date-input w-full py-1.5 text-xs sm:w-[9.5rem] sm:min-w-[9rem]"
+          <app-sid-date-input
+            preset="filter"
+            [dense]="true"
+            inputClass="sid-history-filter dark-date-input w-full py-1.5 text-xs sm:w-[9.5rem] sm:min-w-[9rem]"
             title="Desde"
-            aria-label="Permiso desde"
+            ariaLabel="Permiso desde"
+            [(ngModel)]="filtroGestionDesde"
           />
-          <input
-            type="date"
-            [(ngModel)]="filtroGestionHasta"
-            class="sid-history-filter dark-date-input w-full py-1.5 text-xs sm:w-[9.5rem] sm:min-w-[9rem]"
+          <app-sid-date-input
+            preset="filter"
+            [dense]="true"
+            inputClass="sid-history-filter dark-date-input w-full py-1.5 text-xs sm:w-[9.5rem] sm:min-w-[9rem]"
             title="Hasta"
-            aria-label="Permiso hasta"
+            ariaLabel="Permiso hasta"
+            [(ngModel)]="filtroGestionHasta"
           />
         </div>
       </div>
@@ -431,11 +433,23 @@
           <div class="grid gap-3 sm:grid-cols-2">
             <label class="text-sm sm:col-span-1">
               <span class="mb-1 block text-gray-400">Fecha inicio</span>
-              <input [(ngModel)]="form.fechaInicio" [max]="form.fechaTermino || ''" type="date" lang="es-CL" class="sid-input w-full py-2 text-sm" />
+              <app-sid-date-input
+                preset="none"
+                inputClass="sid-input dark-date-input w-full min-h-[40px] rounded-xl border border-slate-700 bg-[#121212] px-3 py-2 pr-11 text-sm text-white focus:border-red-500 focus:outline-none"
+                lang="es-CL"
+                [(ngModel)]="form.fechaInicio"
+                [max]="form.fechaTermino || undefined"
+              />
             </label>
             <label class="text-sm sm:col-span-1">
               <span class="mb-1 block text-gray-400">Fecha término</span>
-              <input [(ngModel)]="form.fechaTermino" [min]="form.fechaInicio || ''" type="date" lang="es-CL" class="sid-input w-full py-2 text-sm" />
+              <app-sid-date-input
+                preset="none"
+                inputClass="sid-input dark-date-input w-full min-h-[40px] rounded-xl border border-slate-700 bg-[#121212] px-3 py-2 pr-11 text-sm text-white focus:border-red-500 focus:outline-none"
+                lang="es-CL"
+                [(ngModel)]="form.fechaTermino"
+                [min]="form.fechaInicio || undefined"
+              />
             </label>
             <label class="text-sm sm:col-span-2">
               <span class="mb-1 block text-gray-400">Motivo</span>
@@ -515,7 +529,7 @@
   <div class="sid-section-divider" data-title="Historial"></div>
 
   <section class="sid-licencias-historial sid-history-card p-5 sm:p-6">
-    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div class="mb-4 flex flex-col gap-3">
       <div>
         <h2 class="sid-history-title mb-1 flex items-center gap-2">
           <lucide-icon name="history" class="h-5 w-5 text-fuchsia-300" [size]="20" color="currentColor"></lucide-icon>
@@ -529,51 +543,109 @@
           }
         </p>
       </div>
-      <button
-        type="button"
-        class="sid-btn sid-btn-neutral inline-flex shrink-0 items-center justify-center gap-2 self-end rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-2 text-sm text-white sm:self-start"
-        (click)="limpiarFiltrosHistorial()"
-      >
-        Limpiar filtros
-      </button>
-    </div>
 
-    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12 lg:gap-2">
-      <input
-        type="search"
-        [(ngModel)]="filtroHistorialTexto"
-        (ngModelChange)="onFiltroHistorialChange()"
-        placeholder="Buscar por nombre o motivo"
-        class="sid-history-filter text-sm lg:col-span-5"
-      />
-      <select
-        [(ngModel)]="filtroHistorialEstado"
-        (ngModelChange)="onFiltroHistorialChange()"
-        class="sid-history-filter text-sm lg:col-span-3"
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <label class="flex flex-col gap-1 xl:col-span-1">
+          <span class="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Unidad</span>
+          <select disabled class="sid-history-filter cursor-not-allowed text-sm opacity-60">
+            <option>No aplica</option>
+          </select>
+        </label>
+        <label class="flex flex-col gap-1 xl:col-span-1">
+          <span class="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Tipo de emergencia</span>
+          <select disabled class="sid-history-filter cursor-not-allowed text-sm opacity-60">
+            <option>No aplica</option>
+          </select>
+        </label>
+        <label class="flex flex-col gap-1 xl:col-span-1">
+          <span class="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Estado</span>
+          <select
+            [(ngModel)]="filtroHistorialEstado"
+            (ngModelChange)="onFiltroHistorialChange()"
+            class="sid-history-filter text-sm"
+          >
+            <option value="">Todos los estados</option>
+            <option value="PENDIENTE">Pendiente</option>
+            <option value="APROBADA">Aprobada</option>
+            <option value="RECHAZADA">Rechazada</option>
+            <option value="ANULADA">Anulada</option>
+          </select>
+        </label>
+        <label class="flex flex-col gap-1 md:col-span-2 xl:col-span-2">
+          <span class="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Inspector u OBAC</span>
+          <input
+            type="search"
+            [(ngModel)]="filtroHistorialTexto"
+            (ngModelChange)="onFiltroHistorialChange()"
+            placeholder="Nombre, motivo o resolución…"
+            class="sid-history-filter text-sm"
+          />
+        </label>
+        <div class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 md:col-span-2 xl:col-span-2">
+          <app-sid-date-input
+            preset="filter"
+            [dense]="true"
+            inputClass="sid-history-filter dark-date-input w-full min-w-0 text-sm"
+            title="Desde"
+            ariaLabel="Filtrar desde fecha"
+            [(ngModel)]="filtroHistorialDesde"
+            (ngModelChange)="onFiltroHistorialChange()"
+          />
+          <app-sid-date-input
+            preset="filter"
+            [dense]="true"
+            inputClass="sid-history-filter dark-date-input w-full min-w-0 text-sm"
+            title="Hasta"
+            ariaLabel="Filtrar hasta fecha"
+            [(ngModel)]="filtroHistorialHasta"
+            (ngModelChange)="onFiltroHistorialChange()"
+          />
+        </div>
+      </div>
+
+      <div
+        class="flex flex-col gap-2 border-t border-slate-800/80 pt-4 max-sm:[&>button]:w-full sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2"
       >
-        <option value="">Todos los estados</option>
-        <option value="PENDIENTE">Pendiente</option>
-        <option value="APROBADA">Aprobada</option>
-        <option value="RECHAZADA">Rechazada</option>
-        <option value="ANULADA">Anulada</option>
-      </select>
-      <div class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:col-span-4 lg:gap-2">
-        <input
-          type="date"
-          [(ngModel)]="filtroHistorialDesde"
-          (ngModelChange)="onFiltroHistorialChange()"
-          aria-label="Filtrar desde fecha"
-          title="Desde"
-          class="sid-history-filter dark-date-input w-full min-w-0 text-sm"
-        />
-        <input
-          type="date"
-          [(ngModel)]="filtroHistorialHasta"
-          (ngModelChange)="onFiltroHistorialChange()"
-          aria-label="Filtrar hasta fecha"
-          title="Hasta"
-          class="sid-history-filter dark-date-input w-full min-w-0 text-sm"
-        />
+        <button
+          type="button"
+          class="sid-btn sid-btn-primary inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
+          (click)="aplicarFiltrosHistorial()"
+        >
+          Aplicar filtros
+        </button>
+        <button
+          type="button"
+          class="sid-btn sid-btn-neutral inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900/50 px-4 py-2.5 text-sm text-white"
+          (click)="limpiarFiltrosHistorial()"
+        >
+          Limpiar filtros
+        </button>
+        <button
+          type="button"
+          class="sid-btn sid-btn-neutral inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900/50 px-4 py-2.5 text-sm text-white"
+          (click)="actualizarHistorialLicencias()"
+        >
+          <lucide-icon name="refresh-cw" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+          Actualizar
+        </button>
+        <button
+          type="button"
+          class="sid-btn sid-btn-primary inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40"
+          [disabled]="historialFiltrado.length === 0"
+          (click)="exportarHistorialPdf()"
+        >
+          <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+          Descargar PDF
+        </button>
+        <button
+          type="button"
+          class="sid-btn sid-btn-success inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
+          [disabled]="historialFiltrado.length === 0"
+          (click)="exportarHistorialExcel()"
+        >
+          <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+          Descargar Excel
+        </button>
       </div>
     </div>
 

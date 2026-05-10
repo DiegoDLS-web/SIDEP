@@ -1,3 +1,4 @@
+import { type TipoEmergenciaItem } from '../lib/tipos-emergencia-default.js';
 type ConfigPayload = {
     compania: {
         nombreCompania: string;
@@ -19,6 +20,8 @@ type ConfigPayload = {
         orientacionPdf: 'VERTICAL' | 'HORIZONTAL';
     };
     navegacionPorRol: Record<string, string[]>;
+    /** Catálogo editable por ADMIN/CAPITAN (valor = `claveEmergencia` en partes). */
+    tiposEmergencia: TipoEmergenciaItem[];
 };
 /** Lectura unificada para auth y otras rutas. */
 export declare function obtenerConfigSistema(): Promise<ConfigPayload>;

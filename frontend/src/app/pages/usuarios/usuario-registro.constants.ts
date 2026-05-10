@@ -12,12 +12,21 @@ export const ETIQUETAS_CARGO_OFICIALIDAD: Record<string, string> = {
   TENIENTE_CUARTO: 'Teniente cuarto',
   AYUDANTE_COMPANIA: 'Ayudante compañía',
   PRO_AYUDANTE: 'Pro Ayudante',
+  SUPERINTENDENTE: 'Superintendente',
   VICE_SUPERINTENDENTE: 'Vicesuperintendente',
   SECRETARIO_GENERAL: 'Secretario general',
   TESORERO_GENERAL: 'Tesorero general',
+  PRIMER_COMANDANTE: 'Primer comandante',
   SEGUNDO_COMANDANTE: 'Segundo comandante',
-  INSPECTOR_COMANDANCIA_1: 'Inspector 1',
-  INSPECTOR_COMANDANCIA_2: 'Inspector 2',
+  INSPECTOR_COMANDANCIA_1: 'Inspector de bienestar y salud',
+  INSPECTOR_COMANDANCIA_2: 'Inspector de capacitaciones',
+  INSPECTOR_MATERIAL_MAYOR: 'Inspector de material mayor',
+  AYUDANTE_COMANDANTE: 'Ayudante de comandante',
+  INSPECTOR_COMUNICACIONES: 'Inspector de comunicaciones',
+  SEGUNDO_AYUDANTE: 'Segundo ayudante',
+  OFICIAL_MAQUINAS: 'Oficial de máquinas',
+  INTENDENTE_CUARTEL: 'Intendente de cuartel',
+  INTENDENTE: 'Intendente',
 };
 
 export const CARGOS_OFICIALIDAD_ORDEN = [
@@ -33,12 +42,21 @@ export const CARGOS_OFICIALIDAD_ORDEN = [
   'TENIENTE_CUARTO',
   'AYUDANTE_COMPANIA',
   'PRO_AYUDANTE',
+  'SUPERINTENDENTE',
   'VICE_SUPERINTENDENTE',
   'SECRETARIO_GENERAL',
   'TESORERO_GENERAL',
+  'PRIMER_COMANDANTE',
   'SEGUNDO_COMANDANTE',
   'INSPECTOR_COMANDANCIA_1',
   'INSPECTOR_COMANDANCIA_2',
+  'INSPECTOR_MATERIAL_MAYOR',
+  'AYUDANTE_COMANDANTE',
+  'INSPECTOR_COMUNICACIONES',
+  'SEGUNDO_AYUDANTE',
+  'OFICIAL_MAQUINAS',
+  'INTENDENTE_CUARTEL',
+  'INTENDENTE',
 ] as const;
 
 export const ETIQUETAS_TIPO_VOLUNTARIO: Record<string, string> = {
@@ -70,6 +88,31 @@ export const TIPOS_VOLUNTARIO_ORDEN = [
 export const GRUPOS_SANGUINEOS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'DESCONOCIDO'] as const;
 
 export const ROLES_SISTEMA_FALLBACK = ['CAPITAN', 'TENIENTE', 'VOLUNTARIOS', 'ADMIN'] as const;
+
+/** Nombre para listas/selects (conductor, OBAC): prioriza partes del registro y quita sufijos tipo « — ROL». */
+export function nombreListaSoloPersona(u: {
+  nombre: string;
+  nombres?: string | null;
+  apellidoPaterno?: string | null;
+  apellidoMaterno?: string | null;
+  rol?: string | null;
+}): string {
+  const partes = [u.nombres, u.apellidoPaterno, u.apellidoMaterno]
+    .map((x) => (x ?? '').trim())
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  if (partes.length > 0) return partes;
+  let n = (u.nombre ?? '').trim();
+  const rol = (u.rol ?? '').trim();
+  if (rol) {
+    const suf = ` — ${rol}`;
+    if (n.endsWith(suf)) n = n.slice(0, -suf.length).trim();
+    const suf2 = ` - ${rol}`;
+    if (n.endsWith(suf2)) n = n.slice(0, -suf2.length).trim();
+  }
+  return n || (u.nombre ?? '').trim();
+}
 
 /** Misma idea que la lista del parte: oficialidad solo si es distinta de VOLUNTARIO; si no, categoría voluntario. */
 export function etiquetaDirectorioVoluntario(

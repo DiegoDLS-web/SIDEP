@@ -1,6 +1,7 @@
 import { CommonModule, formatDate } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import * as XLSX from 'xlsx';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
 import type { ChecklistRegistroDto, ChecklistResumenUnidadDto, EstadoChecklist } from '../../models/checklist.dto';
@@ -8,20 +9,32 @@ import { ChecklistsService } from '../../services/checklists.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
+import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 import { etiquetaCompletandoOCompletado } from '../../utils/etiqueta-completitud';
+import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
+import { historialCoincideSeleccionTipoEmergencia } from '../../utils/tipo-emergencia-modulo-match';
 
 @Component({
   selector: 'app-checklist-selector',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidScrollRevealDirective, SidEmptyStateComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    SidepIconsModule,
+    SidScrollRevealDirective,
+    SidEmptyStateComponent,
+    SidDateInputComponent,
+  ],
   templateUrl: './checklist-selector.component.html',
 })
 export class ChecklistSelectorComponent implements OnInit {
   private readonly checklistsApi = inject(ChecklistsService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly router = inject(Router);
+  readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
 
   unidades: ChecklistResumenUnidadDto[] = [];
   loading = true;
@@ -29,9 +42,16 @@ export class ChecklistSelectorComponent implements OnInit {
   historialLoading = false;
   /** Índice alineado con `unidades` (evita colisiones de clave en Object). */
   historialesPorUnidad: ChecklistRegistroDto[][] = [];
-  filtroUnidadHistorial = 'TODAS';
+  /** Nomenclaturas seleccionadas; vacío = todas. */
+  filtroUnidadesHistorial: string[] = [];
+  /** Claves de catálogo (CHECKLIST_UNIDAD y similares aplican a `registro.tipo`). */
+  filtroTiposEmergenciaHistorial: string[] = [];
+  filtroUnidadesPanelAbierto = false;
+  filtroTipoEmergenciaPanelAbierto = false;
   filtroEstadoHistorial = 'TODOS';
   filtroTextoHistorial = '';
+  filtroHistorialDesde = '';
+  filtroHistorialHasta = '';
   historialDetalle: (ChecklistRegistroDto & { unidad: string; nombreUnidad: string }) | null = null;
   paginaHistorial = 1;
   readonly tamanioPaginaHistorial = 10;
@@ -150,7 +170,12 @@ export class ChecklistSelectorComponent implements OnInit {
     const texto = this.filtroTextoHistorial.trim().toLowerCase();
     return this.historialGeneral().filter((registro) => {
       const coincideUnidad =
-        this.filtroUnidadHistorial === 'TODAS' || registro.unidad === this.filtroUnidadHistorial;
+        this.filtroUnidadesHistorial.length === 0 ||
+        this.filtroUnidadesHistorial.includes(registro.unidad);
+      const coincideTipoEmergencia = historialCoincideSeleccionTipoEmergencia(
+        registro.tipo,
+        this.filtroTiposEmergenciaHistorial,
+      );
       const estado = this.estadoHistorialFila(registro);
       const coincideEstado =
         this.filtroEstadoHistorial === 'TODOS' ||
@@ -164,7 +189,19 @@ export class ChecklistSelectorComponent implements OnInit {
         (registro.inspector ?? '').toLowerCase().includes(texto) ||
         (registro.cuartelero?.nombre ?? '').toLowerCase().includes(texto) ||
         (registro.observaciones ?? '').toLowerCase().includes(texto);
-      return coincideUnidad && coincideEstado && coincideTexto;
+      const fechaReg = new Date(registro.fecha).getTime();
+      const tDesde = this.filtroHistorialDesde.trim();
+      const tHasta = this.filtroHistorialHasta.trim();
+      let coincideFecha = true;
+      if (tDesde) {
+        const d0 = new Date(`${tDesde}T00:00:00`).getTime();
+        if (!Number.isNaN(d0)) coincideFecha = coincideFecha && fechaReg >= d0;
+      }
+      if (tHasta) {
+        const d1 = new Date(`${tHasta}T23:59:59.999`).getTime();
+        if (!Number.isNaN(d1)) coincideFecha = coincideFecha && fechaReg <= d1;
+      }
+      return coincideUnidad && coincideTipoEmergencia && coincideEstado && coincideTexto && coincideFecha;
     });
   }
 
@@ -181,6 +218,100 @@ export class ChecklistSelectorComponent implements OnInit {
     const next = this.paginaHistorial + delta;
     const total = this.totalPaginasHistorial();
     this.paginaHistorial = Math.min(Math.max(next, 1), total);
+  }
+
+  etiquetaFiltroUnidadesHistorial(): string {
+    const n = this.filtroUnidadesHistorial.length;
+    if (n === 0) return 'Todas las unidades';
+    if (n === 1) return this.filtroUnidadesHistorial[0] ?? '1 unidad';
+    return `${n} unidades seleccionadas`;
+  }
+
+  etiquetaFiltroTipoEmergenciaHistorial(): string {
+    const n = this.filtroTiposEmergenciaHistorial.length;
+    if (n === 0) return 'Todos los tipos';
+    if (n === 1) return this.catalogoEmergencias.etiqueta(this.filtroTiposEmergenciaHistorial[0]!);
+    return `${n} tipos seleccionados`;
+  }
+
+  textoEtiquetaTipoOpcion(c: { value: string; label?: string | null }): string {
+    const s = (c.label ?? '').trim();
+    if (s) return s;
+    return this.catalogoEmergencias.etiqueta(c.value);
+  }
+
+  toggleFiltroUnidadesPanel(ev: MouseEvent): void {
+    ev.stopPropagation();
+    this.filtroUnidadesPanelAbierto = !this.filtroUnidadesPanelAbierto;
+    if (this.filtroUnidadesPanelAbierto) {
+      this.filtroTipoEmergenciaPanelAbierto = false;
+    }
+  }
+
+  toggleFiltroTipoEmergenciaPanel(ev: MouseEvent): void {
+    ev.stopPropagation();
+    this.filtroTipoEmergenciaPanelAbierto = !this.filtroTipoEmergenciaPanelAbierto;
+    if (this.filtroTipoEmergenciaPanelAbierto) {
+      this.filtroUnidadesPanelAbierto = false;
+    }
+  }
+
+  unidadHistorialSeleccionada(nom: string): boolean {
+    return this.filtroUnidadesHistorial.includes(nom);
+  }
+
+  toggleUnidadHistorial(nom: string, ev?: MouseEvent): void {
+    ev?.stopPropagation();
+    const i = this.filtroUnidadesHistorial.indexOf(nom);
+    if (i >= 0) {
+      this.filtroUnidadesHistorial = this.filtroUnidadesHistorial.filter((_, j) => j !== i);
+    } else {
+      this.filtroUnidadesHistorial = [...this.filtroUnidadesHistorial, nom];
+    }
+    this.paginaHistorial = 1;
+  }
+
+  limpiarUnidadesHistorial(ev: MouseEvent): void {
+    ev.stopPropagation();
+    if (this.filtroUnidadesHistorial.length === 0) return;
+    this.filtroUnidadesHistorial = [];
+    this.paginaHistorial = 1;
+  }
+
+  tipoEmergenciaHistorialSeleccionado(valor: string): boolean {
+    return this.filtroTiposEmergenciaHistorial.includes(valor);
+  }
+
+  toggleTipoEmergenciaHistorial(valor: string, ev?: MouseEvent): void {
+    ev?.stopPropagation();
+    const i = this.filtroTiposEmergenciaHistorial.indexOf(valor);
+    if (i >= 0) {
+      this.filtroTiposEmergenciaHistorial = this.filtroTiposEmergenciaHistorial.filter((_, j) => j !== i);
+    } else {
+      this.filtroTiposEmergenciaHistorial = [...this.filtroTiposEmergenciaHistorial, valor];
+    }
+    this.paginaHistorial = 1;
+  }
+
+  limpiarTiposEmergenciaHistorial(ev: MouseEvent): void {
+    ev.stopPropagation();
+    if (this.filtroTiposEmergenciaHistorial.length === 0) return;
+    this.filtroTiposEmergenciaHistorial = [];
+    this.paginaHistorial = 1;
+  }
+
+  @HostListener('document:click', ['$event'])
+  cerrarPanelesHistorial(ev: MouseEvent): void {
+    const t = ev.target;
+    if (!(t instanceof Node)) return;
+    const wu = document.getElementById('checklist-hist-unidades-wrap');
+    const wt = document.getElementById('checklist-hist-tipo-emergencia-wrap');
+    if (this.filtroUnidadesPanelAbierto && !wu?.contains(t)) {
+      this.filtroUnidadesPanelAbierto = false;
+    }
+    if (this.filtroTipoEmergenciaPanelAbierto && !wt?.contains(t)) {
+      this.filtroTipoEmergenciaPanelAbierto = false;
+    }
   }
 
   tituloUnidad(u: ChecklistResumenUnidadDto): string {
@@ -269,17 +400,54 @@ export class ChecklistSelectorComponent implements OnInit {
     return `${h.id}-${h.unidad}-${h.fecha}`;
   }
 
+  aplicarFiltrosHistorial(): void {
+    this.paginaHistorial = 1;
+  }
+
+  limpiarFiltrosHistorial(): void {
+    this.filtroUnidadesHistorial = [];
+    this.filtroTiposEmergenciaHistorial = [];
+    this.filtroEstadoHistorial = 'TODOS';
+    this.filtroTextoHistorial = '';
+    this.filtroHistorialDesde = '';
+    this.filtroHistorialHasta = '';
+    this.paginaHistorial = 1;
+    this.filtroUnidadesPanelAbierto = false;
+    this.filtroTipoEmergenciaPanelAbierto = false;
+  }
+
+  exportarHistorialExcel(): void {
+    const filas = this.historialFiltrado();
+    if (filas.length === 0) return;
+    const columnas = ['Fecha', 'Unidad', 'Estado', 'Inspector', 'OBAC', 'Guardia', 'Cumplimiento', 'Obs.'];
+    const body: string[][] = filas.map((h) => [
+      `${this.fechaHora(h.fecha).fecha} ${this.fechaHora(h.fecha).hora}`,
+      h.unidad,
+      this.etiquetaEstadoHistorial(h),
+      h.inspector ?? '',
+      h.cuartelero?.nombre ?? '',
+      String(h.grupoGuardia ?? ''),
+      `${h.itemsOk ?? 0}/${h.totalItems ?? 0}`,
+      (h.observaciones ?? '').slice(0, 500),
+    ]);
+    const aoa = [['SIDEP · Historial checklist unidades'], [`Registros: ${filas.length}`], [], columnas, ...body];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Historial');
+    XLSX.writeFile(wb, `SIDEP-historial-checklist-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
   exportarHistorialPdf(): void {
     const historial = this.historialFiltrado();
     if (historial.length === 0) {
       return;
     }
+    const n = this.filtroUnidadesHistorial.length;
+    const u0 = n === 1 ? this.filtroUnidadesHistorial[0]! : '';
     this.pdfExport.exportarHistorialChecklistUnidad({
-      unidad: this.filtroUnidadHistorial === 'TODAS' ? 'GENERAL' : this.filtroUnidadHistorial,
+      unidad: n === 1 ? u0 : 'GENERAL',
       nombreUnidad:
-        this.filtroUnidadHistorial === 'TODAS'
-          ? 'Historial general de unidades'
-          : this.unidades.find((u) => u.unidad === this.filtroUnidadHistorial)?.nombre ?? 'Unidad',
+        n === 1 ? this.unidades.find((u) => u.unidad === u0)?.nombre ?? 'Unidad' : 'Historial general de unidades',
       registros: historial,
     });
   }
@@ -287,6 +455,8 @@ export class ChecklistSelectorComponent implements OnInit {
   actualizarHistorial(): void {
     this.cargarHistorialGeneral();
     this.paginaHistorial = 1;
+    this.filtroUnidadesPanelAbierto = false;
+    this.filtroTipoEmergenciaPanelAbierto = false;
   }
 
   verRegistroHistorial(h: ChecklistRegistroDto & { unidad: string; nombreUnidad: string }): void {

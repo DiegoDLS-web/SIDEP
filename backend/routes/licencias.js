@@ -10,6 +10,7 @@ const node_path_1 = __importDefault(require("node:path"));
 const multer_1 = __importDefault(require("multer"));
 const prisma_js_1 = require("../lib/prisma.js");
 const apiError_js_1 = require("../lib/apiError.js");
+const mailer_js_1 = require("../lib/mailer.js");
 exports.licenciasRouter = (0, express_1.Router)();
 const ROLES_REVISORES = new Set(['ADMIN', 'CAPITAN', 'TENIENTE']);
 const CARGOS_REVISORES = new Set([
@@ -395,10 +396,25 @@ exports.licenciasRouter.patch('/:id/estado', async (req, res) => {
                 resueltoEn: new Date(),
             },
             include: {
-                usuario: { select: { id: true, nombre: true, rol: true } },
+                usuario: { select: { id: true, nombre: true, rol: true, email: true } },
                 resueltoPor: { select: { id: true, nombre: true, rol: true } },
             },
         });
+        const destino = String(updated.usuario?.email ?? '').trim();
+        if (estado === 'APROBADA' && destino.includes('@')) {
+            const baseUrl = String(process.env.PUBLIC_APP_URL ?? process.env.APP_URL ?? '').replace(/\/$/, '');
+            const enlace = baseUrl ? `${baseUrl}/licencias-medicas` : 'tu acceso a SIDEP → Licencias médicas';
+            void (0, mailer_js_1.enviarCorreoHtml)({
+                to: [destino],
+                subject: 'SIDEP — Licencia médica aprobada',
+                text: `Hola ${updated.usuario?.nombre ?? ''}:\n\nTu licencia médica #${id} fue APROBADA. Puedes ingresar a SIDEP, sección Licencias médicas, para revisar el detalle y generar o descargar el PDF del documento.\n\n${baseUrl ? `Enlace: ${enlace}` : enlace}\n\nEste es un mensaje automático.`,
+                html: `<p>Hola <strong>${updated.usuario?.nombre ?? ''}</strong>,</p>
+<p>Tu licencia médica <strong>#${id}</strong> quedó en estado <strong>APROBADA</strong>.</p>
+<p>En SIDEP, menú <strong>Licencias médicas</strong>, puedes ver el detalle y generar o descargar el PDF del documento.</p>
+${baseUrl ? `<p><a href="${enlace}">Abrir Licencias médicas</a></p>` : `<p>${enlace}</p>`}
+<p style="font-size:12px;color:#666">Mensaje automático · SIDEP</p>`,
+            }).catch((err) => console.error('SIDEP: correo licencia aprobada', err));
+        }
         res.json(updated);
     }
     catch (e) {

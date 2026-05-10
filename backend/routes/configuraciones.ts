@@ -7,6 +7,7 @@ import { prisma } from '../lib/prisma.js';
 import { mergeNavegacionPorRol } from '../lib/nav-por-rol.js';
 import { requireRoles } from '../middleware/roles.js';
 import { sendApiError } from '../lib/apiError.js';
+import { defaultTiposEmergencia, type TipoEmergenciaItem } from '../lib/tipos-emergencia-default.js';
 
 const CLAVE = 'SISTEMA_GENERAL';
 
@@ -31,7 +32,39 @@ type ConfigPayload = {
     orientacionPdf: 'VERTICAL' | 'HORIZONTAL';
   };
   navegacionPorRol: Record<string, string[]>;
+  /** Catálogo editable por ADMIN/CAPITAN (valor = `claveEmergencia` en partes). */
+  tiposEmergencia: TipoEmergenciaItem[];
 };
+
+const VALUE_TIPO_EMERG_RE = /^[A-Za-z0-9_.-]+$/;
+
+function normalizeTiposEmergencia(raw: unknown): TipoEmergenciaItem[] {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return defaultTiposEmergencia();
+  }
+  const parsed = parseTiposEmergenciaLista(raw);
+  return parsed.length > 0 ? parsed : defaultTiposEmergencia();
+}
+
+/** Solo entradas válidas (sin fallback). */
+function parseTiposEmergenciaLista(raw: unknown): TipoEmergenciaItem[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const out: TipoEmergenciaItem[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const value = String((item as { value?: unknown }).value ?? '').trim();
+    const label = String((item as { label?: unknown }).label ?? '').trim();
+    if (!value || !label || seen.has(value)) continue;
+    if (value.length > 80 || label.length > 500) continue;
+    if (!VALUE_TIPO_EMERG_RE.test(value)) continue;
+    seen.add(value);
+    out.push({ value, label });
+  }
+  return out;
+}
 
 const defaultConfig: ConfigPayload = {
   compania: {
@@ -54,6 +87,7 @@ const defaultConfig: ConfigPayload = {
     orientacionPdf: 'VERTICAL',
   },
   navegacionPorRol: mergeNavegacionPorRol(undefined),
+  tiposEmergencia: defaultTiposEmergencia(),
 };
 
 const FORMATOS = ['PDF', 'XLSX', 'CSV'] as const;
@@ -100,7 +134,8 @@ function mergeConfig(raw: unknown): ConfigPayload {
     orientacionPdf,
   };
   const navegacionPorRol = mergeNavegacionPorRol(r.navegacionPorRol);
-  return { compania, notificaciones, reportes, navegacionPorRol };
+  const tiposEmergencia = normalizeTiposEmergencia(r.tiposEmergencia);
+  return { compania, notificaciones, reportes, navegacionPorRol, tiposEmergencia };
 }
 
 /** Lectura unificada para auth y otras rutas. */
@@ -197,13 +232,14 @@ configuracionesRouter.get('/', async (_req, res) => {
 });
 
 configuracionesRouter.put('/', requireRoles('ADMIN'), async (req, res) => {
-  const body = req.body as ConfigPayload;
+  const body = req.body as Partial<ConfigPayload>;
   if (!body?.compania || !body?.notificaciones || !body?.reportes) {
     sendApiError(res, 400, 'CONFIG_PAYLOAD', 'Payload de configuraciones inválido');
     return;
   }
-  const sanitized = mergeConfig(body);
   try {
+    const prev = await obtenerConfigSistema();
+    const sanitized = mergeConfig({ ...prev, ...body });
     await prisma.$executeRaw`
       INSERT INTO "ConfiguracionSistema" (clave, valor, "updatedAt")
       VALUES (${CLAVE}, ${JSON.stringify(sanitized)}::jsonb, now())
@@ -214,5 +250,32 @@ configuracionesRouter.put('/', requireRoles('ADMIN'), async (req, res) => {
   } catch (e) {
     console.error(e);
     sendApiError(res, 500, 'CONFIG_SAVE', 'Error al guardar configuraciones');
+  }
+});
+
+configuracionesRouter.put('/tipos-emergencia', requireRoles('ADMIN', 'CAPITAN'), async (req, res) => {
+  const raw = (req.body as { tiposEmergencia?: unknown })?.tiposEmergencia;
+  if (!Array.isArray(raw) || raw.length === 0) {
+    sendApiError(res, 400, 'CONFIG_TIPOS_EMERG', 'Envía al menos un tipo de emergencia válido.');
+    return;
+  }
+  const tipos = parseTiposEmergenciaLista(raw);
+  if (tipos.length === 0) {
+    sendApiError(res, 400, 'CONFIG_TIPOS_EMERG', 'Ningún tipo válido: código (letras, números, -, _, .) y descripción obligatorios.');
+    return;
+  }
+  try {
+    const prev = await obtenerConfigSistema();
+    const sanitized = mergeConfig({ ...prev, tiposEmergencia: tipos });
+    await prisma.$executeRaw`
+      INSERT INTO "ConfiguracionSistema" (clave, valor, "updatedAt")
+      VALUES (${CLAVE}, ${JSON.stringify(sanitized)}::jsonb, now())
+      ON CONFLICT (clave)
+      DO UPDATE SET valor = EXCLUDED.valor, "updatedAt" = now()
+    `;
+    res.json(sanitized);
+  } catch (e) {
+    console.error(e);
+    sendApiError(res, 500, 'CONFIG_SAVE', 'Error al guardar tipos de emergencia');
   }
 });
