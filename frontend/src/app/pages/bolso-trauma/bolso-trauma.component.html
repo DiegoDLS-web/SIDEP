@@ -1,0 +1,702 @@
+<div class="sid-page sid-page-shell w-full min-w-0 py-6">
+  @if (loading) {
+    <div class="flex min-h-[35vh] flex-col items-center justify-center gap-3 text-slate-400">
+      <lucide-icon name="briefcase" class="h-10 w-10 animate-pulse text-rose-500" [size]="40" color="currentColor" />
+      <p class="text-sm">Cargando bolsos de trauma…</p>
+    </div>
+  } @else if (error) {
+    <div class="sid-feedback rounded-2xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ error }}</div>
+  } @else {
+    <a routerLink="/" class="sid-back-link mb-3">
+      <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+      Volver al inicio
+    </a>
+    <section class="sid-hero-panel sid-hero-panel--cyan">
+      <p class="sid-page-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-200">
+        <lucide-icon name="heart-pulse" class="h-3.5 w-3.5" [size]="14" color="currentColor" />
+        Kit de trauma · inventario
+      </p>
+      <h1 class="sid-page-hero-title text-2xl font-bold text-white sm:text-3xl">Bolsos de trauma</h1>
+      <p class="sid-page-hero-subtitle mt-1 max-w-2xl text-sm text-slate-300 sm:text-base">Elige unidad y bolso para revisar mínimos, óptimos y faltantes antes del servicio.</p>
+    </section>
+
+    @let s = stats();
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+      <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-5">
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-white sm:text-3xl">{{ s.totalBolsos }}</p>
+        <p class="text-xs text-slate-400 sm:text-sm">Total bolsos</p>
+      </div>
+      <div class="rounded-2xl border border-emerald-800/50 bg-gradient-to-br from-emerald-950/40 to-transparent p-4 ring-1 ring-inset ring-emerald-500/10 sm:p-5">
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-emerald-400 sm:text-3xl">{{ s.completos }}</p>
+        <p class="text-xs text-slate-400 sm:text-sm">Completos al 100%</p>
+      </div>
+      <div class="rounded-2xl border border-amber-800/50 bg-gradient-to-br from-amber-950/35 to-transparent p-4 ring-1 ring-inset ring-amber-500/10 sm:p-5">
+        <p class="mb-0.5 text-2xl font-bold tabular-nums text-amber-400 sm:text-3xl">{{ s.incompletos }}</p>
+        <p class="text-xs text-slate-400 sm:text-sm">Pendientes</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-5">
+      @for (unidad of unidades; track unidad.unidad; let iu = $index) {
+        <div
+          class="group overflow-hidden rounded-2xl border border-slate-800/90 bg-[#121212] shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 transition-all duration-200 hover:border-rose-800/50 hover:shadow-rose-950/15"
+        >
+          <div class="relative min-h-[10rem] overflow-hidden sm:min-h-[10.5rem]">
+            <div
+              class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-[1.03]"
+              [style.background-image]="'url(' + imagenCabeceraUnidad(unidad.unidad) + ')'"
+              aria-hidden="true"
+            ></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/92 via-black/48 to-rose-950/35" aria-hidden="true"></div>
+            <div class="relative z-10 p-4 sm:p-5">
+              <div class="mb-3 flex items-center justify-between">
+                <div class="min-w-0">
+                  <h3 class="text-2xl font-bold text-white drop-shadow">{{ unidad.unidad }}</h3>
+                  <p class="truncate text-sm text-white/90">{{ unidad.nombre }}</p>
+                </div>
+                <div class="shrink-0 text-right">
+                  <p class="text-3xl font-bold tabular-nums text-white drop-shadow">{{ unidad.cantidadBolsos }}</p>
+                  <p class="text-xs font-medium text-white/85">Bolsos</p>
+                </div>
+              </div>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-white/90">{{ etiquetaCompletitudGeneral(unidad) }}</span>
+                  <span class="font-bold text-white tabular-nums">{{ promedioCompletitud(unidad) }}%</span>
+                </div>
+                <div class="h-2 w-full overflow-hidden rounded-full bg-black/35">
+                  <div
+                    class="sid-chart-bar-fill h-2 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.45)]"
+                    [style.width.%]="promedioCompletitud(unidad)"
+                    [style.--sid-chart-stagger.ms]="iu * 52"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="border-b border-slate-800/80 p-4 sm:p-5">
+            <h4 class="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">Última revisión</h4>
+            @if (unidad.ultimaRevision) {
+              <div class="grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
+                <div class="min-w-0">
+                  <p class="text-xs text-gray-400">Fecha</p>
+                  <p class="font-medium text-gray-100">{{ fechaHora(unidad.ultimaRevision.fecha).fecha }}</p>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs text-gray-400">Hora</p>
+                  <p class="font-medium text-gray-100">{{ fechaHora(unidad.ultimaRevision.fecha).hora }}</p>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs text-gray-400">Inspector</p>
+                  <p class="break-words font-medium text-gray-100">{{ unidad.ultimaRevision.inspector || '—' }}</p>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs text-gray-400">OBAC</p>
+                  <p class="break-words font-medium text-gray-100">{{ unidad.ultimaRevision.obac || unidad.ultimaRevision.responsable }}</p>
+                </div>
+              </div>
+            } @else {
+              <p class="text-sm text-slate-500">Sin revisión registrada.</p>
+            }
+          </div>
+
+          <div class="p-4 sm:p-5">
+            <h4 class="mb-4 text-sm font-bold text-white">Elegir bolso a revisar</h4>
+            <div class="space-y-3">
+              @for (bolso of unidad.bolsos; track bolso.numero; let ib = $index) {
+                <button
+                  type="button"
+                  [routerLink]="['/bolso-trauma', unidad.unidad]"
+                  [queryParams]="{ bolso: bolso.numero }"
+                  class="group/bolso flex w-full cursor-pointer items-center justify-between rounded-xl border border-slate-800 bg-[#0a0a0a] p-3 text-left text-white shadow-sm ring-1 ring-inset ring-white/5 transition-all hover:border-rose-600/80 hover:bg-[#0d0d0d] focus:outline-none focus:ring-2 focus:ring-rose-500/40"
+                >
+                  <div class="flex min-w-0 flex-1 items-center gap-3">
+                    <div
+                      class="shrink-0 rounded-xl bg-slate-800/90 p-2.5 transition-all group-hover/bolso:bg-rose-600/90 group-hover/bolso:shadow-md"
+                    >
+                      <lucide-icon name="briefcase" class="h-5 w-5 shrink-0" [size]="20" color="currentColor"></lucide-icon>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <p class="text-sm font-medium text-white">
+                        Bolso {{ bolso.numero }}
+                        <span class="text-xs font-normal text-white/60">· {{ unidad.unidad }}</span>
+                      </p>
+                      <div class="mt-1 flex items-center gap-2">
+                        <div class="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-gray-800">
+                          <div
+                            class="sid-chart-bar-fill h-1.5 rounded-full"
+                            [class.bg-green-500]="bolso.completitud === 100"
+                            [class.bg-yellow-500]="bolso.completitud < 100"
+                            [style.width.%]="bolso.completitud"
+                            [style.--sid-chart-stagger.ms]="iu * 56 + ib * 36"
+                          ></div>
+                        </div>
+                        <span class="shrink-0 text-xs font-medium text-gray-300">{{ bolso.completitud }}%</span>
+                      </div>
+                    </div>
+                    <div class="shrink-0 text-xs font-medium text-amber-400">
+                      @if (bolso.itemsFaltantes > 0) {
+                        {{ bolso.itemsFaltantes }} faltantes
+                      } @else {
+                        <span class="text-slate-600">—</span>
+                      }
+                    </div>
+                  </div>
+                </button>
+              } @empty {
+                <p class="text-sm text-slate-500">No hay bolsos configurados.</p>
+              }
+            </div>
+          </div>
+
+          @if (totalItemsFaltantes(unidad) > 0) {
+            <div class="p-4 pt-0 sm:p-5 sm:pt-0">
+              <div
+                class="rounded-xl border border-amber-600/50 bg-gradient-to-r from-amber-950/50 to-amber-950/20 p-4 ring-1 ring-inset ring-amber-500/10"
+              >
+                <p class="text-sm font-semibold text-amber-200">
+                  {{ totalItemsFaltantes(unidad) }} ítems faltantes en total
+                </p>
+                <p class="text-xs text-amber-200/70">Se requiere reposición de insumos</p>
+              </div>
+            </div>
+          }
+
+        </div>
+      }
+    </div>
+
+    <section class="sid-history-card overflow-hidden p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 md:p-6">
+      <div class="sid-history-head mb-4">
+        <div>
+          <h2 class="sid-history-title">Historial de registros</h2>
+          <p class="sid-history-subtitle">Filtros locales sobre la carga; exporta el listado filtrado a PDF</p>
+        </div>
+      </div>
+
+      <div class="mb-4 flex flex-col gap-4">
+        <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div id="bolso-hist-unidades-wrap" class="relative z-[60] min-w-0">
+            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Unidades</label>
+            <button
+              type="button"
+              class="sid-input sid-history-filter flex min-h-[var(--sid-control-height)] w-full items-center justify-between gap-2 rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 pl-3 pr-2.5 text-left text-sm text-white"
+              aria-haspopup="listbox"
+              [attr.aria-expanded]="filtroUnidadesBolsoPanelAbierto"
+              (click)="toggleFiltroUnidadesBolsoPanel($event)"
+            >
+              <span class="min-w-0 flex-1 truncate">{{ etiquetaFiltroUnidadesBolso() }}</span>
+              <lucide-icon
+                name="chevron-down"
+                class="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200"
+                [class.rotate-180]="filtroUnidadesBolsoPanelAbierto"
+                [size]="16"
+                color="currentColor"
+                aria-hidden="true"
+              ></lucide-icon>
+            </button>
+            @if (filtroUnidadesBolsoPanelAbierto) {
+              <div
+                class="sid-partes-filtro-tipo-listbox sid-scroll-dark absolute left-0 right-0 top-full z-[80] mt-1.5 max-h-[min(18rem,45vh)] overflow-y-auto rounded-xl border border-slate-600/80 bg-[var(--sid-surface-inset)] py-1.5 shadow-xl ring-1 ring-black/30"
+                role="listbox"
+                aria-multiselectable="true"
+              >
+                <button
+                  type="button"
+                  role="option"
+                  class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-slate-100 transition-colors hover:bg-slate-800/90"
+                  [class.bg-cyan-950/40]="filtroUnidadesBolso.length === 0"
+                  (click)="limpiarUnidadesBolso($event)"
+                >
+                  <span
+                    class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                    [class.border-cyan-400]="filtroUnidadesBolso.length === 0"
+                    [class.bg-cyan-600]="filtroUnidadesBolso.length === 0"
+                    [class.border-slate-500]="filtroUnidadesBolso.length > 0"
+                  >
+                    @if (filtroUnidadesBolso.length === 0) {
+                      <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                    }
+                  </span>
+                  Todas las unidades
+                </button>
+                @for (u of unidades; track u.id) {
+                  <button
+                    type="button"
+                    role="option"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-cyan-950/30]="unidadBolsoSeleccionada(u.unidad)"
+                    (click)="toggleUnidadBolso(u.unidad, $event)"
+                  >
+                    <span
+                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                      [class.border-cyan-400]="unidadBolsoSeleccionada(u.unidad)"
+                      [class.bg-cyan-600]="unidadBolsoSeleccionada(u.unidad)"
+                      [class.border-slate-500]="!unidadBolsoSeleccionada(u.unidad)"
+                    >
+                      @if (unidadBolsoSeleccionada(u.unidad)) {
+                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                      }
+                    </span>
+                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{ u.unidad }}</span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+
+          <div id="bolso-hist-tipo-wrap" class="relative z-[60] min-w-0">
+            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Tipo de emergencia</label>
+            <button
+              type="button"
+              class="sid-input sid-history-filter flex min-h-[var(--sid-control-height)] w-full items-center justify-between gap-2 rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 pl-3 pr-2.5 text-left text-sm text-white"
+              aria-haspopup="listbox"
+              [attr.aria-expanded]="filtroTipoBolsoPanelAbierto"
+              (click)="toggleFiltroTipoBolsoPanel($event)"
+            >
+              <span class="min-w-0 flex-1 truncate">{{ etiquetaFiltroTipoBolso() }}</span>
+              <lucide-icon
+                name="chevron-down"
+                class="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200"
+                [class.rotate-180]="filtroTipoBolsoPanelAbierto"
+                [size]="16"
+                color="currentColor"
+                aria-hidden="true"
+              ></lucide-icon>
+            </button>
+            @if (filtroTipoBolsoPanelAbierto) {
+              <div
+                class="sid-partes-filtro-tipo-listbox sid-scroll-dark absolute left-0 right-0 top-full z-[80] mt-1.5 max-h-[min(22rem,52vh)] overflow-y-auto rounded-xl border border-slate-600/80 bg-[var(--sid-surface-inset)] py-1.5 shadow-xl ring-1 ring-black/30"
+                role="listbox"
+                aria-multiselectable="true"
+              >
+                <button
+                  type="button"
+                  role="option"
+                  class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-slate-100 transition-colors hover:bg-slate-800/90"
+                  [class.bg-red-950/50]="filtroTiposEmergenciaBolso.length === 0"
+                  (click)="limpiarTiposBolso($event)"
+                >
+                  <span
+                    class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                    [class.border-red-400]="filtroTiposEmergenciaBolso.length === 0"
+                    [class.bg-red-500]="filtroTiposEmergenciaBolso.length === 0"
+                    [class.border-slate-500]="filtroTiposEmergenciaBolso.length > 0"
+                  >
+                    @if (filtroTiposEmergenciaBolso.length === 0) {
+                      <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                    }
+                  </span>
+                  Todos los tipos
+                </button>
+                <p class="mx-3 mb-1 mt-3 border-b border-slate-700/50 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  Clasificación 10-x (operativas)
+                </p>
+                @for (c of catalogoEmergencias.operativas(); track c.value) {
+                  <button
+                    type="button"
+                    role="option"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-red-950/35]="tipoBolsoSeleccionado(c.value)"
+                    (click)="toggleTipoBolso(c.value, $event)"
+                  >
+                    <span
+                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                      [class.border-red-400]="tipoBolsoSeleccionado(c.value)"
+                      [class.bg-red-500]="tipoBolsoSeleccionado(c.value)"
+                      [class.border-slate-500]="!tipoBolsoSeleccionado(c.value)"
+                    >
+                      @if (tipoBolsoSeleccionado(c.value)) {
+                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                      }
+                    </span>
+                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{ textoEtiquetaTipoOpcion(c) }}</span>
+                  </button>
+                }
+                <p class="mx-3 mb-1 mt-4 border-b border-slate-700/50 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  Compañía / servicios
+                </p>
+                @for (c of catalogoEmergencias.companiaServicios(); track c.value) {
+                  <button
+                    type="button"
+                    role="option"
+                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
+                    [class.bg-red-950/35]="tipoBolsoSeleccionado(c.value)"
+                    (click)="toggleTipoBolso(c.value, $event)"
+                  >
+                    <span
+                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                      [class.border-red-400]="tipoBolsoSeleccionado(c.value)"
+                      [class.bg-red-500]="tipoBolsoSeleccionado(c.value)"
+                      [class.border-slate-500]="!tipoBolsoSeleccionado(c.value)"
+                    >
+                      @if (tipoBolsoSeleccionado(c.value)) {
+                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
+                      }
+                    </span>
+                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{ textoEtiquetaTipoOpcion(c) }}</span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+
+          <div class="min-w-0">
+            <label class="mb-1 block text-xs text-gray-400">Estado</label>
+            <select
+              [(ngModel)]="filtroEstado"
+              (ngModelChange)="aplicarFiltrosLocalesHistorial()"
+              class="sid-history-filter w-full text-sm"
+            >
+              <option [ngValue]="'TODOS'">Todos</option>
+              <option [ngValue]="'COMPLETADO'">Completado</option>
+              <option [ngValue]="'PENDIENTE'">Pendiente</option>
+              <option [ngValue]="'CON_OBSERVACION'">Con observación</option>
+            </select>
+          </div>
+          <div class="min-w-0">
+            <label class="mb-1 block text-xs text-gray-400">Inspector u OBAC</label>
+            <input
+              type="search"
+              [(ngModel)]="filtroInspectorObac"
+              (ngModelChange)="aplicarFiltrosLocalesHistorial()"
+              placeholder="Nombre parcial…"
+              class="sid-history-filter w-full text-sm placeholder:text-gray-600"
+            />
+          </div>
+        </div>
+        <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <div class="w-full min-w-0 sm:w-auto sm:max-w-[11rem]">
+            <label class="mb-1 block text-xs text-gray-400">Desde</label>
+            <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter dark-date-input w-full text-sm" [(ngModel)]="filtroDesde" />
+          </div>
+          <div class="w-full min-w-0 sm:w-auto sm:max-w-[11rem]">
+            <label class="mb-1 block text-xs text-gray-400">Hasta</label>
+            <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter dark-date-input w-full text-sm" [(ngModel)]="filtroHasta" />
+          </div>
+          <div class="flex w-full flex-wrap items-end gap-2 sm:ml-auto sm:w-auto">
+            <button
+              type="button"
+              (click)="aplicarFiltrosBolsoHistorial()"
+              class="sid-btn sid-btn-primary inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-900/20 hover:bg-red-700 sm:flex-initial"
+            >
+              Aplicar filtros
+            </button>
+            <button
+              type="button"
+              (click)="limpiarFiltrosBolsoHistorial()"
+              class="sid-btn sid-btn-neutral inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl border-slate-600 bg-[#0a0a0a] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#141414] sm:flex-initial"
+            >
+              Limpiar filtros
+            </button>
+            <button
+              type="button"
+              (click)="cargarHistorial()"
+              class="sid-btn sid-btn-neutral inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl border-slate-600 bg-[#0a0a0a] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#141414] sm:flex-initial"
+            >
+              <lucide-icon name="clipboard-list" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+              Actualizar
+            </button>
+            <button
+              type="button"
+              (click)="exportarHistorialPdf()"
+              [disabled]="historialFiltrado().length === 0"
+              class="sid-btn sid-btn-primary inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-900/20 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial"
+            >
+              <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+              Descargar PDF
+            </button>
+            <button
+              type="button"
+              (click)="exportarHistorialExcelBolso()"
+              [disabled]="historialFiltrado().length === 0"
+              class="sid-btn sid-btn-success inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-900/20 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial"
+            >
+              <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+              Descargar Excel
+            </button>
+          </div>
+        </div>
+      </div>
+
+      @if (loadingHistorial) {
+        <div class="flex items-center gap-3 rounded-xl border border-slate-800/80 bg-[#0a0a0a] px-4 py-6 text-sm text-slate-400">
+          <lucide-icon name="clipboard-list" class="h-5 w-5 animate-pulse text-cyan-500" [size]="20" color="currentColor"></lucide-icon>
+          Cargando historial…
+        </div>
+      } @else if (historialError) {
+        <p class="sid-feedback rounded-xl border border-red-900/50 bg-red-950/25 px-4 py-3 text-sm text-red-300">{{ historialError }}</p>
+      } @else {
+        <div class="space-y-3 md:hidden">
+          @for (h of historialPaginado(); track h.id) {
+            <div class="rounded-xl border border-slate-800 bg-[#0a0a0a] p-3">
+              <div class="mb-2 flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  @let fhb = fechaHora(h.fecha);
+                  <p class="text-sm font-medium text-white">{{ fhb.fecha }}</p>
+                  <p class="text-xs text-slate-500">{{ fhb.hora }}</p>
+                  <p class="mt-1 font-mono text-sm font-semibold text-white">{{ h.unidad }} · Bolso {{ h.bolsoNumero ?? '—' }}</p>
+                </div>
+                <span class="sid-status-chip shrink-0" [ngClass]="claseEstado(h)">
+                  {{ etiquetaEstado(h) }}
+                </span>
+              </div>
+              <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                <div>
+                  <p class="text-slate-500">Inspector</p>
+                  <p class="font-semibold text-white">{{ h.inspector || '—' }}</p>
+                </div>
+                <div>
+                  <p class="text-slate-500">OBAC</p>
+                  <p class="font-semibold text-white">{{ h.responsable }}</p>
+                </div>
+                <div>
+                  <p class="text-slate-500">Guardia</p>
+                  <p class="font-semibold text-white">{{ h.grupoGuardia || '—' }}</p>
+                </div>
+                <div>
+                  <p class="text-slate-500">Cumplimiento</p>
+                  <p class="font-semibold text-white">
+                    @if (h.porcentaje !== null) {
+                      {{ h.itemsOk ?? 0 }}/{{ h.totalItems ?? 0 }} ({{ h.porcentaje }}%)
+                    } @else {
+                      —
+                    }
+                  </p>
+                </div>
+              </div>
+              <p class="mt-2 line-clamp-2 text-xs text-slate-400">{{ h.observaciones || 'Sin observaciones' }}</p>
+              <div class="mt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  (click)="abrirDetalle(h)"
+                  class="sid-btn sid-btn-info inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                  title="Ver detalle"
+                >
+                  <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                </button>
+                <button
+                  type="button"
+                  (click)="editarRegistro(h)"
+                  class="sid-btn sid-btn-neutral inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
+                  title="Editar registro"
+                >
+                  <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                </button>
+                <button
+                  type="button"
+                  (click)="descargarRegistroPdf(h)"
+                  [disabled]="descargandoRegistroId === h.id"
+                  class="sid-btn sid-btn-primary inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  title="Descargar PDF"
+                >
+                  <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                </button>
+              </div>
+            </div>
+          } @empty {
+            <app-sid-empty-state [compact]="true" title="Sin registros" icon="archive-x" />
+          }
+        </div>
+        <div class="sid-history-wrap hidden overflow-x-auto md:block">
+          <table class="sid-history-table w-full">
+            <thead>
+              <tr>
+                <th>Fecha / hora</th>
+                <th>Unidad</th>
+                <th>Bolso</th>
+                <th>Estado</th>
+                <th>Inspector</th>
+                <th>OBAC</th>
+                <th>Guardia</th>
+                <th>Cumplimiento</th>
+                <th>Obs.</th>
+                <th class="text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (h of historialPaginado(); track h.id) {
+                <tr>
+                  <td class="align-top whitespace-nowrap">
+                    @let fhbt = fechaHora(h.fecha);
+                    <p class="font-medium text-white">{{ fhbt.fecha }}</p>
+                    <p class="text-xs text-slate-500">{{ fhbt.hora }}</p>
+                  </td>
+                  <td class="font-mono">{{ h.unidad }}</td>
+                  <td>{{ h.bolsoNumero ?? '—' }}</td>
+                  <td>
+                    <span class="sid-status-chip" [ngClass]="claseEstado(h)">
+                      {{ etiquetaEstado(h) }}
+                    </span>
+                  </td>
+                  <td>{{ h.inspector || '—' }}</td>
+                  <td>{{ h.responsable }}</td>
+                  <td>{{ h.grupoGuardia || '—' }}</td>
+                  <td>
+                    @if (h.porcentaje !== null) {
+                      {{ h.itemsOk ?? 0 }}/{{ h.totalItems ?? 0 }} ({{ h.porcentaje }}%)
+                    } @else {
+                      —
+                    }
+                  </td>
+                  <td class="max-w-[200px] truncate text-gray-300">
+                    {{ h.observaciones || '—' }}
+                  </td>
+                  <td class="text-center align-middle">
+                    <div class="inline-flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        (click)="abrirDetalle(h)"
+                        class="sid-btn sid-btn-info inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                        title="Ver detalle"
+                      >
+                        <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                      </button>
+                      <button
+                        type="button"
+                        (click)="editarRegistro(h)"
+                        class="sid-btn sid-btn-neutral inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-600 bg-[#242833] text-white hover:bg-gray-700"
+                        title="Editar registro"
+                      >
+                        <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                      </button>
+                      <button
+                        type="button"
+                        (click)="descargarRegistroPdf(h)"
+                        [disabled]="descargandoRegistroId === h.id"
+                        class="sid-btn sid-btn-primary inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        title="Descargar PDF"
+                      >
+                        <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="10" class="px-3 py-8 text-center text-sm text-gray-500">Sin registros.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div
+          class="mt-4 flex flex-col gap-2 border-t border-slate-800/80 pt-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span
+            >Página {{ paginaHistorial }} de {{ totalPaginasHistorial() }} ·
+            {{ historialFiltrado().length }} registro(s) con filtros</span
+          >
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              (click)="cambiarPaginaHistorial(-1)"
+              [disabled]="paginaHistorial <= 1"
+              class="sid-btn sid-btn-neutral rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-white transition-colors hover:bg-slate-800 disabled:opacity-40"
+            >
+              Anterior
+            </button>
+            <button
+              type="button"
+              (click)="cambiarPaginaHistorial(1)"
+              [disabled]="paginaHistorial >= totalPaginasHistorial()"
+              class="sid-btn sid-btn-neutral rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-white transition-colors hover:bg-slate-800 disabled:opacity-40"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      }
+    </section>
+  }
+
+  @if (detalleRegistro || loadingDetalle) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="detalle-bolso-titulo"
+    >
+      <div
+        class="sid-modal-scroll max-h-[90vh] w-full max-w-4xl overflow-y-auto overscroll-contain rounded-2xl border border-slate-700/80 bg-[#121212] shadow-2xl shadow-cyan-950/20 ring-1 ring-inset ring-white/5"
+      >
+        <div
+          class="border-b border-slate-800/80 bg-gradient-to-r from-cyan-950/30 to-rose-950/20 px-6 py-4 sm:px-8"
+        >
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <p class="mb-1 text-xs font-medium uppercase tracking-wide text-cyan-200/80">Bolso de trauma</p>
+              <h3 id="detalle-bolso-titulo" class="text-lg font-bold text-white sm:text-xl">Detalle del registro</h3>
+            </div>
+            <button
+              type="button"
+              (click)="cerrarDetalle()"
+              class="sid-btn sid-btn-neutral shrink-0 rounded-xl border-slate-600 bg-[#0a0a0a] px-3 py-2 text-sm text-slate-200 hover:bg-slate-800"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+        <div class="p-6 sm:p-8">
+        @if (loadingDetalle) {
+          <div class="flex items-center gap-3 text-slate-400">
+            <lucide-icon name="briefcase" class="h-5 w-5 animate-pulse text-rose-400" [size]="20" color="currentColor" />
+            Cargando…
+          </div>
+        } @else if (detalleRegistro) {
+          @let r = detalleRegistro;
+          <div class="mb-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+            <p><span class="text-gray-500">Unidad:</span> {{ r.carro.nomenclatura }}</p>
+            @let fbd = fechaHora(r.fecha);
+            <p>
+              <span class="text-gray-500">Fecha:</span><br />
+              <span class="font-medium text-gray-100">{{ fbd.fecha }}</span><br />
+              <span class="text-xs text-gray-500">{{ fbd.hora }}</span>
+            </p>
+            <p><span class="text-gray-500">Inspector:</span> {{ r.inspector || '—' }}</p>
+            <p><span class="text-gray-500">OBAC:</span> {{ r.cuartelero.nombre }} ({{ r.cuartelero.rol }})</p>
+            <p class="sm:col-span-2"><span class="text-gray-500">Observaciones:</span> {{ r.observaciones || '—' }}</p>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-gray-800 text-left text-gray-400">
+                  <th class="py-2 pr-2">Bolso</th>
+                  <th class="py-2 pr-2">Ubicación</th>
+                  <th class="py-2 pr-2">Material</th>
+                  <th class="py-2 pr-2">Mín</th>
+                  <th class="py-2 pr-2">Ópt</th>
+                  <th class="py-2 pr-2">Actual</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of filasDetalleMateriales(r); track $index) {
+                  <tr class="border-b border-gray-800/80">
+                    <td class="py-2 pr-2 font-mono">{{ row.bolso }}</td>
+                    <td class="py-2 pr-2">{{ row.ubicacion }}</td>
+                    <td class="py-2 pr-2">{{ row.nombre }}</td>
+                    <td class="py-2 pr-2">{{ row.min }}</td>
+                    <td class="py-2 pr-2">{{ row.opt }}</td>
+                    <td class="py-2 pr-2">{{ row.act }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="6" class="py-4 text-gray-500">Sin ítems en el detalle.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (r.firmaOficial?.startsWith('data:image')) {
+            <div class="mt-4">
+              <p class="mb-2 text-sm text-gray-400">Firma OBAC</p>
+              <img [src]="r.firmaOficial!" alt="Firma OBAC" class="max-h-40 rounded border border-gray-700 bg-[#0a0a0a] p-2" />
+            </div>
+          }
+        }
+        </div>
+      </div>
+    </div>
+  }
+</div>

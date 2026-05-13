@@ -6,29 +6,120 @@ datasource db {
   provider = "postgresql"
 }
 
-// --- CATÁLOGOS (MAESTROS) ---
+// ==========================================
+// --- 1. CATÁLOGOS (MAESTROS) ---
+// ==========================================
 
 model CatalogoClaveEmergencia {
   id      Int               @id @default(autoincrement())
-  codigo  String            @unique // Ej: 10-0
-  nombre  String            // Ej: Incendio Estructural
+  codigo  String            @unique
+  nombre  String
   partes  ParteEmergencia[]
 
   @@map("catalogo_claves_emergencia")
 }
 
 model RolUsuario {
-  id        Int      @id @default(autoincrement())
-  nombre    String   @unique
-  activo    Boolean  @default(true)
+  id        Int       @id @default(autoincrement())
+  nombre    String    @unique
+  activo    Boolean   @default(true)
   usuarios  Usuario[]
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
   @@map("roles_usuario")
 }
 
-// --- NÚCLEO DEL SISTEMA ---
+model CatalogoEstadoParte {
+  id          Int               @id @default(autoincrement())
+  codigo      String            @unique
+  nombre      String
+  descripcion String?
+  activo      Boolean           @default(true)
+  partes      ParteEmergencia[]
+
+  @@map("catalogo_estado_parte")
+}
+
+model CatalogoTriage {
+  id        Int                  @id @default(autoincrement())
+  codigo    String               @unique
+  nombre    String
+  activo    Boolean              @default(true)
+  pacientes PacienteEmergencia[]
+
+  @@map("catalogo_triage")
+}
+
+model CatalogoGrupoSanguineo {
+  id       Int       @id @default(autoincrement())
+  codigo   String    @unique
+  nombre   String
+  activo   Boolean   @default(true)
+  usuarios Usuario[]
+
+  @@map("catalogo_grupo_sanguineo")
+}
+
+model CatalogoEstadoVoluntario {
+  id       Int       @id @default(autoincrement())
+  codigo   String    @unique
+  nombre   String
+  activo   Boolean   @default(true)
+  usuarios Usuario[]
+
+  @@map("catalogo_estado_voluntario")
+}
+
+model CatalogoCargoOficialidad {
+  id       Int       @id @default(autoincrement())
+  codigo   String    @unique
+  nombre   String
+  activo   Boolean   @default(true)
+  usuarios Usuario[]
+
+  @@map("catalogo_cargo_oficialidad")
+}
+
+model CatalogoTipoVoluntario {
+  id       Int       @id @default(autoincrement())
+  codigo   String    @unique
+  nombre   String
+  activo   Boolean   @default(true)
+  usuarios Usuario[]
+
+  @@map("catalogo_tipo_voluntario")
+}
+
+model CatalogoEstadoLicencia {
+  id          Int              @id @default(autoincrement())
+  codigo      String           @unique
+  nombre      String
+  descripcion String?
+  activo      Boolean          @default(true)
+  licencias   LicenciaMedica[]
+
+  @@map("catalogo_estado_licencia")
+}
+
+model CatalogoMaterial {
+  id                         Int                          @id @default(autoincrement())
+  codigo                     String                       @unique
+  nombre                     String
+  categoria                  String?
+  unidad                     String?
+  activo                     Boolean                      @default(true)
+  createdAt                  DateTime                     @default(now()) @map("created_at")
+  updatedAt                  DateTime                     @updatedAt @map("updated_at")
+  materialesPorCarro         MaterialPorCarro[]
+  checklistMaterialResultados ChecklistMaterialResultado[]
+
+  @@map("catalogo_material")
+}
+
+// ==========================================
+// --- 2. NÚCLEO DEL SISTEMA ---
+// ==========================================
 
 model Usuario {
   id                     Int                  @id @default(autoincrement())
@@ -39,25 +130,36 @@ model Usuario {
   telefono               String?
   activo                 Boolean              @default(true)
   
-  // Relación con Rol (Catálogo)
   rolId                  Int                  @map("rol_id")
   rol                    RolUsuario           @relation(fields: [rolId], references: [id])
+  
+  grupoSanguineoId       Int?                 @map("grupo_sanguineo_id")
+  grupoSanguineo         CatalogoGrupoSanguineo? @relation(fields: [grupoSanguineoId], references: [id])
+
+  estadoVoluntarioId     Int?                 @map("estado_voluntario_id")
+  estadoVoluntario       CatalogoEstadoVoluntario? @relation(fields: [estadoVoluntarioId], references: [id])
+
+  cargoOficialidadId     Int?                 @map("cargo_oficialidad_id")
+  cargoOficialidad       CatalogoCargoOficialidad? @relation(fields: [cargoOficialidadId], references: [id])
+
+  tipoVoluntarioId       Int?                 @map("tipo_voluntario_id")
+  tipoVoluntario         CatalogoTipoVoluntario? @relation(fields: [tipoVoluntarioId], references: [id])
 
   nombres                String?
   apellidoPaterno        String?              @map("apellido_paterno")
   apellidoMaterno        String?              @map("apellido_materno")
-  grupoSanguineo         String?              @map("grupo_sanguineo")
-  estadoVoluntario       String?              @default("VIGENTE") @map("estado_voluntario")
-  cargoOficialidad       String?              @map("cargo_oficialidad")
   requiereCambioPassword Boolean              @default(false) @map("requiere_cambio_password")
   fotoPerfil             String?              @map("foto_perfil")
   autorizadoConducir     Boolean              @default(false) @map("autorizado_conducir")
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
   
   actividades            ActividadUsuario[]
   checklists             ChecklistCarro[]
-  licenciasResueltas     LicenciaMedica[]     @relation("LicenciaMedica_resueltoPorIdToUsuario")
-  licenciasPropias       LicenciaMedica[]     @relation("LicenciaMedica_usuarioIdToUsuario")
+  licenciasResueltas     LicenciaMedica[]     @relation("LicenciaMedica_resuelto")
+  licenciasPropias       LicenciaMedica[]     @relation("LicenciaMedica_usuario")
   partesObac             ParteEmergencia[]
+  asistencias            Asistencia[]
   passwordResetTokens    PasswordResetToken[]
 
   @@map("usuarios")
@@ -68,9 +170,10 @@ model ParteEmergencia {
   correlativo        String               @unique
   direccion          String
   fecha              DateTime             @default(now())
-  estado             String               @default("PENDIENTE")
   
-  // Relación con Clave (Catálogo)
+  estadoId           Int                  @map("estado_id")
+  estado             CatalogoEstadoParte  @relation(fields: [estadoId], references: [id])
+  
   claveId            Int                  @map("clave_id")
   clave              CatalogoClaveEmergencia @relation(fields: [claveId], references: [id])
 
@@ -80,24 +183,57 @@ model ParteEmergencia {
   metadata           Json?
   pacientes          PacienteEmergencia[]
   unidades           UnidadEnEmergencia[]
+  asistencias        Asistencia[]
 
   @@index([fecha(sort: Desc)])
   @@map("partes_emergencia")
 }
 
-// --- LOGÍSTICA Y UNIDADES ---
+model PacienteEmergencia {
+  id              Int             @id @default(autoincrement())
+  parteId         Int             @map("parte_id")
+  nombre          String
+  
+  triageId        Int             @map("triage_id")
+  triage          CatalogoTriage  @relation(fields: [triageId], references: [id])
+  
+  parteEmergencia ParteEmergencia @relation(fields: [parteId], references: [id])
+
+  @@map("pacientes_emergencia")
+}
+
+model Asistencia {
+  id               Int             @id @default(autoincrement())
+  parteId          Int             @map("parte_id")
+  usuarioId        Int             @map("usuario_id")
+  rolEnEmergencia  String?         @map("rol_en_emergencia")
+  estado           String?         
+  horaLlegada      String?         @map("hora_llegada")
+  horaSalida       String?         @map("hora_salida")
+  createdAt        DateTime        @default(now()) @map("created_at")
+
+  parteEmergencia  ParteEmergencia @relation(fields: [parteId], references: [id])
+  usuario          Usuario         @relation(fields: [usuarioId], references: [id])
+
+  @@map("asistencia")
+}
+
+// ==========================================
+// --- 3. LOGÍSTICA Y UNIDADES ---
+// ==========================================
 
 model Carro {
-  id                             Int                      @id @default(autoincrement())
-  nomenclatura                   String                   @unique
-  patente                        String                   @unique
-  estadoOperativo                Boolean                  @default(true) @map("estado_operativo")
-  kilometraje                    Int?
-  capacidadAgua                  String?                  @map("capacidad_agua")
+  id                 Int                      @id @default(autoincrement())
+  nomenclatura       String                   @unique
+  patente            String                   @unique
+  estadoOperativo    Boolean                  @default(true) @map("estado_operativo")
+  kilometraje        Int?
+  capacidadAgua      String?                  @map("capacidad_agua")
   
-  historiales                    CarroRegistroHistorial[]
-  checklists                     ChecklistCarro[]
-  emergencias                    UnidadEnEmergencia[]
+  historiales        CarroRegistroHistorial[]
+  checklists         ChecklistCarro[]
+  emergencias        UnidadEnEmergencia[]
+  materialesInstalados MaterialPorCarro[]
 
   @@map("carros")
 }
@@ -111,9 +247,8 @@ model UnidadEnEmergencia {
   kmSalida        Int             @map("km_salida")
   kmLlegada       Int             @map("km_llegada")
   
-  // Tiempos de radio (6-0, 6-3, etc)
-  hora6_0         String          @default("00:00")
-  hora6_10        String          @default("00:00")
+  hora6_0         String          @default("00:00") @map("hora_6_0")
+  hora6_10        String          @default("00:00") @map("hora_6_10")
   
   carro           Carro           @relation(fields: [carroId], references: [id])
   parteEmergencia ParteEmergencia @relation(fields: [parteId], references: [id])
@@ -121,21 +256,18 @@ model UnidadEnEmergencia {
   @@map("unidades_en_emergencia")
 }
 
-// --- OTROS MODELOS (Se mantienen para no romper lógica de equipo) ---
+model MaterialPorCarro {
+  id               Int              @id @default(autoincrement())
+  carroId          Int              @map("carro_id")
+  materialId       Int              @map("material_id")
+  cantidadObjetivo Int              @map("cantidad_objetivo")
+  ubicacion        String?
+  activo           Boolean          @default(true)
 
-model LicenciaMedica {
-  id                    Int      @id @default(autoincrement())
-  usuarioId             Int      @map("usuario_id")
-  fechaInicio           DateTime @map("fecha_inicio")
-  fechaTermino          DateTime @map("fecha_termino")
-  motivo                String
-  estado                String   @default("PENDIENTE")
-  resueltoPorId         Int?     @map("resuelto_por_id")
-  
-  resueltoPor           Usuario? @relation("LicenciaMedica_resueltoPorIdToUsuario", fields: [resueltoPorId], references: [id])
-  usuario               Usuario  @relation("LicenciaMedica_usuarioIdToUsuario", fields: [usuarioId], references: [id], onDelete: Cascade)
+  carro            Carro            @relation(fields: [carroId], references: [id])
+  material         CatalogoMaterial @relation(fields: [materialId], references: [id])
 
-  @@map("licencias_medicas")
+  @@map("material_por_carro")
 }
 
 model ChecklistCarro {
@@ -146,20 +278,59 @@ model ChecklistCarro {
   
   carro        Carro    @relation(fields: [carroId], references: [id])
   cuartelero   Usuario  @relation(fields: [cuarteleroId], references: [id])
+  resultados   ChecklistMaterialResultado[]
 
   @@map("checklists_carro")
 }
 
-model PacienteEmergencia {
-  id              Int             @id @default(autoincrement())
-  parteId         Int             @map("parte_id")
-  nombre          String
-  triage          String          // Se mantiene String por ahora para facilitar UI
-  
-  parteEmergencia ParteEmergencia @relation(fields: [parteId], references: [id])
+model ChecklistMaterialResultado {
+  id                 Int              @id @default(autoincrement())
+  checklistId        Int              @map("checklist_id")
+  materialId         Int              @map("material_id")
+  cantidadEncontrada Int              @map("cantidad_encontrada")
+  estadoItem         String?          @map("estado_item")
+  observacion        String?
 
-  @@map("pacientes_emergencia")
+  checklist          ChecklistCarro   @relation(fields: [checklistId], references: [id])
+  material           CatalogoMaterial @relation(fields: [materialId], references: [id])
+
+  @@map("checklist_material_resultado")
 }
+
+model CarroRegistroHistorial {
+  id        Int      @id @default(autoincrement())
+  carroId   Int      @map("carro_id")
+  creadoEn  DateTime @default(now()) @map("creado_en")
+  carro     Carro    @relation(fields: [carroId], references: [id], onDelete: Cascade)
+
+  @@map("carro_registro_historial")
+}
+
+// ==========================================
+// --- 4. RRHH Y LICENCIAS ---
+// ==========================================
+
+model LicenciaMedica {
+  id                    Int      @id @default(autoincrement())
+  usuarioId             Int      @map("usuario_id")
+  fechaInicio           DateTime @map("fecha_inicio")
+  fechaTermino          DateTime @map("fecha_termino")
+  motivo                String
+  
+  estadoId              Int      @map("estado_id")
+  estado                CatalogoEstadoLicencia @relation(fields: [estadoId], references: [id])
+
+  resueltoPorId         Int?     @map("resuelto_por_id")
+  
+  resueltoPor           Usuario? @relation("LicenciaMedica_resuelto", fields: [resueltoPorId], references: [id])
+  usuario               Usuario  @relation("LicenciaMedica_usuario", fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("licencias_medicas")
+}
+
+// ==========================================
+// --- 5. SISTEMA Y AUDITORÍA ---
+// ==========================================
 
 model ActividadUsuario {
   id         Int      @id @default(autoincrement())
@@ -182,20 +353,11 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
-model CarroRegistroHistorial {
-  id        Int      @id @default(autoincrement())
-  carroId   Int      @map("carro_id")
-  creadoEn  DateTime @default(now()) @map("creado_en")
-  carro     Carro    @relation(fields: [carroId], references: [id], onDelete: Cascade)
-
-  @@map("carro_registro_historial")
-}
-
 model ConfiguracionSistema {
   id        Int      @id @default(autoincrement())
   clave     String   @unique
   valor     Json
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("configuracion_sistema")
 }
