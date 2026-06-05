@@ -13,24 +13,18 @@ import {
 } from 'rxjs';
 import { AuthLocalStorageService, mapLoginUsuarioASesion } from '../core/auth';
 import { limpiarBienvenidaSesionAlLogout } from '../core/welcome-overlay-session';
-import type { LoginResponseDto, SesionUsuarioDto } from '../models/auth.dto';
+import type { SesionUsuarioDto } from '../models/auth.dto';
 
-/**
- * Orquesta autenticación: HTTP + estado en memoria + persistencia vía AuthLocalStorageService.
- * Reglas de negocio de sesión viven aquí; el guard solo pregunta “¿puede pasar?”.
- */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly storage = inject(AuthLocalStorageService);
 
-  /** Estado reactivo del usuario (sidebar, guards, etc.). */
   private readonly userSubject = new BehaviorSubject<SesionUsuarioDto | null>(
     this.storage.getUsuarioGuardado(),
   );
 
-  /** Evita varias peticiones GET /me en paralelo (App + guard). */
   private meRequest$: Observable<SesionUsuarioDto | null> | null = null;
 
   readonly usuario$ = this.userSubject.asObservable();
@@ -51,13 +45,14 @@ export class AuthService {
     this.meRequest$ = null;
   }
 
-  login(email: string, password: string): Observable<SesionUsuarioDto> {
+  login(rut: string, password: string): Observable<SesionUsuarioDto> {
     this.invalidateSesionCache();
-    return this.http.post<LoginResponseDto>('/api/auth/login', { email, password }).pipe(
+    // Accedemos a 'resp.data' porque el backend ahora envía el objeto envuelto
+    return this.http.post<any>('/api/auth/login', { rut, password }).pipe(
       tap((resp) => {
-        this.storage.setToken(resp.token);
+        this.storage.setToken(resp.data.token);
       }),
-      map((resp) => mapLoginUsuarioASesion(resp.usuario)),
+      map((resp) => mapLoginUsuarioASesion(resp.data.usuario)),
       tap((user) => {
         this.userSubject.next(user);
         this.storage.setUsuarioGuardado(user);
@@ -67,11 +62,11 @@ export class AuthService {
 
   loginDemo(): Observable<SesionUsuarioDto> {
     this.invalidateSesionCache();
-    return this.http.post<LoginResponseDto>('/api/auth/login-demo', {}).pipe(
+    return this.http.post<any>('/api/auth/login-demo', {}).pipe(
       tap((resp) => {
-        this.storage.setToken(resp.token);
+        this.storage.setToken(resp.data.token);
       }),
-      map((resp) => mapLoginUsuarioASesion(resp.usuario)),
+      map((resp) => mapLoginUsuarioASesion(resp.data.usuario)),
       tap((user) => {
         this.userSubject.next(user);
         this.storage.setUsuarioGuardado(user);
@@ -100,6 +95,7 @@ export class AuthService {
       return of(null);
     }
     if (!this.meRequest$) {
+      // El GET /me devuelve el usuario directamente, por eso NO usamos .data
       this.meRequest$ = this.http.get<SesionUsuarioDto>('/api/auth/me').pipe(
         tap((u) => {
           this.userSubject.next(u);
@@ -151,5 +147,9 @@ export class AuthService {
     this.storage.setUsuarioGuardado(user);
     this.invalidateSesionCache();
     this.userSubject.next(user);
+  }
+
+  register(datos: any): Observable<any> {
+    return this.http.post('/api/auth/register', datos);
   }
 }
