@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { loginUsuario, registrarUsuario } from './autenticacion.service';
-import prisma from '../../prisma'; // Asegúrate de importar tu instancia de prisma
+import prisma from '../../prisma'; 
 
 // 1. Registro
 export const register = async (req: Request, res: Response) => {
@@ -46,37 +46,38 @@ export const login = async (req: Request, res: Response) => {
     }
 };
 
-// 3. ME (Lógica REAL conectada a la BD)
+// 3. ME (Corregido para Schema Normalizado)
 export const me = async (req: Request, res: Response) => {
     try {
-        // Obtenemos el ID del token que inyectó el middleware 'protect'
-        const userId = (req as any).user.id; 
+        // Ahora el token debe traer el 'rut', no el 'id'
+        const userRut = (req as any).user.rut; 
         
         const usuario = await prisma.usuario.findUnique({
-            where: { id: userId },
-            include: { rol: { select: { nombre: true } } }
+            where: { rut: userRut },
+            include: { rol: true } // Incluimos la relación completa
         });
 
         if (!usuario) {
             return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
         }
 
+        // Construimos el nombre completo desde los campos separados del MER
+        const nombreCompleto = `${usuario.nombres} ${usuario.apellidoPaterno} ${usuario.apellidoMaterno}`.trim();
+
         return res.status(200).json({
-            id: usuario.id,
-            nombre: usuario.nombre,
             rut: usuario.rut,
+            nombre: nombreCompleto,
             rol: usuario.rol?.nombre || 'USER',
-            activo: usuario.activo
+            activo: usuario.activo === 1 // Convertimos SmallInt a Boolean para el frontend
         });
     } catch (error) {
+        console.error('🔥 ERROR EN ME:', error);
         return res.status(500).json({ success: false, message: 'Error al obtener datos de sesión' });
     }
 };
 
 // 4. LOGOUT
 export const logout = async (req: Request, res: Response) => {
-    // Al usar JWT, el logout suele ser gestionar el token en el cliente.
-    // En el backend, simplemente devolvemos éxito.
     return res.status(200).json({ success: true, message: 'Sesión cerrada' });
 };
 
@@ -84,7 +85,7 @@ export const logout = async (req: Request, res: Response) => {
 export const loginDemo = async (req: Request, res: Response) => {
     return res.status(200).json({ 
         token: 'demo-token', 
-        usuario: { id: 0, nombre: 'Demo', rol: 'ADMIN', rut: '00.000.000-0' } 
+        usuario: { rut: '00.000.000-0', nombre: 'Demo Local', rol: 'ADMIN' } 
     });
 };
 

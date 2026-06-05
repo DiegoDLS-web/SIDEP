@@ -1,23 +1,26 @@
 import prisma from '../../prisma';
 import { AppError } from '../../utils';
+import { randomUUID } from 'crypto';
 
-// 1. Obtener la lista de partes (para que Ignacio llene la tabla principal en Angular)
+// 1. Obtener la lista de partes (ajustado al nuevo schema normalizado)
 export const obtenerPartes = async () => {
     return await prisma.parteEmergencia.findMany({
         include: {
             clave: { select: { nombre: true, codigo: true } },
             estado: { select: { nombre: true } },
-            obac: { select: { nombre: true, rut: true } } // OBAC = Oficial al Mando
+            // Corregido: 'nombres' y 'apellidoPaterno' en lugar de 'nombre'
+            obac: { select: { nombres: true, apellidoPaterno: true, rut: true } }
         },
-        orderBy: { fecha: 'desc' } // Los más recientes primero
+        // Corregido: 'fechaEmergencia' en lugar de 'fecha'
+        orderBy: { fechaEmergencia: 'desc' }
     });
 };
 
-// 2. Crear un nuevo Parte de Emergencia (y sus vehículos civiles si los hay)
+// 2. Crear un nuevo Parte de Emergencia
 export const crearParteEmergencia = async (datosParte: any) => {
-    const { correlativo, direccion, estadoId, claveId, obacId, vehiculosCiviles } = datosParte;
+    const { correlativo, direccion, estadoId, claveId, obacRut, vehiculosCiviles } = datosParte;
 
-    // Validación de negocio: Evitar duplicar el código del parte
+    // Validación de negocio: Correlativo único
     const existeCorrelativo = await prisma.parteEmergencia.findUnique({
         where: { correlativo: String(correlativo) }
     });
@@ -26,19 +29,22 @@ export const crearParteEmergencia = async (datosParte: any) => {
         throw new AppError('Ya existe un parte de emergencia con este correlativo', 400);
     }
 
-    // 1. Preparamos el objeto con la data obligatoria del parte
+    // 1. Preparamos el objeto con la data estricta según el MER
     const parteData: any = {
+        id: randomUUID(), // Generamos el UUID para el PK String
         correlativo: String(correlativo),
         direccion: String(direccion),
         estadoId: Number(estadoId),
         claveId: Number(claveId),
-        obacId: Number(obacId),
+        obacRut: String(obacRut), // Corregido: ahora es rut, no ID numérico
+        fechaEmergencia: new Date(), // Campo obligatorio
     };
 
-    // 2. Solo si Ignacio envía vehículos, le "inyectamos" la propiedad al objeto
+    // 2. Procesamos vehículos civiles si existen
     if (vehiculosCiviles && vehiculosCiviles.length > 0) {
         parteData.vehiculosCiviles = {
             create: vehiculosCiviles.map((vc: any) => ({
+                id: randomUUID(), // ID para cada registro civil
                 tipoVehiculo: String(vc.tipoVehiculo || ''),
                 patente: String(vc.patente || ''),
                 marca: String(vc.marca || ''),
@@ -48,7 +54,7 @@ export const crearParteEmergencia = async (datosParte: any) => {
         };
     }
 
-    // 3. Le pasamos el objeto limpio a Prisma
+    // 3. Crear en BD
     const nuevoParte = await prisma.parteEmergencia.create({
         data: parteData,
         include: {
