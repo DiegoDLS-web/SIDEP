@@ -1,6 +1,6 @@
 import { NgModule } from '@angular/core';
-import { LucideAngularModule } from 'lucide-angular';
 import {
+  LucideAngularModule,
   ArrowLeft,
   Bell,
   Briefcase,
@@ -52,61 +52,19 @@ import {
   X,
 } from 'lucide-angular';
 
-/** Registra iconos Lucide para `<lucide-icon>`; ampliar al portar más pantallas. */
+// Extraemos la lista a una constante estática para que Angular compile sin errores
+export const icons = {
+  ArrowLeft, Bell, Briefcase, Building2, Database, Calendar, CalendarDays,
+  Car, ChartColumn, CircleCheck, ChevronDown, ChevronRight, ChevronUp,
+  ClipboardCheck, ClipboardList, Clock, Download, Droplet, Eye, FileText,
+  Flame, HeartPulse, History, Funnel, LayoutDashboard, Loader2, Lock, LogIn,
+  LogOut, Mail, Menu, MapPin, Package, Pencil, Plus, Phone, Save, Search,
+  Send, Settings, Shield, TrendingDown, TrendingUp, TriangleAlert, Truck,
+  User, Users, Wrench, X
+};
+
 @NgModule({
-  imports: [
-    LucideAngularModule.pick({
-      ArrowLeft,
-      Bell,
-      Briefcase,
-      Building2,
-      Database,
-      Calendar,
-      CalendarDays,
-      Car,
-      ChartColumn,
-      CircleCheck,
-      ChevronDown,
-      ChevronRight,
-      ChevronUp,
-      ClipboardCheck,
-      ClipboardList,
-      Clock,
-      Download,
-      Droplet,
-      Eye,
-      FileText,
-      Flame,
-      HeartPulse,
-      History,
-      Funnel,
-      LayoutDashboard,
-      Loader2,
-      Lock,
-      LogIn,
-      LogOut,
-      Mail,
-      Menu,
-      MapPin,
-      Package,
-      Pencil,
-      Plus,
-      Phone,
-      Save,
-      Search,
-      Send,
-      Settings,
-      Shield,
-      TrendingDown,
-      TrendingUp,
-      TriangleAlert,
-      Truck,
-      User,
-      Users,
-      Wrench,
-      X,
-    }),
-  ],
-  exports: [LucideAngularModule],
+  imports: [LucideAngularModule.pick(icons)],
+  exports: [LucideAngularModule]
 })
 export class SidepIconsModule {}

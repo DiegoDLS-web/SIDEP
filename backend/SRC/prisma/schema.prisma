@@ -8,397 +8,395 @@ datasource db {
 }
 
 // ==========================================
-// --- 1. CATÁLOGOS (MAESTROS) ---
+// --- 1. CATÁLOGOS ---
 // ==========================================
 
-model CatalogoClaveEmergencia {
-  id      Int               @id @default(autoincrement())
-  codigo  String            @unique
-  nombre  String
-  partes  ParteEmergencia[]
-
-  @@map("catalogo_claves_emergencia")
-}
-
-model RolUsuario {
-  id        Int       @id @default(autoincrement())
-  nombre    String    @unique
-  activo    Boolean   @default(true)
-  usuarios  Usuario[]
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-
-  @@map("roles_usuario")
-}
-
-model CatalogoEstadoParte {
-  id          Int               @id @default(autoincrement())
-  codigo      String            @unique
-  nombre      String
-  descripcion String?
-  activo      Boolean           @default(true)
-  partes      ParteEmergencia[]
-
-  @@map("catalogo_estado_parte")
-}
-
-model CatalogoTriage {
-  id        Int                  @id @default(autoincrement())
-  codigo    String               @unique
-  nombre    String
-  activo    Boolean              @default(true)
-  pacientes PacienteEmergencia[]
-
-  @@map("catalogo_triage")
-}
-
-model CatalogoGrupoSanguineo {
-  id       Int       @id @default(autoincrement())
-  codigo   String    @unique
-  nombre   String
-  activo   Boolean   @default(true)
-  usuarios Usuario[]
-
-  @@map("catalogo_grupo_sanguineo")
-}
-
 model CatalogoEstadoVoluntario {
-  id       Int       @id @default(autoincrement())
-  codigo   String    @unique
-  nombre   String
-  activo   Boolean   @default(true)
+  id      Int      @id @default(autoincrement())
+  codigo  String   @unique @db.VarChar(50)
+  nombre  String   @db.VarChar(100)
+  activo  Int      @db.SmallInt // Mapping literal de NUMBER(1)
   usuarios Usuario[]
 
   @@map("catalogo_estado_voluntario")
 }
 
 model CatalogoCargoOficialidad {
-  id       Int       @id @default(autoincrement())
-  codigo   String    @unique
-  nombre   String
-  activo   Boolean   @default(true)
+  id      Int      @id @default(autoincrement())
+  codigo  String   @unique @db.VarChar(50)
+  nombre  String   @db.VarChar(100)
+  activo  Int      @db.SmallInt
   usuarios Usuario[]
 
   @@map("catalogo_cargo_oficialidad")
 }
 
-model CatalogoTipoVoluntario {
-  id       Int       @id @default(autoincrement())
-  codigo   String    @unique
-  nombre   String
-  activo   Boolean   @default(true)
+model RolUsuario {
+  id      Int      @id @default(autoincrement())
+  codigo  String   @unique @db.VarChar(50)
+  nombre  String   @db.VarChar(100)
+  activo  Int      @db.SmallInt
   usuarios Usuario[]
 
-  @@map("catalogo_tipo_voluntario")
+  @@map("rol_usuario")
+}
+
+model CatalogoGrupoSanguineo {
+  id      Int      @id @default(autoincrement())
+  codigo  String   @unique @db.VarChar(50)
+  nombre  String   @db.VarChar(100)
+  activo  Int      @db.SmallInt
+  usuarios Usuario[]
+
+  @@map("catalogo_grupo_sanguineo")
 }
 
 model CatalogoEstadoLicencia {
-  id          Int              @id @default(autoincrement())
-  codigo      String           @unique
-  nombre      String
-  descripcion String?
-  activo      Boolean          @default(true)
+  id          Int      @id @default(autoincrement())
+  codigo      String   @unique @db.VarChar(50)
+  nombre      String   @db.VarChar(100)
+  descripcion String?  @db.VarChar(255)
+  activo      Int      @db.SmallInt
   licencias   LicenciaMedica[]
 
   @@map("catalogo_estado_licencia")
 }
 
 model CatalogoMaterial {
-  id                          Int                          @id @default(autoincrement())
-  codigo                      String                       @unique
-  nombre                      String
-  categoria                   String?
-  unidad                      String?
-  activo                      Boolean                      @default(true)
-  createdAt                   DateTime                     @default(now()) @map("created_at")
-  updatedAt                   DateTime                     @updatedAt @map("updated_at")
-  materialesPorCarro          MaterialPorCarro[]
-  checklistMaterialResultados ChecklistMaterialResultado[]
+  id        Int      @id @default(autoincrement())
+  codigo    String   @unique @db.VarChar(50)
+  nombre    String   @db.VarChar(100)
+  categoria String?  @db.VarChar(100)
+  unidad    String?  @db.VarChar(50)
+  activo    Int      @db.SmallInt
+  materialesPorCarro MaterialPorCarro[]
 
   @@map("catalogo_material")
 }
 
+model CatalogoBolso {
+  id      Int      @id @default(autoincrement())
+  codigo  String   @unique @db.VarChar(50)
+  nombre  String   @db.VarChar(100)
+  activo  Int      @db.SmallInt
+  bolsos  BolsoTrauma[]
+
+  @@map("catalogo_bolso")
+}
+
+model CatalogoTriage {
+  id        Int      @id @default(autoincrement())
+  codigo    String   @unique @db.VarChar(50)
+  nombre    String   @db.VarChar(100)
+  color     String?  @db.VarChar(50)
+  activo    Int      @db.SmallInt
+  pacientes PacienteEmergencia[]
+
+  @@map("catalogo_triage")
+}
+
+model CatalogoEstadoParte {
+  id          Int      @id @default(autoincrement())
+  codigo      String   @unique @db.VarChar(50)
+  nombre      String   @db.VarChar(100)
+  descripcion String?  @db.VarChar(255)
+  activo      Int      @db.SmallInt
+  partes      ParteEmergencia[]
+
+  @@map("catalogo_estado_parte")
+}
+
+model CatalogoClaveEmergencia {
+  id          Int      @id @default(autoincrement())
+  codigo      String   @unique @db.VarChar(50)
+  nombre      String   @db.VarChar(100)
+  descripcion String?  @db.VarChar(255)
+  activo      Int      @db.SmallInt
+  partes      ParteEmergencia[]
+
+  @@map("catalogo_clave_emergencia")
+}
+
+model CatalogoTipoVoluntario {
+  id      Int      @id @default(autoincrement())
+  codigo  String   @unique @db.VarChar(50)
+  nombre  String   @db.VarChar(100)
+  activo  Int      @db.SmallInt
+  usuarios Usuario[]
+
+  @@map("catalogo_tipo_voluntario")
+}
+
 // ==========================================
-// --- 2. NÚCLEO DEL SISTEMA ---
+// --- 2. NÚCLEO (USUARIOS Y CARROS) ---
 // ==========================================
 
 model Usuario {
-  id                     Int                       @id @default(autoincrement())
-  rut                    String                    @unique
-  nombre                 String
-  password               String
-  email                  String?                   @unique
-  telefono               String?
-  activo                 Boolean                   @default(true)
-  
-  rolId                  Int                       @map("rol_id")
-  rol                    RolUsuario                @relation(fields: [rolId], references: [id])
-  
-  grupoSanguineoId       Int?                      @map("grupo_sanguineo_id")
-  grupoSanguineo         CatalogoGrupoSanguineo?   @relation(fields: [grupoSanguineoId], references: [id])
+  rut                String    @id @db.VarChar(20)
+  nombres            String    @db.VarChar(100)
+  apellidoPaterno    String    @map("apellido_paterno") @db.VarChar(100)
+  apellidoMaterno    String    @map("apellido_materno") @db.VarChar(100)
+  email              String    @unique @db.VarChar(150)
+  passwordHash       String    @map("password_hash") @db.VarChar(255)
+  firmaImagen        String?   @map("firma_imagen") @db.Text
+  fotoPerfil         String?   @map("foto_perfil") @db.Text
+  rolId              Int       @map("rol_id")
+  cargoId            Int?      @map("cargo_id")
+  tipoVoluntarioId   Int?      @map("tipo_voluntario_id")
+  estadoVoluntarioId Int?      @map("estado_voluntario_id")
+  grupoSanguineoId   Int?      @map("grupo_sanguineo_id")
+  compania           String?   @db.VarChar(100)
+  cuerpoBombero      String?   @map("cuerpo_bombero") @db.VarChar(150)
+  activo             Int       @db.SmallInt
 
-  estadoVoluntarioId     Int?                      @map("estado_voluntario_id")
-  estadoVoluntario       CatalogoEstadoVoluntario? @relation(fields: [estadoVoluntarioId], references: [id])
+  rol              RolUsuario                @relation(fields: [rolId], references: [id])
+  cargo            CatalogoCargoOficialidad? @relation(fields: [cargoId], references: [id])
+  tipoVoluntario   CatalogoTipoVoluntario?   @relation(fields: [tipoVoluntarioId], references: [id])
+  estadoVoluntario CatalogoEstadoVoluntario? @relation(fields: [estadoVoluntarioId], references: [id])
+  grupoSanguineo   CatalogoGrupoSanguineo?   @relation(fields: [grupoSanguineoId], references: [id])
 
-  cargoOficialidadId     Int?                      @map("cargo_oficialidad_id")
-  cargoOficialidad       CatalogoCargoOficialidad? @relation(fields: [cargoOficialidadId], references: [id])
+  auditorias       AuditoriaUsuario[]
+  licenciasResueltas LicenciaMedica[]        @relation("LicenciaMedica_resuelto")
+  licenciasPropias   LicenciaMedica[]        @relation("LicenciaMedica_usuario")
+  checklists       ChecklistEjecucion[]
+  asistencias      AsistenciaPersonal[]
+  partesObac       ParteEmergencia[]
+  unidadesConductor UnidadEnEmergencia[]
+  mantenimientosInspector MantenimientoCarro[] @relation("inspector")
+  mantenimientosConductor MantenimientoCarro[] @relation("conductor")
 
-  tipoVoluntarioId       Int?                      @map("tipo_voluntario_id")
-  tipoVoluntario         CatalogoTipoVoluntario?   @relation(fields: [tipoVoluntarioId], references: [id])
-
-  nombres                String?
-  apellidoPaterno        String?                   @map("apellido_paterno")
-  apellidoMaterno        String?                   @map("apellido_materno")
-  requiereCambioPassword Boolean                   @default(false) @map("requiere_cambio_password")
-  fotoPerfil             String?                   @map("foto_perfil")
-  autorizadoConducir     Boolean                   @default(false) @map("autorizado_conducir")
-  createdAt              DateTime                  @default(now()) @map("created_at")
-  updatedAt              DateTime                  @updatedAt @map("updated_at")
-  
-  actividades            ActividadUsuario[]
-  checklists             ChecklistCarro[]
-  licenciasResueltas     LicenciaMedica[]          @relation("LicenciaMedica_resuelto")
-  licenciasPropias       LicenciaMedica[]          @relation("LicenciaMedica_usuario")
-  partesObac             ParteEmergencia[]
-  asistencias            Asistencia[]
-  passwordResetTokens    PasswordResetToken[]
-
-  @@map("usuarios")
+  @@map("usuario")
 }
 
+model Carro {
+  id              String   @id @db.VarChar(36)
+  patente         String?  @unique @db.VarChar(20)
+  nomenclatura    String   @unique @db.VarChar(50)
+  nombre          String   @db.VarChar(100)
+  marca           String?  @db.VarChar(100)
+  kilometraje     Decimal? @db.Decimal(10, 1)
+  estadoOperativo Int      @map("estado_operativo") @db.SmallInt
+
+  materiales      MaterialPorCarro[]
+  bolsos          BolsoTrauma[]
+  unidadesEmergencia UnidadEnEmergencia[]
+  mantenimientos  MantenimientoCarro[]
+
+  @@map("carro")
+}
+
+// ==========================================
+// --- 3. OPERACIONAL Y EMERGENCIAS ---
+// ==========================================
+
 model ParteEmergencia {
-  id               Int                       @id @default(autoincrement())
-  correlativo      String                    @unique
-  direccion        String
-  fecha            DateTime                  @default(now())
-  
-  estadoId         Int                       @map("estado_id")
-  estado           CatalogoEstadoParte       @relation(fields: [estadoId], references: [id])
-  
-  claveId          Int                       @map("clave_id")
-  clave            CatalogoClaveEmergencia   @relation(fields: [claveId], references: [id])
+  id                 String    @id @db.VarChar(36)
+  correlativo        String    @unique @db.VarChar(50)
+  estadoId           Int       @map("estado_id")
+  fechaEmergencia    DateTime  @map("fecha_emergencia") @db.Timestamptz
+  claveId            Int       @map("clave_id")
+  obacRut            String    @map("obac_rut") @db.VarChar(20)
+  direccion          String    @db.VarChar(200)
+  referenciaLugar    String?   @map("referencia_lugar") @db.VarChar(255)
+  trabajoRealizado   String?   @map("trabajo_realizado") @db.Text
+  materialUtilizado  String?   @map("material_utilizado") @db.Text
+  metadata           String?   @db.Text
+  firmaObac          String?   @map("firma_obac") @db.Text
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
-  obacId           Int                       @map("obac_id")
-  obac             Usuario                   @relation(fields: [obacId], references: [id])
-  
-  metadata         Json?
-  pacientes        PacienteEmergencia[]
-  unidades         UnidadEnEmergencia[]
-  asistencias      Asistencia[]
-  vehiculosCiviles VehiculoCivilEmergencia[]
+  estado             CatalogoEstadoParte     @relation(fields: [estadoId], references: [id])
+  clave              CatalogoClaveEmergencia @relation(fields: [claveId], references: [id])
+  obac               Usuario                 @relation(fields: [obacRut], references: [rut])
 
-  @@index([fecha(sort: Desc)])
-  @@map("partes_emergencia")
+  pacientes          PacienteEmergencia[]
+  vehiculosCiviles   VehiculoCivilEmergencia[]
+  asistencias        AsistenciaPersonal[]
+  unidades           UnidadEnEmergencia[]
+
+  @@map("parte_emergencia")
 }
 
 model PacienteEmergencia {
-  id              Int             @id @default(autoincrement())
-  parteId         Int             @map("parte_id")
-  nombre          String
+  id           String @id @db.VarChar(36)
+  parteId      String @map("parte_id") @db.VarChar(36)
+  nombre       String @db.VarChar(150)
+  rutPaciente  String? @map("rut_paciente") @db.VarChar(20)
+  triageId     Int    @map("triage_id")
   
-  triageId        Int             @map("triage_id")
-  triage          CatalogoTriage  @relation(fields: [triageId], references: [id])
-  
-  parteEmergencia ParteEmergencia @relation(fields: [parteId], references: [id])
+  parte        ParteEmergencia @relation(fields: [parteId], references: [id])
+  triage       CatalogoTriage  @relation(fields: [triageId], references: [id])
 
-  @@map("pacientes_emergencia")
+  @@map("paciente_emergencia")
 }
 
 model VehiculoCivilEmergencia {
-  id              Int             @id @default(autoincrement())
-  parteId         Int             @map("parte_id")
-  tipoVehiculo    String?         @map("tipo_vehiculo")
-  patente         String?
-  marca           String?
-  conductor       String?
-  rutConductor    String?         @map("rut_conductor")
+  id           String @id @db.VarChar(36)
+  parteId      String @map("parte_id") @db.VarChar(36)
+  patente      String? @db.VarChar(20)
+  marca        String? @db.VarChar(50)
+  conductor    String? @db.VarChar(150)
+  rutConductor String? @map("rut_conductor") @db.VarChar(20)
 
-  parteEmergencia ParteEmergencia @relation(fields: [parteId], references: [id], onDelete: Cascade)
+  parte        ParteEmergencia @relation(fields: [parteId], references: [id])
 
-  @@map("vehiculos_civiles_emergencia")
+  @@map("vehiculo_civil_emergencia")
 }
 
-model Asistencia {
-  id              Int             @id @default(autoincrement())
-  parteId         Int             @map("parte_id")
-  usuarioId       Int             @map("usuario_id")
-  rolEnEmergencia String?         @map("rol_en_emergencia")
-  estado          String?         
-  horaLlegada     String?         @map("hora_llegada")
-  horaSalida      String?         @map("hora_salida")
-  createdAt       DateTime        @default(now()) @map("created_at")
+model AsistenciaPersonal {
+  id         String @id @db.VarChar(36)
+  parteId    String @map("parte_id") @db.VarChar(36)
+  usuarioRut String @map("usuario_rut") @db.VarChar(20)
 
-  parteEmergencia ParteEmergencia @relation(fields: [parteId], references: [id])
-  usuario         Usuario         @relation(fields: [usuarioId], references: [id])
+  parte      ParteEmergencia @relation(fields: [parteId], references: [id])
+  usuario    Usuario         @relation(fields: [usuarioRut], references: [rut])
 
-  @@map("asistencia")
-}
-
-// ==========================================
-// --- 3. LOGÍSTICA Y UNIDADES ---
-// ==========================================
-
-model Carro {
-  id                 Int                      @id @default(autoincrement())
-  nomenclatura       String                   @unique
-  patente            String                   @unique
-  estadoOperativo    Boolean                  @default(true) @map("estado_operativo")
-  kilometraje        Int?
-  capacidadAgua      String?                  @map("capacidad_agua")
-  
-  historiales        CarroRegistroHistorial[]
-  checklists         ChecklistCarro[]
-  emergencias        UnidadEnEmergencia[]
-  materialesInstalados MaterialPorCarro[]
-  bolsosTrauma       BolsoTrauma[]
-
-  @@map("carros")
+  @@unique([parteId, usuarioRut])
+  @@map("asistencia_personal")
 }
 
 model UnidadEnEmergencia {
-  id              Int             @id @default(autoincrement())
-  parteId         Int             @map("parte_id")
-  carroId         Int             @map("carro_id")
-  horaSalida      String          @map("hora_salida")
-  horaLlegada     String          @map("hora_llegada")
-  kmSalida        Int             @map("km_salida")
-  kmLlegada       Int             @map("km_llegada")
-  
-  hora6_0         String          @default("00:00") @map("hora_6_0")
-  hora6_10        String          @default("00:00") @map("hora_6_10")
-  
-  carro           Carro           @relation(fields: [carroId], references: [id])
-  parteEmergencia ParteEmergencia @relation(fields: [parteId], references: [id])
+  id            String   @id @db.VarChar(36)
+  parteId       String   @map("parte_id") @db.VarChar(36)
+  carroId       String   @map("carro_id") @db.VarChar(36)
+  conductorRut  String?  @map("conductor_rut") @db.VarChar(20)
+  horaSalida    DateTime @map("hora_salida") @db.Timestamptz
+  horaLlegada   DateTime @map("hora_llegada") @db.Timestamptz
+  kmSalida      Decimal  @map("km_salida") @db.Decimal(10, 1)
+  kmLlegada     Decimal  @map("km_llegada") @db.Decimal(10, 1)
 
-  @@map("unidades_en_emergencia")
+  carro         Carro    @relation(fields: [carroId], references: [id])
+  parte         ParteEmergencia @relation(fields: [parteId], references: [id])
+  conductor     Usuario? @relation(fields: [conductorRut], references: [rut])
+
+  @@map("unidad_en_emergencia")
 }
 
-model MaterialPorCarro {
-  id               Int              @id @default(autoincrement())
-  carroId          Int              @map("carro_id")
-  materialId       Int              @map("material_id")
-  cantidadObjetivo Int              @map("cantidad_objetivo")
-  ubicacion        String?
-  activo           Boolean          @default(true)
+// ==========================================
+// --- 4. LOGÍSTICA ---
+// ==========================================
 
-  carro            Carro            @relation(fields: [carroId], references: [id])
-  material         CatalogoMaterial @relation(fields: [materialId], references: [id])
+model MaterialPorCarro {
+  id              String @id @db.VarChar(36)
+  carroId         String @map("carro_id") @db.VarChar(36)
+  materialId      Int    @map("material_id")
+  cantidadObjetivo Int    @map("cantidad_objetivo")
+  ubicacion       String? @db.VarChar(100)
+  activo          Int    @db.SmallInt
+
+  carro           Carro            @relation(fields: [carroId], references: [id])
+  material        CatalogoMaterial @relation(fields: [materialId], references: [id])
+
+  @@unique([carroId, materialId, ubicacion])
+  @@map("material_por_carro")
+}
+
+model BolsoTrauma {
+  id                 String  @id @db.VarChar(36)
+  tipoId             Int     @map("tipo_id")
+  carroId            String  @map("carro_id") @db.VarChar(36)
+  nombreIdentificador String? @map("nombre_identificador") @db.VarChar(100)
+  activo             Int     @db.SmallInt
+
+  catalogoBolso      CatalogoBolso @relation(fields: [tipoId], references: [id])
+  carro              Carro         @relation(fields: [carroId], references: [id])
+
+  @@map("bolso_trauma")
+}
+
+model ChecklistPlantilla {
+  id             String   @id @db.VarChar(36)
+  codigo         String   @unique @db.VarChar(50)
+  nombre         String   @db.VarChar(150)
+  descripcion    String?  @db.Text
+  entidadTipo    String   @map("entidad_tipo") @db.VarChar(50)
+  version        Int
+  activo         Int      @db.SmallInt
+  estructuraJson String   @map("estructura_json") @db.Text
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  ejecuciones    ChecklistEjecucion[]
 
   @@map("checklist_plantilla")
 }
 
-model ChecklistCarro {
-  id           Int                          @id @default(autoincrement())
-  carroId      Int                          @map("carro_id")
-  cuarteleroId Int                          @map("cuartelero_id")
-  fecha        DateTime                     @default(now())
-  
-  carro        Carro                        @relation(fields: [carroId], references: [id])
-  cuartelero   Usuario                      @relation(fields: [cuarteleroId], references: [id])
-  resultados   ChecklistMaterialResultado[]
+model ChecklistEjecucion {
+  id              String   @id @db.VarChar(36)
+  plantillaId     String   @map("plantilla_id") @db.VarChar(36)
+  entidadTipo     String   @map("entidad_tipo") @db.VarChar(50)
+  entidadId       String   @map("entidad_id") @db.VarChar(36)
+  revisorRut      String   @map("revisor_rut") @db.VarChar(20)
+  fechaRevision   DateTime @map("fecha_revision") @db.Timestamptz
+  estado          String   @db.VarChar(30)
+  respuestasJson  String   @map("respuestas_json") @db.Text
+  firmaRevisor    String?  @map("firma_revisor") @db.Text
+  firmaOficial    String?  @map("firma_oficial") @db.Text
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  plantilla       ChecklistPlantilla @relation(fields: [plantillaId], references: [id])
+  revisor         Usuario            @relation(fields: [revisorRut], references: [rut])
 
   @@map("checklist_ejecucion")
 }
 
-model ChecklistMaterialResultado {
-  id                 Int              @id @default(autoincrement())
-  checklistId        Int              @map("checklist_id")
-  materialId         Int              @map("material_id")
-  cantidadEncontrada Int              @map("cantidad_encontrada")
-  estadoItem         String?          @map("estado_item")
-  observacion        String?
+model MantenimientoCarro {
+  id                        String   @id @db.VarChar(36)
+  carroId                   String   @map("carro_id") @db.VarChar(36)
+  fechaRegistro             DateTime @map("fecha_registro") @db.Timestamptz
+  fechaMantenimiento        DateTime? @map("fecha_mantenimiento") @db.Date
+  fechaProximoMantenimiento DateTime? @map("fecha_proximo_mantenimiento") @db.Date
+  fechaProximaRevTecnica    DateTime? @map("fecha_proxima_rev_tecnica") @db.Date
+  fechaRevBomba             DateTime? @map("fecha_rev_bomba") @db.Date
+  fechaInspeccion           DateTime? @map("fecha_inspeccion") @db.Date
+  inspectorRut              String?  @map("inspector_rut") @db.VarChar(20)
+  conductorRut              String?  @map("conductor_rut") @db.VarChar(20)
+  descripcion               String?  @db.Text
 
-  checklist          ChecklistCarro   @relation(fields: [checklistId], references: [id])
-  material           CatalogoMaterial @relation(fields: [materialId], references: [id])
+  carro                     Carro    @relation(fields: [carroId], references: [id])
+  inspector                 Usuario? @relation("inspector", fields: [inspectorRut], references: [rut])
+  conductor                 Usuario? @relation("conductor", fields: [conductorRut], references: [rut])
 
-  @@map("checklist_material_resultado")
-}
-
-model CarroRegistroHistorial {
-  id       Int      @id @default(autoincrement())
-  carroId  Int      @map("carro_id")
-  creadoEn DateTime @default(now()) @map("creado_en")
-  carro    Carro    @relation(fields: [carroId], references: [id], onDelete: Cascade)
-
-  @@map("carro_registro_historial")
-}
-
-model CatalogoBolso {
-  id          Int           @id @default(autoincrement())
-  codigo      String        @unique
-  nombre      String
-  descripcion String?
-  activo      Boolean       @default(true)
-  bolsos      BolsoTrauma[]
-
-  @@map("catalogo_bolsos")
-}
-
-model BolsoTrauma {
-  id              Int           @id @default(autoincrement())
-  catalogoBolsoId Int           @map("catalogo_bolso_id")
-  carroId         Int?          @map("carro_id")
-  numeroSerie     String?       @map("numero_serie")
-  estadoOperativo Boolean       @default(true) @map("estado_operativo")
-
-  catalogoBolso   CatalogoBolso @relation(fields: [catalogoBolsoId], references: [id])
-  carro           Carro?        @relation(fields: [carroId], references: [id])
-
-  @@map("bolsos_trauma")
+  @@map("mantenimiento_carro")
 }
 
 // ==========================================
-// --- 4. RRHH Y LICENCIAS ---
+// --- 5. RRHH Y AUDITORÍA ---
 // ==========================================
 
 model LicenciaMedica {
-  id            Int                    @id @default(autoincrement())
-  usuarioId     Int                    @map("usuario_id")
-  fechaInicio   DateTime               @map("fecha_inicio")
-  fechaTermino  DateTime               @map("fecha_termino")
-  motivo        String
-  
-  estadoId      Int                    @map("estado_id")
-  estado        CatalogoEstadoLicencia @relation(fields: [estadoId], references: [id])
+  id                  String    @id @db.VarChar(36)
+  usuarioRut          String    @map("usuario_rut") @db.VarChar(20)
+  resolutorRut        String?   @map("resolutor_rut") @db.VarChar(20)
+  estadoLicenciaId    Int       @map("estado_licencia_id")
+  fechaInicio         DateTime  @map("fecha_inicio") @db.Date
+  fechaTermino        DateTime  @map("fecha_termino") @db.Date
+  motivo              String    @db.VarChar(255)
+  archivoUrl          String?   @map("archivo_url") @db.VarChar(255)
+  observacionResolucion String? @map("observacion_resolucion") @db.Text
+  resueltoEn          DateTime? @map("resuelto_en") @db.Timestamptz
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
-  resueltoPorId Int?                   @map("resuelto_por_id")
-  
-  resueltoPor   Usuario?               @relation("LicenciaMedica_resuelto", fields: [resueltoPorId], references: [id])
-  usuario       Usuario                @relation("LicenciaMedica_usuario", fields: [usuarioId], references: [id], onDelete: Cascade)
+  estado              CatalogoEstadoLicencia @relation(fields: [estadoLicenciaId], references: [id])
+  usuario             Usuario                @relation("LicenciaMedica_usuario", fields: [usuarioRut], references: [rut])
+  resolutor           Usuario?               @relation("LicenciaMedica_resuelto", fields: [resolutorRut], references: [rut])
 
-  @@map("licencias_medicas")
+  @@map("licencia_medica")
 }
 
-// ==========================================
-// --- 5. SISTEMA Y AUDITORÍA ---
-// ==========================================
+model AuditoriaUsuario {
+  id          String   @id @db.VarChar(36)
+  usuarioRut  String?  @map("usuario_rut") @db.VarChar(20)
+  accion      String   @db.VarChar(100)
+  entidad     String?  @db.VarChar(100)
+  entidadId   String?  @map("entidad_id") @db.VarChar(36)
+  metodoHttp  String?  @map("metodo_http") @db.VarChar(10)
+  ruta        String?  @db.VarChar(255)
+  ipOrigen    String?  @map("ip_origen") @db.VarChar(45)
+  userAgent   String?  @map("user_agent") @db.VarChar(500)
+  detalle     String?  @db.Text
+  resultado   String   @db.VarChar(30)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-model ActividadUsuario {
-  id        Int      @id @default(autoincrement())
-  usuarioId Int?     @map("usuario_id")
-  accion    String
-  modulo    String
-  fecha     DateTime @default(now())
-  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+  usuario     Usuario? @relation(fields: [usuarioRut], references: [rut])
 
-  @@map("actividades_usuario")
-}
-
-model PasswordResetToken {
-  id        Int      @id @default(autoincrement())
-  usuarioId Int      @map("usuario_id")
-  token     String   @unique
-  expiresAt DateTime @map("expires_at")
-  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
-
-  @@map("password_reset_tokens")
-}
-
-model ConfiguracionSistema {
-  id        Int      @id @default(autoincrement())
-  clave     String   @unique
-  valor     Json
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@map("configuracion_sistema")
+  @@map("auditoria_usuario")
 }

@@ -345,7 +345,7 @@ export class AnaliticaPageComponent implements OnInit {
       backgroundColor: '#0a0a0a',
       useCORS: true,
       logging: false,
-      onclone: (doc) => this.aplicarCloneParaExportacionPng(doc, element),
+      onclone: (doc : any) => this.aplicarCloneParaExportacionPng(doc, element),
     });
     return canvas.toDataURL('image/png');
   }

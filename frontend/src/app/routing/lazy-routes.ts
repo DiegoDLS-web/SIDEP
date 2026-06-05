@@ -6,6 +6,7 @@
  * - **No duplicar**: reutilizar estos loaders desde rutas; no importar componentes de página en el bundle raíz.
  */
 
+
 export const loadLoginComponent = () =>
   import('../pages/login/login.component').then((m) => m.LoginComponent);
 
