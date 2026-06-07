@@ -84,7 +84,7 @@ export class MiPerfilComponent implements OnInit {
   private cargarResumenOperativo(): void {
     this.resumenCargando = true;
     this.resumenError = null;
-    this.http.get<ResumenOperativoDto>('/api/auth/mi-resumen-operativo').subscribe({
+    this.http.get<ResumenOperativoDto>('/api/rrhh/mi-resumen-operativo').subscribe({
       next: (r) => {
         this.resumen = r;
         this.paginaLicenciasPerfil = 1;
@@ -122,7 +122,7 @@ export class MiPerfilComponent implements OnInit {
   cargarPerfil(): void {
     this.loading = true;
     this.error = null;
-    this.http.get<UsuarioListaDto>('/api/auth/mi-perfil').subscribe({
+    this.http.get<UsuarioListaDto>('/api/rrhh/mi-perfil').subscribe({
       next: (p) => {
         this.perfil = p;
         this.poblarMisForm(p);
@@ -407,7 +407,7 @@ export class MiPerfilComponent implements OnInit {
       body['fotoPerfil'] = fp || null;
     }
 
-    this.http.patch<UsuarioListaDto>('/api/auth/mi-perfil', body).subscribe({
+    this.http.patch<UsuarioListaDto>('/api/rrhh/mi-perfil', body).subscribe({
       next: (p) => {
         this.perfil = p;
         this.editandoMisDatos = false;

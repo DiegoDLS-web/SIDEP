@@ -49,7 +49,7 @@ export const loginUsuario = async (rut: string, password: string) => {
 
     // Firmamos el JWT usando el RUT
     const token = jwt.sign(
-        { rut: usuario.rut }, 
+        { rut: usuario.rut },
         process.env.JWT_SECRET as string,
         { expiresIn: '24h' }
     );

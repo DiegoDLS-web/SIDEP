@@ -7,10 +7,10 @@ const router = Router();
 
 // ... tus importaciones existentes
 router.post('/login', login);
-router.post('/register', register); 
+router.post('/register', register);
 
 // Rutas nuevas que el frontend espera
-router.get('/me', protect, me); 
+router.get('/me', protect, me);
 router.post('/logout', protect, logout);
 
 export default router;

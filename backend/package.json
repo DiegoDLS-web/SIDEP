@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon --exec ts-node index.ts"
+    "dev": "nodemon --exec ts-node index.ts",
+    "prisma:generate": "node -r dotenv/config node_modules/prisma/build/index.js generate",
+    "prisma:migrate": "node -r dotenv/config node_modules/prisma/build/index.js migrate dev"
   },
   "keywords": [],
   "author": "",
@@ -13,10 +15,13 @@
     "@prisma/client": "^5.22.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^1.41.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.1",
     "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
+    "multer-storage-cloudinary": "^4.0.0"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
@@ -24,10 +29,14 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.1.0",
     "@types/node": "^25.5.2",
     "nodemon": "^3.1.14",
     "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.2"
+  },
+  "prisma": {
+    "schema": "SRC/prisma/schema.prisma"
   }
 }
