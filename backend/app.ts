@@ -9,6 +9,7 @@ import licenciasRoutes from './SRC/modules/rrhh/routes/licencias.routes';
 import auditoriaRoutes from './SRC/modules/auditoria/routes/auditoria.routes';
 import { protect } from './SRC/middlewares/auth.middleware';
 import prisma from './SRC/prisma';
+import { auditoriaMiddleware } from './SRC/modules/auditoria/middlewares/auditoria.middleware';
 
 const app = express();
 
@@ -109,9 +110,9 @@ app.get('/api/auth/mi-navegacion', protect, async (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/logistica', logisticaRoutes);
 app.use('/api/operaciones', operacionesRoutes);
-app.use('/api/rrhh', rrhhRoutes);
-app.use('/api/usuarios', usuariosRoutes);
-app.use('/api/licencias', licenciasRoutes);
+app.use('/api/rrhh', auditoriaMiddleware, rrhhRoutes);
+app.use('/api/usuarios', auditoriaMiddleware, usuariosRoutes);
+app.use('/api/licencias', auditoriaMiddleware, licenciasRoutes);
 app.use('/api/auditoria', auditoriaRoutes);
 
 // Endpoint global de Roles (consumido por RolesService en el frontend)

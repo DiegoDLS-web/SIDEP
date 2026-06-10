@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import * as usuariosService from '../services/usuarios.service';
-import { registrarAccion } from '../../auditoria/services/auditoria.service';
 
 export const getUsuarios = async (req: Request, res: Response) => {
   try {
@@ -61,45 +60,16 @@ export const getUsuarioById = async (req: Request, res: Response) => {
 };
 
 export const postUsuario = async (req: Request, res: Response) => {
-  const actorRut = (req as any).user?.rut;
   try {
     const nuevo = await usuariosService.crearUsuario(req.body);
-    
-    await registrarAccion({
-      usuarioRut: actorRut || null,
-      accion: 'CREAR_USUARIO',
-      entidad: 'Usuario',
-      entidadId: nuevo.rut || null,
-      metodoHttp: req.method || null,
-      ruta: req.originalUrl || null,
-      ipOrigen: req.ip || null,
-      userAgent: req.headers['user-agent'] || null,
-      detalle: `Usuario ${nuevo.rut} (${nuevo.nombre}) creado.`,
-      resultado: 'OK'
-    });
-
     return res.status(201).json(nuevo);
   } catch (error: any) {
     console.error('🔥 ERROR EN CREAR USUARIO:', error);
-    
-    await registrarAccion({
-      usuarioRut: actorRut || null,
-      accion: 'CREAR_USUARIO_ERROR',
-      entidad: 'Usuario',
-      metodoHttp: req.method || null,
-      ruta: req.originalUrl || null,
-      ipOrigen: req.ip || null,
-      userAgent: req.headers['user-agent'] || null,
-      detalle: `Fallo al crear usuario: ${error.message || 'Error desconocido'}`,
-      resultado: 'ERROR'
-    });
-
     return res.status(400).json({ success: false, error: error.message || 'Error al crear usuario' });
   }
 };
 
 export const patchUsuario = async (req: Request, res: Response) => {
-  const actorRut = (req as any).user?.rut;
   const id = parseInt(req.params.id as string, 10);
   try {
     if (isNaN(id)) {
@@ -107,43 +77,14 @@ export const patchUsuario = async (req: Request, res: Response) => {
     }
 
     const actualizado = await usuariosService.actualizarUsuario(id, req.body);
-    
-    await registrarAccion({
-      usuarioRut: actorRut || null,
-      accion: 'ACTUALIZAR_USUARIO',
-      entidad: 'Usuario',
-      entidadId: actualizado.rut || null,
-      metodoHttp: req.method || null,
-      ruta: req.originalUrl || null,
-      ipOrigen: req.ip || null,
-      userAgent: req.headers['user-agent'] || null,
-      detalle: `Usuario ${actualizado.rut} actualizado. Campos modificados: ${Object.keys(req.body).join(', ')}`,
-      resultado: 'OK'
-    });
-
     return res.status(200).json(actualizado);
   } catch (error: any) {
     console.error('🔥 ERROR EN ACTUALIZAR USUARIO:', error);
-
-    await registrarAccion({
-      usuarioRut: actorRut || null,
-      accion: 'ACTUALIZAR_USUARIO_ERROR',
-      entidad: 'Usuario',
-      entidadId: isNaN(id) ? null : String(id),
-      metodoHttp: req.method || null,
-      ruta: req.originalUrl || null,
-      ipOrigen: req.ip || null,
-      userAgent: req.headers['user-agent'] || null,
-      detalle: `Fallo al actualizar usuario: ${error.message || 'Error desconocido'}`,
-      resultado: 'ERROR'
-    });
-
     return res.status(400).json({ success: false, error: error.message || 'Error al actualizar usuario' });
   }
 };
 
 export const deleteUsuario = async (req: Request, res: Response) => {
-  const actorRut = (req as any).user?.rut;
   const id = parseInt(req.params.id as string, 10);
   try {
     if (isNaN(id)) {
@@ -151,20 +92,6 @@ export const deleteUsuario = async (req: Request, res: Response) => {
     }
 
     const result = await usuariosService.eliminarUsuario(id);
-    
-    await registrarAccion({
-      usuarioRut: actorRut || null,
-      accion: 'ELIMINAR_USUARIO',
-      entidad: 'Usuario',
-      entidadId: String(id),
-      metodoHttp: req.method || null,
-      ruta: req.originalUrl || null,
-      ipOrigen: req.ip || null,
-      userAgent: req.headers['user-agent'] || null,
-      detalle: `Usuario con ID ${id} eliminado/desactivado. SoftDelete: ${result.softDeleted}. Mensaje: ${result.message || 'Ninguno'}`,
-      resultado: 'OK'
-    });
-
     return res.status(200).json({
       ok: true,
       softDeleted: result.softDeleted,
@@ -172,26 +99,11 @@ export const deleteUsuario = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('🔥 ERROR EN ELIMINAR USUARIO:', error);
-
-    await registrarAccion({
-      usuarioRut: actorRut || null,
-      accion: 'ELIMINAR_USUARIO_ERROR',
-      entidad: 'Usuario',
-      entidadId: isNaN(id) ? null : String(id),
-      metodoHttp: req.method || null,
-      ruta: req.originalUrl || null,
-      ipOrigen: req.ip || null,
-      userAgent: req.headers['user-agent'] || null,
-      detalle: `Fallo al eliminar usuario con ID ${id}: ${error.message || 'Error desconocido'}`,
-      resultado: 'ERROR'
-    });
-
     return res.status(400).json({ success: false, error: error.message || 'Error al eliminar usuario' });
   }
 };
 
 export const resetPassword = async (req: Request, res: Response) => {
-  const actorRut = (req as any).user?.rut;
   const id = parseInt(req.params.id as string, 10);
   try {
     if (isNaN(id)) {
@@ -204,7 +116,6 @@ export const resetPassword = async (req: Request, res: Response) => {
     }
 
     const bcrypt = require('bcrypt');
-    // Contraseña por defecto: RUT sin puntos ni guiones
     const cleanRut = usuario.rut.replace(/[^0-9kK]/g, '');
     const nuevoHash = await bcrypt.hash(cleanRut || 'sidep123', 10);
 
@@ -214,39 +125,12 @@ export const resetPassword = async (req: Request, res: Response) => {
       data: { passwordHash: nuevoHash },
     });
 
-    await registrarAccion({
-      usuarioRut: actorRut || null,
-      accion: 'RESTABLECER_PASSWORD',
-      entidad: 'Usuario',
-      entidadId: usuario.rut || null,
-      metodoHttp: req.method || null,
-      ruta: req.originalUrl || null,
-      ipOrigen: req.ip || null,
-      userAgent: req.headers['user-agent'] || null,
-      detalle: `Contraseña restablecida al RUT por defecto para el usuario ${usuario.rut}.`,
-      resultado: 'OK'
-    });
-
     return res.status(200).json({
       success: true,
       message: `Contraseña restablecida al RUT (${cleanRut}). El usuario deberá cambiarla al ingresar.`,
     });
   } catch (error: any) {
     console.error('🔥 ERROR EN RESET PASSWORD:', error);
-
-    await registrarAccion({
-      usuarioRut: actorRut || null,
-      accion: 'RESTABLECER_PASSWORD_ERROR',
-      entidad: 'Usuario',
-      entidadId: isNaN(id) ? null : String(id),
-      metodoHttp: req.method || null,
-      ruta: req.originalUrl || null,
-      ipOrigen: req.ip || null,
-      userAgent: req.headers['user-agent'] || null,
-      detalle: `Fallo al restablecer contraseña: ${error.message || 'Error desconocido'}`,
-      resultado: 'ERROR'
-    });
-
     return res.status(400).json({ success: false, error: error.message || 'Error al restablecer contraseña' });
   }
 };
