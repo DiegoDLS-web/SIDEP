@@ -21,10 +21,23 @@ export class UsuariosService {
     return this.http.get<UsuariosMetricasDto>('/api/usuarios/metricas');
   }
 
-  listarPagina(page: number, pageSize: number, q?: string): Observable<UsuariosPaginaDto> {
+  listarPagina(
+    page: number,
+    pageSize: number,
+    q?: string,
+    estado?: string,
+    tipoVoluntario?: string,
+    cargo?: string
+  ): Observable<UsuariosPaginaDto> {
     let params = new HttpParams().set('page', String(page)).set('pageSize', String(pageSize));
     const t = (q ?? '').trim();
     if (t) params = params.set('q', t);
+    const est = (estado ?? '').trim();
+    if (est) params = params.set('estado', est);
+    const tv = (tipoVoluntario ?? '').trim();
+    if (tv) params = params.set('tipoVoluntario', tv);
+    const car = (cargo ?? '').trim();
+    if (car) params = params.set('cargo', car);
     return this.http.get<UsuariosPaginaDto>('/api/usuarios/pagina', { params });
   }
 
@@ -42,5 +55,9 @@ export class UsuariosService {
 
   eliminar(id: number): Observable<{ ok: boolean; softDeleted?: boolean; message?: string }> {
     return this.http.delete<{ ok: boolean; softDeleted?: boolean; message?: string }>(`/api/usuarios/${id}`);
+  }
+
+  resetPassword(id: number): Observable<{ success: boolean; message: string }> {
+    return this.http.patch<{ success: boolean; message: string }>(`/api/usuarios/${id}/reset-password`, {});
   }
 }

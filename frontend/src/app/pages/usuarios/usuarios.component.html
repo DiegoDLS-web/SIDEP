@@ -58,19 +58,90 @@
     </div>
   </div>
 
-  <div sidScrollReveal class="rounded-2xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-4 sm:p-5 shadow-lg shadow-black/20">
-    <div class="relative">
-      <span class="pointer-events-none absolute inset-y-0 left-0 flex w-12 items-center justify-center text-slate-400 md:w-14">
-        <lucide-icon name="search" class="h-5 w-5 shrink-0" [size]="20" color="currentColor" aria-hidden="true" />
-      </span>
-      <input
-        type="search"
-        [ngModel]="busqueda"
-        (ngModelChange)="setBusqueda($event)"
-        placeholder="Buscar por nombre, RUT, email, compañía u oficialidad…"
-        autocomplete="off"
-        class="sid-input w-full rounded-xl border-slate-700 bg-[#0a0a0a] py-3 pl-12 pr-4 text-sm text-white placeholder:text-slate-500 focus:border-red-500/60 focus:ring-2 focus:ring-red-600/20 md:pl-14 md:text-[0.9375rem]"
-      />
+  <div sidScrollReveal class="rounded-2xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-4 sm:p-5 shadow-lg shadow-black/20 space-y-4">
+    <!-- Search and Export buttons -->
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div class="relative flex-1">
+        <span class="pointer-events-none absolute inset-y-0 left-0 flex w-12 items-center justify-center text-slate-400 md:w-14">
+          <lucide-icon name="search" class="h-5 w-5 shrink-0" [size]="20" color="currentColor" aria-hidden="true" />
+        </span>
+        <input
+          type="search"
+          [ngModel]="busqueda"
+          (ngModelChange)="setBusqueda($event)"
+          placeholder="Buscar por nombre, RUT, email, compañía u oficialidad…"
+          autocomplete="off"
+          class="sid-input w-full rounded-xl border-slate-700 bg-[#0a0a0a] py-3 pl-12 pr-4 text-sm text-white placeholder:text-slate-500 focus:border-red-500/60 focus:ring-2 focus:ring-red-600/20 md:pl-14 md:text-[0.9375rem]"
+        />
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 rounded-xl border border-slate-750 bg-[#0c0c0c] px-3.5 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800"
+          (click)="exportarExcel()"
+          title="Exportar Excel"
+        >
+          <lucide-icon name="sheet" class="h-4 w-4 text-emerald-400" [size]="16" color="currentColor" />
+          Excel
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 rounded-xl border border-slate-750 bg-[#0c0c0c] px-3.5 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-800"
+          (click)="exportarPdf()"
+          title="Exportar PDF"
+        >
+          <lucide-icon name="file-text" class="h-4 w-4 text-red-400" [size]="16" color="currentColor" />
+          PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- Filters dropdowns -->
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4 pt-1">
+      <div>
+        <select
+          [(ngModel)]="filtroEstado"
+          (ngModelChange)="filtrar()"
+          class="sid-input w-full rounded-xl border-slate-700 bg-[#0a0a0a] text-xs text-white"
+        >
+          <option value="">Todos los estados</option>
+          <option value="VIGENTE">Vigente</option>
+          <option value="INACTIVO">Inactivo</option>
+        </select>
+      </div>
+      <div>
+        <select
+          [(ngModel)]="filtroTipo"
+          (ngModelChange)="filtrar()"
+          class="sid-input w-full rounded-xl border-slate-700 bg-[#0a0a0a] text-xs text-white"
+        >
+          <option value="">Todos los tipos</option>
+          @for (tipo of tiposVoluntario; track tipo) {
+            <option [value]="tipo">{{ etiquetaTipoVoluntario(tipo) }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <select
+          [(ngModel)]="filtroCargo"
+          (ngModelChange)="filtrar()"
+          class="sid-input w-full rounded-xl border-slate-700 bg-[#0a0a0a] text-xs text-white"
+        >
+          <option value="">Todos los cargos</option>
+          @for (cargo of cargosOrden; track cargo) {
+            <option [value]="cargo">{{ etiquetaCargo(cargo) }}</option>
+          }
+        </select>
+      </div>
+      <div>
+        <button
+          type="button"
+          class="w-full inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-transparent px-3 py-2 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+          (click)="limpiarFiltros()"
+        >
+          Limpiar filtros
+        </button>
+      </div>
     </div>
   </div>
 
@@ -461,12 +532,12 @@
           <span
             class="absolute right-4 top-4 shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold"
             [class]="
-              usuario.estadoVoluntario === 'VIGENTE' || usuario.activo
+              usuario.estadoVoluntario?.toUpperCase() === 'VIGENTE' || usuario.activo
                 ? 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/35'
                 : 'bg-slate-600/20 text-slate-400 ring-1 ring-slate-600/40'
             "
           >
-            {{ usuario.estadoVoluntario === 'INACTIVO' ? 'Inactivo' : 'Vigente' }}
+            {{ usuario.estadoVoluntario?.toUpperCase() === 'INACTIVO' ? 'Inactivo' : 'Vigente' }}
           </span>
           <div class="mb-5 flex flex-col gap-5 sm:flex-row sm:items-start">
             @if (fotoListaVisible(usuario)) {
@@ -556,6 +627,14 @@
                 (click)="eliminar(usuario)"
               >
                 Eliminar
+              </button>
+              <button
+                type="button"
+                class="rounded-xl border border-slate-700 bg-slate-800/50 p-2.5 text-yellow-400 hover:bg-slate-700 hover:text-yellow-300 transition-colors"
+                (click)="resetearPassword(usuario)"
+                title="Restablecer contraseña"
+              >
+                <lucide-icon name="key" class="h-4 w-4" [size]="16" color="currentColor" />
               </button>
             }
           </div>

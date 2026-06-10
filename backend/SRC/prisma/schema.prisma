@@ -147,6 +147,14 @@ model Usuario {
   region                  String?                   @db.VarChar(100)
   comuna                  String?                   @db.VarChar(100)
   actividad               String?                   @db.VarChar(100)
+  nacionalidad            String?                   @db.VarChar(100)
+  fechaNacimiento         DateTime?                 @map("fecha_nacimiento") @db.Date
+  fechaIngreso            DateTime?                 @map("fecha_ingreso") @db.Date
+  autorizadoConducir      Int?                      @default(0) @map("autorizado_conducir") @db.SmallInt
+  claveNomina             String?                   @unique @map("clave_nomina") @db.VarChar(50)
+  observacionesRegistro   String?                   @map("observaciones_registro") @db.Text
+  createdAt               DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   asistencias             AsistenciaPersonal[]
   auditorias              AuditoriaUsuario[]
   checklists              ChecklistEjecucion[]
@@ -371,4 +379,32 @@ model AuditoriaUsuario {
   usuario    Usuario? @relation(fields: [usuarioRut], references: [rut])
 
   @@map("auditoria_usuario")
+}
+
+model ConfiguracionSistema {
+  id                     Int       @id @default(autoincrement())
+  nombreCompania         String    @map("nombre_compania") @db.VarChar(150)
+  nombreBomba            String?   @map("nombre_bomba") @db.VarChar(150)
+  direccion              String?   @db.VarChar(255)
+  telefono               String?   @db.VarChar(50)
+  emailInstitucional     String?   @map("email_institucional") @db.VarChar(150)
+  fechaFundacion         DateTime? @map("fecha_fundacion") @db.Date
+  logoUrl                String?   @map("logo_url")
+  logoPublicId           String?   @map("logo_public_id")
+  
+  alertasEmergencia      Int       @default(1) @map("alertas_emergencia") @db.SmallInt
+  alertasInventario      Int       @default(1) @map("alertas_inventario") @db.SmallInt
+  recordatoriosChecklist Int       @default(1) @map("recordatorios_checklist") @db.SmallInt
+  resumenDiarioEmail     Int       @default(1) @map("resumen_diario_email") @db.SmallInt
+  
+  formatoPredeterminado  String    @default("PDF") @map("formato_predeterminado") @db.VarChar(10)
+  logosPdf               String    @default("AMBOS") @map("logos_pdf") @db.VarChar(20)
+  orientacionPdf         String    @default("VERTICAL") @map("orientacion_pdf") @db.VarChar(20)
+  
+  navegacionPorRol       String?   @map("navegacion_por_rol") @db.Text
+  tiposEmergencia        String?   @map("tipos_emergencia") @db.Text
+
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("configuracion_sistema")
 }

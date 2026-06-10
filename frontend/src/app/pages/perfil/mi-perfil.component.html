@@ -108,12 +108,12 @@
               <span
                 class="rounded-full px-3 py-1 text-xs font-medium ring-1"
                 [class]="
-                  p.estadoVoluntario === 'VIGENTE' || p.activo
+                  p.estadoVoluntario?.toUpperCase() === 'VIGENTE' || p.activo
                     ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/40'
                     : 'bg-slate-600/25 text-slate-400 ring-slate-600/50'
                 "
               >
-                {{ p.estadoVoluntario === 'INACTIVO' ? 'Inactivo' : 'Vigente' }}
+                {{ p.estadoVoluntario?.toUpperCase() === 'INACTIVO' ? 'Inactivo' : 'Vigente' }}
               </span>
               @if (p.autorizadoConducir) {
                 <span
@@ -178,6 +178,18 @@
                   <p class="mt-1 text-sm text-slate-200">{{ p.actividad }}</p>
                 </div>
               }
+              <div class="sm:col-span-2 rounded-xl border border-slate-800 bg-[#121212]/80 p-4 ring-1 ring-inset ring-white/5">
+                <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Firma digital registrada</p>
+                <div class="mt-2 flex items-center justify-start">
+                  @if (p.firmaImagen) {
+                    <div class="rounded-lg border border-slate-800 bg-black/40 p-2">
+                      <img [src]="p.firmaImagen" alt="Firma Digital" class="h-14 object-contain filter invert brightness-200" />
+                    </div>
+                  } @else {
+                    <p class="text-sm italic text-slate-500">Sin firma registrada. Edita tu perfil para trazarla con el mouse.</p>
+                  }
+                </div>
+              </div>
             </div>
           }
 
@@ -270,6 +282,40 @@
                       />
                     </div>
                   }
+                </div>
+              </div>
+
+              <div>
+                <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-red-400/95">Firma digital</h3>
+                <div class="rounded-xl border border-slate-800 bg-[#0a0a0a]/50 p-4 space-y-4">
+                  <p class="text-[11px] leading-relaxed text-slate-400">
+                    Traza tu firma digital a continuación utilizando el mouse o tu pantalla táctil. Esta firma se incrustará automáticamente en los partes y mantenciones que firmes.
+                  </p>
+                  
+                  <div class="flex flex-col gap-4 md:flex-row md:items-start">
+                    <div class="flex-1">
+                      <app-signature-pad 
+                        [(value)]="miForm.firmaImagen" 
+                        [canvasWidth]="450" 
+                        [canvasHeight]="130"
+                        [dark]="true"
+                      ></app-signature-pad>
+                      @if (miForm.firmaImagen) {
+                        <button type="button" class="mt-2 text-left text-sm text-red-400 hover:underline" (click)="quitarFirmaMi()">
+                          Quitar firma
+                        </button>
+                      }
+                    </div>
+
+                    @if (miForm.firmaImagen) {
+                      <div class="shrink-0 space-y-1">
+                        <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Vista previa</p>
+                        <div class="rounded-xl border border-slate-700 bg-black/40 p-2">
+                          <img [src]="miForm.firmaImagen" alt="Firma previa" class="h-16 max-w-[200px] object-contain filter invert brightness-200" />
+                        </div>
+                      </div>
+                    }
+                  </div>
                 </div>
               </div>
             </div>
@@ -499,6 +545,91 @@
         }
       </section>
     }
+
+    <section class="rounded-2xl border border-slate-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="flex items-center gap-2 text-lg font-bold text-white">
+            <lucide-icon name="key" class="h-5 w-5 text-red-400" [size]="20" color="currentColor"></lucide-icon>
+            Seguridad y contraseña
+          </h2>
+          <p class="text-sm text-slate-500">
+            Cambia la contraseña de acceso a tu cuenta personal de SIDEP.
+          </p>
+        </div>
+        @if (!mostrarFormPassword) {
+          <button
+            type="button"
+            class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-600 bg-slate-800/80 px-4 py-2.5 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-700"
+            (click)="iniciarCambioPassword()"
+          >
+            Modificar contraseña
+          </button>
+        }
+      </div>
+
+      @if (mostrarFormPassword) {
+        <div class="mt-5 space-y-4 rounded-xl border border-slate-800 bg-black/25 p-4 ring-1 ring-inset ring-white/5 max-w-lg">
+          @if (errorPasswordForm) {
+            <div class="rounded-xl border border-amber-800/55 bg-amber-950/25 px-4 py-3 text-xs text-amber-100">
+              {{ errorPasswordForm }}
+            </div>
+          }
+
+          <div class="space-y-3">
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-slate-400">Contraseña actual</label>
+              <input
+                [(ngModel)]="passwordActual"
+                type="password"
+                placeholder="••••••••"
+                class="sid-input w-full"
+                [disabled]="cambiandoPassword"
+              />
+            </div>
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-slate-400">Nueva contraseña (mínimo 6 caracteres)</label>
+              <input
+                [(ngModel)]="passwordNueva"
+                type="password"
+                placeholder="••••••••"
+                class="sid-input w-full"
+                [disabled]="cambiandoPassword"
+              />
+            </div>
+            <div>
+              <label class="mb-1.5 block text-xs font-medium text-slate-400">Confirmar nueva contraseña</label>
+              <input
+                [(ngModel)]="passwordConfirmar"
+                type="password"
+                placeholder="••••••••"
+                class="sid-input w-full"
+                [disabled]="cambiandoPassword"
+              />
+            </div>
+          </div>
+
+          <div class="flex gap-2 pt-2">
+            <button
+              type="button"
+              class="inline-flex items-center gap-2 rounded-xl border border-slate-600 bg-slate-800/70 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+              [disabled]="cambiandoPassword"
+              (click)="cancelarCambioPassword()"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-red-900/30 hover:bg-red-500 disabled:opacity-55"
+              [disabled]="cambiandoPassword"
+              (click)="guardarCambioPassword()"
+            >
+              {{ cambiandoPassword ? 'Actualizando…' : 'Actualizar contraseña' }}
+            </button>
+          </div>
+        </div>
+      }
+    </section>
 
     <section class="rounded-2xl border border-slate-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
       <h2 class="mb-2 flex items-center gap-2 text-lg font-bold text-white">

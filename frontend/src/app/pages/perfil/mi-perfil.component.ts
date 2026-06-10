@@ -9,6 +9,7 @@ import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
 import { NavegacionUiService } from '../../services/navegacion-ui.service';
+import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { OPCIONES_MENU_SIDEP } from '../../layout/nav-menu-opciones';
 import {
   etiquetaOficialidadCargo,
@@ -20,7 +21,7 @@ import {
 @Component({
   selector: 'app-mi-perfil',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent],
   templateUrl: './mi-perfil.component.html',
 })
 export class MiPerfilComponent implements OnInit {
@@ -67,9 +68,17 @@ export class MiPerfilComponent implements OnInit {
   readonly gruposSanguineos: readonly string[] = GRUPOS_SANGUINEOS;
 
   fotoInicialMisDatos = '';
+  firmaInicialMisDatos = '';
   miForm = this.miFormVacio();
 
   comunasDisponiblesMis: readonly string[] = [];
+
+  mostrarFormPassword = false;
+  passwordActual = '';
+  passwordNueva = '';
+  passwordConfirmar = '';
+  cambiandoPassword = false;
+  errorPasswordForm: string | null = null;
 
   ngOnInit(): void {
     this.navUi.refrescar();
@@ -116,6 +125,7 @@ export class MiPerfilComponent implements OnInit {
       actividad: '',
       grupoSanguineo: '',
       fotoPerfil: '',
+      firmaImagen: '',
     };
   }
 
@@ -232,8 +242,10 @@ export class MiPerfilComponent implements OnInit {
       actividad: p.actividad ?? '',
       grupoSanguineo: p.grupoSanguineo ?? '',
       fotoPerfil: p.fotoPerfil?.trim() ?? '',
+      firmaImagen: p.firmaImagen?.trim() ?? '',
     };
     this.fotoInicialMisDatos = this.miForm.fotoPerfil;
+    this.firmaInicialMisDatos = this.miForm.firmaImagen;
     this.actualizarComunasDesdeRegion();
   }
 
@@ -317,6 +329,10 @@ export class MiPerfilComponent implements OnInit {
     this.miForm.fotoPerfil = '';
   }
 
+  quitarFirmaMi(): void {
+    this.miForm.firmaImagen = '';
+  }
+
   async onFotoPerfilArchivoMi(ev: Event): Promise<void> {
     const input = ev.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -393,6 +409,8 @@ export class MiPerfilComponent implements OnInit {
 
     const fp = this.miForm.fotoPerfil.trim();
     const fpIni = this.fotoInicialMisDatos.trim();
+    const fi = this.miForm.firmaImagen.trim();
+    const fiIni = this.firmaInicialMisDatos.trim();
 
     const body: Record<string, unknown> = {
       grupoSanguineo: this.miForm.grupoSanguineo.trim() || null,
@@ -405,6 +423,9 @@ export class MiPerfilComponent implements OnInit {
     };
     if (fp !== fpIni) {
       body['fotoPerfil'] = fp || null;
+    }
+    if (fi !== fiIni) {
+      body['firmaImagen'] = fi || null;
     }
 
     this.http.patch<UsuarioListaDto>('/api/rrhh/mi-perfil', body).subscribe({
@@ -422,6 +443,66 @@ export class MiPerfilComponent implements OnInit {
         this.errorForm = msg;
         this.toast.error(msg);
       },
+    });
+  }
+
+  iniciarCambioPassword(): void {
+    this.mostrarFormPassword = true;
+    this.passwordActual = '';
+    this.passwordNueva = '';
+    this.passwordConfirmar = '';
+    this.errorPasswordForm = null;
+  }
+
+  cancelarCambioPassword(): void {
+    this.mostrarFormPassword = false;
+    this.passwordActual = '';
+    this.passwordNueva = '';
+    this.passwordConfirmar = '';
+    this.errorPasswordForm = null;
+    this.cambiandoPassword = false;
+  }
+
+  guardarCambioPassword(): void {
+    const act = this.passwordActual.trim();
+    const newP = this.passwordNueva.trim();
+    const conf = this.passwordConfirmar.trim();
+
+    if (!act || !newP || !conf) {
+      this.errorPasswordForm = 'Completa todos los campos.';
+      this.toast.advertencia('Completa todos los campos.');
+      return;
+    }
+
+    if (newP.length < 6) {
+      this.errorPasswordForm = 'La nueva contraseña debe tener al menos 6 caracteres.';
+      this.toast.advertencia('Contraseña demasiado corta.');
+      return;
+    }
+
+    if (newP !== conf) {
+      this.errorPasswordForm = 'La nueva contraseña y su confirmación no coinciden.';
+      this.toast.advertencia('Contraseñas no coinciden.');
+      return;
+    }
+
+    this.cambiandoPassword = true;
+    this.errorPasswordForm = null;
+
+    this.http.patch<{ success: boolean; message: string }>('/api/rrhh/mi-perfil/password', {
+      passwordActual: act,
+      passwordNueva: newP
+    }).subscribe({
+      next: (res) => {
+        this.toast.exito(res.message || 'Contraseña actualizada.');
+        this.cancelarCambioPassword();
+      },
+      error: (err: { error?: { error?: string } }) => {
+        this.cambiandoPassword = false;
+        const msg = err?.error?.error ?? 'Error al cambiar contraseña.';
+        this.errorPasswordForm = msg;
+        this.toast.error(msg);
+      }
     });
   }
 }

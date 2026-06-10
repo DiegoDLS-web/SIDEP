@@ -77,6 +77,9 @@ export const loadAnaliticaPageComponent = () =>
 export const loadMiPerfilComponent = () =>
   import('../pages/perfil/mi-perfil.component').then((m) => m.MiPerfilComponent);
 
+export const loadAuditoriaComponent = () =>
+  import('../pages/auditoria/auditoria.component').then((m) => m.AuditoriaComponent);
+
 /** Pantallas “próximamente” reutilizables. */
 export function rutaPlaceholder(title: string) {
   return {

@@ -37,6 +37,7 @@
     "typescript": "^6.0.2"
   },
   "prisma": {
-    "schema": "SRC/prisma/schema.prisma"
+    "schema": "SRC/prisma/schema.prisma",
+    "seed": "ts-node SRC/prisma/seed.ts"
   }
 }

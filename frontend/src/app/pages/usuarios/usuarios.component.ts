@@ -24,6 +24,9 @@ import {
   etiquetaOficialidadCargo,
 } from './usuario-registro.constants';
 import { claveNominaParaNombreCompleto } from '../../data/clave-nomina-por-nombre';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 type FormUsuario = {
   nombres: string;
@@ -85,6 +88,9 @@ export class UsuariosComponent implements OnInit {
   guardando = false;
   error: string | null = null;
   exito: string | null = null;
+  filtroEstado = '';
+  filtroTipo = '';
+  filtroCargo = '';
   busqueda = '';
   /** Página visible del directorio tras filtro (1-based). */
   paginaLista = 1;
@@ -279,7 +285,14 @@ export class UsuariosComponent implements OnInit {
   cargarPagina(): void {
     this.loading = true;
     this.error = null;
-    this.usuariosApi.listarPagina(this.paginaLista, this.tamanioPagina, this.busqueda).subscribe({
+    this.usuariosApi.listarPagina(
+      this.paginaLista,
+      this.tamanioPagina,
+      this.busqueda,
+      this.filtroEstado,
+      this.filtroTipo,
+      this.filtroCargo
+    ).subscribe({
       next: (resp) => {
         if (resp.totalPages > 0 && this.paginaLista > resp.totalPages) {
           this.paginaLista = resp.totalPages;
@@ -585,6 +598,27 @@ export class UsuariosComponent implements OnInit {
     ];
   }
 
+  private validarFechasRango(): string | null {
+    const f = this.form;
+    if (f.fechaNacimiento && String(f.fechaNacimiento).trim()) {
+      const d = new Date(f.fechaNacimiento);
+      if (Number.isNaN(d.getTime())) return 'La fecha de nacimiento no es válida.';
+      const y = d.getFullYear();
+      if (y < 1900 || y > 2100) {
+        return 'El año de la fecha de nacimiento debe estar entre 1900 y 2100.';
+      }
+    }
+    if (f.fechaIngreso && String(f.fechaIngreso).trim()) {
+      const d = new Date(f.fechaIngreso);
+      if (Number.isNaN(d.getTime())) return 'La fecha de ingreso no es válida.';
+      const y = d.getFullYear();
+      if (y < 1900 || y > 2100) {
+        return 'El año de la fecha de ingreso debe estar entre 1900 y 2100.';
+      }
+    }
+    return null;
+  }
+
   private validarCreacion(): string | null {
     const f = this.form;
     this.form.rut = this.formatearRut(this.form.rut);
@@ -598,7 +632,7 @@ export class UsuariosComponent implements OnInit {
     if (!this.telefonoChileEsValido(f.telefono)) return 'El teléfono debe ser celular chileno válido (ej: +56 9 1234 5678).';
     if (this.comunasDisponibles.length === 0) return 'Selecciona una región válida de Chile.';
     if (!this.comunasDisponibles.includes(f.comuna)) return 'Selecciona una comuna válida para la región elegida.';
-    return null;
+    return this.validarFechasRango();
   }
 
   private validarEdicion(): string | null {
@@ -640,15 +674,7 @@ export class UsuariosComponent implements OnInit {
       return 'El teléfono debe ser celular chileno válido (ej: +56 9 1234 5678).';
     if (this.comunasDisponibles.length === 0) return 'Selecciona una región válida de Chile.';
     if (!this.comunasDisponibles.includes(f.comuna)) return 'Selecciona una comuna válida para la región elegida.';
-    if (f.fechaNacimiento.trim()) {
-      const d = new Date(f.fechaNacimiento);
-      if (Number.isNaN(d.getTime())) return 'La fecha de nacimiento no es válida.';
-    }
-    if (f.fechaIngreso.trim()) {
-      const d = new Date(f.fechaIngreso);
-      if (Number.isNaN(d.getTime())) return 'La fecha de ingreso no es válida.';
-    }
-    return null;
+    return this.validarFechasRango();
   }
 
   guardar(): void {
@@ -661,6 +687,7 @@ export class UsuariosComponent implements OnInit {
       if (errEd) {
         this.guardando = false;
         this.error = errEd;
+        this.toast.error(errEd);
         return;
       }
       const payload: UsuarioActualizarDto = {
@@ -733,6 +760,7 @@ export class UsuariosComponent implements OnInit {
     if (err) {
       this.guardando = false;
       this.error = err;
+      this.toast.error(err);
       return;
     }
 
@@ -868,6 +896,115 @@ export class UsuariosComponent implements OnInit {
         this.error = msg;
         this.toast.error(msg);
       },
+    });
+  }
+
+  async resetearPassword(usuario: UsuarioListaDto): Promise<void> {
+    if (!this.esAdmin) {
+      return;
+    }
+    const ok = await this.confirmDialog.abrir({
+      title: 'Restablecer contraseña',
+      message: `¿Estás seguro de restablecer la contraseña del usuario "${usuario.nombre}" al RUT por defecto?`,
+      confirmText: 'Restablecer',
+      cancelText: 'Cancelar',
+    });
+    if (!ok) return;
+
+    this.usuariosApi.resetPassword(usuario.id).subscribe({
+      next: (res) => {
+        this.toast.exito(res.message || 'Contraseña restablecida con éxito.');
+      },
+      error: (err: any) => {
+        const msg = err?.error?.error ?? 'No se pudo restablecer la contraseña.';
+        this.toast.error(msg);
+      }
+    });
+  }
+
+  filtrar(): void {
+    this.paginaLista = 1;
+    this.cargarPagina();
+  }
+
+  limpiarFiltros(): void {
+    this.busqueda = '';
+    this.filtroEstado = '';
+    this.filtroTipo = '';
+    this.filtroCargo = '';
+    this.paginaLista = 1;
+    this.cargarPagina();
+  }
+  formatearEstado(estado: string | null | undefined, activo: boolean): string {
+    const valor = estado || (activo ? 'Vigente' : 'Inactivo');
+    const upper = valor.toUpperCase();
+    if (upper === 'VIGENTE') return 'Vigente';
+    if (upper === 'INACTIVO') return 'Inactivo';
+    if (upper === 'SUSPENDIDO') return 'Suspendido';
+    if (upper === 'RETIRADO') return 'Retirado';
+    return valor.charAt(0).toUpperCase() + valor.slice(1).toLowerCase();
+  }
+
+  exportarExcel(): void {
+    this.usuariosApi.listar().subscribe({
+      next: (items) => {
+        if (items.length === 0) {
+          this.toast.advertencia('No hay usuarios para exportar.');
+          return;
+        }
+        const cols = ['RUT', 'Nombre Completo', 'Correo', 'Teléfono', 'Tipo Voluntario', 'Cargo Oficialidad', 'Estado', 'Autorizado Conducir', 'Clave Nómina'];
+        const body = items.map((u) => [
+          u.rut,
+          u.nombre,
+          u.email || '',
+          u.telefono || '',
+          u.tipoVoluntario || '',
+          u.cargoOficialidad || 'Voluntario',
+          this.formatearEstado(u.estadoVoluntario, u.activo),
+          u.autorizadoConducir ? 'SÍ' : 'NO',
+          u.claveNomina || ''
+        ]);
+        const aoa = [['SIDEP · Directorio de Usuarios'], [`Fecha de generación: ${new Date().toLocaleDateString('es-CL')}`], [], cols, ...body];
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
+        XLSX.writeFile(wb, `SIDEP-directorio-usuarios-${new Date().toISOString().slice(0, 10)}.xlsx`);
+        this.toast.exito('Directorio exportado a Excel.');
+      },
+      error: () => {
+        this.toast.error('No se pudo obtener el directorio completo para exportar.');
+      }
+    });
+  }
+
+  exportarPdf(): void {
+    this.usuariosApi.listar().subscribe({
+      next: (items) => {
+        if (items.length === 0) {
+          this.toast.advertencia('No hay usuarios para exportar.');
+          return;
+        }
+        const doc = new jsPDF({ orientation: 'landscape' });
+        doc.setFontSize(11);
+        doc.text('SIDEP · Directorio general de usuarios (voluntarios)', 14, 14);
+        const head = [['RUT', 'Nombre', 'Correo', 'Teléfono', 'Tipo Voluntario', 'Cargo', 'Estado', 'Nómina']];
+        const body = items.map((u) => [
+          u.rut,
+          u.nombre,
+          u.email || '',
+          u.telefono || '',
+          u.tipoVoluntario || '',
+          u.cargoOficialidad || 'Voluntario',
+          this.formatearEstado(u.estadoVoluntario, u.activo),
+          u.claveNomina || ''
+        ]);
+        autoTable(doc, { startY: 20, head, body, styles: { fontSize: 7.5 }, margin: { left: 14, right: 14 } });
+        doc.save(`SIDEP-directorio-usuarios-${new Date().toISOString().slice(0, 10)}.pdf`);
+        this.toast.exito('Directorio exportado a PDF.');
+      },
+      error: () => {
+        this.toast.error('No se pudo obtener el directorio completo para exportar.');
+      }
     });
   }
 

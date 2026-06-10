@@ -4,16 +4,24 @@ import { mapUsuarioToDto } from './rrhh.service';
 import bcrypt from 'bcrypt';
 
 export const buscarUsuarioPorId = async (id: number) => {
-  const usuarios = await prisma.usuario.findMany({
-    include: {
-      rol: true,
-      cargo: true,
-      tipoVoluntario: true,
-      estadoVoluntario: true,
-      grupoSanguineo: true,
-    },
-  });
-  return usuarios.find((u) => (parseInt(u.rut.replace(/[^0-9]/g, ''), 10) || 0) === id) || null;
+  const result = await prisma.$queryRaw<any[]>`
+    SELECT rut FROM usuario 
+    WHERE CAST(regexp_replace(rut, '[^0-9]', '', 'g') AS INTEGER) = ${id}
+    LIMIT 1
+  `;
+  if (result && result.length > 0) {
+    return prisma.usuario.findUnique({
+      where: { rut: result[0].rut },
+      include: {
+        rol: true,
+        cargo: true,
+        tipoVoluntario: true,
+        estadoVoluntario: true,
+        grupoSanguineo: true,
+      },
+    });
+  }
+  return null;
 };
 
 export const listarUsuarios = async () => {
@@ -72,19 +80,60 @@ export const obtenerMetricasUsuarios = async () => {
   };
 };
 
-export const listarUsuariosPaginado = async (page: number, pageSize: number, q?: string) => {
-  const whereClause: any = {};
+export const listarUsuariosPaginado = async (
+  page: number,
+  pageSize: number,
+  q?: string,
+  estado?: string,
+  tipoVoluntario?: string,
+  cargo?: string
+) => {
+  const andConditions: any[] = [];
 
   if (q && q.trim()) {
     const term = q.trim();
-    whereClause.OR = [
-      { rut: { contains: term, mode: 'insensitive' } },
-      { nombres: { contains: term, mode: 'insensitive' } },
-      { apellidoPaterno: { contains: term, mode: 'insensitive' } },
-      { apellidoMaterno: { contains: term, mode: 'insensitive' } },
-      { email: { contains: term, mode: 'insensitive' } },
-    ];
+    andConditions.push({
+      OR: [
+        { rut: { contains: term, mode: 'insensitive' } },
+        { nombres: { contains: term, mode: 'insensitive' } },
+        { apellidoPaterno: { contains: term, mode: 'insensitive' } },
+        { apellidoMaterno: { contains: term, mode: 'insensitive' } },
+        { email: { contains: term, mode: 'insensitive' } },
+        { nacionalidad: { contains: term, mode: 'insensitive' } },
+        { claveNomina: { contains: term, mode: 'insensitive' } },
+        { rol: { nombre: { contains: term, mode: 'insensitive' } } },
+        { cargo: { nombre: { contains: term, mode: 'insensitive' } } },
+        { tipoVoluntario: { nombre: { contains: term, mode: 'insensitive' } } },
+        { estadoVoluntario: { nombre: { contains: term, mode: 'insensitive' } } },
+      ],
+    });
   }
+
+  if (estado && estado.trim()) {
+    andConditions.push({
+      estadoVoluntario: {
+        nombre: { equals: estado.trim(), mode: 'insensitive' },
+      },
+    });
+  }
+
+  if (tipoVoluntario && tipoVoluntario.trim()) {
+    andConditions.push({
+      tipoVoluntario: {
+        nombre: { equals: tipoVoluntario.trim(), mode: 'insensitive' },
+      },
+    });
+  }
+
+  if (cargo && cargo.trim()) {
+    andConditions.push({
+      cargo: {
+        nombre: { equals: cargo.trim(), mode: 'insensitive' },
+      },
+    });
+  }
+
+  const whereClause = andConditions.length > 0 ? { AND: andConditions } : {};
 
   const total = await prisma.usuario.count({ where: whereClause });
   const skip = (page - 1) * pageSize;
@@ -178,6 +227,20 @@ export const crearUsuario = async (datos: any) => {
   const cleanRut = datos.rut.replace(/[^0-9kK]/g, '');
   const hashedPassword = await bcrypt.hash(cleanRut || 'sidep123', 10);
 
+  // Validar rango de fechas (1900 - 2100)
+  if (datos.fechaNacimiento) {
+    const d = new Date(datos.fechaNacimiento);
+    if (isNaN(d.getTime()) || d.getFullYear() < 1900 || d.getFullYear() > 2100) {
+      throw new Error('La fecha de nacimiento debe tener un año válido (entre 1900 y 2100).');
+    }
+  }
+  if (datos.fechaIngreso) {
+    const d = new Date(datos.fechaIngreso);
+    if (isNaN(d.getTime()) || d.getFullYear() < 1900 || d.getFullYear() > 2100) {
+      throw new Error('La fecha de ingreso debe tener un año válido (entre 1900 y 2100).');
+    }
+  }
+
   const nuevoUsuario = await prisma.usuario.create({
     data: {
       rut: datos.rut,
@@ -203,6 +266,12 @@ export const crearUsuario = async (datos: any) => {
       firmaImagenUrl,
       firmaImagenPublicId,
       activo: datos.estadoVoluntario === 'VIGENTE' ? 1 : 0,
+      nacionalidad: datos.nacionalidad || 'Chilena',
+      fechaNacimiento: datos.fechaNacimiento ? new Date(datos.fechaNacimiento) : null,
+      fechaIngreso: datos.fechaIngreso ? new Date(datos.fechaIngreso) : null,
+      autorizadoConducir: datos.autorizadoConducir ? 1 : 0,
+      claveNomina: datos.claveNomina || null,
+      observacionesRegistro: datos.observacionesRegistro || null,
     },
     include: {
       rol: true,
@@ -237,6 +306,35 @@ export const actualizarUsuario = async (id: number, datos: any) => {
   if (datos.compania !== undefined) updateData.compania = datos.compania;
   if (datos.cuerpoBombero !== undefined) updateData.cuerpoBombero = datos.cuerpoBombero;
   if (datos.activo !== undefined) updateData.activo = datos.activo ? 1 : 0;
+  
+  if (datos.nacionalidad !== undefined) updateData.nacionalidad = datos.nacionalidad;
+  if (datos.fechaNacimiento !== undefined) {
+    if (datos.fechaNacimiento) {
+      const d = new Date(datos.fechaNacimiento);
+      if (isNaN(d.getTime()) || d.getFullYear() < 1900 || d.getFullYear() > 2100) {
+        throw new Error('La fecha de nacimiento debe tener un año válido (entre 1900 y 2100).');
+      }
+    }
+    updateData.fechaNacimiento = datos.fechaNacimiento ? new Date(datos.fechaNacimiento) : null;
+  }
+  if (datos.fechaIngreso !== undefined) {
+    if (datos.fechaIngreso) {
+      const d = new Date(datos.fechaIngreso);
+      if (isNaN(d.getTime()) || d.getFullYear() < 1900 || d.getFullYear() > 2100) {
+        throw new Error('La fecha de ingreso debe tener un año válido (entre 1900 y 2100).');
+      }
+    }
+    updateData.fechaIngreso = datos.fechaIngreso ? new Date(datos.fechaIngreso) : null;
+  }
+  if (datos.autorizadoConducir !== undefined) {
+    updateData.autorizadoConducir = datos.autorizadoConducir ? 1 : 0;
+  }
+  if (datos.claveNomina !== undefined) {
+    updateData.claveNomina = datos.claveNomina || null;
+  }
+  if (datos.observacionesRegistro !== undefined) {
+    updateData.observacionesRegistro = datos.observacionesRegistro || null;
+  }
 
   if (datos.rol !== undefined) {
     const r = await prisma.rolUsuario.findFirst({

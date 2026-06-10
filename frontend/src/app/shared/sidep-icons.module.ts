@@ -50,6 +50,7 @@ import {
   Users,
   Wrench,
   X,
+  Tags,
 } from 'lucide-angular';
 
 // Extraemos la lista a una constante estática para que Angular compile sin errores
@@ -60,7 +61,7 @@ export const icons = {
   Flame, HeartPulse, History, Funnel, LayoutDashboard, Loader2, Lock, LogIn,
   LogOut, Mail, Menu, MapPin, Package, Pencil, Plus, Phone, Save, Search,
   Send, Settings, Shield, TrendingDown, TrendingUp, TriangleAlert, Truck,
-  User, Users, Wrench, X
+  User, Users, Wrench, X, Tags
 };
 
 @NgModule({

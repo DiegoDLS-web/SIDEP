@@ -27,6 +27,7 @@ import {
   loadPasswordForgotComponent,
   loadPasswordResetComponent,
   loadUsuariosComponent,
+  loadAuditoriaComponent,
   rutaPlaceholder,
 } from './routing/lazy-routes';
 
@@ -133,6 +134,12 @@ export const routes: Routes = [
         canActivate: [adminGuard],
         title: 'Configuraciones · SIDEP',
         loadComponent: loadConfiguracionesComponent,
+      },
+      {
+        path: 'auditoria',
+        canActivate: [adminGuard],
+        title: 'Auditoría · SIDEP',
+        loadComponent: loadAuditoriaComponent,
       },
       {
         path: 'perfil',

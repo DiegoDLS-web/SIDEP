@@ -8,7 +8,7 @@ export class ConfiguracionesService {
   private readonly http = inject(HttpClient);
 
   obtener(): Observable<ConfiguracionSistemaDto> {
-    return this.http.get<ConfiguracionSistemaDto>('/api/configuraciones');
+    return this.http.get<ConfiguracionSistemaDto>('/api/rrhh/configuraciones');
   }
 
   /** Sin autenticación: nombre de compañía para login y lockup. */
@@ -17,12 +17,12 @@ export class ConfiguracionesService {
   }
 
   guardar(payload: ConfiguracionSistemaDto): Observable<ConfiguracionSistemaDto> {
-    return this.http.put<ConfiguracionSistemaDto>('/api/configuraciones', payload);
+    return this.http.put<ConfiguracionSistemaDto>('/api/rrhh/configuraciones', payload);
   }
 
   /** Solo ADMIN y CAPITÁN (backend). */
   guardarTiposEmergencia(tiposEmergencia: TipoEmergenciaItemDto[]): Observable<ConfiguracionSistemaDto> {
-    return this.http.put<ConfiguracionSistemaDto>('/api/configuraciones/tipos-emergencia', {
+    return this.http.put<ConfiguracionSistemaDto>('/api/rrhh/configuraciones/tipos-emergencia', {
       tiposEmergencia,
     });
   }
@@ -31,6 +31,6 @@ export class ConfiguracionesService {
   subirLogoCompania(file: File): Observable<{ ok: boolean; path: string }> {
     const fd = new FormData();
     fd.append('file', file);
-    return this.http.post<{ ok: boolean; path: string }>('/api/configuraciones/logo-compania', fd);
+    return this.http.post<{ ok: boolean; path: string }>('/api/rrhh/configuraciones/logo-compania', fd);
   }
 }

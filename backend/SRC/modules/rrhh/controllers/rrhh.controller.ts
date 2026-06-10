@@ -160,3 +160,43 @@ export const subirArchivoLicencia = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, error: error.message || 'Error al subir archivo de licencia' });
   }
 };
+
+// 6. Cambiar mi propia contraseña
+export const cambiarMiPassword = async (req: Request, res: Response) => {
+  try {
+    const userRut = (req as any).user.rut;
+    if (!userRut) {
+      return res.status(401).json({ success: false, message: 'No autorizado' });
+    }
+
+    const { passwordActual, passwordNueva } = req.body;
+    if (!passwordActual || !passwordNueva) {
+      return res.status(400).json({ success: false, error: 'Se requieren la contraseña actual y la nueva.' });
+    }
+    if (passwordNueva.length < 6) {
+      return res.status(400).json({ success: false, error: 'La nueva contraseña debe tener al menos 6 caracteres.' });
+    }
+
+    const bcrypt = require('bcrypt');
+    const usuario = await prisma.usuario.findUnique({ where: { rut: userRut } });
+    if (!usuario) {
+      return res.status(404).json({ success: false, error: 'Usuario no encontrado.' });
+    }
+
+    const coincide = await bcrypt.compare(passwordActual, usuario.passwordHash);
+    if (!coincide) {
+      return res.status(400).json({ success: false, error: 'La contraseña actual es incorrecta.' });
+    }
+
+    const nuevoHash = await bcrypt.hash(passwordNueva, 10);
+    await prisma.usuario.update({
+      where: { rut: userRut },
+      data: { passwordHash: nuevoHash },
+    });
+
+    return res.status(200).json({ success: true, message: 'Contraseña actualizada correctamente.' });
+  } catch (error: any) {
+    console.error('🔥 ERROR EN CAMBIAR MI PASSWORD:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Error al cambiar contraseña' });
+  }
+};

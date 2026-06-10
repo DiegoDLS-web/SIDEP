@@ -31,10 +31,24 @@ export const login = async (req: Request, res: Response) => {
 
         const resultado = await loginUsuario(rut, password);
 
+        // Mapear al formato esperado por el frontend
+        const nombreCompleto = `${resultado.usuario.nombres} ${resultado.usuario.apellidoPaterno} ${resultado.usuario.apellidoMaterno}`.trim();
+        const dataMapped = {
+            token: resultado.token,
+            usuario: {
+                id: parseInt(resultado.usuario.rut.replace(/[^0-9]/g, ''), 10) || 0,
+                nombre: nombreCompleto,
+                rol: resultado.usuario.rol?.codigo || 'USER',
+                email: resultado.usuario.email,
+                rut: resultado.usuario.rut,
+                activo: resultado.usuario.activo === 1
+            }
+        };
+
         return res.status(200).json({ 
             success: true, 
             message: 'Inicio de sesión exitoso', 
-            data: resultado 
+            data: dataMapped 
         });
     } catch (error: any) {
         console.error('🔥 ERROR EN LOGIN:', error);
@@ -49,26 +63,26 @@ export const login = async (req: Request, res: Response) => {
 // 3. ME (Corregido para Schema Normalizado)
 export const me = async (req: Request, res: Response) => {
     try {
-        // Ahora el token debe traer el 'rut', no el 'id'
         const userRut = (req as any).user.rut; 
         
         const usuario = await prisma.usuario.findUnique({
             where: { rut: userRut },
-            include: { rol: true } // Incluimos la relación completa
+            include: { rol: true } 
         });
 
         if (!usuario) {
             return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
         }
 
-        // Construimos el nombre completo desde los campos separados del MER
         const nombreCompleto = `${usuario.nombres} ${usuario.apellidoPaterno} ${usuario.apellidoMaterno}`.trim();
 
         return res.status(200).json({
+            id: parseInt(usuario.rut.replace(/[^0-9]/g, ''), 10) || 0,
             rut: usuario.rut,
             nombre: nombreCompleto,
-            rol: usuario.rol?.nombre || 'USER',
-            activo: usuario.activo === 1 // Convertimos SmallInt a Boolean para el frontend
+            rol: usuario.rol?.codigo || 'USER',
+            email: usuario.email,
+            activo: usuario.activo === 1
         });
     } catch (error) {
         console.error('🔥 ERROR EN ME:', error);
