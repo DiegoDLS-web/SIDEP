@@ -1,10 +1,15 @@
 import prisma from '../../prisma'; // Asegúrate que esta ruta importe tu cliente de prisma
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { validarRut, normalizarRut } from '../../utils/rut.util';
 
 // 1. Registro
 export const registrarUsuario = async (datos: any) => {
     const { rut, nombres, apellidoPaterno, apellidoMaterno, email, password, rolId } = datos;
+    if (!rut || !validarRut(rut)) {
+        throw new Error('El RUT no es válido.');
+    }
+    const normalizedRut = normalizarRut(rut);
 
     // Hasheamos la password
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -12,7 +17,7 @@ export const registrarUsuario = async (datos: any) => {
     // Creamos el usuario siguiendo la estructura normalizada del MER
     return await prisma.usuario.create({
         data: {
-            rut, // Clave primaria ahora
+            rut: normalizedRut, // Clave primaria ahora
             nombres,
             apellidoPaterno, // Mapeado a apellido_paterno
             apellidoMaterno, // Mapeado a apellido_materno
@@ -26,9 +31,10 @@ export const registrarUsuario = async (datos: any) => {
 
 // 2. Login
 export const loginUsuario = async (rut: string, password: string) => {
+    const normalizedRut = normalizarRut(rut);
     // Buscamos por RUT, ya no por ID
     const usuario = await prisma.usuario.findUnique({
-        where: { rut: rut },
+        where: { rut: normalizedRut },
         include: { rol: true }
     });
 

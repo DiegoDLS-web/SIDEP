@@ -27,6 +27,7 @@ import { claveNominaParaNombreCompleto } from '../../data/clave-nomina-por-nombr
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { validarRut, normalizarRut } from '../../utils/rut.util';
 
 type FormUsuario = {
   nombres: string;
@@ -228,19 +229,7 @@ export class UsuariosComponent implements OnInit {
   }
 
   private rutEsValido(value: string): boolean {
-    const limpio = this.limpiarRut(value);
-    if (limpio.length < 2) return false;
-    const cuerpo = limpio.slice(0, -1);
-    const dv = limpio.slice(-1);
-    let suma = 0;
-    let multiplo = 2;
-    for (let i = cuerpo.length - 1; i >= 0; i -= 1) {
-      suma += Number(cuerpo[i]) * multiplo;
-      multiplo = multiplo === 7 ? 2 : multiplo + 1;
-    }
-    const resto = 11 - (suma % 11);
-    const esperado = resto === 11 ? '0' : resto === 10 ? 'K' : String(resto);
-    return dv === esperado;
+    return validarRut(value);
   }
 
   private emailEsValido(value: string): boolean {
@@ -710,7 +699,7 @@ export class UsuariosComponent implements OnInit {
         payload.nombres = this.form.nombres.trim();
         payload.apellidoPaterno = this.form.apellidoPaterno.trim();
         payload.apellidoMaterno = this.form.apellidoMaterno.trim();
-        payload.rut = this.formatearRut(this.form.rut);
+        payload.rut = normalizarRut(this.form.rut);
         payload.nacionalidad = this.form.nacionalidad.trim();
       }
       if (this.form.fechaNacimiento.trim()) {
@@ -768,7 +757,7 @@ export class UsuariosComponent implements OnInit {
       nombres: this.form.nombres.trim(),
       apellidoPaterno: this.form.apellidoPaterno.trim(),
       apellidoMaterno: this.form.apellidoMaterno.trim(),
-      rut: this.formatearRut(this.form.rut),
+      rut: normalizarRut(this.form.rut),
       nacionalidad: this.form.nacionalidad.trim(),
       grupoSanguineo: this.form.grupoSanguineo.trim(),
       direccion: this.form.direccion.trim(),

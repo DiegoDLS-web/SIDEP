@@ -1,10 +1,14 @@
 import { Request, Response } from 'express';
 import { loginUsuario, registrarUsuario } from './autenticacion.service';
 import prisma from '../../prisma'; 
+import { validarRut } from '../../utils/rut.util';
 
 // 1. Registro
 export const register = async (req: Request, res: Response) => {
     try {
+        if (!req.body.rut || !validarRut(req.body.rut)) {
+            return res.status(400).json({ success: false, message: 'El RUT no es válido.' });
+        }
         const usuario = await registrarUsuario(req.body);
         return res.status(201).json({ 
             success: true, 

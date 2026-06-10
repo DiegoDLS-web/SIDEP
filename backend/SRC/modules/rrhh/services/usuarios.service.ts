@@ -2,6 +2,7 @@ import prisma from '../../../prisma';
 import { StorageService, cloudinary } from '../../../shared/storage';
 import { mapUsuarioToDto } from './rrhh.service';
 import bcrypt from 'bcrypt';
+import { validarRut, normalizarRut } from '../../../utils/rut.util';
 
 export const buscarUsuarioPorId = async (id: number) => {
   const result = await prisma.$queryRaw<any[]>`
@@ -223,9 +224,11 @@ export const crearUsuario = async (datos: any) => {
     firmaImagenPublicId = uploadRes.public_id;
   }
 
-  // Generar contraseña por defecto (RUT sin puntos ni guiones, o sidep123)
-  const cleanRut = datos.rut.replace(/[^0-9kK]/g, '');
-  const hashedPassword = await bcrypt.hash(cleanRut || 'sidep123', 10);
+  if (!datos.rut || !validarRut(datos.rut)) {
+    throw new Error('El RUT no es válido.');
+  }
+  const rutNormalizado = normalizarRut(datos.rut);
+  const hashedPassword = await bcrypt.hash(rutNormalizado || 'sidep123', 10);
 
   // Validar rango de fechas (1900 - 2100)
   if (datos.fechaNacimiento) {
@@ -243,7 +246,7 @@ export const crearUsuario = async (datos: any) => {
 
   const nuevoUsuario = await prisma.usuario.create({
     data: {
-      rut: datos.rut,
+      rut: rutNormalizado,
       nombres: datos.nombres,
       apellidoPaterno: datos.apellidoPaterno,
       apellidoMaterno: datos.apellidoMaterno,
@@ -296,7 +299,13 @@ export const actualizarUsuario = async (id: number, datos: any) => {
   if (datos.nombres !== undefined) updateData.nombres = datos.nombres;
   if (datos.apellidoPaterno !== undefined) updateData.apellidoPaterno = datos.apellidoPaterno;
   if (datos.apellidoMaterno !== undefined) updateData.apellidoMaterno = datos.apellidoMaterno;
-  if (datos.rut !== undefined) updateData.rut = datos.rut;
+  if (datos.rut !== undefined) {
+    if (!validarRut(datos.rut)) {
+      throw new Error('El RUT no es válido.');
+    }
+    updateData.rut = normalizarRut(datos.rut);
+  }
+
   if (datos.email !== undefined) updateData.email = datos.email;
   if (datos.telefono !== undefined) updateData.telefono = datos.telefono;
   if (datos.direccion !== undefined) updateData.direccion = datos.direccion;

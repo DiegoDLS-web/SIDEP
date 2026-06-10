@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import * as usuariosService from '../services/usuarios.service';
+import { validarRut } from '../../../utils/rut.util';
 
 export const getUsuarios = async (req: Request, res: Response) => {
   try {
@@ -61,6 +62,9 @@ export const getUsuarioById = async (req: Request, res: Response) => {
 
 export const postUsuario = async (req: Request, res: Response) => {
   try {
+    if (!req.body.rut || !validarRut(req.body.rut)) {
+      return res.status(400).json({ success: false, error: 'El RUT no es válido.' });
+    }
     const nuevo = await usuariosService.crearUsuario(req.body);
     return res.status(201).json(nuevo);
   } catch (error: any) {
@@ -74,6 +78,12 @@ export const patchUsuario = async (req: Request, res: Response) => {
   try {
     if (isNaN(id)) {
       return res.status(400).json({ success: false, message: 'ID inválido' });
+    }
+
+    if (req.body.rut !== undefined) {
+      if (!req.body.rut || !validarRut(req.body.rut)) {
+        return res.status(400).json({ success: false, error: 'El RUT no es válido.' });
+      }
     }
 
     const actualizado = await usuariosService.actualizarUsuario(id, req.body);
