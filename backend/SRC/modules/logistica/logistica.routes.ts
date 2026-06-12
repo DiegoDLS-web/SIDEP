@@ -1,12 +1,11 @@
 import { Router } from 'express';
 import { getCarros, registrarChecklist } from './logistica.controller';
+import { protect } from '../../middlewares/auth.middleware';
 
 const router = Router();
 
-// Ruta para pedir la lista de carros: GET /api/v1/logistica/carros
-router.get('/carros', getCarros);
-
-// Ruta para guardar un checklist: POST /api/v1/logistica/checklist
-router.post('/checklist', registrarChecklist);
+// Ahora ambas rutas requieren que el usuario tenga un token válido
+router.get('/carros', protect, getCarros);
+router.post('/checklist', protect, registrarChecklist);
 
 export default router;

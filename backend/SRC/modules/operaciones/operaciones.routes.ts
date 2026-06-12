@@ -1,12 +1,11 @@
 import { Router } from 'express';
 import { getPartes, registrarParte } from './operaciones.controller';
+import { protect } from '../../middlewares/auth.middleware';
 
 const router = Router();
 
-// Ruta para pedir la lista de partes: GET /api/v1/operaciones/partes
-router.get('/partes', getPartes);
-
-// Ruta para guardar un nuevo parte: POST /api/v1/operaciones/partes
-router.post('/partes', registrarParte);
+// Rutas protegidas con JWT
+router.get('/partes', protect, getPartes);
+router.post('/partes', protect, registrarParte);
 
 export default router;
