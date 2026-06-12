@@ -5,7 +5,7 @@ import { StorageService, cloudinary } from '../../../shared/storage';
 export function mapUsuarioToDto(usuario: any): any {
   const nombreCompleto = `${usuario.nombres} ${usuario.apellidoPaterno} ${usuario.apellidoMaterno}`.trim();
   return {
-    id: parseInt(usuario.rut.replace(/[^0-9]/g, ''), 10) || 0,
+    id: usuario.rut,
     nombre: nombreCompleto,
     rut: usuario.rut,
     rol: usuario.rol?.nombre || 'USER',
@@ -194,7 +194,7 @@ export const obtenerMiResumenOperativo = async (rut: string) => {
   });
 
   const licenciasItems = licenciasList.map((lic: any) => ({
-    id: parseInt(lic.id.replace(/[^0-9]/g, '').slice(0, 9), 10) || 1,
+    id: lic.id,
     fechaInicio: lic.fechaInicio.toISOString(),
     fechaTermino: lic.fechaTermino.toISOString(),
     estado: lic.estado?.nombre || 'Pendiente',
@@ -230,7 +230,7 @@ export const obtenerMiResumenOperativo = async (rut: string) => {
       ? `${parte.obac.nombres} ${parte.obac.apellidoPaterno} ${parte.obac.apellidoMaterno}`.trim()
       : '—';
     return {
-      id: parseInt(parte.id.replace(/[^0-9]/g, '').slice(0, 9), 10) || 1,
+      id: parte.id,
       correlativo: parte.correlativo,
       fecha: parte.fechaEmergencia.toISOString(),
       claveEmergencia: parte.clave?.nombre || '—',
@@ -258,4 +258,72 @@ export const obtenerMiResumenOperativo = async (rut: string) => {
     },
     emergenciasRecientes,
   };
+};
+
+export const actualizarFotoPerfil = async (rut: string, url: string, publicId: string) => {
+  const usuario = await prisma.usuario.findUnique({
+    where: { rut },
+  });
+
+  if (usuario && usuario.fotoPerfilPublicId) {
+    await StorageService.deleteFile(usuario.fotoPerfilPublicId);
+  }
+
+  const usuarioActualizado = await prisma.usuario.update({
+    where: { rut },
+    data: {
+      fotoPerfilUrl: url,
+      fotoPerfilPublicId: publicId,
+    },
+    include: {
+      rol: true,
+      cargo: true,
+      tipoVoluntario: true,
+      estadoVoluntario: true,
+      grupoSanguineo: true,
+    },
+  });
+
+  return mapUsuarioToDto(usuarioActualizado);
+};
+
+export const actualizarArchivoLicencia = async (licenciaId: string, url: string, publicId: string) => {
+  const licencia = await prisma.licenciaMedica.findUnique({
+    where: { id: licenciaId },
+  });
+
+  if (!licencia) {
+    throw new Error('Licencia médica no encontrada');
+  }
+
+  if (licencia.archivoPublicId) {
+    await StorageService.deleteFile(licencia.archivoPublicId, 'raw');
+  }
+
+  return prisma.licenciaMedica.update({
+    where: { id: licenciaId },
+    data: {
+      archivoUrl: url,
+      archivoPublicId: publicId,
+    },
+  });
+};
+
+export const cambiarPassword = async (rut: string, passwordActual: string, passwordNueva: string) => {
+  const bcrypt = require('bcrypt');
+  const usuario = await prisma.usuario.findUnique({ where: { rut } });
+  if (!usuario) {
+    throw new Error('Usuario no encontrado');
+  }
+
+  const coincide = await bcrypt.compare(passwordActual, usuario.passwordHash);
+  if (!coincide) {
+    throw new Error('La contraseña actual es incorrecta.');
+  }
+
+  const nuevoHash = await bcrypt.hash(passwordNueva, 10);
+  await prisma.usuario.update({
+    where: { rut },
+    data: { passwordHash: nuevoHash },
+  });
 };

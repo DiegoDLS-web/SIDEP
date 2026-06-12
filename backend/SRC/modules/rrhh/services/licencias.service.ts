@@ -1,13 +1,7 @@
 import prisma from '../../../prisma';
-import { StorageService } from '../../../shared/storage';
 import crypto from 'crypto';
 
 // ─── Helpers de mapeo ───────────────────────────────────────────────
-
-/** Convierte un RUT string a un ID numérico (como lo hace el frontend). */
-function rutToNumericId(rut: string): number {
-  return parseInt(rut.replace(/[^0-9]/g, ''), 10) || 0;
-}
 
 /** Nombre completo a partir del modelo Usuario. */
 function nombreCompleto(usuario: any): string {
@@ -17,22 +11,21 @@ function nombreCompleto(usuario: any): string {
 /** Mapea el modelo LicenciaMedica de Prisma al DTO esperado por el frontend. */
 function mapLicenciaToDto(lic: any): any {
   return {
-    id: parseInt(lic.id.replace(/[^0-9]/g, '').slice(0, 9), 10) || 1,
-    _uuid: lic.id,
-    usuarioId: rutToNumericId(lic.usuarioRut),
+    id: lic.id,
+    usuarioId: lic.usuarioRut,
     fechaInicio: lic.fechaInicio.toISOString().slice(0, 10),
     fechaTermino: lic.fechaTermino.toISOString().slice(0, 10),
     motivo: lic.motivo,
     archivoUrl: lic.archivoUrl || null,
     estado: lic.estado?.nombre?.toUpperCase() || 'PENDIENTE',
     observacionResolucion: lic.observacionResolucion || null,
-    resueltoPorId: lic.resolutorRut ? rutToNumericId(lic.resolutorRut) : null,
+    resueltoPorId: lic.resolutorRut || null,
     resueltoEn: lic.resueltoEn ? new Date(lic.resueltoEn).toISOString() : null,
     createdAt: lic.createdAt ? new Date(lic.createdAt).toISOString() : new Date().toISOString(),
     updatedAt: lic.createdAt ? new Date(lic.createdAt).toISOString() : new Date().toISOString(),
     usuario: lic.usuario
       ? {
-          id: rutToNumericId(lic.usuario.rut),
+          id: lic.usuario.rut,
           nombre: nombreCompleto(lic.usuario),
           rut: lic.usuario.rut,
           rol: lic.usuario.rol?.nombre || 'USER',
@@ -41,7 +34,7 @@ function mapLicenciaToDto(lic: any): any {
       : undefined,
     resueltoPor: lic.resolutor
       ? {
-          id: rutToNumericId(lic.resolutor.rut),
+          id: lic.resolutor.rut,
           nombre: nombreCompleto(lic.resolutor),
           rol: lic.resolutor.rol?.nombre || 'USER',
           cargoOficialidad: lic.resolutor.cargo?.nombre || null,
@@ -74,17 +67,11 @@ async function buscarEstadoPorNombre(nombre: string): Promise<number> {
   return estado.id;
 }
 
-// ─── Buscar licencia por ID numérico ────────────────────────────────
+// ─── Buscar licencia por ID ─────────────────────────────────────────
 
-async function buscarPorIdNumerico(id: number): Promise<any> {
-  const result = await prisma.$queryRaw<any[]>`
-    SELECT id FROM licencia_medica
-    WHERE CAST(SUBSTRING(regexp_replace(id, '[^0-9]', '', 'g') FROM 1 FOR 9) AS INTEGER) = ${id}
-    LIMIT 1
-  `;
-  if (!result || result.length === 0) return null;
+async function buscarLicenciaPorId(id: string): Promise<any> {
   return prisma.licenciaMedica.findUnique({
-    where: { id: result[0].id },
+    where: { id },
     include: INCLUDE_LICENCIA,
   });
 }
@@ -147,11 +134,11 @@ export const crearLicencia = async (
 // ─── 3. Editar licencia (solo el solicitante, solo si PENDIENTE) ────
 
 export const editarLicencia = async (
-  idNumerico: number,
+  id: string,
   rut: string,
   datos: Partial<{ fechaInicio: string; fechaTermino: string; motivo: string; archivoUrl: string | null }>,
 ) => {
-  const lic = await buscarPorIdNumerico(idNumerico);
+  const lic = await buscarLicenciaPorId(id);
   if (!lic) throw new Error('Licencia no encontrada.');
   if (lic.usuarioRut !== rut) throw new Error('No tienes permiso para editar esta licencia.');
   if (lic.estado?.nombre?.toUpperCase() !== 'PENDIENTE') {
@@ -205,12 +192,12 @@ export const listarGestion = async (estado?: string) => {
 // ─── 5. Cambiar estado (aprobar/rechazar/anular) ────────────────────
 
 export const cambiarEstado = async (
-  idNumerico: number,
+  id: string,
   resolutorRut: string,
   estado: string,
   observacionResolucion?: string,
 ) => {
-  const lic = await buscarPorIdNumerico(idNumerico);
+  const lic = await buscarLicenciaPorId(id);
   if (!lic) throw new Error('Licencia no encontrada.');
 
   const estadoId = await buscarEstadoPorNombre(estado);
@@ -248,8 +235,8 @@ export const listarActivas = async (fechaIso: string) => {
   });
 
   return licencias.map((lic: any) => ({
-    id: parseInt(lic.id.replace(/[^0-9]/g, '').slice(0, 9), 10) || 1,
-    usuarioId: rutToNumericId(lic.usuarioRut),
+    id: lic.id,
+    usuarioId: lic.usuarioRut,
     fechaInicio: lic.fechaInicio.toISOString().slice(0, 10),
     fechaTermino: lic.fechaTermino.toISOString().slice(0, 10),
     motivo: lic.motivo,
@@ -289,7 +276,7 @@ export const obtenerResumen = async (fechaIso?: string) => {
   });
 
   const mapUsuario = (u: any) => ({
-    id: rutToNumericId(u.rut),
+    id: u.rut,
     nombre: nombreCompleto(u),
     rut: u.rut,
     rol: u.rol?.nombre || 'USER',

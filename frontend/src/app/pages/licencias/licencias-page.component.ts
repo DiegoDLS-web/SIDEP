@@ -56,8 +56,8 @@ export class LicenciasPageComponent implements OnInit {
   adjuntoPreviewUrl: string | null = null;
   progresoCarga = 0;
 
-  estadoEdicion: Record<number, LicenciaEstado> = {};
-  observacionEdicion: Record<number, string> = {};
+  estadoEdicion: Record<string, LicenciaEstado> = {};
+  observacionEdicion: Record<string, string> = {};
   paginaGestion = 1;
   readonly tamanioPaginaGestion = 6;
   paginaHistorial = 1;
@@ -470,7 +470,7 @@ export class LicenciasPageComponent implements OnInit {
     }
   }
 
-  etiquetaResumen(usuarioId: number): string {
+  etiquetaResumen(usuarioId: string): string {
     if (this.resumen.conLicencia.some((u) => u.id === usuarioId)) {
       return 'Con licencia';
     }

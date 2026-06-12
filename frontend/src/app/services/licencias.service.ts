@@ -45,7 +45,7 @@ export class LicenciasService {
   }
 
   editar(
-    id: number,
+    id: string,
     payload: Partial<{ fechaInicio: string; fechaTermino: string; motivo: string; archivoUrl: string | null }>,
   ): Observable<LicenciaMedicaDto> {
     return this.http.patch<LicenciaMedicaDto>(`/api/licencias/${id}`, payload);
@@ -60,7 +60,7 @@ export class LicenciasService {
   }
 
   cambiarEstado(
-    id: number,
+    id: string,
     estado: LicenciaEstado,
     observacionResolucion?: string,
   ): Observable<LicenciaMedicaDto> {

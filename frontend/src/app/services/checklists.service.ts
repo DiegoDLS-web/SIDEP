@@ -11,7 +11,7 @@ import type {
 } from '../models/checklist.dto';
 
 export type ChecklistUnidadPayload = {
-  cuarteleroId: number;
+  cuarteleroId: string;
   inspector?: string;
   grupoGuardia?: string;
   firmaOficial?: string | null;

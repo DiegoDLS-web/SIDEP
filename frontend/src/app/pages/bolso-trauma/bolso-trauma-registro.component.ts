@@ -147,7 +147,7 @@ export class BolsoTraumaRegistroComponent implements OnInit {
   nombreCarro = '';
   bolsoNumero = 1;
   usuarios: UsuarioListaDto[] = [];
-  cuarteleroId: number | '' = '';
+  cuarteleroId: string = '';
   nombreInspector = '';
   grupoGuardia = '';
   /** Fecha planificada de inspección (YYYY-MM-DD). */
@@ -214,8 +214,8 @@ export class BolsoTraumaRegistroComponent implements OnInit {
         if (checklist?.inspector) this.nombreInspector = checklist.inspector;
         if (checklist?.grupoGuardia) this.grupoGuardia = checklist.grupoGuardia;
         if (checklist?.observaciones) this.observaciones = checklist.observaciones;
-        if (checklist?.cuarteleroId && usuarios.some((u) => u.id === checklist.cuarteleroId)) {
-          this.cuarteleroId = checklist.cuarteleroId;
+        if (checklist?.cuarteleroId && usuarios.some((u) => u.id === String(checklist.cuarteleroId))) {
+          this.cuarteleroId = String(checklist.cuarteleroId);
         } else if (usuarios.length > 0) {
           this.cuarteleroId = usuarios[0].id;
         }

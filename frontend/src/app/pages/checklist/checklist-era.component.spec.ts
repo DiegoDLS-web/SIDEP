@@ -38,7 +38,7 @@ describe('ChecklistEraComponent (estado)', () => {
     const texto = comp.etiquetaEstadoEraTexto({
       id: 10,
       carroId: 1,
-      cuarteleroId: 1,
+      cuarteleroId: '1',
       fecha: new Date().toISOString(),
       tipo: 'ERA',
       inspector: 'I',
@@ -50,7 +50,7 @@ describe('ChecklistEraComponent (estado)', () => {
       detalle: null,
       estadoChecklist: 'CON_OBSERVACION',
       carro: { id: 1, nomenclatura: 'R-1', nombre: 'Rescate' },
-      cuartelero: { id: 1, nombre: 'OBAC', rol: 'CAPITAN' },
+      cuartelero: { id: '1', nombre: 'OBAC', rol: 'CAPITAN' },
     });
     expect(texto).toBe('Con observación');
   });

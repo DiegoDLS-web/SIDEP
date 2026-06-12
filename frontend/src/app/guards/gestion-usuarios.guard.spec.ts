@@ -26,13 +26,13 @@ describe('gestionUsuariosGuard', () => {
   const noopState = {} as RouterStateSnapshot;
 
   it('permite acceso solo a ADMIN (normaliza espacios y mayúsculas)', () => {
-    auth.usuarioActual = { id: 1, nombre: 'A', rol: '  admin ', email: null, rut: '', activo: true };
+    auth.usuarioActual = { id: '1', nombre: 'A', rol: '  admin ', email: null, rut: '', activo: true };
     const out = TestBed.runInInjectionContext(() => gestionUsuariosGuard(noopRoute, noopState));
     expect(out).toBe(true);
   });
 
   it('redirige al inicio si el rol no está autorizado', () => {
-    auth.usuarioActual = { id: 1, nombre: 'A', rol: 'TENIENTE', email: null, rut: '', activo: true };
+    auth.usuarioActual = { id: '1', nombre: 'A', rol: 'TENIENTE', email: null, rut: '', activo: true };
     const out = TestBed.runInInjectionContext(() => gestionUsuariosGuard(noopRoute, noopState));
     expect(out).toBeInstanceOf(UrlTree);
     expect(router.serializeUrl(out as UrlTree)).toBe('/');

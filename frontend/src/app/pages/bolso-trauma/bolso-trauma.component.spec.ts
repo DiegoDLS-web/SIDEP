@@ -19,7 +19,7 @@ describe('BolsoTraumaComponent (estado)', () => {
               of({
                 id: 1,
                 carroId: 1,
-                cuarteleroId: 1,
+                cuarteleroId: '1',
                 fecha: new Date().toISOString(),
                 tipo: 'TRAUMA',
                 inspector: 'I',
@@ -30,7 +30,7 @@ describe('BolsoTraumaComponent (estado)', () => {
                 itemsOk: 1,
                 detalle: null,
                 carro: { id: 1, nomenclatura: 'R-1', nombre: 'Rescate' },
-                cuartelero: { id: 1, nombre: 'OBAC', rol: 'CAPITAN' },
+                cuartelero: { id: '1', nombre: 'OBAC', rol: 'CAPITAN' },
               }),
           } as Partial<BolsosTraumaService>,
         },

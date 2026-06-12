@@ -1,5 +1,5 @@
 export interface UsuarioBasicoDto {
-  id: number;
+  id: string;
   nombre: string;
   rut: string;
   rol: string;
@@ -118,7 +118,7 @@ export interface ParteEmergenciaDto {
   fechaLegible?: string;
   estado: string;
   metadata?: ParteMetadataDto | null;
-  obacId: number;
+  obacId: string;
   obac: UsuarioBasicoDto;
   unidades: UnidadParteDto[];
   /** Ausente en listados paginados optimizados (`pacientes: []`). */

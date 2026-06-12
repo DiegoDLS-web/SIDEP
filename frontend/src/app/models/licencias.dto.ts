@@ -1,27 +1,27 @@
 export type LicenciaEstado = 'PENDIENTE' | 'APROBADA' | 'RECHAZADA' | 'ANULADA';
 
 export interface LicenciaMedicaDto {
-  id: number;
-  usuarioId: number;
+  id: string;
+  usuarioId: string;
   fechaInicio: string;
   fechaTermino: string;
   motivo: string;
   archivoUrl: string | null;
   estado: LicenciaEstado;
   observacionResolucion: string | null;
-  resueltoPorId: number | null;
+  resueltoPorId: string | null;
   resueltoEn: string | null;
   createdAt: string;
   updatedAt: string;
   usuario?: {
-    id: number;
+    id: string;
     nombre: string;
     rut?: string;
     rol: string;
     cargoOficialidad?: string | null;
   };
   resueltoPor?: {
-    id: number;
+    id: string;
     nombre: string;
     rol: string;
     cargoOficialidad?: string | null;
@@ -30,15 +30,15 @@ export interface LicenciaMedicaDto {
 }
 
 export interface LicenciaActivaDto {
-  id: number;
-  usuarioId: number;
+  id: string;
+  usuarioId: string;
   fechaInicio: string;
   fechaTermino: string;
   motivo: string;
 }
 
 export interface LicenciaResumenUsuarioDto {
-  id: number;
+  id: string;
   nombre: string;
   rut?: string;
   rol: string;

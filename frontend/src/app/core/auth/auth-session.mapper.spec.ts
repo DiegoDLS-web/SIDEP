@@ -3,7 +3,7 @@ import { mapLoginUsuarioASesion } from './auth-session.mapper';
 describe('mapLoginUsuarioASesion', () => {
   it('mapea todos los campos de la respuesta de login', () => {
     const out = mapLoginUsuarioASesion({
-      id: 42,
+      id: '42',
       nombre: 'Juan Pérez',
       rol: 'CAPITAN',
       email: 'juan@ejemplo.cl',
@@ -11,7 +11,7 @@ describe('mapLoginUsuarioASesion', () => {
       requiereCambioPassword: true,
     });
     expect(out).toEqual({
-      id: 42,
+      id: '42',
       nombre: 'Juan Pérez',
       rol: 'CAPITAN',
       email: 'juan@ejemplo.cl',
@@ -23,7 +23,7 @@ describe('mapLoginUsuarioASesion', () => {
 
   it('usa rut vacío y requiereCambioPassword undefined si no vienen', () => {
     const out = mapLoginUsuarioASesion({
-      id: 1,
+      id: '1',
       nombre: 'Sin rut',
       rol: 'VOLUNTARIOS',
       email: null,

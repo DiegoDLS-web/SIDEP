@@ -1,7 +1,7 @@
 export interface LoginResponseDto {
   token: string;
   usuario: {
-    id: number;
+    id: string;
     nombre: string;
     rol: string;
     email: string | null;
@@ -11,7 +11,7 @@ export interface LoginResponseDto {
 }
 
 export interface SesionUsuarioDto {
-  id: number;
+  id: string;
   nombre: string;
   rol: string;
   email: string | null;

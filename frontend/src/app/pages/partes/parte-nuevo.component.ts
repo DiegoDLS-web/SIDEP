@@ -88,7 +88,7 @@ export class ParteNuevoComponent implements OnInit {
   private readonly DISP_LICENCIA = 'licencia';
   private readonly DISP_BLOQUEADO = 'bloqueado';
   private readonly usuarioAsistenciaPorId: Record<string, UsuarioListaDto> = {};
-  private readonly licenciasActivasPorUsuario: Record<number, { desde: Date; hasta: Date }> = {};
+  private readonly licenciasActivasPorUsuario: Record<string, { desde: Date; hasta: Date }> = {};
 
   /** Pestaña activa del padrón (motivo de asistencia). */
   contextoAsistenciaActivo: AsistenciaContextoKey = 'emergencia';
@@ -109,7 +109,7 @@ export class ParteNuevoComponent implements OnInit {
   fechaDia = '';
   /** Hora aproximada del parte / incidente. */
   horaIncidente = '';
-  obacId: number | null = null;
+  obacId: string | null = null;
   estado = 'PENDIENTE';
 
   descripcionEmergencia = '';
@@ -547,10 +547,10 @@ export class ParteNuevoComponent implements OnInit {
   }
 
   private aplicarLicenciasActivas(
-    rows: Array<{ usuarioId: number; fechaInicio: string; fechaTermino: string }>,
+    rows: Array<{ usuarioId: string; fechaInicio: string; fechaTermino: string }>,
   ): void {
     for (const k of Object.keys(this.licenciasActivasPorUsuario)) {
-      delete this.licenciasActivasPorUsuario[Number(k)];
+      delete this.licenciasActivasPorUsuario[k];
     }
     for (const row of rows) {
       const desde = new Date(row.fechaInicio);
@@ -1084,8 +1084,8 @@ export class ParteNuevoComponent implements OnInit {
       }));
   }
 
-  private resolverObacId(): number | null {
-    if (typeof this.obacId === 'number' && this.obacId > 0) {
+  private resolverObacId(): string | null {
+    if (typeof this.obacId === 'string' && this.obacId.trim().length > 0) {
       const ok = this.usuariosElegiblesObac.some((u) => u.id === this.obacId);
       if (ok) return this.obacId;
     }
@@ -1101,7 +1101,7 @@ export class ParteNuevoComponent implements OnInit {
       this.fechaDia = this.toDateInput(fechaParte);
       this.horaIncidente = this.toTimeInput(fechaParte);
     }
-    this.obacId = parte.obacId > 0 ? parte.obacId : null;
+    this.obacId = parte.obacId || null;
 
     const meta = (parte.metadata ?? {}) as ParteMetadataDto;
     this.descripcionEmergencia = meta.descripcionEmergencia ?? '';

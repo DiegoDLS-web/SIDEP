@@ -26,19 +26,19 @@ describe('adminGuard', () => {
   const noopState = {} as RouterStateSnapshot;
 
   it('permite acceso si el rol es ADMIN (mayúsculas)', () => {
-    auth.usuarioActual = { id: 1, nombre: 'A', rol: 'ADMIN', email: null, rut: '', activo: true };
+    auth.usuarioActual = { id: '1', nombre: 'A', rol: 'ADMIN', email: null, rut: '', activo: true };
     const out = TestBed.runInInjectionContext(() => adminGuard(noopRoute, noopState));
     expect(out).toBe(true);
   });
 
   it('normaliza espacios en blanco antes de comparar ADMIN', () => {
-    auth.usuarioActual = { id: 1, nombre: 'A', rol: '  ADMIN  ', email: null, rut: '', activo: true };
+    auth.usuarioActual = { id: '1', nombre: 'A', rol: '  ADMIN  ', email: null, rut: '', activo: true };
     const out = TestBed.runInInjectionContext(() => adminGuard(noopRoute, noopState));
     expect(out).toBe(true);
   });
 
   it('redirige al inicio si el rol no es ADMIN', () => {
-    auth.usuarioActual = { id: 1, nombre: 'A', rol: 'CAPITAN', email: null, rut: '', activo: true };
+    auth.usuarioActual = { id: '1', nombre: 'A', rol: 'CAPITAN', email: null, rut: '', activo: true };
     const out = TestBed.runInInjectionContext(() => adminGuard(noopRoute, noopState));
     expect(out).toBeInstanceOf(UrlTree);
     expect(router.serializeUrl(out as UrlTree)).toBe('/');

@@ -1,5 +1,5 @@
 export interface UsuarioListaDto {
-  id: number;
+  id: string;
   nombre: string;
   rut: string;
   rol: string;

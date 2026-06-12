@@ -4,25 +4,18 @@ import { mapUsuarioToDto } from './rrhh.service';
 import bcrypt from 'bcrypt';
 import { validarRut, normalizarRut } from '../../../utils/rut.util';
 
-export const buscarUsuarioPorId = async (id: number) => {
-  const result = await prisma.$queryRaw<any[]>`
-    SELECT rut FROM usuario 
-    WHERE CAST(regexp_replace(rut, '[^0-9]', '', 'g') AS INTEGER) = ${id}
-    LIMIT 1
-  `;
-  if (result && result.length > 0) {
-    return prisma.usuario.findUnique({
-      where: { rut: result[0].rut },
-      include: {
-        rol: true,
-        cargo: true,
-        tipoVoluntario: true,
-        estadoVoluntario: true,
-        grupoSanguineo: true,
-      },
-    });
-  }
-  return null;
+export const buscarUsuarioPorRut = async (rut: string) => {
+  if (!rut) return null;
+  return prisma.usuario.findUnique({
+    where: { rut: normalizarRut(rut) || rut },
+    include: {
+      rol: true,
+      cargo: true,
+      tipoVoluntario: true,
+      estadoVoluntario: true,
+      grupoSanguineo: true,
+    },
+  });
 };
 
 export const listarUsuarios = async () => {
@@ -288,8 +281,8 @@ export const crearUsuario = async (datos: any) => {
   return mapUsuarioToDto(nuevoUsuario);
 };
 
-export const actualizarUsuario = async (id: number, datos: any) => {
-  const usuarioExistente = await buscarUsuarioPorId(id);
+export const actualizarUsuario = async (rut: string, datos: any) => {
+  const usuarioExistente = await buscarUsuarioPorRut(rut);
   if (!usuarioExistente) {
     throw new Error('Usuario no encontrado');
   }
@@ -455,8 +448,8 @@ export const actualizarUsuario = async (id: number, datos: any) => {
   return mapUsuarioToDto(usuarioActualizado);
 };
 
-export const eliminarUsuario = async (id: number) => {
-  const usuario = await buscarUsuarioPorId(id);
+export const eliminarUsuario = async (rut: string) => {
+  const usuario = await buscarUsuarioPorRut(rut);
   if (!usuario) {
     throw new Error('Usuario no encontrado');
   }

@@ -73,7 +73,7 @@ export class AuthService {
       }),
       catchError(() => {
         const user: SesionUsuarioDto = {
-          id: 0,
+          id: '0',
           nombre: 'Modo Demo Local',
           rol: 'ADMIN',
           email: 'demo@local',

@@ -206,7 +206,7 @@ export class ChecklistEraComponent implements OnInit {
   eraHistorialVer: ChecklistRegistroDto | null = null;
 
   unidad = 'R-1';
-  cuarteleroId: number | '' = '';
+  cuarteleroId: string = '';
   inspector = '';
   grupoGuardia = '';
   /** Fecha planificada de inspección (YYYY-MM-DD). */

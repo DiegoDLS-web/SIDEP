@@ -41,12 +41,12 @@ export const getUsuariosPaginado = async (req: Request, res: Response) => {
 
 export const getUsuarioById = async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) {
-      return res.status(400).json({ success: false, message: 'ID inválido' });
+    const rut = req.params.rut as string;
+    if (!rut) {
+      return res.status(400).json({ success: false, message: 'RUT requerido' });
     }
 
-    const usuario = await usuariosService.buscarUsuarioPorId(id);
+    const usuario = await usuariosService.buscarUsuarioPorRut(rut);
     if (!usuario) {
       return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
     }
@@ -55,7 +55,7 @@ export const getUsuarioById = async (req: Request, res: Response) => {
     const { mapUsuarioToDto } = require('../services/rrhh.service');
     return res.status(200).json(mapUsuarioToDto(usuario));
   } catch (error: any) {
-    console.error('🔥 ERROR EN GET USUARIO BY ID:', error);
+    console.error('🔥 ERROR EN GET USUARIO BY RUT:', error);
     return res.status(500).json({ success: false, error: error.message || 'Error al obtener usuario' });
   }
 };
@@ -74,10 +74,10 @@ export const postUsuario = async (req: Request, res: Response) => {
 };
 
 export const patchUsuario = async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id as string, 10);
+  const rut = req.params.rut as string;
   try {
-    if (isNaN(id)) {
-      return res.status(400).json({ success: false, message: 'ID inválido' });
+    if (!rut) {
+      return res.status(400).json({ success: false, message: 'RUT requerido' });
     }
 
     if (req.body.rut !== undefined) {
@@ -86,7 +86,7 @@ export const patchUsuario = async (req: Request, res: Response) => {
       }
     }
 
-    const actualizado = await usuariosService.actualizarUsuario(id, req.body);
+    const actualizado = await usuariosService.actualizarUsuario(rut, req.body);
     return res.status(200).json(actualizado);
   } catch (error: any) {
     console.error('🔥 ERROR EN ACTUALIZAR USUARIO:', error);
@@ -95,13 +95,13 @@ export const patchUsuario = async (req: Request, res: Response) => {
 };
 
 export const deleteUsuario = async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id as string, 10);
+  const rut = req.params.rut as string;
   try {
-    if (isNaN(id)) {
-      return res.status(400).json({ success: false, message: 'ID inválido' });
+    if (!rut) {
+      return res.status(400).json({ success: false, message: 'RUT requerido' });
     }
 
-    const result = await usuariosService.eliminarUsuario(id);
+    const result = await usuariosService.eliminarUsuario(rut);
     return res.status(200).json({
       ok: true,
       softDeleted: result.softDeleted,
@@ -114,13 +114,13 @@ export const deleteUsuario = async (req: Request, res: Response) => {
 };
 
 export const resetPassword = async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id as string, 10);
+  const rut = req.params.rut as string;
   try {
-    if (isNaN(id)) {
-      return res.status(400).json({ success: false, message: 'ID inválido' });
+    if (!rut) {
+      return res.status(400).json({ success: false, message: 'RUT requerido' });
     }
 
-    const usuario = await usuariosService.buscarUsuarioPorId(id);
+    const usuario = await usuariosService.buscarUsuarioPorRut(rut);
     if (!usuario) {
       return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
     }

@@ -29,7 +29,7 @@ describe('ChecklistSelectorComponent (estado)', () => {
     const estado = comp.estadoHistorialFila({
       id: 1,
       carroId: 1,
-      cuarteleroId: 1,
+      cuarteleroId: '1',
       fecha: new Date().toISOString(),
       tipo: 'UNIDAD',
       inspector: 'I',
@@ -40,7 +40,7 @@ describe('ChecklistSelectorComponent (estado)', () => {
       itemsOk: 10,
       detalle: null,
       carro: { id: 1, nomenclatura: 'R-1', nombre: 'Rescate' },
-      cuartelero: { id: 1, nombre: 'OBAC', rol: 'CAPITAN' },
+      cuartelero: { id: '1', nombre: 'OBAC', rol: 'CAPITAN' },
       unidad: 'R-1',
       nombreUnidad: 'Rescate 1',
     });

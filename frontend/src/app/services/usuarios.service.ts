@@ -41,23 +41,23 @@ export class UsuariosService {
     return this.http.get<UsuariosPaginaDto>('/api/usuarios/pagina', { params });
   }
 
-  obtener(id: number): Observable<UsuarioListaDto> {
-    return this.http.get<UsuarioListaDto>(`/api/usuarios/${id}`);
+  obtener(rut: string): Observable<UsuarioListaDto> {
+    return this.http.get<UsuarioListaDto>(`/api/usuarios/${rut}`);
   }
 
   crear(payload: UsuarioCrearDto): Observable<UsuarioListaDto> {
     return this.http.post<UsuarioListaDto>('/api/usuarios', payload);
   }
 
-  actualizar(id: number, payload: UsuarioActualizarDto): Observable<UsuarioListaDto> {
-    return this.http.patch<UsuarioListaDto>(`/api/usuarios/${id}`, payload);
+  actualizar(rut: string, payload: UsuarioActualizarDto): Observable<UsuarioListaDto> {
+    return this.http.patch<UsuarioListaDto>(`/api/usuarios/${rut}`, payload);
   }
 
-  eliminar(id: number): Observable<{ ok: boolean; softDeleted?: boolean; message?: string }> {
-    return this.http.delete<{ ok: boolean; softDeleted?: boolean; message?: string }>(`/api/usuarios/${id}`);
+  eliminar(rut: string): Observable<{ ok: boolean; softDeleted?: boolean; message?: string }> {
+    return this.http.delete<{ ok: boolean; softDeleted?: boolean; message?: string }>(`/api/usuarios/${rut}`);
   }
 
-  resetPassword(id: number): Observable<{ success: boolean; message: string }> {
-    return this.http.patch<{ success: boolean; message: string }>(`/api/usuarios/${id}/reset-password`, {});
+  resetPassword(rut: string): Observable<{ success: boolean; message: string }> {
+    return this.http.patch<{ success: boolean; message: string }>(`/api/usuarios/${rut}/reset-password`, {});
   }
 }

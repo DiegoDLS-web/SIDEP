@@ -25,7 +25,7 @@ export interface ChecklistResumenUnidadDto {
 export interface ChecklistRegistroDto {
   id: number;
   carroId: number;
-  cuarteleroId: number;
+  cuarteleroId: string;
   fecha: string;
   tipo: 'UNIDAD' | 'ERA' | string;
   inspector: string | null;
@@ -41,7 +41,7 @@ export interface ChecklistRegistroDto {
   estadoOperativoCarro?: boolean;
   estadoChecklist?: EstadoChecklist;
   carro: { id: number; nomenclatura: string; nombre: string | null };
-  cuartelero: { id: number; nombre: string; rol: string };
+  cuartelero: { id: string; nombre: string; rol: string };
 }
 
 export interface ChecklistEraPaginaDto {

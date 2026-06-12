@@ -53,7 +53,7 @@ describe('authGuard', () => {
   });
 
   const usuarioBase = {
-    id: 1,
+    id: '1',
     nombre: 'U',
     rol: 'VOLUNTARIOS',
     email: null as string | null,

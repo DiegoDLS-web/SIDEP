@@ -50,7 +50,7 @@ export class ChecklistUnidadComponent implements OnInit {
   savingBorrador = false;
 
   usuarios: UsuarioListaDto[] = [];
-  cuarteleroId: number | '' = '';
+  cuarteleroId: string = '';
   nombreInspector = '';
   grupoGuardia = '';
   observaciones = '';
@@ -98,7 +98,7 @@ export class ChecklistUnidadComponent implements OnInit {
         this.nombreCarro = c ? (c.nombre?.trim() || c.nomenclatura?.trim() || null) : null;
         const checklist = unidadData.checklist;
         if (checklist?.cuarteleroId) {
-          this.cuarteleroId = checklist.cuarteleroId;
+          this.cuarteleroId = String(checklist.cuarteleroId);
         } else if (usuarios.length > 0) {
           this.cuarteleroId = usuarios[0].id;
         }

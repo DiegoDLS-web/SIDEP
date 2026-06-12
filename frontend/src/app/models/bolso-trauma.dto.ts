@@ -26,7 +26,7 @@ export interface BolsoTraumaSelectorUnidadDto {
 export interface BolsoTraumaRegistroDto {
   id: number;
   carroId: number;
-  cuarteleroId: number;
+  cuarteleroId: string;
   fecha: string;
   tipo: string;
   inspector: string | null;
@@ -39,7 +39,7 @@ export interface BolsoTraumaRegistroDto {
   detalle: unknown;
   estadoChecklist?: EstadoChecklist;
   carro: { id: number; nomenclatura: string; nombre: string | null };
-  cuartelero: { id: number; nombre: string; rol: string };
+  cuartelero: { id: string; nombre: string; rol: string };
 }
 
 export interface BolsoTraumaUnidadResponseDto {

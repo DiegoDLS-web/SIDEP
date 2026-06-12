@@ -9,7 +9,7 @@ import type {
 } from '../models/bolso-trauma.dto';
 
 export type GuardarBolsoTraumaPayload = {
-  cuarteleroId: number;
+  cuarteleroId: string;
   inspector?: string;
   grupoGuardia?: string;
   firmaOficial?: string;
@@ -161,7 +161,7 @@ export class BolsosTraumaService {
         of({
           id,
           carroId: 1,
-          cuarteleroId: 1,
+          cuarteleroId: '1',
           fecha: new Date().toISOString(),
           tipo: 'TRAUMA',
           inspector: 'Modo Demo Local',
@@ -172,7 +172,7 @@ export class BolsosTraumaService {
           itemsOk: 4,
           detalle: { bolsoNumero: 1, borrador: false, bolsos: [] },
           carro: { id: 1, nomenclatura: 'R-1', nombre: 'Carro Rescate' },
-          cuartelero: { id: 1, nombre: 'Demo', rol: 'CAPITAN' },
+          cuartelero: { id: '1', nombre: 'Demo', rol: 'CAPITAN' },
         }),
       ),
     );

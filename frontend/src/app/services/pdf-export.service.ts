@@ -965,7 +965,7 @@ export class PdfExportService {
   }
 
   async exportarLicencia(input: {
-    id: number;
+    id: string;
     solicitante: string;
     rut?: string | null;
     rol?: string | null;

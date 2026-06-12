@@ -13,7 +13,7 @@ import type {
 export type CrearPartePayload = {
   claveEmergencia: string;
   direccion: string;
-  obacId: number;
+  obacId: string;
   fecha?: string;
   estado?: string;
   /** Permite crear parte sin datos completos (backend relaja validación). */
@@ -61,9 +61,9 @@ export class PartesService {
     { id: 3, nomenclatura: 'R-1', patente: 'RESJ-01' },
   ];
   private readonly obacBasicoDemo: UsuarioBasicoDto[] = [
-    { id: 1, nombre: 'Capitán Demo', rut: '11.111.111-1', rol: 'CAPITAN' },
-    { id: 2, nombre: 'Teniente Demo', rut: '22.222.222-2', rol: 'TENIENTE' },
-    { id: 3, nombre: 'Voluntario Demo', rut: '33.333.333-3', rol: 'VOLUNTARIOS' },
+    { id: '1', nombre: 'Capitán Demo', rut: '11.111.111-1', rol: 'CAPITAN' },
+    { id: '2', nombre: 'Teniente Demo', rut: '22.222.222-2', rol: 'TENIENTE' },
+    { id: '3', nombre: 'Voluntario Demo', rut: '33.333.333-3', rol: 'VOLUNTARIOS' },
   ];
   private readonly demoPartes: ParteEmergenciaDto[] = [
     {
@@ -73,8 +73,8 @@ export class PartesService {
       direccion: 'Av. Independencia 342',
       fecha: new Date().toISOString(),
       estado: 'COMPLETADO',
-      obacId: 1,
-      obac: { id: 1, nombre: 'Modo Demo Local', rut: '00.000.000-0', rol: 'ADMIN' },
+      obacId: '1',
+      obac: { id: '1', nombre: 'Modo Demo Local', rut: '00.000.000-0', rol: 'ADMIN' },
       unidades: [
         {
           id: 1,
@@ -104,8 +104,8 @@ export class PartesService {
       direccion: 'Ruta 5 Sur km 412',
       fecha: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
       estado: 'PENDIENTE',
-      obacId: 1,
-      obac: { id: 1, nombre: 'Modo Demo Local', rut: '00.000.000-0', rol: 'ADMIN' },
+      obacId: '1',
+      obac: { id: '1', nombre: 'Modo Demo Local', rut: '00.000.000-0', rol: 'ADMIN' },
       unidades: [
         {
           id: 2,
@@ -131,8 +131,8 @@ export class PartesService {
       direccion: 'Camino Los Boldos s/n',
       fecha: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
       estado: 'COMPLETADO',
-      obacId: 1,
-      obac: { id: 1, nombre: 'Modo Demo Local', rut: '00.000.000-0', rol: 'ADMIN' },
+      obacId: '1',
+      obac: { id: '1', nombre: 'Modo Demo Local', rut: '00.000.000-0', rol: 'ADMIN' },
       unidades: [
         {
           id: 3,
@@ -309,7 +309,7 @@ export class PartesService {
     );
   }
 
-  private resolverObacBasico(obacId: number): UsuarioBasicoDto {
+  private resolverObacBasico(obacId: string): UsuarioBasicoDto {
     return (
       this.obacBasicoDemo.find((u) => u.id === obacId) ?? {
         id: obacId,

@@ -99,13 +99,13 @@ export class UsuariosComponent implements OnInit {
   private busquedaDebounce: ReturnType<typeof setTimeout> | null = null;
 
   mostrandoFormulario = false;
-  editandoId: number | null = null;
+  editandoId: string | null = null;
   /** Al editar: valor inicial de firma para no enviar PATCH si no hubo cambios. */
   private firmaInicialEdicion: string | null = null;
   /** Al editar: valor inicial de foto de perfil. */
   private fotoInicialEdicion: string | null = null;
   /** Evita íconos rotos cuando falta el fichero en `/assets/perfiles`. */
-  private readonly fotosListaFallidas = new Set<number>();
+  private readonly fotosListaFallidas = new Set<string>();
 
   form: FormUsuario = this.formVacio();
 
@@ -410,11 +410,7 @@ export class UsuariosComponent implements OnInit {
   private abrirEdicionPorQuerySiAplica(): void {
     const raw = this.route.snapshot.queryParamMap.get('editId');
     if (!raw?.trim()) return;
-    const editId = Number(raw);
-    if (!Number.isFinite(editId) || editId < 1) {
-      this.limpiarQueryEditId();
-      return;
-    }
+    const editId = raw;
     const yo = this.auth.usuarioActual;
     if (yo?.id !== editId && !this.esAdmin) {
       this.limpiarQueryEditId();
@@ -560,7 +556,7 @@ export class UsuariosComponent implements OnInit {
     return !!fp && !this.fotosListaFallidas.has(usuario.id);
   }
 
-  onFotoListaError(usuarioId: number): void {
+  onFotoListaError(usuarioId: string): void {
     this.fotosListaFallidas.add(usuarioId);
   }
 

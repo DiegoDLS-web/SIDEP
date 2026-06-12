@@ -51,8 +51,8 @@ export const patchLicencia = async (req: Request, res: Response) => {
     const rut = (req as any).user?.rut;
     if (!rut) return res.status(401).json({ success: false, message: 'No autorizado' });
 
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) return res.status(400).json({ success: false, message: 'ID inválido' });
+    const id = req.params.id as string;
+    if (!id) return res.status(400).json({ success: false, message: 'ID inválido' });
 
     const actualizada = await licenciasService.editarLicencia(id, rut, req.body);
     return res.status(200).json(actualizada);
@@ -80,8 +80,8 @@ export const patchEstado = async (req: Request, res: Response) => {
     const rut = (req as any).user?.rut;
     if (!rut) return res.status(401).json({ success: false, message: 'No autorizado' });
 
-    const id = parseInt(req.params.id as string, 10);
-    if (isNaN(id)) return res.status(400).json({ success: false, message: 'ID inválido' });
+    const id = req.params.id as string;
+    if (!id) return res.status(400).json({ success: false, message: 'ID inválido' });
 
     const { estado, observacionResolucion } = req.body;
     if (!estado) return res.status(400).json({ success: false, message: 'Estado requerido' });
