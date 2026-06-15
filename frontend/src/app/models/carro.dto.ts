@@ -1,35 +1,50 @@
 import type { CarroRegistroHistorialDto } from './carro-registro-historial.dto';
 
-/** Respuesta JSON del backend (Prisma) para `Carro`. */
 export interface CarroDto {
-  id: number;
+  // --- NUESTROS TIPOS ESTRICTOS (POSTGRESQL) ---
+  id: string; // UUID
   nomenclatura: string;
   patente: string;
-  estadoOperativo: boolean;
+  estadoOperativo: number; // 1 o 0
   nombre: string | null;
-  tipo: string | null;
   marca: string | null;
-  anioFabricacion: number | null;
-  capacidadAgua: string | null;
-  imagenUrl: string | null;
-  kilometraje: number | null;
-  ultimoMantenimiento: string | null;
+  kilometraje: number;
+
+  // --- CAMPOS VISUALES DE LA FICHA (COMPATIBILIDAD CON FRONTEND) ---
+  tipo?: string | null;
+  anioFabricacion?: number | null;
+  capacidadAgua?: string | null;
+  imagenUrl?: string | null;
+  ultimoMantenimiento?: string | null;
   descripcionUltimoMantenimiento?: string | null;
-  proximoMantenimiento: string | null;
+  proximoMantenimiento?: string | null;
   proximaRevisionTecnica?: string | null;
   ultimaRevisionBombaAgua?: string | null;
   ultimoInspector?: string | null;
   firmaUltimoInspector?: string | null;
   fechaUltimaInspeccion?: string | null;
-  conductorAsignado: string | null;
+  conductorAsignado?: string | null;
   ultimoConductor?: string | null;
-  motor: string | null;
-  transmision: string | null;
-  combustible: string | null;
-  presionBomba: string | null;
-  capacidadTanqueCombustible: string | null;
-  /** Solo en detalle (`GET /api/carros/:id`); lista no lo incluye. */
+  motor?: string | null;
+  transmision?: string | null;
+  combustible?: string | null;
+  presionBomba?: string | null;
+  capacidadTanqueCombustible?: string | null;
+
+  // --- RELACIONES ---
+  bolsos?: any[]; 
+  materiales?: any[];
   historialRegistros?: CarroRegistroHistorialDto[];
 }
 
-export type { CarroRegistroHistorialDto } from './carro-registro-historial.dto';
+export interface CrearCarroDto {
+  patente: string;
+  nomenclatura: string;
+  nombre: string;
+  marca: string;
+  kilometraje?: number;
+}
+
+export interface ActualizarCarroDto extends Partial<CrearCarroDto> {
+  estadoOperativo?: number;
+}

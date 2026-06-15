@@ -1,7 +1,7 @@
 /** Fila de auditoría al guardar mantención / inspección (coincide con Prisma `CarroRegistroHistorial`). */
 export interface CarroRegistroHistorialDto {
-  id: number;
-  carroId: number;
+  id: string;
+  carroId: string;
   creadoEn: string;
   ultimoMantenimiento: string | null;
   proximoMantenimiento: string | null;
@@ -16,5 +16,5 @@ export interface CarroRegistroHistorialDto {
 
 /** Respuesta de `GET /api/carros/historial-general` (registro + unidad). */
 export interface CarroHistorialGeneralFila extends CarroRegistroHistorialDto {
-  carro: { id: number; nomenclatura: string; nombre: string | null; patente: string | null };
+  carro: { id: string; nomenclatura: string; nombre: string | null; patente: string | null };
 }

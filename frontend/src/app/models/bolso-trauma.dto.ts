@@ -1,70 +1,52 @@
-import type { EstadoChecklist } from './checklist.dto';
-
-export interface BolsoTraumaItemDto {
-  numero: number;
-  completitud: number;
-  itemsFaltantes: number;
-  status: 'complete' | 'incomplete';
-  estadoChecklist?: EstadoChecklist;
+export interface BolsoTraumaDTO {
+  id: string; // UUID
+  tipoId: number;
+  carroId: string; // UUID referenciando al Carro
+  nombreIdentificador: string;
+  activo: number; // 1 o 0
 }
 
-export interface BolsoTraumaSelectorUnidadDto {
-  id: number;
+export interface CrearBolsoTraumaDTO {
+  tipoId: number;
+  carroId: string;
+  nombreIdentificador: string;
+}
+export interface BolsoTraumaHistorialDto {
+  id: string | number;
+  fecha: string;
   unidad: string;
-  nombre: string;
-  cantidadBolsos: number;
-  ultimaRevision: {
-    fecha: string;
-    inspector: string | null;
-    obac: string;
-    responsable: string;
-    completado: boolean;
-  } | null;
-  bolsos: BolsoTraumaItemDto[];
+  bolsoNumero?: number;
+  inspector?: string;
+  responsable?: string;
+  grupoGuardia?: string;
+  porcentaje?: number;
+  itemsOk?: number;
+  totalItems?: number;
+  observaciones?: string;
+  estadoChecklist?: string;
+  borrador?: boolean;
+  tipo?: string;
 }
 
 export interface BolsoTraumaRegistroDto {
-  id: number;
-  carroId: number;
-  cuarteleroId: string;
+  id: string | number;
   fecha: string;
-  tipo: string;
-  inspector: string | null;
-  grupoGuardia: string | null;
-  firmaOficial: string | null;
-  firmaInspector?: string | null;
-  observaciones: string | null;
-  totalItems: number | null;
-  itemsOk: number | null;
-  detalle: unknown;
-  estadoChecklist?: EstadoChecklist;
-  carro: { id: number; nomenclatura: string; nombre: string | null };
-  cuartelero: { id: string; nombre: string; rol: string };
+  carro: any;
+  inspector?: string;
+  cuartelero: any;
+  grupoGuardia?: string;
+  observaciones?: string;
+  totalItems?: number;
+  itemsOk?: number;
+  detalle: any;
+  firmaOficial?: string;
+  firmaInspector?: string;
 }
 
-export interface BolsoTraumaUnidadResponseDto {
+export interface BolsoTraumaSelectorUnidadDto {
   unidad: string;
-  carro: { id: number; nomenclatura: string; nombre: string | null };
-  checklist: BolsoTraumaRegistroDto | null;
-}
-
-export interface BolsoTraumaHistorialDto {
-  id: number;
-  fecha: string;
-  /** Coincide con `ChecklistCarro.tipo` (p. ej. TRAUMA). */
-  tipo?: string | null;
-  unidad: string;
-  carroNombre: string | null;
-  inspector: string | null;
-  responsable: string;
-  grupoGuardia: string | null;
-  totalItems: number | null;
-  itemsOk: number | null;
-  porcentaje: number | null;
-  observaciones: string | null;
-  /** Número de bolso revisado (metadato en detalle). */
-  bolsoNumero?: number | null;
-  /** true si se guardó como borrador. */
-  borrador?: boolean;
-  estadoChecklist?: EstadoChecklist;
+  nombre: string;
+  cantidadBolsos: number;
+  bolsos: any[];
+  ultimaRevision?: any;
 }
