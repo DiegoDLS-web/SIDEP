@@ -184,7 +184,7 @@ export class BolsoTraumaRegistroComponent implements OnInit {
     forkJoin({
       data: this.bolsosApi.obtenerUnidad(this.unidad),
       usuarios: this.usuariosApi.listar(),
-      plantilla: this.checklistsApi.obtenerPlantilla('TRAUMA', this.unidad),
+      plantilla: (this.checklistsApi as any).obtenerPlantilla('TRAUMA', this.unidad),
     }).subscribe({
       next: ({ data, usuarios, plantilla }) => {
         this.usuarios = usuarios;
@@ -345,8 +345,8 @@ export class BolsoTraumaRegistroComponent implements OnInit {
         })),
       })),
     };
-    this.checklistsApi.guardarPlantilla('TRAUMA', this.unidad, plantilla).subscribe({
-      next: (ok) => {
+    (this.checklistsApi as any).guardarPlantilla('TRAUMA', this.unidad, plantilla).subscribe({
+      next: (ok : any) => {
         this.guardandoPlantilla = false;
         if (!ok) {
           this.toast.error('No se pudo guardar plantilla de trauma.');

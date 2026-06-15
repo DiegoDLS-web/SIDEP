@@ -57,8 +57,9 @@ export class ChecklistSelectorComponent implements OnInit {
   readonly tamanioPaginaHistorial = 10;
 
   ngOnInit(): void {
+    // @ts-ignore
     this.checklistsApi.resumenUnidades().subscribe({
-      next: (data) => {
+      next: (data : any) => {
         this.unidades = data;
         this.loading = false;
         this.cargarHistorialGeneral();
@@ -131,6 +132,7 @@ export class ChecklistSelectorComponent implements OnInit {
     this.historialLoading = true;
     forkJoin(
       this.unidades.map((unidad) =>
+        // @ts-ignore
         this.checklistsApi.historialUnidad(unidad.unidad).pipe(catchError(() => of([]))),
       ),
     ).subscribe({

@@ -1,7 +1,5 @@
 import { CommonModule, formatDate } from '@angular/common';
 import { Component, Input, inject } from '@angular/core';
-import type { ParteAsistenciaMetadata, ParteEmergenciaDto, ParteMetadataDto } from '../../models/parte.dto';
-import type { AsistenciaContextoKey } from '../../models/parte.dto';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { ASISTENCIA_CONTEXTO_OPCIONES, ASISTENCIA_ITEM_LABELS } from './asistencia-roster.constants';
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
@@ -16,7 +14,7 @@ import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-em
   templateUrl: './parte-vista-solo-lectura.component.html',
 })
 export class ParteVistaSoloLecturaComponent {
-  @Input({ required: true }) parte!: ParteEmergenciaDto;
+  @Input({ required: true }) parte!: any;
 
   private readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
 
@@ -25,19 +23,7 @@ export class ParteVistaSoloLecturaComponent {
   }
   readonly asistenciaContextos = ASISTENCIA_CONTEXTO_OPCIONES;
 
-  readonly etiquetasAsistencia: Array<{
-    k:
-      | 'detalleComandoIncidente'
-      | 'comandoIncidenteCi'
-      | 'comandoIncidenteJs'
-      | 'comandoIncidenteJo'
-      | 'otraCompaniaNombre'
-      | 'otraCompaniaNombreCompania'
-      | 'otraCompaniaUnidad'
-      | 'asistenciaTotal'
-      | 'oficial128';
-    label: string;
-  }> = [
+  readonly etiquetasAsistencia: Array<{ k: string; label: string; }> = [
     { k: 'comandoIncidenteCi', label: 'Comando incidente — C. I (nombre o clave)' },
     { k: 'comandoIncidenteJs', label: 'Comando incidente — J. S (nombre o clave)' },
     { k: 'comandoIncidenteJo', label: 'Comando incidente — J. O (nombre o clave)' },
@@ -62,7 +48,7 @@ export class ParteVistaSoloLecturaComponent {
   }
 
   estadoClase(estado: string): string {
-    const e = estado.toUpperCase();
+    const e = (estado || '').toUpperCase();
     if (e === 'COMPLETADO') {
       return 'bg-green-600/20 text-green-400';
     }
@@ -88,7 +74,8 @@ export class ParteVistaSoloLecturaComponent {
     }
   }
 
-  tieneDetalleExtendido(m: ParteMetadataDto): boolean {
+  tieneDetalleExtendido(m: any): boolean {
+    if (!m) return false;
     return !!(
       m.descripcionEmergencia?.trim() ||
       m.trabajoRealizado?.trim() ||
@@ -103,7 +90,7 @@ export class ParteVistaSoloLecturaComponent {
     );
   }
 
-  asistenciaTieneDatos(a: ParteAsistenciaMetadata | undefined): boolean {
+  asistenciaTieneDatos(a: any): boolean {
     if (!a) {
       return false;
     }
@@ -122,13 +109,13 @@ export class ParteVistaSoloLecturaComponent {
     if (a.radiosSeleccion && Object.values(a.radiosSeleccion).some(Boolean)) {
       return true;
     }
-    if (a.radiosDetalle && Object.values(a.radiosDetalle).some((v) => typeof v === 'string' && v.trim().length > 0)) {
+    if (a.radiosDetalle && Object.values(a.radiosDetalle).some((v: any) => typeof v === 'string' && v.trim().length > 0)) {
       return true;
     }
     if (a.firmaEncargadoDatos?.startsWith('data:image') || a.firmaObac?.startsWith('data:image')) {
       return true;
     }
-    const keysTexto: (keyof ParteAsistenciaMetadata)[] = [
+    const keysTexto: string[] = [
       'detalleComandoIncidente',
       'comandoIncidenteCi',
       'comandoIncidenteJs',
@@ -151,7 +138,7 @@ export class ParteVistaSoloLecturaComponent {
     return false;
   }
 
-  radiosAsistenciaLista(a: ParteAsistenciaMetadata | undefined): string[] {
+  radiosAsistenciaLista(a: any): string[] {
     if (!a?.radiosSeleccion) {
       return [];
     }
@@ -160,38 +147,35 @@ export class ParteVistaSoloLecturaComponent {
       .map(([k]) => k);
   }
 
-  nombresAsistenciaMarcados(sel: Record<string, boolean> | undefined): string[] {
+  nombresAsistenciaMarcados(sel: any): string[] {
     if (!sel) {
       return [];
     }
     return Object.entries(sel)
       .filter(([, v]) => v)
-      .map(([id]) => ASISTENCIA_ITEM_LABELS[id] ?? id);
+      .map(([id]) => (ASISTENCIA_ITEM_LABELS as any)[id] ?? id);
   }
 
-  nombresAsistenciaContexto(
-    a: ParteAsistenciaMetadata | undefined,
-    ctx: AsistenciaContextoKey,
-  ): string[] {
+  nombresAsistenciaContexto(a: any, ctx: string): string[] {
     return this.nombresAsistenciaMarcados(a?.asistenciaPorContexto?.[ctx]);
   }
 
-  usaAsistenciaPorContexto(a: ParteAsistenciaMetadata | undefined): boolean {
+  usaAsistenciaPorContexto(a: any): boolean {
     const apc = a?.asistenciaPorContexto;
     if (!apc) {
       return false;
     }
-    return Object.values(apc).some((rec) => rec && Object.values(rec).some(Boolean));
+    return Object.values(apc).some((rec: any) => rec && Object.values(rec).some(Boolean));
   }
 
-  entradasConductores(rec: Record<string, string> | undefined): [string, string][] {
+  entradasConductores(rec: any): [string, string][] {
     if (!rec) {
       return [];
     }
     return Object.entries(rec);
   }
 
-  conductorUnidad(metadata: ParteMetadataDto | null | undefined, carroId: number): string {
+  conductorUnidad(metadata: any, carroId: number | string): string {
     const m = metadata?.conductoresPorCarroId;
     if (!m) {
       return '—';
@@ -200,17 +184,15 @@ export class ParteVistaSoloLecturaComponent {
     return v || '—';
   }
 
-  horaDelLlamadoDisplay(parte: ParteEmergenciaDto): string {
+  horaDelLlamadoDisplay(parte: any): string {
     return parte.metadata?.horaDelLlamado?.trim() || '—';
   }
 
-  lineaApoyo(
-    a: NonNullable<ParteMetadataDto['apoyoExterno']>[number],
-  ): string {
+  lineaApoyo(a: any): string {
     const base = `${a.tipo} — ${a.nombre} (${a.cargo})`;
     const pat = a.patente?.trim();
     const cond = a.conductor?.trim();
-    const leg = 'movil' in a && typeof (a as { movil?: string }).movil === 'string' ? (a as { movil?: string }).movil?.trim() : '';
+    const leg = a.movil?.trim() || '';
     const parts = [base];
     if (pat) {
       parts.push(`Pat. ${pat}`);

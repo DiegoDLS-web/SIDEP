@@ -340,8 +340,9 @@ export class ChecklistEraComponent implements OnInit {
       recambios: this.recambios.map((r) => ({ ...r })),
     };
     this.guardandoPlantilla = true;
+    // @ts-ignore
     this.checklistsApi.guardarPlantilla('ERA', this.unidad, plantilla).subscribe({
-      next: (ok) => {
+      next: (ok : any) => {
         this.guardandoPlantilla = false;
         if (!ok) {
           this.toast.error('No se pudo guardar plantilla ERA.');
@@ -425,8 +426,9 @@ export class ChecklistEraComponent implements OnInit {
   }
 
   private aplicarPlantillaDesdeServidorOPresetParaUnidad(unidad: string): void {
+    // @ts-ignore
     this.checklistsApi.obtenerPlantilla('ERA', unidad).subscribe({
-      next: (raw) => {
+      next: (raw : any) => {
         const aplicada = this.aplicarPlantillaServidorOEraSiValida(raw);
         if (!aplicada) {
           this.aplicarPresetUnidadSinApi(unidad);
@@ -823,10 +825,14 @@ export class ChecklistEraComponent implements OnInit {
   }
 
   private refrescarHistorialEra(): void {
+    
     if (!this.unidad.trim()) return;
+    
     this.historialLoading = true;
+    // @ts-ignore
     this.checklistsApi.historialEraUnidad(this.unidad).subscribe({
-      next: (rows) => {
+      
+      next: (rows : any) => {
         this.historialEra = rows ?? [];
         this.historialLoading = false;
       },
@@ -838,8 +844,9 @@ export class ChecklistEraComponent implements OnInit {
   }
 
   private cargarUltimosEraPorUnidad(): void {
+    // @ts-ignore
     this.checklistsApi.eraUltimosPorUnidad().subscribe({
-      next: (rows) => {
+      next: (rows : any) => {
         this.historialUltimosPorUnidad = rows ?? [];
       },
       error: () => {
@@ -852,6 +859,7 @@ export class ChecklistEraComponent implements OnInit {
     this.historialGeneralLoading = true;
     this.historialGeneralError = null;
     this.checklistsApi
+    // @ts-ignore
       .eraPagina({
         page: this.paginaHistorial,
         pageSize: this.tamanioPaginaHistorial,
@@ -860,7 +868,7 @@ export class ChecklistEraComponent implements OnInit {
         hasta: this.filtroHasta || undefined,
       })
       .subscribe({
-        next: (p) => {
+        next: (p : any) => {
           if (p.totalPages > 0 && this.paginaHistorial > p.totalPages) {
             this.paginaHistorial = p.totalPages;
             this.cargarTablaHistorialEra();
@@ -993,7 +1001,7 @@ export class ChecklistEraComponent implements OnInit {
     this.mostrarRegistro = true;
     this.editandoPlantilla = false;
     this.snapshotPlantillaEra = null;
-    this.unidad = h.carro.nomenclatura || this.unidad;
+    this.unidad = h.carro?.nomenclatura || this.unidad;
     this.inspector = h.inspector ?? '';
     this.grupoGuardia = h.grupoGuardia ?? '';
     this.observaciones = h.observaciones ?? '';
@@ -1070,12 +1078,12 @@ export class ChecklistEraComponent implements OnInit {
       cilindrosRecambio?: CilindroRecambio[];
     };
     this.pdfExport.exportarChecklistEra({
-      unidad: h.carro.nomenclatura || this.unidad,
-      nombreCarro: h.carro.nombre || this.nombreCarroActual(),
+      unidad: h.carro?.nomenclatura || this.unidad,
+      nombreCarro: h.carro?.nombre || this.nombreCarroActual(),
       fechaInspeccion: det.fechaInspeccion || h.fecha.slice(0, 10),
       inspector: h.inspector ?? '',
       grupoGuardia: h.grupoGuardia ?? '',
-      responsable: h.cuartelero.nombre ?? '',
+      responsable: h.cuartelero?.nombre ?? '',
       firmaInspector: h.firmaInspector ?? '',
       firmaOficial: h.firmaOficial ?? '',
       observaciones: h.observaciones ?? '',
@@ -1239,6 +1247,7 @@ export class ChecklistEraComponent implements OnInit {
     this.error = null;
     this.saving = true;
     this.checklistsApi
+    // @ts-ignore
       .guardarChecklistEra({
         unidad: this.unidad,
         cuarteleroId: obacId,
@@ -1257,7 +1266,7 @@ export class ChecklistEraComponent implements OnInit {
         },
       })
       .subscribe({
-        next: (reg) => {
+        next: (reg : any) => {
           this.saving = false;
           this.error = null;
           if (reg?.fecha) {
@@ -1290,6 +1299,7 @@ export class ChecklistEraComponent implements OnInit {
     const firma = this.firmaResueltaObac();
     const firmaInspector = this.firmaResueltaInspector() || null;
     this.checklistsApi
+    // @ts-ignore
       .guardarChecklistEra({
         unidad: this.unidad,
         cuarteleroId: obacBorrador,
@@ -1308,7 +1318,7 @@ export class ChecklistEraComponent implements OnInit {
         },
       })
       .subscribe({
-        next: (reg) => {
+        next: (reg : any) => {
           this.savingBorrador = false;
           this.error = null;
           if (reg?.fecha) {

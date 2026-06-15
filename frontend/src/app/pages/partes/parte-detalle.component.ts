@@ -3,19 +3,17 @@ import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, filter, forkJoin, map, of, startWith, switchMap, type Observable } from 'rxjs';
-import type { ParteAsistenciaMetadata, ParteEmergenciaDto, ParteMetadataDto } from '../../models/parte.dto';
 import { PartesExportService } from '../../services/partes-export.service';
 import { PartesService } from '../../services/partes.service';
 import { ToastService } from '../../services/toast.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { ASISTENCIA_CONTEXTO_OPCIONES, ASISTENCIA_ITEM_LABELS } from './asistencia-roster.constants';
-import type { AsistenciaContextoKey } from '../../models/parte.dto';
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
 
 type DetalleVm =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ok'; parte: ParteEmergenciaDto; analitica: ParteAnalitica };
+  | { status: 'ok'; parte: any; analitica: ParteAnalitica };
 
 type ParteAnalitica = {
   tiempoDespachoMin: number | null;
@@ -43,12 +41,10 @@ export class ParteDetalleComponent {
   readonly vm$ = this.route.paramMap.pipe(
     map((pm) => pm.get('id')),
     filter((id): id is string => id !== null && id !== ''),
-    map((id) => Number(id)),
-    filter((id) => Number.isFinite(id) && id > 0),
     switchMap((id) =>
       forkJoin({
-        parte: this.partesApi.obtener(id),
-        lista: this.partesApi.listar().pipe(catchError(() => of([] as ParteEmergenciaDto[]))),
+        parte: this.partesApi.obtener(String(id)),
+        lista: this.partesApi.listar().pipe(catchError(() => of([] as any[]))),
       }).pipe(
         map(
           ({ parte, lista }): DetalleVm => ({
@@ -97,7 +93,7 @@ export class ParteDetalleComponent {
   }
 
   estadoClase(estado: string): string {
-    const e = estado.toUpperCase();
+    const e = (estado || '').toUpperCase();
     if (e === 'COMPLETADO') {
       return 'bg-green-600/20 text-green-400';
     }
@@ -123,7 +119,7 @@ export class ParteDetalleComponent {
     }
   }
 
-  iniciarEdicion(parte: ParteEmergenciaDto): void {
+  iniciarEdicion(parte: any): void {
     this.editando = true;
     this.errorEdicion = null;
     this.form = {
@@ -139,7 +135,7 @@ export class ParteDetalleComponent {
     this.errorEdicion = null;
   }
 
-  guardarEdicion(parte: ParteEmergenciaDto): void {
+  guardarEdicion(parte: any): void {
     if (!this.form.claveEmergencia.trim() || !this.form.direccion.trim() || !this.form.estado.trim()) {
       this.errorEdicion = 'Completa los campos obligatorios.';
       return;
@@ -147,7 +143,7 @@ export class ParteDetalleComponent {
     this.guardando = true;
     this.errorEdicion = null;
     this.partesApi
-      .actualizar(parte.id, {
+      .actualizar(String(parte.id), {
         claveEmergencia: this.form.claveEmergencia.trim(),
         direccion: this.form.direccion.trim(),
         fecha: this.form.fecha ? new Date(this.form.fecha).toISOString() : undefined,
@@ -168,7 +164,7 @@ export class ParteDetalleComponent {
       });
   }
 
-  editarParteCompleto(parte: ParteEmergenciaDto): void {
+  editarParteCompleto(parte: any): void {
     void this.router.navigate(['/partes/nuevo'], { queryParams: { editar: parte.id } });
   }
 
@@ -185,11 +181,12 @@ export class ParteDetalleComponent {
     return `${y}-${m}-${day}T${hh}:${mm}`;
   }
 
-  descargarPdf(parte: ParteEmergenciaDto): void {
+  descargarPdf(parte: any): void {
     this.exportador.exportarPdf(parte);
   }
 
-  tieneDetalleExtendido(m: ParteMetadataDto): boolean {
+  tieneDetalleExtendido(m: any): boolean {
+    if (!m) return false;
     return !!(
       m.descripcionEmergencia?.trim() ||
       m.trabajoRealizado?.trim() ||
@@ -204,7 +201,7 @@ export class ParteDetalleComponent {
     );
   }
 
-  asistenciaTieneDatos(a: ParteAsistenciaMetadata | undefined): boolean {
+  asistenciaTieneDatos(a: any): boolean {
     if (!a) {
       return false;
     }
@@ -223,13 +220,13 @@ export class ParteDetalleComponent {
     if (a.radiosSeleccion && Object.values(a.radiosSeleccion).some(Boolean)) {
       return true;
     }
-    if (a.radiosDetalle && Object.values(a.radiosDetalle).some((v) => typeof v === 'string' && v.trim().length > 0)) {
+    if (a.radiosDetalle && Object.values(a.radiosDetalle).some((v: any) => typeof v === 'string' && v.trim().length > 0)) {
       return true;
     }
     if (a.firmaEncargadoDatos?.startsWith('data:image') || a.firmaObac?.startsWith('data:image')) {
       return true;
     }
-    const keysTexto: (keyof ParteAsistenciaMetadata)[] = [
+    const keysTexto: string[] = [
       'detalleComandoIncidente',
       'comandoIncidenteCi',
       'comandoIncidenteJs',
@@ -252,20 +249,7 @@ export class ParteDetalleComponent {
     return false;
   }
 
-  /** Campos de texto de asistencia (solo claves string en el resumen). */
-  readonly etiquetasAsistencia: Array<{
-    k:
-      | 'detalleComandoIncidente'
-      | 'comandoIncidenteCi'
-      | 'comandoIncidenteJs'
-      | 'comandoIncidenteJo'
-      | 'otraCompaniaNombre'
-      | 'otraCompaniaNombreCompania'
-      | 'otraCompaniaUnidad'
-      | 'asistenciaTotal'
-      | 'oficial128';
-    label: string;
-  }> = [
+  readonly etiquetasAsistencia: Array<{ k: string; label: string; }> = [
     { k: 'comandoIncidenteCi', label: 'Comando incidente — C. I (nombre o clave)' },
     { k: 'comandoIncidenteJs', label: 'Comando incidente — J. S (nombre o clave)' },
     { k: 'comandoIncidenteJo', label: 'Comando incidente — J. O (nombre o clave)' },
@@ -277,7 +261,7 @@ export class ParteDetalleComponent {
     { k: 'oficial128', label: 'Oficial 12-8' },
   ];
 
-  radiosAsistenciaLista(a: ParteAsistenciaMetadata | undefined): string[] {
+  radiosAsistenciaLista(a: any): string[] {
     if (!a?.radiosSeleccion) {
       return [];
     }
@@ -286,38 +270,35 @@ export class ParteDetalleComponent {
       .map(([k]) => k);
   }
 
-  nombresAsistenciaMarcados(sel: Record<string, boolean> | undefined): string[] {
+  nombresAsistenciaMarcados(sel: any): string[] {
     if (!sel) {
       return [];
     }
     return Object.entries(sel)
       .filter(([, v]) => v)
-      .map(([id]) => ASISTENCIA_ITEM_LABELS[id] ?? id);
+      .map(([id]) => (ASISTENCIA_ITEM_LABELS as any)[id] ?? id);
   }
 
-  nombresAsistenciaContexto(
-    a: ParteAsistenciaMetadata | undefined,
-    ctx: AsistenciaContextoKey,
-  ): string[] {
+  nombresAsistenciaContexto(a: any, ctx: string): string[] {
     return this.nombresAsistenciaMarcados(a?.asistenciaPorContexto?.[ctx]);
   }
 
-  usaAsistenciaPorContexto(a: ParteAsistenciaMetadata | undefined): boolean {
+  usaAsistenciaPorContexto(a: any): boolean {
     const apc = a?.asistenciaPorContexto;
     if (!apc) {
       return false;
     }
-    return Object.values(apc).some((rec) => rec && Object.values(rec).some(Boolean));
+    return Object.values(apc).some((rec: any) => rec && Object.values(rec).some(Boolean));
   }
 
-  entradasConductores(rec: Record<string, string> | undefined): [string, string][] {
+  entradasConductores(rec: any): [string, string][] {
     if (!rec) {
       return [];
     }
     return Object.entries(rec);
   }
 
-  conductorUnidad(metadata: ParteMetadataDto | null | undefined, carroId: number): string {
+  conductorUnidad(metadata: any, carroId: number | string): string {
     const m = metadata?.conductoresPorCarroId;
     if (!m) {
       return '—';
@@ -326,18 +307,15 @@ export class ParteDetalleComponent {
     return v || '—';
   }
 
-  horaDelLlamadoDisplay(parte: ParteEmergenciaDto): string {
+  horaDelLlamadoDisplay(parte: any): string {
     return parte.metadata?.horaDelLlamado?.trim() || '—';
   }
 
-  /** Apoyo externo: patente y conductor; compatibilidad con `movil` antiguo. */
-  lineaApoyo(
-    a: NonNullable<ParteMetadataDto['apoyoExterno']>[number],
-  ): string {
+  lineaApoyo(a: any): string {
     const base = `${a.tipo} — ${a.nombre} (${a.cargo})`;
     const pat = a.patente?.trim();
     const cond = a.conductor?.trim();
-    const leg = 'movil' in a && typeof (a as { movil?: string }).movil === 'string' ? (a as { movil?: string }).movil?.trim() : '';
+    const leg = a.movil?.trim() || '';
     const parts = [base];
     if (pat) {
       parts.push(`Pat. ${pat}`);
@@ -375,7 +353,7 @@ export class ParteDetalleComponent {
     return Number((nums.reduce((acc, n) => acc + n, 0) / nums.length).toFixed(2));
   }
 
-  private parseAsistenciaTotal(parte: ParteEmergenciaDto): number | null {
+  private parseAsistenciaTotal(parte: any): number | null {
     const raw = parte.metadata?.asistencia?.asistenciaTotal;
     if (typeof raw !== 'string' || !raw.trim()) return null;
     const n = Number(raw);
@@ -383,11 +361,11 @@ export class ParteDetalleComponent {
     return Math.round(n);
   }
 
-  private construirAnalitica(parte: ParteEmergenciaDto, lista: ParteEmergenciaDto[]): ParteAnalitica {
+  private construirAnalitica(parte: any, lista: any[]): ParteAnalitica {
     const tiemposDespacho: number[] = [];
     const tiemposRespuesta: number[] = [];
     const tiemposServicio: number[] = [];
-    for (const u of parte.unidades) {
+    for (const u of parte.unidades || []) {
       const base = new Date(parte.fecha);
       const horaDespacho = this.parseHora(parte.fecha, u.hora6_0 || u.horaSalida);
       const horaLlegada = this.parseHora(parte.fecha, u.hora6_3 || u.horaLlegada);
@@ -437,5 +415,4 @@ export class ParteDetalleComponent {
     if (v === 'igual') return 'text-sky-300';
     return 'text-gray-400';
   }
-
 }

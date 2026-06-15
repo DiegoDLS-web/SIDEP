@@ -55,7 +55,6 @@ export class CarrosPageComponent {
   private readonly pdfExport = inject(PdfExportService);
   private readonly toast = inject(ToastService);
 
-  /** Si el backend no trae `imagenUrl`, usamos la foto local conocida por unidad. */
   private readonly imagenPorNomenclatura: Record<string, string> = {
     'B-1': this.assetUrl('assets/carros/b1.png'),
     'BX-1': this.assetUrl('assets/carros/bx1.png'),
@@ -66,25 +65,23 @@ export class CarrosPageComponent {
     'https://images.unsplash.com/photo-1588662880295-13d2b28127c6?w=1080&q=80&fm=jpg';
   readonly splitFh = splitFechaHoraEsCl;
 
-  /** Para selector de conductor en mantención (misma lista que partes). */
   usuariosConductoresAutorizados: UsuarioListaDto[] = [];
 
   editando = false;
   guardando = false;
   mensajeEdicion = '';
   errorValidacion: string | null = null;
-  /** Solo en vista lista: historial global de mantenciones. */
   historialGeneralFilas: CarroHistorialGeneralFila[] = [];
   historialGeneralLoading = false;
-  /** Visor modal solo lectura desde historial global. */
   historialGeneralVistaFila: CarroHistorialGeneralFila | null = null;
-  filtroUnidadHistorial: number | 'TODAS' = 'TODAS';
+  
+  filtroUnidadHistorial: string | 'TODAS' = 'TODAS';
   filtroHistorialDesde = '';
   filtroHistorialHasta = '';
-  /** Filtro local sobre inspector tras cargar el historial. */
   filtroInspectorHistorial = '';
   paginaHistorialGeneral = 1;
   readonly tamanioPaginaHistorialGeneral = 10;
+  
   readonly editForm: {
     ultimoConductor: string;
     ultimoMantenimiento: string;
@@ -159,7 +156,7 @@ export class CarrosPageComponent {
 
   cargarHistorialGeneral(): void {
     this.historialGeneralLoading = true;
-    const f: { carroId?: number; desde?: string; hasta?: string } = {};
+    const f: { carroId?: string; desde?: string; hasta?: string } = {};
     if (this.filtroUnidadHistorial !== 'TODAS') {
       f.carroId = this.filtroUnidadHistorial;
     }
@@ -211,10 +208,6 @@ export class CarrosPageComponent {
     return filas.slice(i, i + this.tamanioPaginaHistorialGeneral);
   }
 
-  aplicarFiltroInspectorHistorial(): void {
-    this.paginaHistorialGeneral = 1;
-  }
-
   exportarHistorialGeneralExcel(): void {
     const filas = this.historialGeneralFiltrado();
     if (filas.length === 0) return;
@@ -256,8 +249,8 @@ export class CarrosPageComponent {
     this.paginaHistorialGeneral = Math.min(Math.max(next, 1), total);
   }
 
-  irADetalleCarro(carroId: number): void {
-    void this.router.navigate(['/carros', carroId]);
+  irADetalleCarro(carroId: string | number): void {
+    void this.router.navigate(['/carros', String(carroId)]);
   }
 
   abrirVistaHistorialGeneral(row: CarroHistorialGeneralFila): void {
@@ -275,7 +268,7 @@ export class CarrosPageComponent {
   pdfHistorialGeneral(row: CarroHistorialGeneralFila): void {
     this.pdfExport.exportarRegistroHistorialCarro({
       nomenclatura: row.carro.nomenclatura,
-      patente: row.carro.patente,
+      patente: row.carro.patente ?? '',
       nombreUnidad: row.carro.nombre,
       registro: row,
     });
@@ -293,12 +286,9 @@ export class CarrosPageComponent {
     return c.nombre?.trim() || `Unidad ${c.nomenclatura}`;
   }
 
-  /** Valor de mantención previo que no está en la lista de autorizados. */
   ultimoConductorLegadoNoEnLista(): boolean {
     const cur = this.editForm.ultimoConductor?.trim();
-    if (!cur) {
-      return false;
-    }
+    if (!cur) return false;
     return !this.usuariosConductoresAutorizados.some((u) => u.nombre.trim() === cur);
   }
 
@@ -312,9 +302,7 @@ export class CarrosPageComponent {
 
   onImageError(event: Event, c: CarroDto): void {
     const img = event.target as HTMLImageElement | null;
-    if (!img) {
-      return;
-    }
+    if (!img) return;
     const fallbackUnidad = this.imagenPorNomenclatura[c.nomenclatura];
     if (fallbackUnidad && !img.src.includes(fallbackUnidad)) {
       img.src = fallbackUnidad;
@@ -330,22 +318,12 @@ export class CarrosPageComponent {
     if (limpio.startsWith('http://') || limpio.startsWith('https://') || limpio.startsWith('data:image')) {
       return limpio;
     }
-    if (limpio.startsWith('/assets/')) {
-      return this.assetUrl(limpio.slice(1));
-    }
+    if (limpio.startsWith('/assets/')) return this.assetUrl(limpio.slice(1));
     const idxAssets = limpio.toLowerCase().indexOf('/assets/');
-    if (idxAssets >= 0) {
-      return this.assetUrl(limpio.slice(idxAssets + 1));
-    }
-    if (limpio.startsWith('assets/')) {
-      return this.assetUrl(limpio);
-    }
-    if (limpio.startsWith('/')) {
-      return limpio;
-    }
-    if (limpio.includes('/')) {
-      return limpio;
-    }
+    if (idxAssets >= 0) return this.assetUrl(limpio.slice(idxAssets + 1));
+    if (limpio.startsWith('assets/')) return this.assetUrl(limpio);
+    if (limpio.startsWith('/')) return limpio;
+    if (limpio.includes('/')) return limpio;
     return this.imagenPorNomenclatura[nomenclatura] ?? this.imagenFallback;
   }
 
@@ -353,13 +331,8 @@ export class CarrosPageComponent {
     return new URL(path, document.baseURI).toString();
   }
 
-  /**
-   * Algunos despliegues devuelven el carro sin campos de mantención en el GET de detalle;
-   * el último snapshot de `historial-general` sí los tiene. Rellena solo huecos (no pisa datos).
-   */
   private hidratarDetalleDesdeHistorialSiFalta(carro: CarroDto): Observable<CarroDto> {
     const t = (v: string | null | undefined) => (v ?? '').trim();
-    /** Evita llamadas si el GET ya trajo el núcleo; el historial rellena huecos típicos del detalle incompleto. */
     const incompleto =
       !t(carro.ultimoMantenimiento) ||
       !t(carro.proximoMantenimiento) ||
@@ -367,26 +340,19 @@ export class CarrosPageComponent {
       !t(carro.ultimoInspector ?? '') ||
       !t(carro.firmaUltimoInspector ?? '') ||
       !t(carro.fechaUltimaInspeccion ?? '');
-    if (!incompleto) {
-      return of(carro);
-    }
+    if (!incompleto) return of(carro);
+    
     return this.carrosApi.historialGeneral({ carroId: carro.id }).pipe(
       map((rows): CarroDto => {
         const snap = rows[0];
-        if (!snap) {
-          return carro;
-        }
+        if (!snap) return carro;
         const out: CarroDto = { ...carro };
         const pegarSiHueco = (campo: keyof CarroHistorialGeneralFila): void => {
           const valorSnap = snap[campo];
-          if (valorSnap == null || String(valorSnap).trim() === '') {
-            return;
-          }
+          if (valorSnap == null || String(valorSnap).trim() === '') return;
           const claveDto = campo as keyof CarroDto;
           const actual = out[claveDto];
-          if (actual != null && String(actual).trim() !== '') {
-            return;
-          }
+          if (actual != null && String(actual).trim() !== '') return;
           (out as unknown as Record<string, unknown>)[claveDto as string] = valorSnap;
         };
         pegarSiHueco('ultimoMantenimiento');
@@ -403,7 +369,6 @@ export class CarrosPageComponent {
     );
   }
 
-  /** Firma guardada como PNG en base64 (data URL). */
   esFirmaImagen(val: string | null | undefined): boolean {
     return !!val?.trim().startsWith('data:image');
   }
@@ -419,11 +384,11 @@ export class CarrosPageComponent {
 
   descargarPdfRegistroActual(carro: CarroDto): void {
     const registro: CarroRegistroHistorialDto = {
-      id: 0,
+      id: '0',
       carroId: carro.id,
       creadoEn: new Date().toISOString(),
-      ultimoMantenimiento: carro.ultimoMantenimiento,
-      proximoMantenimiento: carro.proximoMantenimiento,
+      ultimoMantenimiento: carro.ultimoMantenimiento ?? null,
+      proximoMantenimiento: carro.proximoMantenimiento ?? null,
       proximaRevisionTecnica: carro.proximaRevisionTecnica ?? null,
       ultimaRevisionBombaAgua: carro.ultimaRevisionBombaAgua ?? null,
       descripcionUltimoMantenimiento: carro.descripcionUltimoMantenimiento ?? null,
@@ -436,40 +401,29 @@ export class CarrosPageComponent {
   }
 
   estadoEtiqueta(c: CarroDto): string {
-    return c.estadoOperativo ? 'Operativo' : 'En Mantenimiento';
+    return c.estadoOperativo === 1 ? 'Operativo' : 'En Mantenimiento';
   }
 
   estadoClaseTexto(c: CarroDto): string {
-    return c.estadoOperativo ? 'text-green-500' : 'text-yellow-500';
+    return c.estadoOperativo === 1 ? 'text-green-500' : 'text-yellow-500';
   }
 
   kmTexto(km: number | null): string {
-    if (km == null) {
-      return '—';
-    }
+    if (km == null) return '—';
     return `${new Intl.NumberFormat('es-CL').format(km)} km`;
   }
 
   fechaCorta(iso: string | null): string {
-    if (!iso) {
-      return '—';
-    }
+    if (!iso) return '—';
     const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) {
-      return '—';
-    }
+    if (Number.isNaN(d.getTime())) return '—';
     return formatDate(d, 'dd/MM/yyyy', 'es-CL');
   }
 
-  /** Fecha formateada o texto visible cuando no hay dato (evita confundir con “huecos” en tema oscuro). */
   fechaMantenimiento(iso: string | null | undefined, sinDato = 'Sin registrar'): string {
-    if (iso == null || String(iso).trim() === '') {
-      return sinDato;
-    }
+    if (iso == null || String(iso).trim() === '') return sinDato;
     const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) {
-      return sinDato;
-    }
+    if (Number.isNaN(d.getTime())) return sinDato;
     return formatDate(d, 'dd/MM/yyyy', 'es-CL');
   }
 
@@ -479,13 +433,9 @@ export class CarrosPageComponent {
   }
 
   fechaHora(iso: string | null): string {
-    if (!iso) {
-      return '—';
-    }
+    if (!iso) return '—';
     const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) {
-      return '—';
-    }
+    if (Number.isNaN(d.getTime())) return '—';
     return formatDate(d, 'dd/MM/yyyy HH:mm', 'es-CL');
   }
 
@@ -498,33 +448,15 @@ export class CarrosPageComponent {
 
   private validarRegistroMantenimiento(): string | null {
     const f = this.editForm;
-    if (!f.ultimoConductor.trim()) {
-      return 'El último conductor es obligatorio.';
-    }
-    if (!f.ultimoMantenimiento) {
-      return 'La fecha de último mantenimiento es obligatoria.';
-    }
-    if (!f.proximoMantenimiento) {
-      return 'La fecha de próximo mantenimiento es obligatoria.';
-    }
-    if (!f.proximaRevisionTecnica) {
-      return 'La fecha de próxima revisión técnica es obligatoria.';
-    }
-    if (!f.ultimaRevisionBombaAgua) {
-      return 'La fecha de última revisión de bomba de agua es obligatoria.';
-    }
-    if (!f.descripcionUltimoMantenimiento.trim()) {
-      return 'La descripción de la última mantención es obligatoria.';
-    }
-    if (!f.ultimoInspector.trim()) {
-      return 'El último inspector es obligatorio.';
-    }
-    if (!this.esFirmaImagen(f.firmaUltimoInspector)) {
-      return 'La firma del inspector es obligatoria (dibújala en el recuadro).';
-    }
-    if (!f.fechaUltimaInspeccion) {
-      return 'La fecha de inspección es obligatoria.';
-    }
+    if (!f.ultimoConductor.trim()) return 'El último conductor es obligatorio.';
+    if (!f.ultimoMantenimiento) return 'La fecha de último mantenimiento es obligatoria.';
+    if (!f.proximoMantenimiento) return 'La fecha de próximo mantenimiento es obligatoria.';
+    if (!f.proximaRevisionTecnica) return 'La fecha de próxima revisión técnica es obligatoria.';
+    if (!f.ultimaRevisionBombaAgua) return 'La fecha de última revisión de bomba de agua es obligatoria.';
+    if (!f.descripcionUltimoMantenimiento.trim()) return 'La descripción de la última mantención es obligatoria.';
+    if (!f.ultimoInspector.trim()) return 'El último inspector es obligatorio.';
+    if (!this.esFirmaImagen(f.firmaUltimoInspector)) return 'La firma del inspector es obligatoria (dibújala en el recuadro).';
+    if (!f.fechaUltimaInspeccion) return 'La fecha de inspección es obligatoria.';
     return null;
   }
 
@@ -554,7 +486,6 @@ export class CarrosPageComponent {
     if (err) {
       this.errorValidacion = err;
       this.mensajeEdicion = '';
-      this.toast.advertencia(err);
       return;
     }
     this.errorValidacion = null;
@@ -588,12 +519,10 @@ export class CarrosPageComponent {
         this.guardando = false;
         this.editando = false;
         this.mensajeEdicion = 'Datos del carro actualizados correctamente.';
-        this.toast.exito('Datos del carro actualizados correctamente.');
       },
       error: () => {
         this.guardando = false;
         this.mensajeEdicion = 'No se pudo guardar los cambios del carro.';
-        this.toast.error('No se pudo guardar los cambios del carro.');
       },
     });
   }
@@ -626,14 +555,27 @@ export class CarrosPageComponent {
   }
 
   alertaPermisoCirculacion(c: CarroDto): string | null {
-    // Se reutiliza la misma fecha de vencimiento de revisión técnica/permiso.
     return this.textoAlerta(c.proximaRevisionTecnica, 'Permiso de circulación');
   }
 
   stats(carros: CarroDto[]): { total: number; operativas: number; mantenimiento: number } {
     const total = carros.length;
-    const operativas = carros.filter((c) => c.estadoOperativo).length;
+    const operativas = carros.filter((c) => c.estadoOperativo === 1).length;
     return { total, operativas, mantenimiento: total - operativas };
+  }
+
+  toggleEstado(carro: CarroDto): void {
+    const nuevoEstado = carro.estadoOperativo === 1 ? 0 : 1;
+    this.carrosApi.toggleEstado(carro.id, nuevoEstado).subscribe({
+      next: (res: any) => {
+        carro.estadoOperativo = nuevoEstado;
+        alert(`Carro ${carro.nomenclatura} ahora está ${nuevoEstado === 1 ? 'Operativo' : 'Fuera de Servicio'}.`);
+      },
+      error: (err: any) => {
+        alert('Error al cambiar el estado del carro');
+        console.error(err);
+      }
+    });
   }
 
   tarjetasResumenFleet(s: { total: number; operativas: number; mantenimiento: number }): Array<{

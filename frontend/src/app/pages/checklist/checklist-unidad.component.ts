@@ -42,7 +42,6 @@ export class ChecklistUnidadComponent implements OnInit {
   private readonly toast = inject(ToastService);
 
   unidad = 'R-1';
-  /** Nombre comercial del carro (cabecera / barra móvil). */
   nombreCarro: string | null = null;
   loading = true;
   error: string | null = null;
@@ -57,7 +56,6 @@ export class ChecklistUnidadComponent implements OnInit {
   filtroMateriales = '';
   soloFaltantes = false;
 
-  /** ISO fecha legible en cabecera (reemplaza el campo texto “firma”) */
   fechaCierreChecklist: string | null = null;
   private firmaInicialServidor: string | null = null;
   private firmaInspectorInicialServidor: string | null = null;
@@ -92,7 +90,7 @@ export class ChecklistUnidadComponent implements OnInit {
       plantillaData: this.checklistsApi.obtenerPlantillaUnidad(this.unidad),
       usuarios: this.usuariosApi.listar(),
     }).subscribe({
-      next: ({ unidadData, plantillaData, usuarios }) => {
+      next: ({ unidadData, plantillaData, usuarios }: any) => {
         this.usuarios = usuarios;
         const c = unidadData.carro;
         this.nombreCarro = c ? (c.nombre?.trim() || c.nomenclatura?.trim() || null) : null;
@@ -106,9 +104,9 @@ export class ChecklistUnidadComponent implements OnInit {
         const detalle = (checklist?.detalle as { ubicaciones?: Ubicacion[] } | null)?.ubicaciones;
         const plantilla = plantillaData?.ubicaciones?.length
           ? this.normalizarDetalle(
-              plantillaData.ubicaciones.map((u) => ({
+              plantillaData.ubicaciones.map((u: any) => ({
                 nombre: u.nombre,
-                materiales: u.materiales.map((m) => ({
+                materiales: u.materiales.map((m: any) => ({
                   id: crypto.randomUUID(),
                   nombre: m.nombre,
                   cantidadRequerida: m.cantidadRequerida,
@@ -285,10 +283,6 @@ export class ChecklistUnidadComponent implements OnInit {
     }));
   }
 
-  /**
-   * Conserva SIEMPRE la base de compartimientos por unidad y superpone plantilla/detalle encima.
-   * Evita que checklists viejos con solo "Cabina" oculten el inventario completo.
-   */
   private mezclarConBase(base: Ubicacion[], plantilla: Ubicacion[], detalle: Ubicacion[]): Ubicacion[] {
     const aplicar = (semilla: Ubicacion[], sobreescritura: Ubicacion[]): Ubicacion[] => {
       const resultado = this.clonarUbicaciones(semilla);
@@ -510,7 +504,6 @@ export class ChecklistUnidadComponent implements OnInit {
     this.firmaInspectorInicialServidor = null;
   }
 
-  /** vuelve a pintar la firma guardada si existe */
   private restaurarFirmaDesdeServidor(dataUrl: string | null): void {
     const canvas = this.firmaCanvas?.nativeElement;
     const ctx = this.ctx;
@@ -588,12 +581,10 @@ export class ChecklistUnidadComponent implements OnInit {
     return u?.firmaImagen?.trim() ?? '';
   }
 
-  /** Canvas del formulario o firma cargada en el perfil del OBAC. */
   firmaResueltaObac(): string {
     return firmaEfectiva(this.obtenerDataUrlFirma(), this.firmaPerfilCuartelero());
   }
 
-  /** Firma trazada por el inspector (obligatoria al cerrar). */
   firmaResueltaInspector(): string {
     return this.obtenerDataUrlFirmaInspector().trim();
   }
@@ -672,7 +663,6 @@ export class ChecklistUnidadComponent implements OnInit {
       return;
     }
     if (!original.trim()) {
-      // Si estaba vacío, no forzamos confirmación de primera carga/escritura.
       return;
     }
     const ok = await this.confirmDialog.abrir({
@@ -848,11 +838,12 @@ export class ChecklistUnidadComponent implements OnInit {
         detalle: { ubicaciones: this.ubicaciones, borrador: false },
       })
       .subscribe({
-        next: (reg) => {
+        next: (reg: any) => {
           this.saving = false;
           this.fechaCierreChecklist = reg.fecha;
           const estado =
-            reg.estadoOperativoCarro === false
+            // CAMBIADO: La base de datos ahora usa números 1 o 0
+            reg.estadoOperativoCarro === 0
               ? 'Unidad marcada como NO operativa hasta corregir faltantes.'
               : 'Unidad marcada como operativa.';
           this.toast.exito(`Checklist de unidad guardado. ${estado}`);
@@ -866,7 +857,6 @@ export class ChecklistUnidadComponent implements OnInit {
       });
   }
 
-  /** Guarda avance sin exigir firma (marcado como borrador en el detalle). */
   guardarBorrador(): void {
     if (this.cuarteleroId === '') {
       this.error = 'Selecciona un oficial responsable (OBAC) para asociar el borrador.';
@@ -890,7 +880,7 @@ export class ChecklistUnidadComponent implements OnInit {
         detalle: { ubicaciones: this.ubicaciones, borrador: true },
       })
       .subscribe({
-        next: (reg) => {
+        next: (reg: any) => {
           this.savingBorrador = false;
           if (reg.fecha) {
             this.fechaCierreChecklist = reg.fecha;

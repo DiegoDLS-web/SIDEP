@@ -622,7 +622,7 @@
           </p>
           <p><span class="text-gray-500">Inspector:</span> <span class="text-gray-100">{{ hd.inspector || '—' }}</span></p>
           <p><span class="text-gray-500">Guardia:</span> <span class="text-gray-100">{{ hd.grupoGuardia || '—' }}</span></p>
-          <p class="sm:col-span-2"><span class="text-gray-500">OBAC:</span> {{ hd.cuartelero.nombre || '—' }}</p>
+          <p class="sm:col-span-2"><span class="text-gray-500">OBAC:</span> {{ hd.cuartelero?.nombre || '—' }}</p>
           <div class="sm:col-span-2 rounded-xl border border-slate-800/80 bg-[#0a0a0a]/40 p-3">
             <p class="mb-1 text-xs font-medium uppercase text-slate-500">Observaciones</p>
             <p class="whitespace-pre-wrap text-slate-200">{{ hd.observaciones?.trim() || '—' }}</p>

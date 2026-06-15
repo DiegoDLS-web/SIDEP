@@ -925,7 +925,7 @@
                   @let fe = splitFh(h.fecha);
                   <p class="text-sm font-medium text-white">{{ fe.fecha }}</p>
                   <p class="text-xs text-slate-500">{{ fe.hora }}</p>
-                  <p class="font-mono text-sm font-semibold text-white">{{ h.carro.nomenclatura || '—' }}</p>
+                  <p class="font-mono text-sm font-semibold text-white">{{ h.carro?.nomenclatura || '—' }}</p>
                 </div>
                 <span
                   class="sid-status-chip shrink-0"
@@ -941,7 +941,7 @@
                 </div>
                 <div>
                   <p class="text-slate-500">OBAC</p>
-                  <p class="font-semibold text-white">{{ h.cuartelero.nombre || '—' }}</p>
+                  <p class="font-semibold text-white">{{ h.cuartelero?.nombre || '—' }}</p>
                 </div>
                 <div>
                   <p class="text-slate-500">Guardia</p>
@@ -1007,7 +1007,7 @@
                     <p class="font-medium text-white">{{ fem.fecha }}</p>
                     <p class="text-xs text-slate-500">{{ fem.hora }}</p>
                   </td>
-                  <td class="font-mono">{{ h.carro.nomenclatura || '—' }}</td>
+                  <td class="font-mono">{{ h.carro?.nomenclatura || '—' }}</td>
                   <td>
                     <span
                       class="sid-status-chip"
@@ -1017,7 +1017,7 @@
                     </span>
                   </td>
                   <td>{{ h.inspector || '—' }}</td>
-                  <td>{{ h.cuartelero.nombre || '—' }}</td>
+                  <td>{{ h.cuartelero?.nombre || '—' }}</td>
                   <td>{{ h.grupoGuardia || '—' }}</td>
                   <td>{{ porcentajeCumplimiento(h) }}</td>
                   <td class="max-w-[200px] truncate text-gray-300">{{ h.observaciones || '—' }}</td>
@@ -1157,10 +1157,10 @@
                       Equipo {{ eq.numero }} · {{ eq.ubicacion }} · {{ eq.marca }} {{ eq.tipo }}
                     </p>
                     <div class="grid gap-2 sm:grid-cols-2">
-                      <p><span class="text-gray-500">Máscara:</span> {{ eq.codigoMascara?.trim() || '—' }}</p>
+                      <p><span class="text-gray-500">Máscara:</span> {{ eq.codigoMascara.trim() || '—' }}</p>
                       <p><span class="text-gray-500">Presión:</span> {{ eq.presion || '—' }}</p>
                       <p><span class="text-gray-500">Cilindro:</span> {{ eq.codigoCilindro || '—' }} · {{ eq.cilindroCondicion || '—' }}</p>
-                      <p><span class="text-gray-500">Arnés:</span> {{ eq.codigoArnes || '—' }} · estado {{ eq.estado?.trim() || eq.arnesCondicion || '—' }}</p>
+                      <p><span class="text-gray-500">Arnés:</span> {{ eq.codigoArnes || '—' }} · estado {{ eq.estado.trim() || eq.arnesCondicion || '—' }}</p>
                     </div>
                   </div>
                 }

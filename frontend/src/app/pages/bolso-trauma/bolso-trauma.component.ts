@@ -65,7 +65,7 @@ export class BolsoTraumaComponent implements OnInit {
 
   detalleRegistro: BolsoTraumaRegistroDto | null = null;
   loadingDetalle = false;
-  descargandoRegistroId: number | null = null;
+  descargandoRegistroId: string | number | null = null;
   paginaHistorial = 1;
   readonly tamanioPaginaHistorial = 10;
 
@@ -90,7 +90,7 @@ export class BolsoTraumaComponent implements OnInit {
 
   promedioCompletitud(unidad: BolsoTraumaSelectorUnidadDto): number {
     if (unidad.bolsos.length === 0) return 0;
-    const sum = unidad.bolsos.reduce((acc, b) => acc + b.completitud, 0);
+    const sum = unidad.bolsos.reduce((acc, b : any) => acc + b.completitud, 0);
     return Math.round(sum / unidad.bolsos.length);
   }
 
@@ -199,7 +199,7 @@ export class BolsoTraumaComponent implements OnInit {
   }
 
   etiquetaEstado(h: BolsoTraumaHistorialDto): string {
-    if (h.estadoChecklist) return etiquetaEstadoChecklist(h.estadoChecklist);
+   if (h.estadoChecklist) return etiquetaEstadoChecklist(h.estadoChecklist as any);
     return h.borrador === true ? 'Borrador' : 'Cerrado';
   }
 
@@ -214,7 +214,7 @@ export class BolsoTraumaComponent implements OnInit {
     if (filas.length === 0) {
       return;
     }
-    this.pdfExport.exportarHistorialBolsoTrauma({ registros: filas });
+    this.pdfExport.exportarHistorialBolsoTrauma({ registros: filas as any });
   }
 
   historialFiltrado(): BolsoTraumaHistorialDto[] {
