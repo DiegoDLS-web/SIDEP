@@ -1,0 +1,53 @@
+import { Request, Response } from 'express';
+import * as checklistsService from '../services/checklists.service';
+
+export const addPlantilla = async (req: Request, res: Response) => {
+    try {
+        const plantilla = await checklistsService.crearPlantilla(req.body);
+        res.status(201).json({ success: true, data: plantilla });
+    } catch (error: any) {
+        res.status(error.statusCode || 500).json({ success: false, message: error.message });
+    }
+};
+
+export const addEjecucion = async (req: Request, res: Response) => {
+    try {
+        const { carroId, revisorRut, plantillaId, resultadosMateriales } = req.body;
+        if (!carroId || !revisorRut || !plantillaId || !resultadosMateriales) {
+            return res.status(400).json({ success: false, message: 'Faltan campos obligatorios' });
+        }
+        const checklist = await checklistsService.registrarEjecucion(carroId, revisorRut, plantillaId, resultadosMateriales);
+        res.status(201).json({ success: true, data: checklist });
+    } catch (error: any) {
+        res.status(error.statusCode || 500).json({ success: false, message: error.message });
+    }
+};
+
+export const getHistorial = async (req: Request, res: Response) => {
+    try {
+        const carroId = req.query.carroId as string;
+        const historial = await checklistsService.obtenerHistorial(carroId);
+        res.status(200).json({ success: true, data: historial });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: 'Error al obtener historial' });
+    }
+};
+export const editPlantilla = async (req: Request, res: Response) => {
+    try {
+        // Añadimos "as string"
+        const plantilla = await checklistsService.actualizarPlantilla(req.params.id as string, req.body);
+        res.status(200).json({ success: true, data: plantilla });
+    } catch (error: any) {
+        res.status(error.statusCode || 500).json({ success: false, message: error.message });
+    }
+};
+
+export const getDetalleEjecucion = async (req: Request, res: Response) => {
+    try {
+        // Añadimos "as string"
+        const detalle = await checklistsService.obtenerDetalleEjecucion(req.params.id as string);
+        res.status(200).json({ success: true, data: detalle });
+    } catch (error: any) {
+        res.status(error.statusCode || 500).json({ success: false, message: error.message });
+    }
+};
