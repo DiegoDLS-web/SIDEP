@@ -299,7 +299,7 @@ export class PdfExportService {
     const margin = 14;
     const pageW = doc.internal.pageSize.getWidth();
     const textW = pageW - 2 * margin;
-    const esSnapshotActual = r.id === 0;
+    const esSnapshotActual = String(r.id) === '0';
 
     const yHead = await this.drawHeaderMarca(doc, `Registro ${input.nomenclatura}`, 'SIDEP · Mantención e inspección');
     doc.setFontSize(10);

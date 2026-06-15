@@ -14,7 +14,7 @@ export class CarrosService {
 
   private snapshotHistorial(c: CarroDto): CarroRegistroHistorialDto {
     return {
-      id: this.demoHistorialId++,
+      id: String(this.demoHistorialId++),
       carroId: c.id,
       creadoEn: new Date().toISOString(),
       ultimoMantenimiento: c.ultimoMantenimiento ?? null,
@@ -31,10 +31,10 @@ export class CarrosService {
 
   private readonly demoCarros: CarroDto[] = [
     {
-      id: 1,
+      id: '1',
       nomenclatura: 'B-1',
       patente: 'BBSJ-01',
-      estadoOperativo: true,
+      estadoOperativo: 1,
       nombre: 'Carro Bomba',
       tipo: 'Bomba',
       marca: 'Renault',
@@ -59,8 +59,8 @@ export class CarrosService {
       capacidadTanqueCombustible: '200 L',
       historialRegistros: [
         {
-          id: 1,
-          carroId: 1,
+          id: '1',
+          carroId: '1',
           creadoEn: '2026-02-01T15:00:00.000Z',
           ultimoMantenimiento: '2026-02-01T12:00:00.000Z',
           proximoMantenimiento: '2026-04-01T12:00:00.000Z',
@@ -75,10 +75,10 @@ export class CarrosService {
       ],
     },
     {
-      id: 2,
+      id: '2',
       nomenclatura: 'BX-1',
       patente: 'BXSJ-01',
-      estadoOperativo: true,
+      estadoOperativo: 1,
       nombre: 'Carro Multipropósito',
       tipo: 'Multipropósito',
       marca: 'Iveco',
@@ -104,10 +104,10 @@ export class CarrosService {
       historialRegistros: [],
     },
     {
-      id: 3,
+      id: '3',
       nomenclatura: 'R-1',
       patente: 'RESJ-01',
-      estadoOperativo: false,
+      estadoOperativo: 0,
       nombre: 'Carro de Rescate',
       tipo: 'Rescate',
       marca: 'MAN',
@@ -131,11 +131,11 @@ export class CarrosService {
       presionBomba: '12 bar',
       capacidadTanqueCombustible: '220 L',
       historialRegistros: [],
-    },
+    }
   ];
 
   listar(): Observable<CarroDto[]> {
-    return this.http.get<CarroDto[]>('/api/carros').pipe(
+    return this.http.get<CarroDto[]>('/api/logistica/carros').pipe(
       catchError(() =>
         of(
           this.demoCarros.map(({ historialRegistros: _h, ...c }) => ({ ...c })),
@@ -144,9 +144,8 @@ export class CarrosService {
     );
   }
 
-  /** Snapshots de mantención de todas las unidades (mismos filtros que en pantalla). */
   historialGeneral(filtros?: {
-    carroId?: number;
+    carroId?: string | number;
     desde?: string;
     hasta?: string;
   }): Observable<CarroHistorialGeneralFila[]> {
@@ -160,13 +159,13 @@ export class CarrosService {
     if (filtros?.hasta?.trim()) {
       params = params.set('hasta', filtros.hasta.trim());
     }
-    return this.http.get<CarroHistorialGeneralFila[]>('/api/carros/historial-general', { params }).pipe(
+    return this.http.get<CarroHistorialGeneralFila[]>('/api/logistica/carros/historial-general', { params }).pipe(
       catchError(() => of(this.demoHistorialGeneral(filtros))),
     );
   }
 
   private demoHistorialGeneral(filtros?: {
-    carroId?: number;
+    carroId?: string | number;
     desde?: string;
     hasta?: string;
   }): CarroHistorialGeneralFila[] {
@@ -199,27 +198,27 @@ export class CarrosService {
       return true;
     };
     return rows
-      .filter((r) => (filtros?.carroId == null ? true : r.carroId === filtros.carroId))
+      .filter((r) => (filtros?.carroId == null ? true : String(r.carroId) === String(filtros.carroId)))
       .filter((r) => inRango(r.creadoEn))
       .sort((a, b) => new Date(b.creadoEn).getTime() - new Date(a.creadoEn).getTime());
   }
 
   obtener(idONomenclatura: string | number): Observable<CarroDto> {
-    const segment = typeof idONomenclatura === 'number' ? String(idONomenclatura) : idONomenclatura;
-    return this.http.get<CarroDto>(`/api/carros/${encodeURIComponent(segment)}`).pipe(
+    const segment = String(idONomenclatura);
+    return this.http.get<CarroDto>(`/api/logistica/carros/${encodeURIComponent(segment)}`).pipe(
       catchError(() => {
         const fallback = this.demoCarros.find(
-          (c) => String(c.id) === String(segment) || c.nomenclatura === String(segment),
+          (c) => String(c.id) === segment || c.nomenclatura === segment,
         );
         return of(fallback ?? this.demoCarros[0]!);
       }),
     );
   }
 
-  actualizar(id: number, payload: Partial<CarroDto>): Observable<CarroDto> {
-    return this.http.patch<CarroDto>(`/api/carros/${id}`, payload).pipe(
+  actualizar(id: string | number, payload: Partial<CarroDto>): Observable<CarroDto> {
+    return this.http.patch<CarroDto>(`/api/logistica/carros/${id}`, payload).pipe(
       catchError(() => {
-        const idx = this.demoCarros.findIndex((c) => c.id === id);
+        const idx = this.demoCarros.findIndex((c) => String(c.id) === String(id));
         if (idx >= 0) {
           const actualizado = { ...this.demoCarros[idx], ...payload };
           const entrada = this.snapshotHistorial(actualizado);
@@ -228,8 +227,13 @@ export class CarrosService {
           this.demoCarros[idx] = actualizado;
           return of(actualizado);
         }
-        return of({ ...this.demoCarros[0]!, ...payload, id });
+        return of({ ...this.demoCarros[0]!, ...payload, id: String(id) });
       }),
     );
+  }
+
+  // --- NUEVA FUNCIÓN PARA EL BOTÓN ---
+  toggleEstado(id: string, estadoOperativo: number): Observable<any> {
+    return this.http.patch(`/api/logistica/carros/${id}/estado`, { estadoOperativo });
   }
 }

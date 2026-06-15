@@ -1,180 +1,87 @@
-import { HttpClient } from '@angular/common/http';
-import { inject, Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, catchError, of } from 'rxjs';
-import type {
-  BolsoTraumaHistorialDto,
-  BolsoTraumaRegistroDto,
-  BolsoTraumaSelectorUnidadDto,
-  BolsoTraumaUnidadResponseDto,
-} from '../models/bolso-trauma.dto';
+import { environment } from '../../environments/environment';
+import type { BolsoTraumaDTO, CrearBolsoTraumaDTO } from '../models/bolso-trauma.dto';
 
-export type GuardarBolsoTraumaPayload = {
-  cuarteleroId: string;
-  inspector?: string;
-  grupoGuardia?: string;
-  firmaOficial?: string;
-  firmaInspector?: string;
-  observaciones?: string;
-  totalItems?: number;
-  itemsOk?: number;
-  detalle?: unknown;
-};
-
-@Injectable({ providedIn: 'root' })
+@Injectable({
+  providedIn: 'root'
+})
 export class BolsosTraumaService {
   private readonly http = inject(HttpClient);
-  private readonly demoSelector: BolsoTraumaSelectorUnidadDto[] = [
-    {
-      id: 1,
-      unidad: 'R-1',
-      nombre: 'Carro Rescate',
-      cantidadBolsos: 2,
-      ultimaRevision: {
-        fecha: new Date().toISOString(),
-        inspector: 'Inspector Demo',
-        obac: 'Modo Demo Local',
-        responsable: 'Modo Demo Local',
-        completado: true,
-      },
-      bolsos: [
-        { numero: 1, completitud: 100, itemsFaltantes: 0, status: 'complete', estadoChecklist: 'COMPLETADO' },
-        { numero: 2, completitud: 75, itemsFaltantes: 2, status: 'incomplete', estadoChecklist: 'PENDIENTE' },
-      ],
-    },
-    {
-      id: 2,
-      unidad: 'BX-1',
-      nombre: 'Carro Multipropósito',
-      cantidadBolsos: 1,
-      ultimaRevision: {
-        fecha: new Date().toISOString(),
-        inspector: 'Inspector Demo',
-        obac: 'Modo Demo Local',
-        responsable: 'Modo Demo Local',
-        completado: false,
-      },
-      bolsos: [{ numero: 1, completitud: 88, itemsFaltantes: 1, status: 'incomplete', estadoChecklist: 'PENDIENTE' }],
-    },
-    {
-      id: 3,
-      unidad: 'B-1',
-      nombre: 'Carro Bomba',
-      cantidadBolsos: 1,
-      ultimaRevision: {
-        fecha: new Date().toISOString(),
-        inspector: 'Inspector Demo',
-        obac: 'Modo Demo Local',
-        responsable: 'Modo Demo Local',
-        completado: true,
-      },
-      bolsos: [{ numero: 1, completitud: 100, itemsFaltantes: 0, status: 'complete', estadoChecklist: 'COMPLETADO' }],
-    },
-  ];
+  // Endpoint del nuevo backend relacional
+  private apiUrl = `${environment.apiUrl}/logistica/equipamiento/bolsos`;
 
-  selector(): Observable<BolsoTraumaSelectorUnidadDto[]> {
-    return this.http
-      .get<BolsoTraumaSelectorUnidadDto[]>('/api/bolsos-trauma/selector')
-      .pipe(catchError(() => of(this.demoSelector)));
+  // =======================================================================
+  // MÉTODOS CRUD BÁSICOS (NUEVO BACKEND)
+  // =======================================================================
+  getBolsos(): Observable<{success: boolean, data: BolsoTraumaDTO[]}> {
+    return this.http.get<{success: boolean, data: BolsoTraumaDTO[]}>(this.apiUrl);
   }
 
-  obtenerUnidad(unidad: string): Observable<BolsoTraumaUnidadResponseDto> {
-    return this.http
-      .get<BolsoTraumaUnidadResponseDto>(`/api/bolsos-trauma/${encodeURIComponent(unidad)}`)
-      .pipe(
-        catchError(() =>
-          of({
-            unidad,
-            carro: { id: 1, nomenclatura: unidad, nombre: 'Unidad Demo' },
-            checklist: null,
-          }),
-        ),
-      );
+  getBolsoById(id: string): Observable<{success: boolean, data: BolsoTraumaDTO}> {
+    return this.http.get<{success: boolean, data: BolsoTraumaDTO}>(`${this.apiUrl}/${id}`);
   }
 
-  guardar(unidad: string, payload: GuardarBolsoTraumaPayload): Observable<BolsoTraumaRegistroDto> {
-    return this.http.post<BolsoTraumaRegistroDto>(
-      `/api/bolsos-trauma/${encodeURIComponent(unidad)}`,
-      payload,
-    ).pipe(
-      catchError(() =>
-        of({
-          id: Date.now(),
-          carroId: 1,
-          cuarteleroId: payload.cuarteleroId,
-          fecha: new Date().toISOString(),
-          tipo: 'TRAUMA',
-          inspector: payload.inspector ?? null,
-          grupoGuardia: payload.grupoGuardia ?? null,
-          firmaOficial: payload.firmaOficial ?? null,
-          observaciones: payload.observaciones ?? null,
-          totalItems: payload.totalItems ?? null,
-          itemsOk: payload.itemsOk ?? null,
-          detalle: payload.detalle ?? null,
-          carro: { id: 1, nomenclatura: unidad, nombre: 'Unidad Demo' },
-          cuartelero: { id: payload.cuarteleroId, nombre: 'Modo Demo Local', rol: 'ADMIN' },
-        }),
-      ),
+  createBolso(data: CrearBolsoTraumaDTO): Observable<{success: boolean, data: BolsoTraumaDTO}> {
+    return this.http.post<{success: boolean, data: BolsoTraumaDTO}>(this.apiUrl, data);
+  }
+
+  updateBolso(id: string, data: Partial<CrearBolsoTraumaDTO>): Observable<{success: boolean, data: BolsoTraumaDTO}> {
+    return this.http.patch<{success: boolean, data: BolsoTraumaDTO}>(`${this.apiUrl}/${id}`, data);
+  }
+
+  deleteBolso(id: string): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/${id}`);
+  }
+
+  // =======================================================================
+  // MÉTODOS AVANZADOS REQUERIDOS POR LA VISTA DE TU COLEGA
+  // (Estos actúan como puente hacia la nueva arquitectura)
+  // =======================================================================
+
+  /**
+   * Obtiene el resumen de unidades y sus bolsos para la pantalla principal.
+   */
+  selector(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/selector`).pipe(
+      catchError(() => of([])) // Previene quiebres si el endpoint no está listo
     );
   }
 
-  historial(params?: {
-    unidad?: string;
-    /** Varias nomenclaturas, separadas por comas. */
-    unidades?: string;
-    desde?: string;
-    hasta?: string;
-  }): Observable<BolsoTraumaHistorialDto[]> {
-    const sp = new URLSearchParams();
-    if (params?.unidad) sp.set('unidad', params.unidad);
-    if (params?.unidades) sp.set('unidades', params.unidades);
-    if (params?.desde) sp.set('desde', params.desde);
-    if (params?.hasta) sp.set('hasta', params.hasta);
-    const q = sp.toString();
-    const url = q ? `/api/bolsos-trauma/historial?${q}` : '/api/bolsos-trauma/historial';
-    return this.http.get<BolsoTraumaHistorialDto[]>(url).pipe(
-      catchError(() =>
-        of([
-          {
-            id: 1,
-            fecha: new Date().toISOString(),
-            unidad: params?.unidades?.split(',')[0]?.trim() || params?.unidad || 'R-1',
-            carroNombre: 'Carro Rescate',
-            inspector: 'Modo Demo Local',
-            responsable: 'Modo Demo Local',
-            grupoGuardia: 'Guardia Demo',
-            totalItems: 8,
-            itemsOk: 6,
-            porcentaje: 75,
-            observaciones: 'Registro demo sin backend',
-            bolsoNumero: 1,
-            borrador: false,
-            estadoChecklist: 'CON_OBSERVACION' as const,
-          } satisfies BolsoTraumaHistorialDto,
-        ]),
-      ),
+  /**
+   * Obtiene el historial paginado y filtrado de revisiones de bolsos.
+   */
+  historial(filtros?: { unidades?: string; desde?: string; hasta?: string }): Observable<any[]> {
+    let params = new HttpParams();
+    if (filtros) {
+      if (filtros.unidades) params = params.set('unidades', filtros.unidades);
+      if (filtros.desde) params = params.set('desde', filtros.desde);
+      if (filtros.hasta) params = params.set('hasta', filtros.hasta);
+    }
+    return this.http.get<any[]>(`${this.apiUrl}/historial`, { params }).pipe(
+      catchError(() => of([]))
     );
   }
 
-  obtenerHistorialPorId(id: number): Observable<BolsoTraumaRegistroDto> {
-    return this.http.get<BolsoTraumaRegistroDto>(`/api/bolsos-trauma/historial/${id}`).pipe(
-      catchError(() =>
-        of({
-          id,
-          carroId: 1,
-          cuarteleroId: '1',
-          fecha: new Date().toISOString(),
-          tipo: 'TRAUMA',
-          inspector: 'Modo Demo Local',
-          grupoGuardia: '1',
-          firmaOficial: null,
-          observaciones: 'Demo sin backend',
-          totalItems: 4,
-          itemsOk: 4,
-          detalle: { bolsoNumero: 1, borrador: false, bolsos: [] },
-          carro: { id: 1, nomenclatura: 'R-1', nombre: 'Carro Rescate' },
-          cuartelero: { id: '1', nombre: 'Demo', rol: 'CAPITAN' },
-        }),
-      ),
-    );
+  /**
+   * Obtiene el detalle completo de un registro del historial por su UUID.
+   */
+  obtenerHistorialPorId(id: string | number): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/historial/${String(id)}`);
+  }
+
+  /**
+   * Obtiene la estructura de una unidad específica para realizar la revisión.
+   */
+  obtenerUnidad(unidad: string): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/unidad/${unidad}`);
+  }
+
+  /**
+   * Guarda un nuevo checklist de bolso de trauma (borrador o final).
+   */
+  guardar(unidad: string, payload: any): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/unidad/${unidad}/revision`, payload);
   }
 }
