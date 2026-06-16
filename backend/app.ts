@@ -106,10 +106,10 @@ app.get('/api/auth/mi-navegacion', protect, async (req, res) => {
   }
 });
 
-// Enchufamos los módulos
-app.use('/api/auth', authRoutes);
-app.use('/api/logistica', logisticaRoutes);
-app.use('/api/operaciones', operacionesRoutes);
+// Enchufamos los módulos con el middleware de auditoría agregado en tus rutas
+app.use('/api/auth', auditoriaMiddleware, authRoutes);
+app.use('/api/logistica', auditoriaMiddleware, logisticaRoutes);
+app.use('/api/operaciones', auditoriaMiddleware, operacionesRoutes);
 app.use('/api/rrhh', auditoriaMiddleware, rrhhRoutes);
 app.use('/api/usuarios', auditoriaMiddleware, usuariosRoutes);
 app.use('/api/licencias', auditoriaMiddleware, licenciasRoutes);

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import * as checklistsService from '../services/checklists.service';
+import { prisma } from '../../../prisma';
 
 export const addPlantilla = async (req: Request, res: Response) => {
     try {
@@ -50,4 +51,16 @@ export const getDetalleEjecucion = async (req: Request, res: Response) => {
     } catch (error: any) {
         res.status(error.statusCode || 500).json({ success: false, message: error.message });
     }
+};
+export const obtenerPlantillas = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    // Corregido: Prisma utiliza 'checklistPlantilla' basándose en tu schema
+    const plantillas = await prisma.checklistPlantilla.findMany({
+      where: { activo: 1 }
+    });
+    return res.status(200).json({ success: true, data: plantillas });
+  } catch (error: any) {
+    console.error("Error al obtener plantillas:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
 };
