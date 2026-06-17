@@ -520,21 +520,21 @@
           <h2 class="text-lg font-bold">Emergencias por día</h2>
           <span class="text-xs text-gray-500">Últimas 4 semanas (lun–dom)</span>
         </div>
-        <div class="space-y-2">
-          <div class="mb-1 flex justify-between text-[10px] text-gray-500 sm:text-xs">
-            <span>L</span>
-            <span>M</span>
-            <span>X</span>
-            <span>J</span>
-            <span>V</span>
-            <span>S</span>
-            <span>D</span>
-          </div>
+        <div class="mb-1 flex justify-between text-[10px] text-gray-500 sm:text-xs">
+          <span>L</span>
+          <span>M</span>
+          <span>X</span>
+          <span>J</span>
+          <span>V</span>
+          <span>S</span>
+          <span>D</span>
+        </div>
+        <div class="flex flex-1 flex-col justify-center gap-1.5">
           @for (semana of datos.heatmapSemanas; track $index; let iw = $index) {
             <div class="grid grid-cols-7 gap-1 sm:gap-1.5">
               @for (dia of semana; track $index; let id = $index) {
                 <div
-                  class="sid-chart-heat-cell aspect-square min-h-[28px] w-full rounded sm:min-h-[32px]"
+                  class="sid-chart-heat-cell aspect-square min-h-[28px] w-full max-h-[36px] rounded sm:min-h-[32px]"
                   [ngClass]="heatClass(dia)"
                   [attr.title]="dia + ' emergencias'"
                   [style.--sid-chart-stagger.ms]="iw * 7 * 22 + id * 22"

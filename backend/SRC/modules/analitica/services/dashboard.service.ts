@@ -97,27 +97,44 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
     include: { clave: true, estado: true, unidades: { include: { carro: true } } },
   });
 
-  const recientes = recientesPartes.map((p) => {
-    const cleanId = p.id.replace(/[^0-9]/g, '');
-    const id = parseInt(cleanId, 10) || 0;
+  const recientes = recientesPartes.map((p) => ({
+    id: p.id,
+    correlativo: p.correlativo,
+    claveEmergencia: p.clave.codigo,
+    direccion: p.direccion,
+    fecha: p.fechaEmergencia.toISOString(),
+    estado: p.estado.nombre,
+    unidades: p.unidades.map((u) => u.carro.nomenclatura),
+  }));
 
-    return {
-      id,
-      correlativo: p.correlativo,
-      claveEmergencia: p.clave.codigo,
-      direccion: p.direccion,
-      fecha: p.fechaEmergencia.toISOString(),
-      estado: p.estado.nombre,
-      unidades: p.unidades.map((u) => u.carro.nomenclatura),
-    };
-  });
+  // Heatmap: últimas 4 semanas (lun–dom), cada celda = emergencias ese día
+  const SEMANAS = 4;
+  const hoy = new Date();
+  hoy.setHours(23, 59, 59, 999);
+  const inicioHeatmap = new Date(hoy);
+  inicioHeatmap.setHours(0, 0, 0, 0);
+  const diaSemana = inicioHeatmap.getDay();
+  const diasHastaLunes = diaSemana === 0 ? 6 : diaSemana - 1;
+  inicioHeatmap.setDate(inicioHeatmap.getDate() - diasHastaLunes - (SEMANAS - 1) * 7);
 
-  // 8. Heatmap Semanas (7 días x 24 horas)
-  const heatmapSemanas = Array.from({ length: 7 }, () => Array(24).fill(0));
+  const conteoPorDia: Record<string, number> = {};
   for (const p of allPartes) {
-    const day = p.fechaEmergencia.getDay(); // 0 is Sunday, 1 is Monday...
-    const hour = p.fechaEmergencia.getHours();
-    heatmapSemanas[day]![hour] = (heatmapSemanas[day]![hour] || 0) + 1;
+    const fecha = p.fechaEmergencia;
+    if (fecha < inicioHeatmap || fecha > hoy) continue;
+    const key = fecha.toISOString().slice(0, 10);
+    conteoPorDia[key] = (conteoPorDia[key] || 0) + 1;
+  }
+
+  const heatmapSemanas: number[][] = [];
+  for (let w = 0; w < SEMANAS; w++) {
+    const semana: number[] = [];
+    for (let d = 0; d < 7; d++) {
+      const celda = new Date(inicioHeatmap);
+      celda.setDate(inicioHeatmap.getDate() + w * 7 + d);
+      const key = celda.toISOString().slice(0, 10);
+      semana.push(conteoPorDia[key] || 0);
+    }
+    heatmapSemanas.push(semana);
   }
 
   // 9. Alertas

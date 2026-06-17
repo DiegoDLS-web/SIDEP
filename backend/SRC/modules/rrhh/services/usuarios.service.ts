@@ -4,6 +4,13 @@ import { mapUsuarioToDto } from './rrhh.service';
 import { hashPassword } from '../../../utils/security/hash';
 import { validarRut, normalizarRut } from '../../../utils/rut.util';
 import { NotFoundError, ValidationError, ConflictError } from '../../../utils/errors/AppError';
+import {
+  resolverRolId,
+  resolverCargoId,
+  resolverTipoVoluntarioId,
+  resolverEstadoVoluntarioId,
+  resolverGrupoSanguineoId,
+} from '../../../utils/catalogo-resolver';
 
 export const buscarUsuarioPorRut = async (rut: string) => {
   if (!rut) return null;
@@ -157,71 +164,62 @@ export const listarUsuariosPaginado = async (
 };
 
 export const crearUsuario = async (datos: any) => {
-  // Buscar o fallback para catálogos por nombre
-  let rolId = 2; // Default
-  if (datos.rol) {
-    const r = await prisma.rolUsuario.findFirst({
-      where: { nombre: { equals: datos.rol.trim(), mode: 'insensitive' } },
-    });
-    if (r) rolId = r.id;
-  }
-
-  let cargoId: number | null = null;
-  if (datos.cargoOficialidad) {
-    const c = await prisma.catalogoCargoOficialidad.findFirst({
-      where: { nombre: { equals: datos.cargoOficialidad.trim(), mode: 'insensitive' } },
-    });
-    if (c) cargoId = c.id;
-  }
-
-  let tipoVoluntarioId: number | null = null;
-  if (datos.tipoVoluntario) {
-    const tv = await prisma.catalogoTipoVoluntario.findFirst({
-      where: { nombre: { equals: datos.tipoVoluntario.trim(), mode: 'insensitive' } },
-    });
-    if (tv) tipoVoluntarioId = tv.id;
-  }
-
-  let estadoVoluntarioId: number | null = null;
-  if (datos.estadoVoluntario) {
-    const ev = await prisma.catalogoEstadoVoluntario.findFirst({
-      where: { nombre: { equals: datos.estadoVoluntario.trim(), mode: 'insensitive' } },
-    });
-    if (ev) estadoVoluntarioId = ev.id;
-  }
-
-  let grupoSanguineoId: number | null = null;
-  if (datos.grupoSanguineo) {
-    const gs = await prisma.catalogoGrupoSanguineo.findFirst({
-      where: { nombre: { equals: datos.grupoSanguineo.trim(), mode: 'insensitive' } },
-    });
-    if (gs) grupoSanguineoId = gs.id;
-  }
+  const rolId = await resolverRolId(datos.rol);
+  const cargoId = await resolverCargoId(datos.cargoOficialidad);
+  const tipoVoluntarioId = await resolverTipoVoluntarioId(datos.tipoVoluntario);
+  const estadoVoluntarioId = await resolverEstadoVoluntarioId(datos.estadoVoluntario);
+  const grupoSanguineoId = await resolverGrupoSanguineoId(datos.grupoSanguineo);
 
   let fotoPerfilUrl: string | null = null;
   let fotoPerfilPublicId: string | null = null;
   if (datos.fotoPerfil && String(datos.fotoPerfil).startsWith('data:image/')) {
-    const uploadRes = await cloudinary.uploader.upload(datos.fotoPerfil, {
-      folder: 'sidep/perfiles',
-    });
-    fotoPerfilUrl = uploadRes.secure_url;
-    fotoPerfilPublicId = uploadRes.public_id;
+    try {
+      const uploadRes = await cloudinary.uploader.upload(datos.fotoPerfil, {
+        folder: 'sidep/perfiles',
+      });
+      fotoPerfilUrl = uploadRes.secure_url;
+      fotoPerfilPublicId = uploadRes.public_id;
+    } catch (err) {
+      console.warn('No se pudo subir foto de perfil (Cloudinary):', err);
+    }
   }
 
   let firmaImagenUrl: string | null = null;
   let firmaImagenPublicId: string | null = null;
   if (datos.firmaImagen && String(datos.firmaImagen).startsWith('data:image/')) {
-    const uploadRes = await cloudinary.uploader.upload(datos.firmaImagen, {
-      folder: 'sidep/firmas',
-    });
-    firmaImagenUrl = uploadRes.secure_url;
-    firmaImagenPublicId = uploadRes.public_id;
+    try {
+      const uploadRes = await cloudinary.uploader.upload(datos.firmaImagen, {
+        folder: 'sidep/firmas',
+      });
+      firmaImagenUrl = uploadRes.secure_url;
+      firmaImagenPublicId = uploadRes.public_id;
+    } catch (err) {
+      console.warn('No se pudo subir firma (Cloudinary):', err);
+    }
   }
 
   if (!datos.rut || !validarRut(datos.rut)) {
     throw new ValidationError(['El RUT no es válido.']);
   }
+  if (!datos.email || !String(datos.email).trim()) {
+    throw new ValidationError(['El correo electrónico es obligatorio.']);
+  }
+
   const rutNormalizado = normalizarRut(datos.rut);
+  const emailNormalizado = String(datos.email).trim().toLowerCase();
+
+  const duplicado = await prisma.usuario.findFirst({
+    where: {
+      OR: [{ rut: rutNormalizado }, { email: emailNormalizado }],
+    },
+  });
+  if (duplicado) {
+    if (duplicado.rut === rutNormalizado) {
+      throw new ConflictError('Ya existe un usuario con ese RUT.');
+    }
+    throw new ConflictError('Ya existe un usuario con ese correo electrónico.');
+  }
+
   const hashedPassword = await hashPassword(rutNormalizado || 'sidep123');
 
   // Validar rango de fechas (1900 - 2100)
@@ -244,7 +242,7 @@ export const crearUsuario = async (datos: any) => {
       nombres: datos.nombres,
       apellidoPaterno: datos.apellidoPaterno,
       apellidoMaterno: datos.apellidoMaterno,
-      email: datos.email,
+      email: emailNormalizado,
       passwordHash: hashedPassword,
       telefono: datos.telefono || null,
       direccion: datos.direccion || null,
@@ -340,20 +338,14 @@ export const actualizarUsuario = async (rut: string, datos: any) => {
   }
 
   if (datos.rol !== undefined) {
-    const r = await prisma.rolUsuario.findFirst({
-      where: { nombre: { equals: datos.rol.trim(), mode: 'insensitive' } },
-    });
-    if (r) updateData.rolId = r.id;
+    updateData.rolId = await resolverRolId(datos.rol, usuarioExistente.rolId);
   }
 
   if (datos.cargoOficialidad !== undefined) {
     if (datos.cargoOficialidad === null || String(datos.cargoOficialidad).trim() === '') {
       updateData.cargoId = null;
     } else {
-      const c = await prisma.catalogoCargoOficialidad.findFirst({
-        where: { nombre: { equals: datos.cargoOficialidad.trim(), mode: 'insensitive' } },
-      });
-      if (c) updateData.cargoId = c.id;
+      updateData.cargoId = await resolverCargoId(datos.cargoOficialidad);
     }
   }
 
@@ -361,10 +353,7 @@ export const actualizarUsuario = async (rut: string, datos: any) => {
     if (datos.tipoVoluntario === null || String(datos.tipoVoluntario).trim() === '') {
       updateData.tipoVoluntarioId = null;
     } else {
-      const tv = await prisma.catalogoTipoVoluntario.findFirst({
-        where: { nombre: { equals: datos.tipoVoluntario.trim(), mode: 'insensitive' } },
-      });
-      if (tv) updateData.tipoVoluntarioId = tv.id;
+      updateData.tipoVoluntarioId = await resolverTipoVoluntarioId(datos.tipoVoluntario);
     }
   }
 
@@ -372,10 +361,7 @@ export const actualizarUsuario = async (rut: string, datos: any) => {
     if (datos.estadoVoluntario === null || String(datos.estadoVoluntario).trim() === '') {
       updateData.estadoVoluntarioId = null;
     } else {
-      const ev = await prisma.catalogoEstadoVoluntario.findFirst({
-        where: { nombre: { equals: datos.estadoVoluntario.trim(), mode: 'insensitive' } },
-      });
-      if (ev) updateData.estadoVoluntarioId = ev.id;
+      updateData.estadoVoluntarioId = await resolverEstadoVoluntarioId(datos.estadoVoluntario);
     }
   }
 
@@ -383,10 +369,7 @@ export const actualizarUsuario = async (rut: string, datos: any) => {
     if (datos.grupoSanguineo === null || String(datos.grupoSanguineo).trim() === '') {
       updateData.grupoSanguineoId = null;
     } else {
-      const gs = await prisma.catalogoGrupoSanguineo.findFirst({
-        where: { nombre: { equals: datos.grupoSanguineo.trim(), mode: 'insensitive' } },
-      });
-      if (gs) updateData.grupoSanguineoId = gs.id;
+      updateData.grupoSanguineoId = await resolverGrupoSanguineoId(datos.grupoSanguineo);
     }
   }
 
