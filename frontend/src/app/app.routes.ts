@@ -27,7 +27,11 @@ import {
   loadPasswordForgotComponent,
   loadPasswordResetComponent,
   loadUsuariosComponent,
-  loadAuditoriaComponent,
+  loadAuditoriaShellComponent,
+  loadAuditoriaDashboardComponent,
+  loadAuditoriaChecklistsComponent,
+  loadAuditoriaUsuariosComponent,
+  loadAuditoriaLogComponent,
   rutaPlaceholder,
 } from './routing/lazy-routes';
 
@@ -138,8 +142,30 @@ export const routes: Routes = [
       {
         path: 'auditoria',
         canActivate: [adminGuard],
-        title: 'Auditoría · SIDEP',
-        loadComponent: loadAuditoriaComponent,
+        loadComponent: loadAuditoriaShellComponent,
+        children: [
+          { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+          {
+            path: 'dashboard',
+            title: 'Auditoría · Panel · SIDEP',
+            loadComponent: loadAuditoriaDashboardComponent,
+          },
+          {
+            path: 'checklists',
+            title: 'Auditoría · Checklists · SIDEP',
+            loadComponent: loadAuditoriaChecklistsComponent,
+          },
+          {
+            path: 'usuarios',
+            title: 'Auditoría · Usuarios · SIDEP',
+            loadComponent: loadAuditoriaUsuariosComponent,
+          },
+          {
+            path: 'log',
+            title: 'Auditoría · Trazabilidad · SIDEP',
+            loadComponent: loadAuditoriaLogComponent,
+          },
+        ],
       },
       {
         path: 'perfil',

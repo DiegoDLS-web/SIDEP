@@ -1,0 +1,106 @@
+@if (loading) {
+  <div class="mt-6 flex min-h-[40vh] flex-col items-center justify-center gap-3 text-slate-400">
+    <lucide-icon name="loader-2" class="h-10 w-10 animate-spin text-red-500/90" [size]="40" color="currentColor" />
+    <p class="text-sm">Analizando estado del sistema…</p>
+  </div>
+} @else if (error) {
+  <div class="mt-6 sid-feedback rounded-xl border border-red-800/60 bg-red-950/25 px-4 py-3 text-sm text-red-200">
+    {{ error }}
+  </div>
+} @else if (metricas) {
+  <div class="mt-6 space-y-6">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div class="rounded-2xl border border-slate-850 bg-[#121212] p-5 shadow-lg">
+        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Formularios completos</p>
+        <p class="mt-2 text-3xl font-bold text-white tabular-nums">{{ metricas.formulariosCompletosPct }}%</p>
+        <p class="mt-1 text-xs text-slate-500">Checklists operativos al día</p>
+      </div>
+      <div class="rounded-2xl border border-slate-850 bg-[#121212] p-5 shadow-lg">
+        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Errores detectados</p>
+        <p class="mt-2 text-3xl font-bold text-red-400 tabular-nums">{{ metricas.erroresDetectados }}</p>
+        <p class="mt-1 text-xs text-slate-500">Inconsistencias críticas</p>
+      </div>
+      <div class="rounded-2xl border border-slate-850 bg-[#121212] p-5 shadow-lg">
+        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Alertas</p>
+        <p class="mt-2 text-3xl font-bold text-amber-300 tabular-nums">{{ metricas.alertasDetectadas }}</p>
+        <p class="mt-1 text-xs text-slate-500">Campos vacíos o revisiones pendientes</p>
+      </div>
+      <div class="rounded-2xl border border-slate-850 bg-[#121212] p-5 shadow-lg">
+        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Servidor backend</p>
+        <p class="mt-2 text-lg font-bold" [class]="metricas.servidorOperativo ? 'text-emerald-400' : 'text-red-400'">
+          {{ metricas.servidorOperativo ? '✅ Operativo' : '❌ Sin conexión' }}
+        </p>
+        <p class="mt-1 text-xs text-slate-500">Última revisión: {{ fechaCorta(metricas.ultimaRevision) }}</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <a
+        routerLink="checklists"
+        class="rounded-2xl border border-slate-850 bg-[#121212] p-5 transition-colors hover:border-red-700/50"
+      >
+        <div class="flex items-center gap-3">
+          <lucide-icon name="clipboard-check" class="h-8 w-8 text-red-400" [size]="32" color="currentColor" />
+          <div>
+            <h2 class="font-semibold text-white">Auditar checklists</h2>
+            <p class="text-xs text-slate-500">Carros, ERA y bolso de trauma</p>
+          </div>
+        </div>
+      </a>
+      <a
+        routerLink="usuarios"
+        class="rounded-2xl border border-slate-850 bg-[#121212] p-5 transition-colors hover:border-red-700/50"
+      >
+        <div class="flex items-center gap-3">
+          <lucide-icon name="users" class="h-8 w-8 text-red-400" [size]="32" color="currentColor" />
+          <div>
+            <h2 class="font-semibold text-white">Auditar usuarios</h2>
+            <p class="text-xs text-slate-500">Validar fichas de voluntarios</p>
+          </div>
+        </div>
+      </a>
+      <a
+        routerLink="log"
+        class="rounded-2xl border border-slate-850 bg-[#121212] p-5 transition-colors hover:border-red-700/50"
+      >
+        <div class="flex items-center gap-3">
+          <lucide-icon name="history" class="h-8 w-8 text-red-400" [size]="32" color="currentColor" />
+          <div>
+            <h2 class="font-semibold text-white">Trazabilidad</h2>
+            <p class="text-xs text-slate-500">Registro de acciones del sistema</p>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="rounded-2xl border border-slate-850 bg-[#121212] p-5 shadow-xl">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400">Hallazgos recientes</h2>
+        <span class="text-xs text-slate-500">{{ hallazgos.length }} detectados</span>
+      </div>
+
+      @if (hallazgos.length === 0) {
+        <div class="rounded-xl border border-dashed border-emerald-800/40 bg-emerald-950/10 p-8 text-center text-sm text-emerald-300">
+          ✅ No se detectaron inconsistencias en la muestra revisada
+        </div>
+      } @else {
+        <div class="space-y-2">
+          @for (h of hallazgos; track h.id) {
+            <div class="flex flex-wrap items-start gap-3 rounded-xl border border-slate-850 bg-black/30 px-4 py-3">
+              <span class="text-base">{{ iconoEstado(h.severidad) }}</span>
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-xs font-semibold text-white">{{ h.entidad }}</span>
+                  <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" [class]="clasesEstado(h.severidad)">
+                    {{ h.modulo }}
+                  </span>
+                </div>
+                <p class="mt-1 text-xs text-slate-400">{{ h.mensaje }}</p>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+}

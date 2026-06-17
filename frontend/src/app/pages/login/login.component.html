@@ -15,7 +15,7 @@
 
     <div class="sid-glass-panel sid-panel rounded-xl border border-gray-700/80 bg-[#121212]/90 p-8 backdrop-blur-sm">
       <h2 class="sid-title-balanced mb-2 text-2xl font-bold text-white">Iniciar Sesión</h2>
-      <p class="mb-5 text-sm text-gray-400">Si no ingresas datos, entrarás en modo demo automáticamente.</p>
+      <p class="mb-5 text-sm text-gray-400">Ingresa tus credenciales institucionales para acceder al sistema.</p>
       @if (error) {
         <div class="sid-feedback mb-4 rounded-lg border border-red-700 bg-red-900/20 px-4 py-3 text-sm text-red-300">
           {{ error }}
@@ -87,14 +87,6 @@
           class="sid-btn sid-btn-primary w-full rounded-lg py-3 font-medium disabled:opacity-60"
         >
           {{ loading ? 'Ingresando...' : 'Ingresar al Sistema' }}
-        </button>
-        <button
-          type="button"
-          [disabled]="loading"
-          class="sid-btn sid-btn-ghost w-full rounded-lg py-3 font-medium disabled:opacity-60"
-          (click)="entrarDemo()"
-        >
-          Entrar modo prueba (sin credenciales)
         </button>
       </form>
 

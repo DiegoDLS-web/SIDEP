@@ -38,7 +38,8 @@ export class LoginComponent implements OnInit {
 
   submit(): void {
     if (!this.email.trim() || !this.password) {
-      this.entrarDemo();
+      this.error = 'Debes ingresar correo y contraseña.';
+      this.toast.error('Debes ingresar correo y contraseña.');
       return;
     }
     this.loading = true;
@@ -53,23 +54,6 @@ export class LoginComponent implements OnInit {
         error: () => {
           this.error = 'Credenciales inválidas o usuario inactivo.';
           this.toast.error('Credenciales inválidas o usuario inactivo.');
-        },
-      });
-  }
-
-  entrarDemo(): void {
-    this.loading = true;
-    this.error = null;
-    this.auth
-      .loginDemo()
-      .pipe(finalize(() => (this.loading = false)))
-      .subscribe({
-        next: () => {
-          void this.router.navigateByUrl('/');
-        },
-        error: () => {
-          this.error = 'No se pudo iniciar en modo demo.';
-          this.toast.error('No se pudo iniciar en modo demo.');
         },
       });
   }

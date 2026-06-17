@@ -77,8 +77,20 @@ export const loadAnaliticaPageComponent = () =>
 export const loadMiPerfilComponent = () =>
   import('../pages/perfil/mi-perfil.component').then((m) => m.MiPerfilComponent);
 
-export const loadAuditoriaComponent = () =>
-  import('../pages/auditoria/auditoria.component').then((m) => m.AuditoriaComponent);
+export const loadAuditoriaShellComponent = () =>
+  import('../pages/auditoria/auditoria-shell.component').then((m) => m.AuditoriaShellComponent);
+
+export const loadAuditoriaDashboardComponent = () =>
+  import('../pages/auditoria/auditoria-dashboard.component').then((m) => m.AuditoriaDashboardComponent);
+
+export const loadAuditoriaChecklistsComponent = () =>
+  import('../pages/auditoria/auditoria-checklists.component').then((m) => m.AuditoriaChecklistsComponent);
+
+export const loadAuditoriaUsuariosComponent = () =>
+  import('../pages/auditoria/auditoria-usuarios.component').then((m) => m.AuditoriaUsuariosComponent);
+
+export const loadAuditoriaLogComponent = () =>
+  import('../pages/auditoria/auditoria-log.component').then((m) => m.AuditoriaLogComponent);
 
 /** Pantallas “próximamente” reutilizables. */
 export function rutaPlaceholder(title: string) {

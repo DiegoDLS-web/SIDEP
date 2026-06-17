@@ -1,0 +1,117 @@
+<div class="mt-6 space-y-5">
+  <div class="rounded-2xl border border-slate-850 bg-[#121212] p-4 sm:p-5">
+    <h2 class="mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">Filtros</h2>
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div>
+        <label class="mb-1.5 block text-[11px] font-medium text-slate-400">Buscar voluntario</label>
+        <input
+          [(ngModel)]="filtroUsuario"
+          (keyup.enter)="buscar()"
+          placeholder="Nombre, RUT o correo"
+          class="sid-input w-full text-xs"
+        />
+      </div>
+      <div>
+        <label class="mb-1.5 block text-[11px] font-medium text-slate-400">Estado de validación</label>
+        <select [(ngModel)]="filtroEstado" class="sid-input w-full text-xs text-white bg-[#0a0a0a]">
+          @for (e of estadosFiltro; track e.value) {
+            <option [value]="e.value">{{ e.label }}</option>
+          }
+        </select>
+      </div>
+      <div class="flex items-end">
+        <button
+          type="button"
+          class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-red-500"
+          (click)="buscar()"
+        >
+          <lucide-icon name="search" class="h-4 w-4" [size]="16" color="currentColor" />
+          Buscar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (metricas) {
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div class="rounded-2xl border border-slate-850 bg-[#121212] p-4">
+        <p class="text-[10px] uppercase text-slate-500">Total sistema</p>
+        <p class="text-xl font-bold text-white tabular-nums">{{ metricas.totalSistema }}</p>
+      </div>
+      <div class="rounded-2xl border border-slate-850 bg-[#121212] p-4">
+        <p class="text-[10px] uppercase text-slate-500">Activos</p>
+        <p class="text-xl font-bold text-emerald-400 tabular-nums">{{ metricas.activos }}</p>
+      </div>
+      <div class="rounded-2xl border border-slate-850 bg-[#121212] p-4">
+        <p class="text-[10px] uppercase text-slate-500">Inactivos</p>
+        <p class="text-xl font-bold text-red-400 tabular-nums">{{ metricas.inactivos }}</p>
+      </div>
+      <div class="rounded-2xl border border-slate-850 bg-[#121212] p-4">
+        <p class="text-[10px] uppercase text-slate-500">% fichas completas</p>
+        <p class="text-xl font-bold text-amber-300 tabular-nums">{{ pctFichasCompletas }}%</p>
+      </div>
+    </div>
+  }
+
+  @if (loading) {
+    <div class="flex min-h-[30vh] flex-col items-center justify-center gap-3 text-slate-400">
+      <lucide-icon name="loader-2" class="h-10 w-10 animate-spin text-red-500/90" [size]="40" color="currentColor" />
+      <p class="text-sm">Validando fichas de voluntarios…</p>
+    </div>
+  } @else if (error) {
+    <div class="sid-feedback rounded-xl border border-red-800/60 bg-red-950/25 px-4 py-3 text-sm text-red-200">
+      {{ error }}
+    </div>
+  } @else if (filasFiltradas.length === 0) {
+    <div class="rounded-2xl border border-dashed border-slate-800 bg-[#121212]/80 p-12 text-center text-slate-400">
+      No se encontraron usuarios para los filtros aplicados
+    </div>
+  } @else {
+    <div class="overflow-x-auto rounded-2xl border border-slate-850 bg-[#121212] shadow-xl">
+      <table class="w-full border-collapse text-left">
+        <thead>
+          <tr class="border-b border-slate-850 bg-black/40 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <th class="p-4">Estado</th>
+            <th class="p-4">Voluntario</th>
+            <th class="p-4">Rol</th>
+            <th class="p-4">Correo</th>
+            <th class="p-4">Teléfono</th>
+            <th class="p-4">Campos vacíos / inconsistencias</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-850 text-xs text-slate-300">
+          @for (u of filasFiltradas; track u.rut) {
+            <tr class="hover:bg-slate-900/30">
+              <td class="p-4 whitespace-nowrap">
+                <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" [class]="clasesEstado(u.estado)">
+                  {{ iconoEstado(u.estado) }} {{ u.estado | uppercase }}
+                </span>
+              </td>
+              <td class="p-4">
+                <div class="font-medium text-white">{{ u.nombre }}</div>
+                <div class="text-[10px] text-slate-500">{{ u.rut }}</div>
+              </td>
+              <td class="p-4 whitespace-nowrap">{{ u.rol || '—' }}</td>
+              <td class="p-4" [class]="!u.email ? 'text-red-400' : ''">{{ u.email || '❌ Vacío' }}</td>
+              <td class="p-4" [class]="!u.telefono ? 'text-amber-300' : ''">{{ u.telefono || '⚠️ Vacío' }}</td>
+              <td class="p-4 max-w-xs">
+                @if (u.camposVacios.length === 0 && u.activo) {
+                  <span class="text-emerald-400">✅ Ficha completa</span>
+                } @else {
+                  <ul class="list-disc pl-4 text-slate-400">
+                    @if (!u.activo) {
+                      <li class="text-red-300">Voluntario inactivo</li>
+                    }
+                    @for (c of u.camposVacios; track c) {
+                      <li>{{ c }}</li>
+                    }
+                  </ul>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
