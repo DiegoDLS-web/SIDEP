@@ -38,6 +38,19 @@
     </div>
 
     <div class="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
+      @if (unidades.length === 0) {
+        <div class="col-span-full">
+          <app-sid-empty-state
+            icon="truck"
+            title="Sin unidades registradas"
+            description="No hay carros en el sistema. Registra al menos una unidad en el módulo Carros para habilitar los checklists."
+          >
+            <a routerLink="/carros" class="sid-btn sid-btn-primary mt-4 inline-flex rounded-xl px-4 py-2 text-sm font-semibold">
+              Ir a Carros
+            </a>
+          </app-sid-empty-state>
+        </div>
+      }
       @for (u of unidades; track u.unidad; let iu = $index) {
         <div class="group min-w-0 overflow-hidden rounded-2xl border border-slate-800/90 bg-[#121212] shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 transition-all duration-200 hover:border-red-800/50 hover:shadow-red-950/15">
           <div class="relative h-44 overflow-hidden sm:h-48">

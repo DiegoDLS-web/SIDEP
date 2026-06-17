@@ -138,10 +138,10 @@
     }
 
     <!-- KPIs: fila compacta (icono + métrica) para aprovechar mejor el ancho -->
-    <div sidScrollReveal class="mb-8 grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div sidScrollReveal class="mb-8 grid grid-cols-1 auto-rows-fr gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
       @for (stat of stats; track stat.label) {
         <div
-          class="sid-card-hover flex min-h-[5.5rem] items-center gap-4 rounded-xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-4 transition-colors hover:border-[var(--sid-border-strong)] sm:p-5"
+          class="sid-card-hover flex h-full min-h-[5.5rem] items-center gap-4 rounded-xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-4 transition-colors hover:border-[var(--sid-border-strong)] sm:p-5"
         >
           <div
             class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br"
@@ -189,6 +189,11 @@
         </div>
       </div>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        @if (datos.unidadesSemaforo.length === 0) {
+          <div class="col-span-full rounded-xl border border-dashed border-slate-700 bg-[#0a0a0a]/60 p-8 text-center text-sm text-slate-400">
+            No hay unidades registradas. Agrega carros en el módulo <a routerLink="/carros" class="text-red-400 hover:underline">Carros</a> para ver su estado aquí.
+          </div>
+        }
         @for (u of datos.unidadesSemaforo; track u.id; let iu = $index) {
           <div
             class="flex min-h-0 flex-col overflow-hidden rounded-xl border bg-[#0a0a0a] shadow-sm transition-colors"
@@ -477,9 +482,9 @@
       </div>
     </div>
 
-    <div sidScrollReveal class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <div sidScrollReveal class="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
       <!-- Tipos -->
-      <div class="sid-card-hover rounded-xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-5 sm:p-6">
+      <div class="sid-card-hover flex h-full flex-col rounded-xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-5 sm:p-6">
         <div class="mb-4">
           <h2 class="text-lg font-bold leading-tight">Tipos de emergencia</h2>
         </div>
@@ -510,7 +515,7 @@
       </div>
 
       <!-- Heatmap -->
-      <div class="sid-card-hover rounded-xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-5 sm:p-6">
+      <div class="sid-card-hover flex h-full flex-col rounded-xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-5 sm:p-6">
         <div class="mb-4 flex items-center justify-between">
           <h2 class="text-lg font-bold">Emergencias por día</h2>
           <span class="text-xs text-gray-500">Últimas 4 semanas (lun–dom)</span>
@@ -526,10 +531,10 @@
             <span>D</span>
           </div>
           @for (semana of datos.heatmapSemanas; track $index; let iw = $index) {
-            <div class="flex gap-1 sm:gap-2">
+            <div class="grid grid-cols-7 gap-1 sm:gap-1.5">
               @for (dia of semana; track $index; let id = $index) {
                 <div
-                  class="sid-chart-heat-cell aspect-square min-h-[28px] flex-1 origin-center rounded sm:min-h-[32px]"
+                  class="sid-chart-heat-cell aspect-square min-h-[28px] w-full rounded sm:min-h-[32px]"
                   [ngClass]="heatClass(dia)"
                   [attr.title]="dia + ' emergencias'"
                   [style.--sid-chart-stagger.ms]="iw * 7 * 22 + id * 22"
@@ -552,7 +557,7 @@
       </div>
 
       <!-- Últimas emergencias (solo 3) -->
-      <div class="sid-card-hover rounded-xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-5 sm:p-6">
+      <div class="sid-card-hover flex h-full flex-col rounded-xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-5 sm:p-6">
         <h2 class="mb-1 text-lg font-bold">Últimas emergencias</h2>
         <p class="mb-4 text-xs sid-muted">Solo las 3 más recientes según filtros · pulsa una fila para abrir el parte</p>
         <div class="space-y-3">

@@ -44,7 +44,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   anio = new Date().getFullYear();
   claveFiltro = 'todos';
   /** `todas` o id numérico del carro (coincide con ngValue del &lt;select&gt;). */
-  unidadFiltro: 'todas' | number = 'todas';
+  unidadFiltro: 'todas' | string = 'todas';
 
   readonly aniosDisponibles: number[] = [];
   private refreshInterval: ReturnType<typeof setInterval> | null = null;
@@ -288,7 +288,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (this.unidadFiltro === 'todas') {
       return 'Todas las unidades';
     }
-    const c = this.carros.find((x) => x.id === this.unidadFiltro);
+    const c = this.carros.find((x) => String(x.id) === String(this.unidadFiltro));
     return c ? `${c.nomenclatura}${c.nombre ? ' · ' + c.nombre : ''}` : 'Unidad';
   }
 

@@ -3,7 +3,7 @@
     <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
     Volver al inicio
   </a>
-  <section sidScrollReveal class="sid-hero-panel sid-hero-panel--institutional">
+  <section class="sid-hero-panel sid-hero-panel--institutional">
     <div class="sid-hero-panel__row sid-hero-panel__row--split">
       <div>
         <p class="sid-page-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-xs text-blue-200">
@@ -23,7 +23,7 @@
     </div>
   </section>
 
-  <div sidScrollReveal class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
     <div class="sid-card-hover rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-800/40 to-transparent p-4 ring-1 ring-inset ring-white/5">
       <div class="mb-2 flex items-center justify-between">
         <lucide-icon name="users" class="h-6 w-6 text-blue-400" [size]="24" color="currentColor" />
@@ -58,7 +58,7 @@
     </div>
   </div>
 
-  <div sidScrollReveal class="rounded-2xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-4 sm:p-5 shadow-lg shadow-black/20 space-y-4">
+  <div class="rounded-2xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-4 sm:p-5 shadow-lg shadow-black/20 space-y-4">
     <!-- Search and Export buttons -->
     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div class="relative flex-1">
@@ -427,7 +427,7 @@
         @if (esAdmin) {
           <div class="md:col-span-2 lg:col-span-3">
             <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-700/80 bg-[#0a0a0a]/60 px-4 py-3">
-              <input type="checkbox" [(ngModel)]="form.autorizadoConducir" name="autorizadoConducir" class="mt-1 h-4 w-4 rounded border-slate-600" />
+              <input type="checkbox" [(ngModel)]="form.autorizadoConducir" name="autorizadoConducir" class="sid-checkbox-native mt-1" />
               <span>
                 <span class="block text-sm font-medium text-slate-200">Conductor</span>
                 <span class="mt-0.5 block text-xs text-slate-500">
@@ -524,7 +524,13 @@
       </div>
     </div>
   } @else {
-    <div class="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3">
+    <div class="relative">
+      @if (cargandoLista) {
+        <div class="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-[#0a0a0a]/55 backdrop-blur-[1px]">
+          <lucide-icon name="loader-2" class="h-8 w-8 animate-spin text-red-500" [size]="32" color="currentColor" />
+        </div>
+      }
+    <div class="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3" [class.opacity-60]="cargandoLista">
       @for (usuario of usuariosPagina; track usuario.id) {
         <div
           class="sid-list-item-enter group relative overflow-hidden rounded-2xl border border-gray-800/90 bg-[#121212] p-5 pt-12 transition-all duration-200 hover:border-red-900/45 hover:shadow-xl hover:shadow-red-950/25 sm:pt-8"
@@ -670,6 +676,7 @@
         </div>
       </div>
     }
+    </div>
   }
 
   @if (!loading && totalLista === 0) {

@@ -31,7 +31,10 @@ export class NavegacionUiService {
     }
     this.http.get<{ paths: string[] }>('/api/auth/mi-navegacion').subscribe({
       next: (resp) => {
-        this.rutasSig.set(resp.paths ?? []);
+        const api = this.normalizarRutas(resp.paths ?? []);
+        const fallback = rutasMenuFallbackPorRol(u.rol);
+        const merged = new Set<string>([...fallback, ...api]);
+        this.rutasSig.set([...merged]);
         this.cargada.set(true);
       },
       error: () => {
@@ -39,5 +42,17 @@ export class NavegacionUiService {
         this.cargada.set(true);
       },
     });
+  }
+
+  private normalizarRutas(paths: string[]): string[] {
+    return paths
+      .map((raw) => {
+        let p = String(raw ?? '').trim();
+        if (!p) return '';
+        if (!p.startsWith('/')) p = `/${p}`;
+        if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
+        return p;
+      })
+      .filter(Boolean);
   }
 }

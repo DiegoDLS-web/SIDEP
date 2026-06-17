@@ -57,6 +57,8 @@ export interface ChecklistRegistroDto {
   estadoChecklist?: EstadoChecklist;
   carro?: { id: string | number; nomenclatura: string; nombre: string | null };
   cuartelero?: { id: string; nombre: string; rol: string };
+  /** Nomenclatura de la unidad (ERA / listados). */
+  unidad?: string;
 }
 
 export interface ChecklistResumenUnidadDto {

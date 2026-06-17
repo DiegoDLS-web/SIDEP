@@ -10,7 +10,6 @@ import { RolesService } from '../../services/roles.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { ToastService } from '../../services/toast.service';
 import { UsuariosService } from '../../services/usuarios.service';
-import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import {
@@ -60,7 +59,7 @@ type FormUsuario = {
 @Component({
   selector: 'app-usuarios',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidScrollRevealDirective, SidDateInputComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidDateInputComponent],
   templateUrl: './usuarios.component.html',
 })
 export class UsuariosComponent implements OnInit {
@@ -86,6 +85,8 @@ export class UsuariosComponent implements OnInit {
   totalLista = 0;
   totalPages = 1;
   loading = true;
+  cargandoLista = false;
+  datosCargados = false;
   guardando = false;
   error: string | null = null;
   exito: string | null = null;
@@ -272,7 +273,12 @@ export class UsuariosComponent implements OnInit {
   }
 
   cargarPagina(): void {
-    this.loading = true;
+    const primeraCarga = !this.datosCargados;
+    if (primeraCarga) {
+      this.loading = true;
+    } else {
+      this.cargandoLista = true;
+    }
     this.error = null;
     this.usuariosApi.listarPagina(
       this.paginaLista,
@@ -293,6 +299,8 @@ export class UsuariosComponent implements OnInit {
         this.totalPages = resp.totalPages;
         this.fotosListaFallidas.clear();
         this.loading = false;
+        this.cargandoLista = false;
+        this.datosCargados = true;
         this.syncPagina();
         this.abrirEdicionPorQuerySiAplica();
       },
@@ -304,6 +312,7 @@ export class UsuariosComponent implements OnInit {
         this.totalLista = 0;
         this.totalPages = 1;
         this.loading = false;
+        this.cargandoLista = false;
       },
     });
   }
@@ -314,6 +323,7 @@ export class UsuariosComponent implements OnInit {
   }
 
   abrirNuevo(): void {
+    document.body.classList.add('confirm-open');
     this.mostrandoFormulario = true;
     this.editandoId = null;
     this.firmaInicialEdicion = null;
@@ -326,6 +336,7 @@ export class UsuariosComponent implements OnInit {
   }
 
   editar(usuario: UsuarioListaDto): void {
+    document.body.classList.add('confirm-open');
     this.mostrandoFormulario = true;
     this.editandoId = usuario.id;
     this.firmaInicialEdicion = usuario.firmaImagen ?? '';
@@ -361,6 +372,7 @@ export class UsuariosComponent implements OnInit {
   }
 
   cancelarForm(): void {
+    document.body.classList.remove('confirm-open');
     this.mostrandoFormulario = false;
     this.editandoId = null;
     this.firmaInicialEdicion = null;
@@ -725,6 +737,7 @@ export class UsuariosComponent implements OnInit {
       this.usuariosApi.actualizar(this.editandoId, payload).subscribe({
         next: () => {
           this.guardando = false;
+          document.body.classList.remove('confirm-open');
           this.mostrandoFormulario = false;
           this.editandoId = null;
           this.exito = 'Usuario actualizado correctamente.';
@@ -782,6 +795,7 @@ export class UsuariosComponent implements OnInit {
     this.usuariosApi.crear(crear).subscribe({
       next: () => {
         this.guardando = false;
+        document.body.classList.remove('confirm-open');
         this.mostrandoFormulario = false;
         this.exito = 'Usuario creado correctamente.';
         this.toast.exito('Usuario creado correctamente.');

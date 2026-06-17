@@ -212,7 +212,18 @@ export class CarrosService {
         const fallback = this.demoCarros.find(
           (c) => String(c.id) === segment || c.nomenclatura === segment,
         );
-        return of(fallback ?? this.demoCarros[0]!);
+        if (fallback) {
+          return of(fallback);
+        }
+        return of({
+          id: segment,
+          nomenclatura: segment,
+          patente: '',
+          estadoOperativo: 0,
+          nombre: `Unidad ${segment}`,
+          marca: null,
+          kilometraje: 0,
+        } as CarroDto);
       }),
     );
   }

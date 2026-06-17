@@ -7,7 +7,7 @@ import type { DashboardResumenDto } from '../models/dashboard.dto';
 export class DashboardService {
   private readonly http = inject(HttpClient);
 
-  resumen(anio: number, clave: string, carroId: 'todas' | number): Observable<DashboardResumenDto> {
+  resumen(anio: number, clave: string, carroId: 'todas' | string): Observable<DashboardResumenDto> {
     let params = new HttpParams().set('anio', String(anio));
     if (clave && clave !== 'todos') {
       params = params.set('clave', clave);
