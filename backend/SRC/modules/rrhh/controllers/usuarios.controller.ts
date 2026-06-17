@@ -1,146 +1,107 @@
 import { Request, Response } from 'express';
 import * as usuariosService from '../services/usuarios.service';
+import { mapUsuarioToDto } from '../services/rrhh.service';
+import { hashPassword } from '../../../utils/security/hash';
+import prisma from '../../../prisma';
 import { validarRut } from '../../../utils/rut.util';
+import { asyncHandler } from '../../../middlewares/async-handler';
+import { NotFoundError, ValidationError } from '../../../utils/errors/AppError';
 
-export const getUsuarios = async (req: Request, res: Response) => {
-  try {
-    const list = await usuariosService.listarUsuarios();
-    return res.status(200).json(list);
-  } catch (error: any) {
-    console.error('🔥 ERROR EN GET USUARIOS:', error);
-    return res.status(500).json({ success: false, error: error.message || 'Error al obtener usuarios' });
+export const getUsuarios = asyncHandler(async (req: Request, res: Response) => {
+  const list = await usuariosService.listarUsuarios();
+  res.status(200).json(list);
+});
+
+export const getMetricas = asyncHandler(async (req: Request, res: Response) => {
+  const metricas = await usuariosService.obtenerMetricasUsuarios();
+  res.status(200).json(metricas);
+});
+
+export const getUsuariosPaginado = asyncHandler(async (req: Request, res: Response) => {
+  const page = parseInt(req.query.page as string, 10) || 1;
+  const pageSize = parseInt(req.query.pageSize as string, 10) || 9;
+  const q = req.query.q as string | undefined;
+  const estado = req.query.estado as string | undefined;
+  const tipoVoluntario = req.query.tipoVoluntario as string | undefined;
+  const cargo = req.query.cargo as string | undefined;
+
+  const data = await usuariosService.listarUsuariosPaginado(page, pageSize, q, estado, tipoVoluntario, cargo);
+  res.status(200).json(data);
+});
+
+export const getUsuarioById = asyncHandler(async (req: Request, res: Response) => {
+  const rut = req.params.rut as string;
+  if (!rut) {
+    throw new ValidationError(['RUT requerido']);
   }
-};
 
-export const getMetricas = async (req: Request, res: Response) => {
-  try {
-    const metricas = await usuariosService.obtenerMetricasUsuarios();
-    return res.status(200).json(metricas);
-  } catch (error: any) {
-    console.error('🔥 ERROR EN METRICAS USUARIOS:', error);
-    return res.status(500).json({ success: false, error: error.message || 'Error al obtener métricas' });
+  const usuario = await usuariosService.buscarUsuarioPorRut(rut);
+  if (!usuario) {
+    throw new NotFoundError('Usuario', rut);
   }
-};
 
-export const getUsuariosPaginado = async (req: Request, res: Response) => {
-  try {
-    const page = parseInt(req.query.page as string, 10) || 1;
-    const pageSize = parseInt(req.query.pageSize as string, 10) || 9;
-    const q = req.query.q as string | undefined;
-    const estado = req.query.estado as string | undefined;
-    const tipoVoluntario = req.query.tipoVoluntario as string | undefined;
-    const cargo = req.query.cargo as string | undefined;
+  res.status(200).json(mapUsuarioToDto(usuario));
+});
 
-    const data = await usuariosService.listarUsuariosPaginado(page, pageSize, q, estado, tipoVoluntario, cargo);
-    return res.status(200).json(data);
-  } catch (error: any) {
-    console.error('🔥 ERROR EN GET USUARIOS PAGINADO:', error);
-    return res.status(500).json({ success: false, error: error.message || 'Error al obtener paginación' });
+export const postUsuario = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.body.rut || !validarRut(req.body.rut)) {
+    throw new ValidationError(['El RUT no es válido.']);
   }
-};
+  const nuevo = await usuariosService.crearUsuario(req.body);
+  res.status(201).json(nuevo);
+});
 
-export const getUsuarioById = async (req: Request, res: Response) => {
-  try {
-    const rut = req.params.rut as string;
-    if (!rut) {
-      return res.status(400).json({ success: false, message: 'RUT requerido' });
-    }
-
-    const usuario = await usuariosService.buscarUsuarioPorRut(rut);
-    if (!usuario) {
-      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
-    }
-
-    // Convert map to DTO
-    const { mapUsuarioToDto } = require('../services/rrhh.service');
-    return res.status(200).json(mapUsuarioToDto(usuario));
-  } catch (error: any) {
-    console.error('🔥 ERROR EN GET USUARIO BY RUT:', error);
-    return res.status(500).json({ success: false, error: error.message || 'Error al obtener usuario' });
+export const patchUsuario = asyncHandler(async (req: Request, res: Response) => {
+  const rut = req.params.rut as string;
+  if (!rut) {
+    throw new ValidationError(['RUT requerido']);
   }
-};
 
-export const postUsuario = async (req: Request, res: Response) => {
-  try {
+  if (req.body.rut !== undefined) {
     if (!req.body.rut || !validarRut(req.body.rut)) {
-      return res.status(400).json({ success: false, error: 'El RUT no es válido.' });
+      throw new ValidationError(['El RUT no es válido.']);
     }
-    const nuevo = await usuariosService.crearUsuario(req.body);
-    return res.status(201).json(nuevo);
-  } catch (error: any) {
-    console.error('🔥 ERROR EN CREAR USUARIO:', error);
-    return res.status(400).json({ success: false, error: error.message || 'Error al crear usuario' });
   }
-};
 
-export const patchUsuario = async (req: Request, res: Response) => {
+  const actualizado = await usuariosService.actualizarUsuario(rut, req.body);
+  res.status(200).json(actualizado);
+});
+
+export const deleteUsuario = asyncHandler(async (req: Request, res: Response) => {
   const rut = req.params.rut as string;
-  try {
-    if (!rut) {
-      return res.status(400).json({ success: false, message: 'RUT requerido' });
-    }
-
-    if (req.body.rut !== undefined) {
-      if (!req.body.rut || !validarRut(req.body.rut)) {
-        return res.status(400).json({ success: false, error: 'El RUT no es válido.' });
-      }
-    }
-
-    const actualizado = await usuariosService.actualizarUsuario(rut, req.body);
-    return res.status(200).json(actualizado);
-  } catch (error: any) {
-    console.error('🔥 ERROR EN ACTUALIZAR USUARIO:', error);
-    return res.status(400).json({ success: false, error: error.message || 'Error al actualizar usuario' });
+  if (!rut) {
+    throw new ValidationError(['RUT requerido']);
   }
-};
 
-export const deleteUsuario = async (req: Request, res: Response) => {
+  const result = await usuariosService.eliminarUsuario(rut);
+  res.status(200).json({
+    ok: true,
+    softDeleted: result.softDeleted,
+    message: result.message,
+  });
+});
+
+export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
   const rut = req.params.rut as string;
-  try {
-    if (!rut) {
-      return res.status(400).json({ success: false, message: 'RUT requerido' });
-    }
-
-    const result = await usuariosService.eliminarUsuario(rut);
-    return res.status(200).json({
-      ok: true,
-      softDeleted: result.softDeleted,
-      message: result.message,
-    });
-  } catch (error: any) {
-    console.error('🔥 ERROR EN ELIMINAR USUARIO:', error);
-    return res.status(400).json({ success: false, error: error.message || 'Error al eliminar usuario' });
+  if (!rut) {
+    throw new ValidationError(['RUT requerido']);
   }
-};
 
-export const resetPassword = async (req: Request, res: Response) => {
-  const rut = req.params.rut as string;
-  try {
-    if (!rut) {
-      return res.status(400).json({ success: false, message: 'RUT requerido' });
-    }
-
-    const usuario = await usuariosService.buscarUsuarioPorRut(rut);
-    if (!usuario) {
-      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
-    }
-
-    const bcrypt = require('bcrypt');
-    const cleanRut = usuario.rut.replace(/[^0-9kK]/g, '');
-    const nuevoHash = await bcrypt.hash(cleanRut || 'sidep123', 10);
-
-    const prisma = require('../../../prisma').default;
-    await prisma.usuario.update({
-      where: { rut: usuario.rut },
-      data: { passwordHash: nuevoHash },
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: `Contraseña restablecida al RUT (${cleanRut}). El usuario deberá cambiarla al ingresar.`,
-    });
-  } catch (error: any) {
-    console.error('🔥 ERROR EN RESET PASSWORD:', error);
-    return res.status(400).json({ success: false, error: error.message || 'Error al restablecer contraseña' });
+  const usuario = await usuariosService.buscarUsuarioPorRut(rut);
+  if (!usuario) {
+    throw new NotFoundError('Usuario', rut);
   }
-};
+
+  const cleanRut = usuario.rut.replace(/[^0-9kK]/g, '');
+  const nuevoHash = await hashPassword(cleanRut || 'sidep123');
+
+  await prisma.usuario.update({
+    where: { rut: usuario.rut },
+    data: { passwordHash: nuevoHash },
+  });
+
+  res.status(200).json({
+    success: true,
+    message: `Contraseña restablecida al RUT (${cleanRut}). El usuario deberá cambiarla al ingresar.`,
+  });
+});

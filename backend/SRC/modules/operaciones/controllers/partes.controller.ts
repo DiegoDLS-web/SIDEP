@@ -28,12 +28,12 @@ export const obtenerPartePorId = async (req: Request, res: Response): Promise<Re
     if (!id || id === 'undefined') {
       return res.status(400).json({ success: false, message: 'ID no proporcionado' });
     }
-    
+
     const parte = await partesService.obtenerPorId(id);
     if (!parte) {
       return res.status(404).json({ success: false, message: 'Parte no encontrado' });
     }
-    
+
     return res.status(200).json({ success: true, data: parte });
   } catch (error: any) {
     console.error("Error al obtener parte por ID:", error);

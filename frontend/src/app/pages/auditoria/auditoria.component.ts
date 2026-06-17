@@ -138,4 +138,30 @@ export class AuditoriaComponent implements OnInit {
       ? 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/35'
       : 'bg-red-500/15 text-red-300 ring-1 ring-red-500/35';
   }
+
+  exportarExcel(): void {
+    let params = new HttpParams();
+    if (this.filtroRut.trim()) params = params.set('rut', this.filtroRut.trim());
+    if (this.filtroAccion.trim()) params = params.set('accion', this.filtroAccion.trim());
+    if (this.filtroEntidad.trim()) params = params.set('entidad', this.filtroEntidad.trim());
+    if (this.filtroDesde.trim()) params = params.set('desde', this.filtroDesde.trim());
+    if (this.filtroHasta.trim()) params = params.set('hasta', this.filtroHasta.trim());
+
+    this.http.get('/api/auditoria/exportar', { params, responseType: 'blob' }).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `auditoria_sidep_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        this.toast.exito('Auditoría exportada correctamente.');
+      },
+      error: () => {
+        this.toast.error('No se pudo exportar el registro de auditoría.');
+      }
+    });
+  }
 }

@@ -6,13 +6,13 @@ const prisma = new PrismaClient();
 export const crearParteConRelaciones = async (data: any) => {
   return await prisma.$transaction(async (tx) => {
     const parteId = uuidv4();
-    
+
     // 1. Crear el Parte Principal
     const parte = await tx.parteEmergencia.create({
       data: {
         id: parteId,
         correlativo: data.correlativo || `P-${Date.now()}`,
-        estadoId: data.estadoId || 1, 
+        estadoId: data.estadoId || 1,
         fechaEmergencia: data.fechaEmergencia ? new Date(data.fechaEmergencia) : new Date(),
         claveId: data.claveId,
         obacRut: data.obacRut,
@@ -27,7 +27,7 @@ export const crearParteConRelaciones = async (data: any) => {
     if (data.asistencias && Array.isArray(data.asistencias) && data.asistencias.length > 0) {
       // Usamos Map con tipos explícitos para que Prisma no lance error de 'unknown[]'
       const asistenciasUnicas = new Map<string, Prisma.AsistenciaPersonalCreateManyInput>();
-      
+
       for (const a of data.asistencias) {
         const rut = a.usuarioRut || a;
         if (!asistenciasUnicas.has(rut)) {
@@ -38,7 +38,7 @@ export const crearParteConRelaciones = async (data: any) => {
           });
         }
       }
-      
+
       const asistenciasData: Prisma.AsistenciaPersonalCreateManyInput[] = Array.from(asistenciasUnicas.values());
       await tx.asistenciaPersonal.createMany({ data: asistenciasData });
     }
@@ -101,6 +101,6 @@ export const anularParte = async (id: string) => {
   // Asume que 3 es Anulado en tu CatalogoEstadoParte
   return await prisma.parteEmergencia.update({
     where: { id },
-    data: { estadoId: 3 } 
+    data: { estadoId: 3 }
   });
 };

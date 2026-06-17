@@ -1,8 +1,9 @@
 import prisma from '../../../prisma';
 import { StorageService, cloudinary } from '../../../shared/storage';
 import { mapUsuarioToDto } from './rrhh.service';
-import bcrypt from 'bcrypt';
+import { hashPassword } from '../../../utils/security/hash';
 import { validarRut, normalizarRut } from '../../../utils/rut.util';
+import { NotFoundError, ValidationError, ConflictError } from '../../../utils/errors/AppError';
 
 export const buscarUsuarioPorRut = async (rut: string) => {
   if (!rut) return null;
@@ -218,22 +219,22 @@ export const crearUsuario = async (datos: any) => {
   }
 
   if (!datos.rut || !validarRut(datos.rut)) {
-    throw new Error('El RUT no es válido.');
+    throw new ValidationError(['El RUT no es válido.']);
   }
   const rutNormalizado = normalizarRut(datos.rut);
-  const hashedPassword = await bcrypt.hash(rutNormalizado || 'sidep123', 10);
+  const hashedPassword = await hashPassword(rutNormalizado || 'sidep123');
 
   // Validar rango de fechas (1900 - 2100)
   if (datos.fechaNacimiento) {
     const d = new Date(datos.fechaNacimiento);
     if (isNaN(d.getTime()) || d.getFullYear() < 1900 || d.getFullYear() > 2100) {
-      throw new Error('La fecha de nacimiento debe tener un año válido (entre 1900 y 2100).');
+      throw new ValidationError(['La fecha de nacimiento debe tener un año válido (entre 1900 y 2100).']);
     }
   }
   if (datos.fechaIngreso) {
     const d = new Date(datos.fechaIngreso);
     if (isNaN(d.getTime()) || d.getFullYear() < 1900 || d.getFullYear() > 2100) {
-      throw new Error('La fecha de ingreso debe tener un año válido (entre 1900 y 2100).');
+      throw new ValidationError(['La fecha de ingreso debe tener un año válido (entre 1900 y 2100).']);
     }
   }
 
@@ -284,7 +285,7 @@ export const crearUsuario = async (datos: any) => {
 export const actualizarUsuario = async (rut: string, datos: any) => {
   const usuarioExistente = await buscarUsuarioPorRut(rut);
   if (!usuarioExistente) {
-    throw new Error('Usuario no encontrado');
+    throw new NotFoundError('Usuario', rut);
   }
 
   const updateData: any = {};
@@ -294,7 +295,7 @@ export const actualizarUsuario = async (rut: string, datos: any) => {
   if (datos.apellidoMaterno !== undefined) updateData.apellidoMaterno = datos.apellidoMaterno;
   if (datos.rut !== undefined) {
     if (!validarRut(datos.rut)) {
-      throw new Error('El RUT no es válido.');
+      throw new ValidationError(['El RUT no es válido.']);
     }
     updateData.rut = normalizarRut(datos.rut);
   }

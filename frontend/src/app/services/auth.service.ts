@@ -114,7 +114,7 @@ export class AuthService {
   }
 
   cambiarPasswordSesion(passwordActual: string, passwordNueva: string): Observable<SesionUsuarioDto> {
-    return this.http.post<{ ok: boolean }>('/api/auth/cambiar-password-sesion', {
+    return this.http.patch<{ ok: boolean }>('/api/rrhh/mi-perfil/password', {
       passwordActual,
       passwordNueva,
     }).pipe(

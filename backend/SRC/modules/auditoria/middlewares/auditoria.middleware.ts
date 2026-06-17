@@ -71,7 +71,7 @@ export const auditoriaMiddleware = (req: Request, res: Response, next: NextFunct
           ? `Usuario con ID ${lastPart} actualizado. Campos modificados: ${Object.keys(req.body || {}).join(', ')}`
           : `Fallo al actualizar usuario con ID ${lastPart}: ${responseBody?.error || responseBody?.message || 'Error desconocido'}`;
       }
-    } 
+    }
     else if (ruta.startsWith('/api/licencias')) {
       entidad = 'LicenciaMedica';
       const pathOnly = ruta.split('?')[0] || '';
@@ -148,6 +148,48 @@ export const auditoriaMiddleware = (req: Request, res: Response, next: NextFunct
         detalle = resultado === 'OK'
           ? `Usuario ${actorRut} subió un archivo adjunto PDF para la licencia ${entidadId}.`
           : `Error al subir archivo de licencia: ${responseBody?.error || responseBody?.message || 'Error desconocido'}`;
+      }
+    }
+    else if (ruta.startsWith('/api/logistica/carros')) {
+      entidad = 'Carro';
+      const parts = ruta.split('?')[0]?.split('/') || [];
+      const lastPart = parts[parts.length - 1] || '';
+
+      if (metodoHttp === 'POST') {
+        accion = resultado === 'OK' ? 'CREAR_CARRO' : 'CREAR_CARRO_ERROR';
+        entidadId = responseBody?.id ? String(responseBody.id) : null;
+        detalle = resultado === 'OK'
+          ? `Carro ${responseBody?.nomenclatura || ''} creado por ${actorRut}.`
+          : `Error al crear carro: ${responseBody?.error || 'Error'}`;
+      } else if (metodoHttp === 'PATCH' && ruta.endsWith('/estado')) {
+        accion = resultado === 'OK' ? 'CAMBIAR_ESTADO_CARRO' : 'CAMBIAR_ESTADO_CARRO_ERROR';
+        entidadId = parts[parts.length - 2] || null;
+        detalle = `Estado operativo del carro ID ${entidadId} modificado por ${actorRut}.`;
+      } else if (metodoHttp === 'PATCH') {
+        accion = resultado === 'OK' ? 'ACTUALIZAR_CARRO' : 'ACTUALIZAR_CARRO_ERROR';
+        entidadId = lastPart || null;
+        detalle = `Carro ID ${lastPart} actualizado por ${actorRut}.`;
+      }
+    }
+    else if (ruta.startsWith('/api/logistica/checklist')) {
+      entidad = 'Checklist';
+      if (ruta.includes('/ejecucion') && metodoHttp === 'POST') {
+        accion = resultado === 'OK' ? 'EJECUTAR_CHECKLIST' : 'EJECUTAR_CHECKLIST_ERROR';
+        entidadId = responseBody?.id ? String(responseBody.id) : null;
+        detalle = `Checklist ejecutado por ${actorRut}.`;
+      } else if (ruta.includes('/plantillas') && metodoHttp === 'POST') {
+        accion = resultado === 'OK' ? 'CREAR_PLANTILLA_CHECKLIST' : 'CREAR_PLANTILLA_CHECKLIST_ERROR';
+        detalle = `Plantilla de checklist creada por ${actorRut}.`;
+      } else if (ruta.includes('/plantillas') && metodoHttp === 'PATCH') {
+        accion = resultado === 'OK' ? 'ACTUALIZAR_PLANTILLA_CHECKLIST' : 'ACTUALIZAR_PLANTILLA_CHECKLIST_ERROR';
+        detalle = `Plantilla de checklist actualizada por ${actorRut}.`;
+      }
+    }
+    else if (ruta.startsWith('/api/logistica/equipamiento')) {
+      entidad = 'Equipamiento';
+      if (metodoHttp === 'POST') {
+        accion = resultado === 'OK' ? 'ASIGNAR_MATERIAL' : 'ASIGNAR_MATERIAL_ERROR';
+        detalle = `Material asignado a carro por ${actorRut}.`;
       }
     }
 

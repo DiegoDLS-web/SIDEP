@@ -242,6 +242,7 @@ model AsistenciaPersonal {
   id         String          @id @db.VarChar(36)
   parteId    String          @map("parte_id") @db.VarChar(36)
   usuarioRut String          @map("usuario_rut") @db.VarChar(20)
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   parte      ParteEmergencia @relation(fields: [parteId], references: [id])
   usuario    Usuario         @relation(fields: [usuarioRut], references: [rut])
 

@@ -1,5 +1,6 @@
 import prisma from '../../../prisma';
 import crypto from 'crypto';
+import ExcelJS from 'exceljs';
 
 /**
  * Registra una acción en la tabla de auditoría.
@@ -111,4 +112,82 @@ export const listarAuditoria = async (params: {
     pageSize,
     totalPages: Math.ceil(total / pageSize) || 1,
   };
+};
+
+export const exportarAuditoriaExcel = async (params: {
+  rut?: string;
+  accion?: string;
+  entidad?: string;
+  desde?: string;
+  hasta?: string;
+}): Promise<Buffer> => {
+  const where: any = {};
+  if (params.rut) {
+    where.usuarioRut = { contains: params.rut, mode: 'insensitive' };
+  }
+  if (params.accion) {
+    where.accion = { contains: params.accion, mode: 'insensitive' };
+  }
+  if (params.entidad) {
+    where.entidad = { contains: params.entidad, mode: 'insensitive' };
+  }
+  if (params.desde || params.hasta) {
+    where.createdAt = {};
+    if (params.desde) where.createdAt.gte = new Date(params.desde);
+    if (params.hasta) where.createdAt.lte = new Date(params.hasta + 'T23:59:59.999Z');
+  }
+
+  const items = await prisma.auditoriaUsuario.findMany({
+    where,
+    include: {
+      usuario: {
+        select: {
+          rut: true,
+          nombres: true,
+          apellidoPaterno: true,
+          apellidoMaterno: true,
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 10000,
+  });
+
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Auditoría');
+
+  worksheet.columns = [
+    { header: 'Fecha/Hora', key: 'fecha', width: 25 },
+    { header: 'Usuario', key: 'usuario', width: 30 },
+    { header: 'RUT', key: 'rut', width: 15 },
+    { header: 'Acción', key: 'accion', width: 25 },
+    { header: 'Entidad', key: 'entidad', width: 15 },
+    { header: 'ID Entidad', key: 'entidadId', width: 15 },
+    { header: 'Método HTTP', key: 'metodoHttp', width: 12 },
+    { header: 'Ruta', key: 'ruta', width: 30 },
+    { header: 'IP Origen', key: 'ipOrigen', width: 15 },
+    { header: 'Detalle', key: 'detalle', width: 50 },
+    { header: 'Resultado', key: 'resultado', width: 12 },
+  ];
+
+  for (const i of items) {
+    worksheet.addRow({
+      fecha: i.createdAt.toISOString(),
+      usuario: i.usuario ? `${i.usuario.nombres} ${i.usuario.apellidoPaterno} ${i.usuario.apellidoMaterno}`.trim() : 'Sistema',
+      rut: i.usuarioRut || 'N/A',
+      accion: i.accion,
+      entidad: i.entidad || 'N/A',
+      entidadId: i.entidadId || 'N/A',
+      metodoHttp: i.metodoHttp || 'N/A',
+      ruta: i.ruta || 'N/A',
+      ipOrigen: i.ipOrigen || 'N/A',
+      detalle: i.detalle || '',
+      resultado: i.resultado,
+    });
+  }
+
+  worksheet.getRow(1).font = { bold: true };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return buffer as any;
 };

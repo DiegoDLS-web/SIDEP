@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import authRoutes from './SRC/modules/autenticacion/autenticacion.routes';
 import logisticaRoutes from './SRC/modules/logistica/logistica.routes';
 import operacionesRoutes from './SRC/modules/operaciones/operaciones.routes';
@@ -7,6 +8,8 @@ import rrhhRoutes from './SRC/modules/rrhh/routes/rrhh.routes';
 import usuariosRoutes from './SRC/modules/rrhh/routes/usuarios.routes';
 import licenciasRoutes from './SRC/modules/rrhh/routes/licencias.routes';
 import auditoriaRoutes from './SRC/modules/auditoria/routes/auditoria.routes';
+import reportesRoutes from './SRC/modules/analitica/routes/reportes.routes';
+import dashboardRoutes from './SRC/modules/analitica/routes/dashboard.routes';
 import { protect } from './SRC/middlewares/auth.middleware';
 import prisma from './SRC/prisma';
 import { auditoriaMiddleware } from './SRC/modules/auditoria/middlewares/auditoria.middleware';
@@ -14,7 +17,11 @@ import { auditoriaMiddleware } from './SRC/modules/auditoria/middlewares/auditor
 const app = express();
 
 // Middlewares obligatorios
-app.use(cors()); // Permite que el frontend de Angular se comunique
+app.use(helmet());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:4200',
+  credentials: true,
+}));
 app.use(express.json({ limit: '20mb' })); // Permite recibir información en JSON
 app.use(express.urlencoded({ limit: '20mb', extended: true }));
 
@@ -39,7 +46,7 @@ app.get('/api/branding-public', async (req, res) => {
 app.get('/api/auth/mi-navegacion', protect, async (req, res) => {
   try {
     const user = (req as any).user;
-    
+
     // Buscar el rol real del usuario en la base de datos
     const dbUser = await prisma.usuario.findUnique({
       where: { rut: user.rut },
@@ -114,6 +121,8 @@ app.use('/api/rrhh', auditoriaMiddleware, rrhhRoutes);
 app.use('/api/usuarios', auditoriaMiddleware, usuariosRoutes);
 app.use('/api/licencias', auditoriaMiddleware, licenciasRoutes);
 app.use('/api/auditoria', auditoriaRoutes);
+app.use('/api/reportes', protect, reportesRoutes);
+app.use('/api/dashboard', protect, dashboardRoutes);
 
 // Endpoint global de Roles (consumido por RolesService en el frontend)
 app.get('/api/roles', protect, async (req, res) => {
@@ -134,5 +143,9 @@ app.get('/api/roles', protect, async (req, res) => {
   }
 });
 
+import { errorHandler } from './SRC/middlewares/error-handler';
+
 // Exportamos 'app' pero NO lo encendemos aquí
+app.use(errorHandler);
+
 export default app;

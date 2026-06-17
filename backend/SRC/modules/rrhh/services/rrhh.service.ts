@@ -1,5 +1,6 @@
 import prisma from '../../../prisma';
 import { StorageService, cloudinary } from '../../../shared/storage';
+import { hashPassword, comparePassword } from '../../../utils/security/hash';
 
 // Mapea un modelo Usuario de la BD al DTO UsuarioListaDto del frontend
 export function mapUsuarioToDto(usuario: any): any {
@@ -310,18 +311,17 @@ export const actualizarArchivoLicencia = async (licenciaId: string, url: string,
 };
 
 export const cambiarPassword = async (rut: string, passwordActual: string, passwordNueva: string) => {
-  const bcrypt = require('bcrypt');
   const usuario = await prisma.usuario.findUnique({ where: { rut } });
   if (!usuario) {
     throw new Error('Usuario no encontrado');
   }
 
-  const coincide = await bcrypt.compare(passwordActual, usuario.passwordHash);
+  const coincide = await comparePassword(passwordActual, usuario.passwordHash);
   if (!coincide) {
     throw new Error('La contraseña actual es incorrecta.');
   }
 
-  const nuevoHash = await bcrypt.hash(passwordNueva, 10);
+  const nuevoHash = await hashPassword(passwordNueva);
   await prisma.usuario.update({
     where: { rut },
     data: { passwordHash: nuevoHash },

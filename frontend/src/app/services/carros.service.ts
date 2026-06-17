@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable, catchError, of } from 'rxjs';
+import { Observable, catchError, of, map } from 'rxjs';
 import type {
   CarroHistorialGeneralFila,
   CarroRegistroHistorialDto,
@@ -135,7 +135,8 @@ export class CarrosService {
   ];
 
   listar(): Observable<CarroDto[]> {
-    return this.http.get<CarroDto[]>('/api/logistica/carros').pipe(
+    return this.http.get<{ success: boolean; data: CarroDto[] }>('/api/logistica/carros').pipe(
+      map((res) => res.data),
       catchError(() =>
         of(
           this.demoCarros.map(({ historialRegistros: _h, ...c }) => ({ ...c })),
@@ -205,7 +206,8 @@ export class CarrosService {
 
   obtener(idONomenclatura: string | number): Observable<CarroDto> {
     const segment = String(idONomenclatura);
-    return this.http.get<CarroDto>(`/api/logistica/carros/${encodeURIComponent(segment)}`).pipe(
+    return this.http.get<{ success: boolean; data: CarroDto }>(`/api/logistica/carros/${encodeURIComponent(segment)}`).pipe(
+      map((res) => res.data),
       catchError(() => {
         const fallback = this.demoCarros.find(
           (c) => String(c.id) === segment || c.nomenclatura === segment,
@@ -216,7 +218,8 @@ export class CarrosService {
   }
 
   actualizar(id: string | number, payload: Partial<CarroDto>): Observable<CarroDto> {
-    return this.http.patch<CarroDto>(`/api/logistica/carros/${id}`, payload).pipe(
+    return this.http.patch<{ success: boolean; data: CarroDto }>(`/api/logistica/carros/${id}`, payload).pipe(
+      map((res) => res.data),
       catchError(() => {
         const idx = this.demoCarros.findIndex((c) => String(c.id) === String(id));
         if (idx >= 0) {

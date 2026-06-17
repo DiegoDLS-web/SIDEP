@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { 
-  crearParte, 
-  obtenerPartes, 
-  obtenerPartePorId, 
-  actualizarParte, 
-  anularParte 
+import {
+  crearParte,
+  obtenerPartes,
+  obtenerPartePorId,
+  actualizarParte,
+  anularParte
 } from '../controllers/partes.controller';
 
 const router = Router();
@@ -14,8 +14,8 @@ router.get('/', obtenerPartes);
 router.post('/', crearParte);
 
 // Rutas específicas por ID
-router.get('/:id', obtenerPartePorId); 
-router.patch('/:id', actualizarParte); 
-router.delete('/:id', anularParte);    
+router.get('/:id', obtenerPartePorId);
+router.patch('/:id', actualizarParte);
+router.delete('/:id', anularParte);
 
 export default router;

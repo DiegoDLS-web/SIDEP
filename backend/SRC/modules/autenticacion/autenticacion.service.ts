@@ -1,5 +1,5 @@
 import prisma from '../../prisma'; // Asegúrate que esta ruta importe tu cliente de prisma
-import bcrypt from 'bcrypt';
+import { hashPassword, comparePassword } from '../../utils/security/hash';
 import jwt from 'jsonwebtoken';
 import { validarRut, normalizarRut } from '../../utils/rut.util';
 
@@ -12,7 +12,7 @@ export const registrarUsuario = async (datos: any) => {
     const normalizedRut = normalizarRut(rut);
 
     // Hasheamos la password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await hashPassword(password);
 
     // Creamos el usuario siguiendo la estructura normalizada del MER
     return await prisma.usuario.create({
@@ -48,7 +48,7 @@ export const loginUsuario = async (rut: string, password: string) => {
     }
 
     // Comparamos password
-    const isMatch = await bcrypt.compare(password, usuario.passwordHash);
+    const isMatch = await comparePassword(password, usuario.passwordHash);
     if (!isMatch) {
         throw new Error('Credenciales inválidas');
     }

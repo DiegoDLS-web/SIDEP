@@ -9,6 +9,16 @@
       <h1 class="text-2xl font-bold tracking-tight text-white sm:text-3xl">Registro de Auditoría</h1>
       <p class="text-sm text-slate-500">Historial completo de acciones y mutaciones en el sistema (trazabilidad).</p>
     </div>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 transition-colors"
+        (click)="exportarExcel()"
+      >
+        <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor" />
+        Exportar Excel
+      </button>
+    </div>
   </div>
 
   <!-- Filters -->
