@@ -2,18 +2,19 @@ import { Router } from 'express';
 import {
   crearParte,
   obtenerPartes,
+  obtenerPagina,
+  obtenerMetricas,
   obtenerPartePorId,
   actualizarParte,
-  anularParte
+  anularParte,
 } from '../controllers/partes.controller';
 
 const router = Router();
 
-// Rutas generales
+router.get('/pagina', obtenerPagina);
+router.get('/metricas', obtenerMetricas);
 router.get('/', obtenerPartes);
 router.post('/', crearParte);
-
-// Rutas específicas por ID
 router.get('/:id', obtenerPartePorId);
 router.patch('/:id', actualizarParte);
 router.delete('/:id', anularParte);

@@ -192,6 +192,91 @@ export const auditoriaMiddleware = (req: Request, res: Response, next: NextFunct
         detalle = `Material asignado a carro por ${actorRut}.`;
       }
     }
+    else if (ruta.startsWith('/api/auth')) {
+      entidad = 'Sesion';
+      if (metodoHttp === 'POST' && ruta.includes('/login')) {
+        accion = resultado === 'OK' ? 'LOGIN' : 'LOGIN_ERROR';
+        entidadId = (responseBody?.data?.usuario?.rut || req.body?.rut || null) as string | null;
+        detalle = resultado === 'OK'
+          ? `Inicio de sesión exitoso para ${entidadId || 'usuario'}.`
+          : `Intento de inicio de sesión fallido: ${responseBody?.message || 'credenciales inválidas'}`;
+      } else if (metodoHttp === 'POST' && ruta.includes('/logout')) {
+        accion = 'LOGOUT';
+        entidadId = (actorRut || null) as string | null;
+        detalle = `Cierre de sesión de ${actorRut || 'usuario'}.`;
+      } else if (metodoHttp === 'POST' && ruta.includes('/register')) {
+        accion = resultado === 'OK' ? 'REGISTRO_USUARIO' : 'REGISTRO_USUARIO_ERROR';
+        entidadId = (responseBody?.data?.rut || req.body?.rut || null) as string | null;
+        detalle = resultado === 'OK'
+          ? `Registro de usuario ${entidadId}.`
+          : `Fallo al registrar usuario: ${responseBody?.message || 'Error desconocido'}`;
+      }
+    }
+    else if (ruta.startsWith('/api/operaciones/partes')) {
+      entidad = 'ParteEmergencia';
+      const pathOnly = ruta.split('?')[0] || '';
+      const parts = pathOnly.split('/');
+      const lastPart = parts[parts.length - 1] || '';
+
+      if (metodoHttp === 'POST' && !ruta.includes('/asistencias')) {
+        accion = resultado === 'OK' ? 'CREAR_PARTE' : 'CREAR_PARTE_ERROR';
+        entidadId = (responseBody?.id || responseBody?.data?.id || null) as string | null;
+        detalle = resultado === 'OK'
+          ? `Parte ${entidadId || ''} creado por ${actorRut}.`
+          : `Error al crear parte: ${responseBody?.message || 'Error desconocido'}`;
+      } else if (metodoHttp === 'PATCH') {
+        accion = resultado === 'OK' ? 'ACTUALIZAR_PARTE' : 'ACTUALIZAR_PARTE_ERROR';
+        entidadId = lastPart || null;
+        detalle = resultado === 'OK'
+          ? `Parte ${lastPart} actualizado por ${actorRut}.`
+          : `Error al actualizar parte ${lastPart}: ${responseBody?.message || 'Error desconocido'}`;
+      } else if (metodoHttp === 'DELETE') {
+        accion = resultado === 'OK' ? 'ANULAR_PARTE' : 'ANULAR_PARTE_ERROR';
+        entidadId = lastPart || null;
+        detalle = resultado === 'OK'
+          ? `Parte ${lastPart} anulado por ${actorRut}.`
+          : `Error al anular parte ${lastPart}: ${responseBody?.message || 'Error desconocido'}`;
+      }
+    }
+    else if (ruta.startsWith('/api/operaciones/asistencia')) {
+      entidad = 'AsistenciaPersonal';
+      const pathOnly = ruta.split('?')[0] || '';
+      const parts = pathOnly.split('/');
+      const lastPart = parts[parts.length - 1] || '';
+
+      if (metodoHttp === 'POST') {
+        accion = resultado === 'OK' ? 'REGISTRAR_ASISTENCIA' : 'REGISTRAR_ASISTENCIA_ERROR';
+        entidadId = (responseBody?.id || responseBody?.data?.id || req.body?.parteId || null) as string | null;
+        detalle = resultado === 'OK'
+          ? `Asistencia registrada para parte ${req.body?.parteId} (voluntario ${req.body?.usuarioRut}).`
+          : `Error al registrar asistencia: ${responseBody?.message || 'Error desconocido'}`;
+      } else if (metodoHttp === 'DELETE') {
+        accion = resultado === 'OK' ? 'ELIMINAR_ASISTENCIA' : 'ELIMINAR_ASISTENCIA_ERROR';
+        entidadId = lastPart || null;
+        detalle = resultado === 'OK'
+          ? `Asistencia ${lastPart} eliminada por ${actorRut}.`
+          : `Error al eliminar asistencia ${lastPart}: ${responseBody?.message || 'Error desconocido'}`;
+      }
+    }
+    else if (ruta.startsWith('/api/operaciones/partes/') && ruta.includes('/asistencias')) {
+      entidad = 'AsistenciaPersonal';
+      const pathOnly = ruta.split('?')[0] || '';
+      const parts = pathOnly.split('/');
+
+      if (metodoHttp === 'POST') {
+        accion = resultado === 'OK' ? 'REGISTRAR_ASISTENCIA' : 'REGISTRAR_ASISTENCIA_ERROR';
+        entidadId = parts[parts.length - 2] || null;
+        detalle = resultado === 'OK'
+          ? `Asistencia agregada al parte ${entidadId} por ${actorRut}.`
+          : `Error al agregar asistencia: ${responseBody?.message || 'Error desconocido'}`;
+      } else if (metodoHttp === 'DELETE') {
+        accion = resultado === 'OK' ? 'ELIMINAR_ASISTENCIA' : 'ELIMINAR_ASISTENCIA_ERROR';
+        entidadId = parts[parts.length - 1] || null;
+        detalle = resultado === 'OK'
+          ? `Asistencia ${entidadId} eliminada del parte por ${actorRut}.`
+          : `Error al eliminar asistencia: ${responseBody?.message || 'Error desconocido'}`;
+      }
+    }
 
     if (accion) {
       await registrarAccion({

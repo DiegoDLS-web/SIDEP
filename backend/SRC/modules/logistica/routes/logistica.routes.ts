@@ -17,6 +17,7 @@ router.post('/equipamiento/bolsos', protect, requireRoles('ADMIN', 'OFICIAL'), e
 router.post('/equipamiento/materiales', protect, requireRoles('ADMIN', 'OFICIAL'), equipamientoController.addMaterialCarro);
 router.get('/equipamiento/carro/:carroId', protect, equipamientoController.getInventarioCarro);
 // --- CHECKLISTS ---
+router.get('/checklist/plantillas', protect, checklistsController.obtenerPlantillas);
 router.post('/checklist/plantillas', protect, requireRoles('ADMIN', 'OFICIAL'), checklistsController.addPlantilla);
 router.post('/checklist/ejecucion', protect, checklistsController.addEjecucion);
 router.get('/checklist/historial', protect, checklistsController.getHistorial);

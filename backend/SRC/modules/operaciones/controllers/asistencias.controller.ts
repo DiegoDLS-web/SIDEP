@@ -45,3 +45,33 @@ export const deleteAsistencia = asyncHandler(async (req: Request, res: Response)
     data,
   });
 });
+
+export const postAsistenciaDirecta = asyncHandler(async (req: Request, res: Response) => {
+  const { parteId, usuarioRut } = req.body;
+
+  if (!parteId) {
+    throw new ValidationError(['parteId es requerido en el cuerpo']);
+  }
+  if (!usuarioRut) {
+    throw new ValidationError(['usuarioRut es requerido en el cuerpo']);
+  }
+
+  const data = await asistenciasService.agregarAsistencia(String(parteId), String(usuarioRut));
+  res.status(201).json(data);
+});
+
+export const deleteAsistenciaDirecta = asyncHandler(async (req: Request, res: Response) => {
+  const { asistenciaId } = req.params as { asistenciaId: string };
+  const parteId = String(req.query.parteId || req.body?.parteId || '');
+
+  if (!parteId || !asistenciaId) {
+    throw new ValidationError(['parteId (query/body) y asistenciaId son requeridos']);
+  }
+
+  const data = await asistenciasService.eliminarAsistencia(parteId, asistenciaId);
+  res.status(200).json({
+    success: true,
+    message: 'Asistencia eliminada correctamente',
+    data,
+  });
+});
