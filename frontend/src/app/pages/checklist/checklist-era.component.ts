@@ -1245,6 +1245,7 @@ export class ChecklistEraComponent implements OnInit {
     if (obacId === '') {
       return;
     }
+    const obacNombre = this.usuarios.find((u) => u.id === obacId)?.nombre ?? '';
     const total = this.equipos.length + this.recambios.length;
     const ok =
       this.equipos.filter((e) => e.arnesCondicion === 'Operativo').length +
@@ -1256,6 +1257,7 @@ export class ChecklistEraComponent implements OnInit {
       .guardarChecklistEra({
         unidad: this.unidad,
         cuarteleroId: obacId,
+        obacNombre,
         inspector: this.inspector,
         grupoGuardia: this.grupoGuardia,
         firmaOficial: firma,
@@ -1296,6 +1298,7 @@ export class ChecklistEraComponent implements OnInit {
       return;
     }
     const obacBorrador = this.cuarteleroId;
+    const obacNombre = this.usuarios.find((u) => u.id === obacBorrador)?.nombre ?? '';
     this.error = null;
     this.savingBorrador = true;
     const total = this.equipos.length + this.recambios.length;
@@ -1309,6 +1312,7 @@ export class ChecklistEraComponent implements OnInit {
       .guardarChecklistEra({
         unidad: this.unidad,
         cuarteleroId: obacBorrador,
+        obacNombre,
         inspector: this.inspector,
         grupoGuardia: this.grupoGuardia,
         firmaOficial: firma || null,

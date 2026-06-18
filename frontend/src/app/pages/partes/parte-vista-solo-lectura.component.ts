@@ -1,8 +1,11 @@
 import { CommonModule, formatDate } from '@angular/common';
-import { Component, Input, inject } from '@angular/core';
+import { Component, Input, OnInit, inject } from '@angular/core';
+import { catchError, of } from 'rxjs';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
-import { ASISTENCIA_CONTEXTO_OPCIONES, ASISTENCIA_ITEM_LABELS } from './asistencia-roster.constants';
+import { ASISTENCIA_CONTEXTO_OPCIONES, resolverEtiquetaAsistenciaId } from './asistencia-roster.constants';
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
+import { UsuariosService } from '../../services/usuarios.service';
+import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 
 /**
  * Bloque de presentación solo lectura del parte (reutilizado en modal del historial).
@@ -13,10 +16,21 @@ import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-em
   imports: [CommonModule, SidepIconsModule],
   templateUrl: './parte-vista-solo-lectura.component.html',
 })
-export class ParteVistaSoloLecturaComponent {
+export class ParteVistaSoloLecturaComponent implements OnInit {
   @Input({ required: true }) parte!: any;
 
   private readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
+  private readonly usuariosApi = inject(UsuariosService);
+  private nombresPorRut: Record<string, string> = {};
+
+  ngOnInit(): void {
+    this.usuariosApi.selectorObac().pipe(catchError(() => of([]))).subscribe((usuarios) => {
+      for (const u of usuarios) {
+        this.nombresPorRut[u.id] = nombreListaSoloPersona(u);
+        if (u.rut) this.nombresPorRut[u.rut] = nombreListaSoloPersona(u);
+      }
+    });
+  }
 
   etiquetaClave(clave: string): string {
     return this.catalogoEmergencias.etiqueta(clave);
@@ -153,7 +167,7 @@ export class ParteVistaSoloLecturaComponent {
     }
     return Object.entries(sel)
       .filter(([, v]) => v)
-      .map(([id]) => (ASISTENCIA_ITEM_LABELS as any)[id] ?? id);
+      .map(([id]) => resolverEtiquetaAsistenciaId(id, this.nombresPorRut));
   }
 
   nombresAsistenciaContexto(a: any, ctx: string): string[] {
@@ -188,20 +202,29 @@ export class ParteVistaSoloLecturaComponent {
     return parte.metadata?.horaDelLlamado?.trim() || '—';
   }
 
+  etiquetaConductorUnidad(parte: any, carroId: string, conductor: string): string {
+    const unidad = (parte.unidades ?? []).find((u: any) => String(u.carroId) === String(carroId));
+    const etiqueta = unidad?.carro?.nomenclatura ?? unidad?.carro?.nombre ?? 'Unidad';
+    return `${etiqueta}: ${conductor}`;
+  }
+
   lineaApoyo(a: any): string {
-    const base = `${a.tipo} — ${a.nombre} (${a.cargo})`;
+    const tipo = this.etiquetaTipoApoyo(a.tipo);
+    const partes = [tipo];
     const pat = a.patente?.trim();
-    const cond = a.conductor?.trim();
-    const leg = a.movil?.trim() || '';
-    const parts = [base];
-    if (pat) {
-      parts.push(`Pat. ${pat}`);
-    } else if (leg) {
-      parts.push(leg);
-    }
-    if (cond) {
-      parts.push(`Cond. ${cond}`);
-    }
-    return parts.join(' · ');
+    const cond = a.conductor?.trim() || a.nombre?.trim();
+    if (pat) partes.push(`Patente: ${pat}`);
+    if (cond) partes.push(`Conductor: ${cond}`);
+    return partes.join('   ');
+  }
+
+  private etiquetaTipoApoyo(tipo: string): string {
+    const map: Record<string, string> = {
+      SAMU: 'SAMU',
+      CARABINEROS: 'Carabineros',
+      SEGURIDAD_CIUDADANA: 'Seguridad Ciudadana',
+      OTRO: 'Otro',
+    };
+    return map[(tipo || '').toUpperCase()] ?? (tipo || 'Apoyo externo');
   }
 }

@@ -253,7 +253,7 @@
                         <img
                           [src]="p.metadata.asistencia?.firmaEncargadoDatos"
                           alt="Firma encargado de datos"
-                          class="max-h-28 rounded border border-gray-600 bg-white"
+                          class="max-h-28 rounded border border-gray-600 bg-[#1a1a1a]"
                         />
                       }
                     </div>
@@ -269,7 +269,7 @@
                         <img
                           [src]="p.metadata.asistencia?.firmaObac"
                           alt="Firma OBAC"
-                          class="max-h-28 rounded border border-gray-600 bg-white"
+                          class="max-h-28 rounded border border-gray-600 bg-[#1a1a1a]"
                         />
                       }
                     </div>
@@ -288,7 +288,7 @@
                 <p class="mb-2 text-xs font-medium uppercase text-gray-500">Conductores por unidad</p>
                 <ul class="list-inside list-disc space-y-1 text-gray-400">
                   @for (kv of entradasConductores(p.metadata.conductoresPorCarroId); track kv[0]) {
-                    <li>Carro ID {{ kv[0] }}: {{ kv[1] }}</li>
+                    <li>{{ etiquetaConductorUnidad(p, kv[0], kv[1]) }}</li>
                   }
                 </ul>
               </div>

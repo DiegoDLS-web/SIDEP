@@ -57,6 +57,16 @@ function buildLabelMap(): Record<string, string> {
 export const ASISTENCIA_ITEM_LABELS = buildLabelMap();
 export const ASISTENCIA_IDS_TODOS = Object.keys(ASISTENCIA_ITEM_LABELS);
 
+export function resolverEtiquetaAsistenciaId(id: string, nombresPorRut?: Record<string, string>): string {
+  const fijo = ASISTENCIA_ITEM_LABELS[id];
+  if (fijo) return fijo;
+  if (id.startsWith('usr-') && nombresPorRut) {
+    const rut = id.slice(4).trim();
+    return nombresPorRut[rut] ?? nombresPorRut[id] ?? rut;
+  }
+  return id;
+}
+
 export function esVoluntarioAsistenciaId(id: string): boolean {
   return id.startsWith('vh-') || id.startsWith('va-');
 }

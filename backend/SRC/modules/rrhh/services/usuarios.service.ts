@@ -40,7 +40,7 @@ export const listarUsuarios = async () => {
   return usuarios.map(mapUsuarioToDto);
 };
 
-/** Lista mínima de usuarios activos para selects OBAC (cualquier rol autenticado). */
+/** Lista mínima de usuarios activos para selects (cualquier voluntario activo). */
 export const listarUsuariosSelector = async () => {
   const usuarios = await prisma.usuario.findMany({
     where: { activo: 1 },
@@ -50,9 +50,7 @@ export const listarUsuariosSelector = async () => {
     },
     orderBy: [{ nombres: 'asc' }, { apellidoPaterno: 'asc' }],
   });
-  return usuarios
-    .filter((u) => (u.tipoVoluntario?.codigo ?? u.tipoVoluntario?.nombre ?? '').toUpperCase() !== 'ASPIRANTE')
-    .map(mapUsuarioToDto);
+  return usuarios.map(mapUsuarioToDto);
 };
 
 export const obtenerMetricasUsuarios = async () => {

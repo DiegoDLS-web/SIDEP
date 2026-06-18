@@ -149,7 +149,12 @@ export class ChecklistsService {
         const carro = carros.find((c) => c.nomenclatura === unidad || String(c.id) === unidad);
         if (!carro) return of([]);
         return this.getHistorial(String(carro.id)).pipe(
-          map((res) => (res.data ?? []).map((e) => this.mapEjecucionToRegistro(e, carro)).filter(Boolean) as ChecklistRegistroDto[]),
+          map((res) =>
+            (res.data ?? [])
+              .filter((e) => (e.entidadTipo ?? 'CARRO') === 'CARRO')
+              .map((e) => this.mapEjecucionToRegistro(e, carro))
+              .filter(Boolean) as ChecklistRegistroDto[],
+          ),
           catchError(() => of([])),
         );
       }),
@@ -248,10 +253,12 @@ export class ChecklistsService {
 
   guardarChecklistEra(payload: Record<string, unknown>): Observable<ChecklistRegistroDto> {
     const unidad = String(payload['unidad'] ?? '');
+    const obacId = String(payload['cuarteleroId'] ?? '');
+    const obacNombre = String(payload['obacNombre'] ?? payload['cuarteleroNombre'] ?? '').trim();
     const registro: ChecklistRegistroDto = {
       id: crypto.randomUUID(),
       carroId: unidad,
-      cuarteleroId: String(payload['cuarteleroId'] ?? ''),
+      cuarteleroId: obacId,
       fecha: new Date().toISOString(),
       tipo: 'ERA',
       inspector: (payload['inspector'] as string | null) ?? null,
@@ -268,6 +275,11 @@ export class ChecklistsService {
         nomenclatura: unidad,
         nombre: `Unidad ${unidad}`,
       },
+      cuartelero: obacNombre
+        ? { id: obacId, nombre: obacNombre, rol: '' }
+        : obacId
+          ? { id: obacId, nombre: obacId, rol: '' }
+          : undefined,
     };
 
     const guardarLocal = () => {
@@ -394,17 +406,21 @@ export class ChecklistsService {
     carro: CarroDto,
   ): ChecklistRegistroDto | null {
     if (!ejecucion) return null;
-    let detalle: unknown = ejecucion.respuestasJson;
-    if (typeof detalle === 'string') {
+    let detalle: Record<string, unknown> | null = null;
+    let rawDetalle: unknown = ejecucion.respuestasJson;
+    if (typeof rawDetalle === 'string') {
       try {
-        detalle = JSON.parse(detalle);
+        rawDetalle = JSON.parse(rawDetalle);
       } catch {
-        detalle = null;
+        rawDetalle = null;
       }
     }
+    if (rawDetalle && typeof rawDetalle === 'object') {
+      detalle = rawDetalle as Record<string, unknown>;
+    }
     const materiales = this.extraerMaterialesDesdeDetalle(detalle);
-    const totalItems = materiales.length || null;
-    const itemsOk = materiales.filter((m) => {
+    const totalItems = Number(detalle?.['totalItems']) || materiales.length || null;
+    const itemsOk = Number(detalle?.['itemsOk']) || materiales.filter((m) => {
       const req = Math.max(0, Number(m.cantidadRequerida ?? 0));
       const act = Math.max(0, Number(m.cantidadActual ?? 0));
       return req > 0 && act >= req;
@@ -412,17 +428,28 @@ export class ChecklistsService {
     const revisorNombre = ejecucion.revisor
       ? `${ejecucion.revisor.nombres} ${ejecucion.revisor.apellidoPaterno}`.trim()
       : null;
+    const inspectorTexto = typeof detalle?.['inspector'] === 'string'
+      ? (detalle['inspector'] as string).trim()
+      : '';
+    const grupoGuardia = typeof detalle?.['grupoGuardia'] === 'string'
+      ? (detalle['grupoGuardia'] as string).trim()
+      : detalle?.['grupoGuardia'] != null
+        ? String(detalle['grupoGuardia'])
+        : null;
+    const observaciones = typeof detalle?.['observaciones'] === 'string'
+      ? (detalle['observaciones'] as string).trim() || null
+      : null;
     return {
       id: ejecucion.id,
       carroId: carro.id,
       cuarteleroId: ejecucion.revisorRut,
       fecha: String(ejecucion.fechaRevision),
       tipo: ejecucion.entidadTipo ?? 'CARRO',
-      inspector: revisorNombre,
-      grupoGuardia: null,
+      inspector: inspectorTexto || null,
+      grupoGuardia: grupoGuardia || null,
       firmaOficial: null,
       firmaInspector: null,
-      observaciones: null,
+      observaciones,
       totalItems,
       itemsOk: totalItems ? itemsOk : null,
       detalle,

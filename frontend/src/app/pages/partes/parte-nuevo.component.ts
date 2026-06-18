@@ -191,11 +191,13 @@ export class ParteNuevoComponent implements OnInit {
   ngOnInit(): void {
     const parteIdRaw = this.route.snapshot.queryParamMap.get('editar');
     this.editandoParteId = parteIdRaw?.trim() ? parteIdRaw.trim() : null;
-    
-    const d = new Date();
-    this.fechaDia = this.toDateInput(d);
-    this.horaIncidente = this.toTimeInput(d);
-    this.horaDelLlamado = this.toTimeInput(d);
+
+    if (this.editandoParteId == null) {
+      const d = new Date();
+      this.fechaDia = this.toDateInput(d);
+      this.horaIncidente = this.toTimeInput(d);
+      this.horaDelLlamado = this.toTimeInput(d);
+    }
 
     forkJoin({
       carros: this.carrosApi.listar(),
@@ -652,6 +654,16 @@ export class ParteNuevoComponent implements OnInit {
   private construirMetadata(): ParteMetadataDto | undefined {
     const conductoresPorCarroId: Record<string, string> = {};
     this.unidades.forEach(u => { if (u.carroId !== '' && u.conductor.trim()) conductoresPorCarroId[String(u.carroId)] = u.conductor.trim(); });
+    const unidadesHorarios: Record<string, Record<string, string>> = {};
+    for (const u of this.unidades) {
+      if (!u.carroId) continue;
+      const horarios: Record<string, string> = {};
+      if (u.hora6_0.trim()) horarios['hora6_0'] = u.hora6_0.trim();
+      if (u.hora6_3.trim()) horarios['hora6_3'] = u.hora6_3.trim();
+      if (u.hora6_9.trim()) horarios['hora6_9'] = u.hora6_9.trim();
+      if (u.hora6_10.trim()) horarios['hora6_10'] = u.hora6_10.trim();
+      if (Object.keys(horarios).length > 0) unidadesHorarios[String(u.carroId)] = horarios;
+    }
     return {
       descripcionEmergencia: this.descripcionEmergencia.trim() || undefined,
       trabajoRealizado: this.trabajoRealizado.trim() || undefined,
@@ -660,6 +672,7 @@ export class ParteNuevoComponent implements OnInit {
       asistencia: this.compactAsistencia(),
       observaciones: this.observaciones.trim() || undefined,
       conductoresPorCarroId: Object.keys(conductoresPorCarroId).length > 0 ? conductoresPorCarroId : undefined,
+      unidadesHorarios: Object.keys(unidadesHorarios).length > 0 ? unidadesHorarios : undefined,
     };
   }
 
@@ -884,7 +897,7 @@ export class ParteNuevoComponent implements OnInit {
   // --- MÉTODOS DE RENDERIZADO Y CONTROL DE ARREGLOS RESTAURADOS ---
 
   private cargarParteEnFormulario(parte: any): void {
-    this.claveEmergencia = parte.claveEmergencia ?? parte.fechaEmergencia ?? parte.codigoEmergencia ?? '';
+    this.claveEmergencia = parte.claveEmergencia ?? parte.codigoEmergencia ?? parte.clave?.codigo ?? '';
     this.direccion = parte.direccion ?? '';
     this.estado = parte.estado ?? 'PENDIENTE';
     if (parte.fecha) {
@@ -892,14 +905,20 @@ export class ParteNuevoComponent implements OnInit {
       this.fechaDia = this.toDateInput(fp);
       this.horaIncidente = this.toTimeInput(fp);
     }
-    this.obacId = parte.obacId || null;
+    const obacRut = parte.obacRut ?? parte.obacId ?? parte.obac?.rut ?? null;
+    if (obacRut) {
+      const match = this.usuariosElegiblesObac.find((u) => u.id === obacRut || u.rut === obacRut);
+      this.obacId = match?.id ?? obacRut;
+    } else {
+      this.obacId = null;
+    }
 
     // Soporte bidireccional (Lee desde tablas relacionales o desde metadata legado)
     this.descripcionEmergencia = parte.descripcionEmergencia ?? parte.metadata?.descripcionEmergencia ?? '';
     this.trabajoRealizado = parte.trabajoRealizado ?? parte.metadata?.trabajoRealizado ?? '';
     this.materialUtilizado = parte.materialUtilizado ?? parte.metadata?.materialUtilizado ?? '';
     this.observaciones = parte.observaciones ?? parte.metadata?.observaciones ?? '';
-    this.horaDelLlamado = parte.metadata?.horaDelLlamado ?? '';
+    this.horaDelLlamado = parte.metadata?.horaDelLlamado ?? this.horaDelLlamado;
 
     const asis = parte.metadata?.asistencia ?? {};
     this.asistencia = {
@@ -925,22 +944,38 @@ export class ParteNuevoComponent implements OnInit {
 
     this.firmaEncargadoDatos = asis.firmaEncargadoDatos ?? '';
     this.firmaObac = asis.firmaObac ?? '';
-    this.asistenciaPorContexto = asis.asistenciaPorContexto ?? this.asistenciaPorContexto;
-    
-    // Obtenemos las unidades del backend nuevo o viejo
+    const baseCtx: Record<AsistenciaContextoKey, Record<string, boolean>> = {
+      emergencia: {},
+      curso: {},
+      cuartel: {},
+      comision: {},
+      comandancia: {},
+    };
+    if (asis.asistenciaPorContexto && typeof asis.asistenciaPorContexto === 'object') {
+      for (const key of Object.keys(baseCtx) as AsistenciaContextoKey[]) {
+        const src = (asis.asistenciaPorContexto as Record<string, Record<string, boolean>>)[key];
+        if (src) baseCtx[key] = { ...src };
+      }
+    }
+    this.asistenciaPorContexto = baseCtx;
+
+    const horariosMeta = parte.metadata?.unidadesHorarios as Record<string, Record<string, string>> | undefined;
     const origUnidades = parte.unidades ?? parte.carrosAsistentes ?? [];
-    this.unidades = origUnidades.map((u: any) => ({
-      carroId: u.carroId,
-      conductor: parte.metadata?.conductoresPorCarroId?.[String(u.carroId)]
-        ?? (u.conductor?.nombres ? `${u.conductor.nombres} ${u.conductor.apellidoPaterno ?? ''}`.trim() : '')
-        ?? '',
-      hora6_0: u.hora6_0 ?? this.extraerHoraDeRegistro(u.horaSalida),
-      hora6_3: u.hora6_3 ?? this.extraerHoraDeRegistro(u.hora6_3 ?? u.horaSalida),
-      hora6_9: u.hora6_9 ?? this.extraerHoraDeRegistro(u.hora6_9),
-      hora6_10: u.hora6_10 ?? this.extraerHoraDeRegistro(u.horaLlegada),
-      kmSalida: String(u.kmSalida ?? ''),
-      kmLlegada: String(u.kmLlegada ?? ''),
-    }));
+    this.unidades = origUnidades.map((u: any) => {
+      const h = horariosMeta?.[String(u.carroId)] ?? {};
+      return {
+        carroId: u.carroId,
+        conductor: parte.metadata?.conductoresPorCarroId?.[String(u.carroId)]
+          ?? (u.conductor?.nombres ? `${u.conductor.nombres} ${u.conductor.apellidoPaterno ?? ''}`.trim() : '')
+          ?? '',
+        hora6_0: h['hora6_0'] ?? u.hora6_0 ?? this.extraerHoraDeRegistro(u.horaSalida),
+        hora6_3: h['hora6_3'] ?? u.hora6_3 ?? this.extraerHoraDeRegistro(u.hora6_3 ?? u.horaSalida),
+        hora6_9: h['hora6_9'] ?? u.hora6_9 ?? this.extraerHoraDeRegistro(u.hora6_9),
+        hora6_10: h['hora6_10'] ?? u.hora6_10 ?? this.extraerHoraDeRegistro(u.horaLlegada),
+        kmSalida: String(u.kmSalida ?? ''),
+        kmLlegada: String(u.kmLlegada ?? ''),
+      };
+    });
     if (this.unidades.length === 0) this.agregarUnidad();
 
     this.pacientes = (parte.pacientes || []).map((p: any) => ({

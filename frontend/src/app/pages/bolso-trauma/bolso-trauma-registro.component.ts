@@ -183,7 +183,7 @@ export class BolsoTraumaRegistroComponent implements OnInit {
 
     forkJoin({
       data: this.bolsosApi.obtenerUnidad(this.unidad),
-      usuarios: this.usuariosApi.selectorObac().pipe(catchError(() => this.usuariosApi.listar())),
+      usuarios: this.usuariosApi.selectorObac(),
       plantilla: (this.checklistsApi as any).obtenerPlantilla('TRAUMA', this.unidad),
     }).subscribe({
       next: ({ data, usuarios, plantilla }) => {

@@ -126,20 +126,20 @@
           </div>
           <div>
             <label class="mb-1.5 block text-xs font-medium text-gray-400"
-              >Nombre oficial / OBAC a cargo <span class="text-red-400">*</span></label
+              >Nombre voluntario / OBAC a cargo <span class="text-red-400">*</span></label
             >
             <select
               [(ngModel)]="cuarteleroId"
               name="cuarteleroId"
               class="sid-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white"
             >
-              <option [ngValue]="''">Seleccionar oficial</option>
+              <option [ngValue]="''">Seleccionar voluntario</option>
               @for (u of usuarios; track u.id) {
                 <option [ngValue]="u.id">{{ u.nombre }} ({{ u.rol }})</option>
               }
             </select>
             @if (usuarios.length === 0) {
-              <p class="mt-1 text-xs text-amber-300">No hay oficiales disponibles para seleccionar.</p>
+              <p class="mt-1 text-xs text-amber-300">No hay voluntarios disponibles para seleccionar.</p>
             }
           </div>
           <div>

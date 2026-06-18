@@ -1,14 +1,16 @@
 import { CommonModule, formatDate } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, filter, forkJoin, map, of, startWith, switchMap, type Observable } from 'rxjs';
 import { PartesExportService } from '../../services/partes-export.service';
 import { PartesService } from '../../services/partes.service';
 import { ToastService } from '../../services/toast.service';
+import { UsuariosService } from '../../services/usuarios.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
-import { ASISTENCIA_CONTEXTO_OPCIONES, ASISTENCIA_ITEM_LABELS } from './asistencia-roster.constants';
+import { ASISTENCIA_CONTEXTO_OPCIONES, resolverEtiquetaAsistenciaId } from './asistencia-roster.constants';
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
+import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 
 type DetalleVm =
   | { status: 'loading' }
@@ -30,13 +32,16 @@ type ParteAnalitica = {
   imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule],
   templateUrl: './parte-detalle.component.html',
 })
-export class ParteDetalleComponent {
+export class ParteDetalleComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly partesApi = inject(PartesService);
   private readonly exportador = inject(PartesExportService);
   private readonly toast = inject(ToastService);
+  private readonly usuariosApi = inject(UsuariosService);
   readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
+
+  private nombresPorRut: Record<string, string> = {};
 
   readonly vm$ = this.route.paramMap.pipe(
     map((pm) => pm.get('id')),
@@ -62,6 +67,15 @@ export class ParteDetalleComponent {
   );
 
   readonly asistenciaContextos = ASISTENCIA_CONTEXTO_OPCIONES;
+
+  ngOnInit(): void {
+    this.usuariosApi.selectorObac().pipe(catchError(() => of([]))).subscribe((usuarios) => {
+      for (const u of usuarios) {
+        this.nombresPorRut[u.id] = nombreListaSoloPersona(u);
+        if (u.rut) this.nombresPorRut[u.rut] = nombreListaSoloPersona(u);
+      }
+    });
+  }
 
   etiquetaClave(clave: string): string {
     return this.catalogoEmergencias.etiqueta(clave);
@@ -276,7 +290,7 @@ export class ParteDetalleComponent {
     }
     return Object.entries(sel)
       .filter(([, v]) => v)
-      .map(([id]) => (ASISTENCIA_ITEM_LABELS as any)[id] ?? id);
+      .map(([id]) => resolverEtiquetaAsistenciaId(id, this.nombresPorRut));
   }
 
   nombresAsistenciaContexto(a: any, ctx: string): string[] {
@@ -311,26 +325,45 @@ export class ParteDetalleComponent {
     return parte.metadata?.horaDelLlamado?.trim() || '—';
   }
 
+  etiquetaConductorUnidad(parte: any, carroId: string, conductor: string): string {
+    const unidad = (parte.unidades ?? []).find((u: any) => String(u.carroId) === String(carroId));
+    const etiqueta = unidad?.carro?.nomenclatura ?? unidad?.carro?.nombre ?? 'Unidad';
+    return `${etiqueta}: ${conductor}`;
+  }
+
   lineaApoyo(a: any): string {
-    const base = `${a.tipo} — ${a.nombre} (${a.cargo})`;
+    const tipo = this.etiquetaTipoApoyo(a.tipo);
+    const partes = [tipo];
     const pat = a.patente?.trim();
-    const cond = a.conductor?.trim();
-    const leg = a.movil?.trim() || '';
-    const parts = [base];
-    if (pat) {
-      parts.push(`Pat. ${pat}`);
-    } else if (leg) {
-      parts.push(leg);
-    }
-    if (cond) {
-      parts.push(`Cond. ${cond}`);
-    }
-    return parts.join(' · ');
+    const cond = a.conductor?.trim() || a.nombre?.trim();
+    if (pat) partes.push(`Patente: ${pat}`);
+    if (cond) partes.push(`Conductor: ${cond}`);
+    return partes.join('   ');
+  }
+
+  private etiquetaTipoApoyo(tipo: string): string {
+    const map: Record<string, string> = {
+      SAMU: 'SAMU',
+      CARABINEROS: 'Carabineros',
+      SEGURIDAD_CIUDADANA: 'Seguridad Ciudadana',
+      OTRO: 'Otro',
+    };
+    return map[(tipo || '').toUpperCase()] ?? (tipo || 'Apoyo externo');
   }
 
   private parseHora(baseFecha: string, hhmm: string | undefined): Date | null {
     if (!hhmm) return null;
-    const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+    let raw = String(hhmm).trim();
+    if (!/^\d{1,2}:\d{2}$/.test(raw)) {
+      const iso = raw.match(/T(\d{2}):(\d{2})/);
+      if (iso) raw = `${iso[1]}:${iso[2]}`;
+      else {
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) return null;
+        raw = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      }
+    }
+    const m = /^(\d{1,2}):(\d{2})$/.exec(raw);
     if (!m) return null;
     const hh = Number(m[1]);
     const mm = Number(m[2]);
@@ -367,9 +400,9 @@ export class ParteDetalleComponent {
     const tiemposServicio: number[] = [];
     for (const u of parte.unidades || []) {
       const base = new Date(parte.fecha);
-      const horaDespacho = this.parseHora(parte.fecha, u.hora6_0 || u.horaSalida);
-      const horaLlegada = this.parseHora(parte.fecha, u.hora6_3 || u.horaLlegada);
-      const horaDisponible = this.parseHora(parte.fecha, u.hora6_10 || u.horaLlegada);
+      const horaDespacho = this.parseHora(parte.fecha, this.horaUnidadDisplay(u, '6_0'));
+      const horaLlegada = this.parseHora(parte.fecha, this.horaUnidadDisplay(u, '6_3'));
+      const horaDisponible = this.parseHora(parte.fecha, this.horaUnidadDisplay(u, '6_10'));
       const despacho = this.diffMin(base, horaDespacho);
       const respuesta = this.diffMin(horaDespacho, horaLlegada);
       const servicio = this.diffMin(horaDespacho, horaDisponible);
@@ -414,5 +447,14 @@ export class ParteDetalleComponent {
     if (v === 'bajo') return 'text-amber-300';
     if (v === 'igual') return 'text-sky-300';
     return 'text-gray-400';
+  }
+
+  private horaUnidadDisplay(u: any, codigo: '6_0' | '6_3' | '6_10'): string | undefined {
+    const key = `hora${codigo}` as 'hora6_0' | 'hora6_3' | 'hora6_10';
+    const directa = u[key];
+    if (typeof directa === 'string' && directa.trim()) return directa.trim();
+    if (codigo === '6_0') return u.horaSalida;
+    if (codigo === '6_10') return u.horaLlegada;
+    return undefined;
   }
 }

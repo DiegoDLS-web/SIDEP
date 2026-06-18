@@ -60,6 +60,46 @@ function combinarFechaHora(fechaBase: Date, horaStr: string): Date {
   return d;
 }
 
+function extraerHoraHHmm(valor: Date | string | null | undefined): string | undefined {
+  if (!valor) return undefined;
+  if (typeof valor === 'string') {
+    const t = valor.trim();
+    if (/^\d{1,2}:\d{2}$/.test(t)) return t;
+    const m = t.match(/T(\d{2}):(\d{2})/);
+    if (m) return `${m[1]}:${m[2]}`;
+  }
+  const d = new Date(valor);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Excluye partes anulados (no confundir con COMPLETADO, que suele ser id 3). */
+const whereExcluirAnulados: Prisma.ParteEmergenciaWhereInput = {
+  NOT: { estado: { codigo: 'ANULADO' } },
+};
+
+function construirUnidadesHorariosMetadata(unidades: unknown): Record<string, Record<string, string>> | undefined {
+  if (!Array.isArray(unidades)) return undefined;
+  const map: Record<string, Record<string, string>> = {};
+  for (const raw of unidades as Record<string, unknown>[]) {
+    const carroId = String(raw.carroId || '').trim();
+    if (!carroId) continue;
+    const hora6_0 = extraerHoraHHmm(String(raw.hora6_0 || raw.horaSalida || ''));
+    const hora6_3 = extraerHoraHHmm(String(raw.hora6_3 || ''));
+    const hora6_9 = extraerHoraHHmm(String(raw.hora6_9 || ''));
+    const hora6_10 = extraerHoraHHmm(String(raw.hora6_10 || raw.horaLlegada || ''));
+    if (hora6_0 || hora6_3 || hora6_9 || hora6_10) {
+      map[carroId] = {
+        ...(hora6_0 ? { hora6_0 } : {}),
+        ...(hora6_3 ? { hora6_3 } : {}),
+        ...(hora6_9 ? { hora6_9 } : {}),
+        ...(hora6_10 ? { hora6_10 } : {}),
+      };
+    }
+  }
+  return Object.keys(map).length > 0 ? map : undefined;
+}
+
 async function resolverEstadoId(estado?: string): Promise<number> {
   if (!estado) return 1;
   const codigo = estado.trim().toUpperCase();
@@ -275,6 +315,9 @@ function construirMetadataPersistencia(data: Record<string, unknown>): string | 
   if (data.vehiculosAfectados) base.vehiculos = data.vehiculosAfectados;
   if (data.apoyosExternos) base.apoyoExterno = data.apoyosExternos;
 
+  const horarios = construirUnidadesHorariosMetadata(data.unidades);
+  if (horarios) base.unidadesHorarios = horarios;
+
   return Object.keys(base).length > 0 ? JSON.stringify(base) : null;
 }
 
@@ -310,17 +353,26 @@ export function mapParteToDto(p: ParteConRelaciones | null) {
     obac: p.obac
       ? { ...p.obac, nombre: nombreObac }
       : undefined,
-    unidades: p.unidades?.map((u) => ({
-      id: u.id,
-      carroId: u.carroId,
-      conductorRut: u.conductorRut,
-      horaSalida: u.horaSalida,
-      horaLlegada: u.horaLlegada,
-      kmSalida: Number(u.kmSalida),
-      kmLlegada: Number(u.kmLlegada),
-      carro: u.carro,
-      conductor: u.conductor,
-    })),
+    unidades: p.unidades?.map((u) => {
+      const horarios = (metadata?.unidadesHorarios as Record<string, Record<string, string>> | undefined)?.[u.carroId];
+      const hora6_0 = horarios?.hora6_0 ?? extraerHoraHHmm(u.horaSalida);
+      const hora6_10 = horarios?.hora6_10 ?? extraerHoraHHmm(u.horaLlegada);
+      return {
+        id: u.id,
+        carroId: u.carroId,
+        conductorRut: u.conductorRut,
+        horaSalida: u.horaSalida,
+        horaLlegada: u.horaLlegada,
+        hora6_0: hora6_0,
+        hora6_3: horarios?.hora6_3 ?? hora6_0,
+        hora6_9: horarios?.hora6_9,
+        hora6_10: hora6_10,
+        kmSalida: Number(u.kmSalida),
+        kmLlegada: Number(u.kmLlegada),
+        carro: u.carro,
+        conductor: u.conductor,
+      };
+    }),
     carrosAsistentes: p.unidades,
     asistencias: p.asistencias,
     vehiculosAfectados: p.vehiculosCiviles,
@@ -463,7 +515,7 @@ export const crearParteConRelaciones = async (data: Record<string, unknown>) => 
 
 export const obtenerTodos = async () => {
   const partes = await prisma.parteEmergencia.findMany({
-    where: { estadoId: { not: 3 } },
+    where: whereExcluirAnulados,
     include: parteInclude,
     orderBy: { fechaEmergencia: 'desc' },
   });
@@ -479,7 +531,7 @@ export const obtenerPorId = async (id: string) => {
 };
 
 function construirWhereListado(filtros: PartesPaginaFiltros): Prisma.ParteEmergenciaWhereInput {
-  const where: Prisma.ParteEmergenciaWhereInput = { estadoId: { not: 3 } };
+  const where: Prisma.ParteEmergenciaWhereInput = { ...whereExcluirAnulados };
 
   if (filtros.q?.trim()) {
     where.direccion = { contains: filtros.q.trim(), mode: 'insensitive' };
@@ -562,7 +614,7 @@ export const obtenerMetricas = async () => {
   const ahora = new Date();
   const inicioAnio = new Date(ahora.getFullYear(), 0, 1);
   const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
-  const baseWhere = { estadoId: { not: 3 } };
+  const baseWhere = whereExcluirAnulados;
 
   const [totalSistema, enAnioActual, enMesActual] = await Promise.all([
     prisma.parteEmergencia.count({ where: baseWhere }),
@@ -603,6 +655,13 @@ export const actualizarParte = async (id: string, data: Record<string, unknown>)
   }
   if (data.vehiculosAfectados) metadataNuevo.vehiculos = data.vehiculosAfectados;
   if (data.apoyosExternos) metadataNuevo.apoyoExterno = data.apoyosExternos;
+
+  const horariosUnidades = construirUnidadesHorariosMetadata(data.unidades);
+  if (horariosUnidades) {
+    metadataNuevo.unidadesHorarios = horariosUnidades;
+  } else if (metaEntrante?.unidadesHorarios) {
+    metadataNuevo.unidadesHorarios = metaEntrante.unidadesHorarios;
+  }
 
   const updateData: Prisma.ParteEmergenciaUpdateInput = {
     metadata: Object.keys(metadataNuevo).length > 0 ? JSON.stringify(metadataNuevo) : existente.metadata,
@@ -662,7 +721,7 @@ export const actualizarParte = async (id: string, data: Record<string, unknown>)
 };
 
 export const anularParte = async (id: string) => {
-  const anuladoId = await resolverEstadoId('ANULADO').catch(() => 3);
+  const anuladoId = await resolverEstadoId('ANULADO');
   await prisma.parteEmergencia.update({
     where: { id },
     data: { estadoId: anuladoId },
