@@ -28,8 +28,11 @@ export interface ChecklistEjecucionDTO {
 export interface RegistrarChecklistDTO {
   carroId: string;
   revisorRut: string;
-  plantillaId: string;
-  resultadosMateriales: any[];
+  plantillaId?: string;
+  resultadosMateriales: unknown;
+  entidadTipo?: string;
+  firmaOficial?: string | null;
+  firmaInspector?: string | null;
 }
 
 // ==========================================================

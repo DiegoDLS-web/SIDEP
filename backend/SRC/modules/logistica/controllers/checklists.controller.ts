@@ -13,11 +13,29 @@ export const addPlantilla = async (req: Request, res: Response) => {
 
 export const addEjecucion = async (req: Request, res: Response) => {
     try {
-        const { carroId, revisorRut, plantillaId, resultadosMateriales } = req.body;
-        if (!carroId || !revisorRut || !plantillaId || !resultadosMateriales) {
-            return res.status(400).json({ success: false, message: 'Faltan campos obligatorios' });
+        const {
+            carroId,
+            revisorRut,
+            plantillaId,
+            resultadosMateriales,
+            entidadTipo,
+            firmaOficial,
+            firmaInspector,
+        } = req.body;
+        if (!carroId || !revisorRut) {
+            return res.status(400).json({ success: false, message: 'Faltan carroId o revisorRut' });
         }
-        const checklist = await checklistsService.registrarEjecucion(carroId, revisorRut, plantillaId, resultadosMateriales);
+        const checklist = await checklistsService.registrarEjecucion(
+            String(carroId),
+            String(revisorRut),
+            plantillaId ? String(plantillaId) : undefined,
+            resultadosMateriales ?? {},
+            {
+                entidadTipo: entidadTipo ? String(entidadTipo) : 'CARRO',
+                firmaOficial: firmaOficial ?? null,
+                firmaInspector: firmaInspector ?? null,
+            },
+        );
         res.status(201).json({ success: true, data: checklist });
     } catch (error: any) {
         res.status(error.statusCode || 500).json({ success: false, message: error.message });

@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, forkJoin, of } from 'rxjs';
+import { Observable, forkJoin, of, throwError } from 'rxjs';
 import { map, catchError, switchMap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import {
@@ -86,13 +86,23 @@ export class ChecklistsService {
       switchMap((carros) => {
         const carro = carros.find((c) => c.nomenclatura === unidad);
         if (!carro) {
-          return of(null);
+          return throwError(() => new Error(`No se encontró el carro ${unidad}.`));
         }
+        const detalle = (payload['detalle'] as Record<string, unknown>) ?? {};
         const request: RegistrarChecklistDTO = {
           carroId: String(carro.id),
           revisorRut: String(payload['cuarteleroId'] ?? ''),
-          plantillaId: 'default-plantilla-id',
-          resultadosMateriales: (payload['detalle'] as unknown[]) ?? [],
+          resultadosMateriales: {
+            ...detalle,
+            inspector: payload['inspector'] ?? null,
+            grupoGuardia: payload['grupoGuardia'] ?? null,
+            observaciones: payload['observaciones'] ?? null,
+            totalItems: payload['totalItems'] ?? null,
+            itemsOk: payload['itemsOk'] ?? null,
+          },
+          entidadTipo: 'CARRO',
+          firmaOficial: (payload['firmaOficial'] as string | null) ?? null,
+          firmaInspector: (payload['firmaInspector'] as string | null) ?? null,
         };
         return this.registrarEjecucion(request);
       }),
@@ -237,9 +247,10 @@ export class ChecklistsService {
   }
 
   guardarChecklistEra(payload: Record<string, unknown>): Observable<ChecklistRegistroDto> {
+    const unidad = String(payload['unidad'] ?? '');
     const registro: ChecklistRegistroDto = {
       id: crypto.randomUUID(),
-      carroId: String(payload['unidad'] ?? ''),
+      carroId: unidad,
       cuarteleroId: String(payload['cuarteleroId'] ?? ''),
       fecha: new Date().toISOString(),
       tipo: 'ERA',
@@ -251,17 +262,59 @@ export class ChecklistsService {
       totalItems: Number(payload['totalItems']) || 0,
       itemsOk: Number(payload['itemsOk']) || 0,
       detalle: payload['detalle'] ?? null,
-      unidad: String(payload['unidad'] ?? ''),
+      unidad,
       carro: {
-        id: String(payload['unidad'] ?? ''),
-        nomenclatura: String(payload['unidad'] ?? ''),
-        nombre: `Unidad ${String(payload['unidad'] ?? '')}`,
+        id: unidad,
+        nomenclatura: unidad,
+        nombre: `Unidad ${unidad}`,
       },
     };
-    const historial = this.leerHistorialEraLocal();
-    historial.unshift(registro);
-    this.guardarHistorialEraLocal(historial.slice(0, 500));
-    return of(registro);
+
+    const guardarLocal = () => {
+      const historial = this.leerHistorialEraLocal();
+      historial.unshift(registro);
+      this.guardarHistorialEraLocal(historial.slice(0, 500));
+    };
+
+    return this.carrosApi.listar().pipe(
+      switchMap((carros) => {
+        const carro = carros.find((c) => c.nomenclatura === unidad);
+        if (!carro) {
+          guardarLocal();
+          return of(registro);
+        }
+        const detalle = (payload['detalle'] as Record<string, unknown>) ?? {};
+        const request: RegistrarChecklistDTO = {
+          carroId: String(carro.id),
+          revisorRut: String(payload['cuarteleroId'] ?? ''),
+          resultadosMateriales: {
+            ...detalle,
+            totalItems: payload['totalItems'] ?? 0,
+            itemsOk: payload['itemsOk'] ?? 0,
+            inspector: payload['inspector'] ?? null,
+            grupoGuardia: payload['grupoGuardia'] ?? null,
+            observaciones: payload['observaciones'] ?? null,
+          },
+          entidadTipo: 'ERA',
+          firmaOficial: (payload['firmaOficial'] as string | null) ?? null,
+          firmaInspector: (payload['firmaInspector'] as string | null) ?? null,
+        };
+        return this.registrarEjecucion(request).pipe(
+          map(() => {
+            guardarLocal();
+            return registro;
+          }),
+          catchError(() => {
+            guardarLocal();
+            return of(registro);
+          }),
+        );
+      }),
+      catchError(() => {
+        guardarLocal();
+        return of(registro);
+      }),
+    );
   }
 
   getPlantillas(): Observable<{ success: boolean; data: ChecklistPlantillaDTO[] }> {
@@ -316,6 +369,26 @@ export class ChecklistsService {
     };
   }
 
+  private extraerMaterialesDesdeDetalle(detalle: unknown): Array<{
+    cantidadActual?: number;
+    cantidadRequerida?: number;
+    nombre?: string;
+  }> {
+    if (Array.isArray(detalle)) {
+      return detalle as Array<{ cantidadActual?: number; cantidadRequerida?: number; nombre?: string }>;
+    }
+    if (detalle && typeof detalle === 'object') {
+      const ubicaciones = (detalle as { ubicaciones?: unknown[] }).ubicaciones;
+      if (Array.isArray(ubicaciones)) {
+        return ubicaciones.flatMap((u) => {
+          const mats = (u as { materiales?: unknown[] }).materiales;
+          return Array.isArray(mats) ? mats : [];
+        }) as Array<{ cantidadActual?: number; cantidadRequerida?: number; nombre?: string }>;
+      }
+    }
+    return [];
+  }
+
   private mapEjecucionToRegistro(
     ejecucion: ChecklistEjecucionDTO | undefined,
     carro: CarroDto,
@@ -329,9 +402,13 @@ export class ChecklistsService {
         detalle = null;
       }
     }
-    const materiales = Array.isArray(detalle) ? detalle : [];
+    const materiales = this.extraerMaterialesDesdeDetalle(detalle);
     const totalItems = materiales.length || null;
-    const itemsOk = materiales.filter((m: { ok?: boolean; estado?: string }) => m?.ok || m?.estado === 'OK').length;
+    const itemsOk = materiales.filter((m) => {
+      const req = Math.max(0, Number(m.cantidadRequerida ?? 0));
+      const act = Math.max(0, Number(m.cantidadActual ?? 0));
+      return req > 0 && act >= req;
+    }).length;
     const revisorNombre = ejecucion.revisor
       ? `${ejecucion.revisor.nombres} ${ejecucion.revisor.apellidoPaterno}`.trim()
       : null;

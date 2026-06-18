@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, catchError } from 'rxjs';
 import type { UsuarioListaDto } from '../../models/usuario.dto';
 import { BolsosTraumaService } from '../../services/bolsos-trauma.service';
 import { ChecklistsService } from '../../services/checklists.service';
@@ -183,7 +183,7 @@ export class BolsoTraumaRegistroComponent implements OnInit {
 
     forkJoin({
       data: this.bolsosApi.obtenerUnidad(this.unidad),
-      usuarios: this.usuariosApi.listar(),
+      usuarios: this.usuariosApi.selectorObac().pipe(catchError(() => this.usuariosApi.listar())),
       plantilla: (this.checklistsApi as any).obtenerPlantilla('TRAUMA', this.unidad),
     }).subscribe({
       next: ({ data, usuarios, plantilla }) => {

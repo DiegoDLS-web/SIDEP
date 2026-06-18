@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   getUsuarios,
+  getUsuariosSelector,
   getMetricas,
   getUsuariosPaginado,
   getUsuarioById,
@@ -18,6 +19,7 @@ import { crearUsuarioDto, actualizarUsuarioDto } from '../dtos/usuario.dto';
 const router = Router();
 
 router.get('/', protect, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), getUsuarios);
+router.get('/selector', protect, getUsuariosSelector);
 router.get('/metricas', protect, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), getMetricas);
 router.get('/pagina', protect, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), getUsuariosPaginado);
 router.get('/:rut', protect, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), getUsuarioById);

@@ -23,7 +23,7 @@ export class LoginComponent implements OnInit {
 
   readonly nombreCompaniaTag = signal<string | null>(null);
 
-  email = '';
+  rut = '';
   password = '';
   recordarme = false;
   loading = false;
@@ -37,15 +37,15 @@ export class LoginComponent implements OnInit {
   }
 
   submit(): void {
-    if (!this.email.trim() || !this.password) {
-      this.error = 'Debes ingresar correo y contraseña.';
-      this.toast.error('Debes ingresar correo y contraseña.');
+    if (!this.rut.trim() || !this.password) {
+      this.error = 'Debes ingresar RUT y contraseña.';
+      this.toast.error('Debes ingresar RUT y contraseña.');
       return;
     }
     this.loading = true;
     this.error = null;
     this.auth
-      .login(this.email.trim(), this.password)
+      .login(this.rut.trim(), this.password)
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
         next: () => {

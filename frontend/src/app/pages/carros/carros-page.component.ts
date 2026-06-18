@@ -520,6 +520,9 @@ export class CarrosPageComponent {
         this.editando = false;
         this.mensajeEdicion = 'Datos del carro actualizados correctamente.';
         this.cargarHistorialGeneral();
+        this.carrosApi.obtener(carro.id).subscribe({
+          next: (refresco) => Object.assign(carro, refresco),
+        });
       },
       error: () => {
         this.guardando = false;

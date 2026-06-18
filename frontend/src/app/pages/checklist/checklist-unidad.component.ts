@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, catchError } from 'rxjs';
 import type { UsuarioListaDto } from '../../models/usuario.dto';
 import { AuthService } from '../../services/auth.service';
 import { ChecklistsService } from '../../services/checklists.service';
@@ -13,6 +13,7 @@ import { UsuariosService } from '../../services/usuarios.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { firmaEfectiva } from '../../utils/firma-resolver';
+import { mensajeApiError } from '../../utils/api-error.util';
 import { CHECKLIST_UNIDAD_TEMPLATES } from './checklist-unidad.templates';
 
 type Material = {
@@ -74,7 +75,7 @@ export class ChecklistUnidadComponent implements OnInit {
     forkJoin({
       unidadData: this.checklistsApi.obtenerChecklistUnidad(this.unidad),
       plantillaData: this.checklistsApi.obtenerPlantillaUnidad(this.unidad),
-      usuarios: this.usuariosApi.listar(),
+      usuarios: this.usuariosApi.selectorObac().pipe(catchError(() => this.usuariosApi.listar())),
     }).subscribe({
       next: ({ unidadData, plantillaData, usuarios }: any) => {
         this.usuarios = usuarios;
@@ -583,20 +584,18 @@ export class ChecklistUnidadComponent implements OnInit {
         detalle: { ubicaciones: this.ubicaciones, borrador: false },
       })
       .subscribe({
-        next: (reg: any) => {
+        next: () => {
           this.saving = false;
-          this.fechaCierreChecklist = reg.fecha;
           const estado =
-            // CAMBIADO: La base de datos ahora usa números 1 o 0
-            reg.estadoOperativoCarro === 0
+            this.itemsCriticos() > 0
               ? 'Unidad marcada como NO operativa hasta corregir faltantes.'
               : 'Unidad marcada como operativa.';
           this.toast.exito(`Checklist de unidad guardado. ${estado}`);
           void this.router.navigate(['/checklist']);
         },
-        error: () => {
-          this.error = 'No se pudo guardar checklist.';
-          this.toast.error('No se pudo guardar el checklist.');
+        error: (err) => {
+          this.error = mensajeApiError(err, 'No se pudo guardar checklist.');
+          this.toast.error(this.error);
           this.saving = false;
         },
       });

@@ -32,6 +32,41 @@ function isoFromDateOnly(value: Date | null | undefined): string | null {
   return d.toISOString();
 }
 
+function nombreUsuario(u: { nombres?: string | null; apellidoPaterno?: string | null } | null | undefined): string | null {
+  if (!u) return null;
+  const n = [u.nombres, u.apellidoPaterno].filter(Boolean).join(' ').trim();
+  return n || null;
+}
+
+function empaquetarDescripcionYFirma(descripcion: string | null | undefined, firma: string | null | undefined): string | null {
+  const texto = (descripcion ?? '').trim();
+  const f = (firma ?? '').trim();
+  if (!texto && !f) return null;
+  if (f.startsWith('data:image')) {
+    return JSON.stringify({ texto, firma: f });
+  }
+  return texto || null;
+}
+
+function desempaquetarDescripcionYFirma(raw: string | null | undefined): { descripcion: string | null; firma: string | null } {
+  const val = (raw ?? '').trim();
+  if (!val) return { descripcion: null, firma: null };
+  if (val.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(val) as { texto?: string; firma?: string };
+      if (parsed && typeof parsed === 'object') {
+        return {
+          descripcion: (parsed.texto ?? '').trim() || null,
+          firma: (parsed.firma ?? '').trim().startsWith('data:image') ? parsed.firma!.trim() : null,
+        };
+      }
+    } catch {
+      /* texto plano */
+    }
+  }
+  return { descripcion: val, firma: null };
+}
+
 function mapMantenimientoAFicha(m: any) {
   if (!m) {
     return {
@@ -47,16 +82,18 @@ function mapMantenimientoAFicha(m: any) {
       conductorAsignado: null,
     };
   }
-  const ultimoInspector = m.inspectorNombre?.trim() || m.inspector?.nombre?.trim() || null;
-  const ultimoConductor = m.conductorNombre?.trim() || m.conductor?.nombre?.trim() || null;
+  const ultimoInspector = m.inspectorNombre?.trim() || nombreUsuario(m.inspector) || null;
+  const ultimoConductor = m.conductorNombre?.trim() || nombreUsuario(m.conductor) || null;
+  const desemp = desempaquetarDescripcionYFirma(m.descripcion);
+  const firmaCol = (m.firmaInspector ?? '').trim();
   return {
     ultimoMantenimiento: isoFromDateOnly(m.fechaMantenimiento),
     proximoMantenimiento: isoFromDateOnly(m.fechaProximoMantenimiento),
     proximaRevisionTecnica: isoFromDateOnly(m.fechaProximaRevTecnica),
     ultimaRevisionBombaAgua: isoFromDateOnly(m.fechaRevBomba),
-    descripcionUltimoMantenimiento: m.descripcion ?? null,
+    descripcionUltimoMantenimiento: desemp.descripcion,
     ultimoInspector,
-    firmaUltimoInspector: m.firmaInspector ?? null,
+    firmaUltimoInspector: firmaCol.startsWith('data:image') ? firmaCol : desemp.firma,
     fechaUltimaInspeccion: isoFromDateOnly(m.fechaInspeccion),
     ultimoConductor,
     conductorAsignado: ultimoConductor,
@@ -74,15 +111,15 @@ function mapMantenimientoAHistorial(m: any) {
 }
 
 const mantenimientoInclude = {
-  inspector: { select: { rut: true, nombre: true } },
-  conductor: { select: { rut: true, nombre: true } },
+  inspector: { select: { rut: true, nombres: true, apellidoPaterno: true } },
+  conductor: { select: { rut: true, nombres: true, apellidoPaterno: true } },
 } as const;
 
 async function resolverRutPorNombre(nombre: string | null | undefined): Promise<string | null> {
   const n = (nombre ?? '').trim();
   if (!n) return null;
   const usuario = await prisma.usuario.findFirst({
-    where: { nombre: { equals: n, mode: 'insensitive' } },
+    where: { nombres: { equals: n, mode: 'insensitive' } },
     select: { rut: true },
   });
   return usuario?.rut ?? null;
@@ -180,7 +217,10 @@ export const actualizarCarro = async (id: string, datos: any) => {
         inspectorNombre: datos.ultimoInspector?.trim() || null,
         conductorNombre: conductorNombre?.trim() || null,
         firmaInspector: datos.firmaUltimoInspector ?? null,
-        descripcion: datos.descripcionUltimoMantenimiento ?? null,
+        descripcion: empaquetarDescripcionYFirma(
+          datos.descripcionUltimoMantenimiento,
+          datos.firmaUltimoInspector,
+        ),
       },
     });
   }

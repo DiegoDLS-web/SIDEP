@@ -12,6 +12,11 @@ export const getUsuarios = asyncHandler(async (req: Request, res: Response) => {
   res.status(200).json(list);
 });
 
+export const getUsuariosSelector = asyncHandler(async (_req: Request, res: Response) => {
+  const list = await usuariosService.listarUsuariosSelector();
+  res.status(200).json(list);
+});
+
 export const getMetricas = asyncHandler(async (req: Request, res: Response) => {
   const metricas = await usuariosService.obtenerMetricasUsuarios();
   res.status(200).json(metricas);

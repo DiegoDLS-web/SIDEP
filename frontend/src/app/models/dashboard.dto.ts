@@ -2,7 +2,7 @@ export type SemaforoEstado = 'operativa' | 'mantencion' | 'fuera_servicio';
 
 export interface DashboardResumenDto {
   anio: number;
-  filtros: { clave: string | null; carroId: number | null };
+  filtros: { clave: string | null; carroId: string | null };
   totalEmergencias: number;
   porcentajeResueltas: number;
   tiempoPromedioRespuestaMin: number;
@@ -29,7 +29,7 @@ export interface DashboardResumenDto {
     nomenclatura?: string;
   }>;
   unidadesSemaforo: Array<{
-    id: number;
+    id: string;
     nomenclatura: string;
     nombre: string;
     estadoOperativo: boolean;

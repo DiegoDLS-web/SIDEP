@@ -2,6 +2,8 @@ import { CommonModule } from '@angular/common';
 import { Component, ElementRef, HostListener, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import type { ChecklistRegistroDto } from '../../models/checklist.dto';
 import type { CarroDto } from '../../models/carro.dto';
 import type { UsuarioListaDto } from '../../models/usuario.dto';
@@ -240,7 +242,10 @@ export class ChecklistEraComponent implements OnInit {
   private snapshotPlantillaEra: { equipos: EraEquipo[]; recambios: CilindroRecambio[] } | null = null;
 
   ngOnInit(): void {
-    Promise.all([this.carrosApi.listar().toPromise(), this.usuariosApi.listar().toPromise()])
+    Promise.all([
+      this.carrosApi.listar().toPromise(),
+      firstValueFrom(this.usuariosApi.selectorObac().pipe(catchError(() => this.usuariosApi.listar()))),
+    ])
       .then(([carros, usuarios]) => {
         this.carros = carros ?? [];
         this.usuarios = usuarios ?? [];

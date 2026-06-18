@@ -28,7 +28,8 @@ export const getAnaliticaOperacional = asyncHandler(async (req: Request, res: Re
 export const getDashboard = asyncHandler(async (req: Request, res: Response) => {
   const anio = req.query.anio ? parseInt(req.query.anio as string, 10) : undefined;
   const clave = req.query.clave as string | undefined;
-  const carroId = req.query.carroId ? parseInt(req.query.carroId as string, 10) : undefined;
+  const carroIdRaw = req.query.carroId as string | undefined;
+  const carroId = carroIdRaw?.trim() || undefined;
   const data = await getDashboardResumen(anio, clave, carroId);
   res.status(200).json(data);
 });

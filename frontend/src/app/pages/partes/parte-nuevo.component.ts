@@ -644,7 +644,8 @@ export class ParteNuevoComponent implements OnInit {
     
     Object.keys(this.asistencia).forEach(k => { const v = (this.asistencia as any)[k]?.trim(); if (v) (out as any)[k] = v; });
     if (this.firmaEncargadoDatos.startsWith('data:image')) out.firmaEncargadoDatos = this.firmaEncargadoDatos;
-    if (this.firmaObac.startsWith('data:image')) out.firmaObac = this.firmaObac;
+    const firmaObac = this.firmaObacEfectiva();
+    if (firmaObac.startsWith('data:image')) out.firmaObac = firmaObac;
     return Object.keys(out).length > 0 ? out : undefined;
   }
 
@@ -699,10 +700,37 @@ export class ParteNuevoComponent implements OnInit {
 
   private parsePacientesPayload(): any[] {
     return this.pacientes.filter((p) => p.nombre.trim().length > 0).map((p) => ({
-      nombre: p.nombre.trim(), triage: p.triage,
+      nombre: p.nombre.trim(),
+      triage: p.triage,
       edad: p.edad.trim() ? Number.parseInt(p.edad, 10) : undefined,
       rut: p.rut.trim() || undefined,
     }));
+  }
+
+  private firmaObacEfectiva(): string {
+    if (this.firmaObac.trim().startsWith('data:image')) {
+      return this.firmaObac.trim();
+    }
+    const obacRut = this.resolverObacId();
+    const u = this.usuariosElegiblesObac.find((x) => x.id === obacRut);
+    return u?.firmaImagen?.trim() ?? '';
+  }
+
+  private faltantesCierreParte(): string[] {
+    const faltantes: string[] = [];
+    if (!(this.asistencia.encargadoDatos ?? '').trim()) {
+      faltantes.push('Encargado de tomar datos (nombre o clave)');
+    }
+    if (!(this.asistencia.oficial128 ?? '').trim()) {
+      faltantes.push('Oficial 12-8 (quien estuvo)');
+    }
+    if (!this.firmaEncargadoDatos.trim().startsWith('data:image')) {
+      faltantes.push('Firma del encargado de datos');
+    }
+    if (!this.firmaObacEfectiva().startsWith('data:image')) {
+      faltantes.push('Firma del OBAC (dibujada o en el perfil del responsable)');
+    }
+    return faltantes;
   }
 
   private resolverObacId(): string | null {
@@ -799,8 +827,9 @@ export class ParteNuevoComponent implements OnInit {
       this.guardadoError = 'Por favor completa todos los campos básicos obligatorios.';
       return;
     }
-    if (!(this.asistencia.encargadoDatos ?? '').trim() || !(this.asistencia.oficial128 ?? '').trim() || !this.firmaEncargadoDatos || !this.firmaObac) {
-      this.guardadoError = 'Faltan firmas o datos de cierre obligatorios.';
+    const faltantesCierre = this.faltantesCierreParte();
+    if (faltantesCierre.length > 0) {
+      this.guardadoError = `Faltan datos de cierre: ${faltantesCierre.join('; ')}.`;
       this.pasoIdx = this.pasosVisibles.indexOf('obs');
       return;
     }

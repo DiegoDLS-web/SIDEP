@@ -24,20 +24,21 @@
 
       <form class="space-y-5" (ngSubmit)="submit()">
         <div>
-          <label class="mb-2 block text-sm font-medium text-gray-300">Correo electrónico</label>
+          <label class="mb-2 block text-sm font-medium text-gray-300">RUT</label>
           <div class="relative">
             <lucide-icon
-              name="mail"
+              name="user"
               class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400"
               [size]="20"
               color="currentColor"
             ></lucide-icon>
             <input
-              type="email"
-              name="email"
-              [(ngModel)]="email"
+              type="text"
+              name="rut"
+              [(ngModel)]="rut"
               required
-              placeholder="usuario@bomberos.cl"
+              autocomplete="username"
+              placeholder="12.345.678-9"
               class="sid-input box-border w-full !rounded-lg !border-gray-700 !bg-[#0a0a0a] !py-3 !pl-12 !pr-4 placeholder:text-gray-500"
             />
           </div>

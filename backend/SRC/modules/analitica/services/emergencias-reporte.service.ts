@@ -69,10 +69,9 @@ export const getEmergenciasReporte = async (desde?: string, hasta?: string) => {
     monthGroups[period] = (monthGroups[period] || 0) + 1;
   }
 
-  const porMes = Object.entries(monthGroups).map(([period, cantidad]) => ({
-    period,
-    cantidad,
-  })).sort((a, b) => a.period.localeCompare(b.period));
+  const porMes = Object.entries(monthGroups)
+    .map(([periodo, cantidad]) => ({ periodo, cantidad }))
+    .sort((a, b) => a.periodo.localeCompare(b.periodo));
 
   return {
     totalEmergencias,

@@ -1,6 +1,64 @@
 import prisma from '../../../prisma';
 
-export const getDashboardResumen = async (anioParam?: number, claveFilter?: string, carroIdFilter?: number) => {
+function contarItemsDesdeRespuestas(raw: string | null | undefined): { totalItems: number; itemsOk: number } | null {
+  if (!raw) return null;
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    const obj = data as Record<string, unknown>;
+
+    if (Array.isArray(obj['equipos']) || Array.isArray(obj['cilindrosRecambio'])) {
+      const equipos = (obj['equipos'] as unknown[]) ?? [];
+      const recambios = (obj['cilindrosRecambio'] as unknown[]) ?? [];
+      const items = [...equipos, ...recambios];
+      const totalItems = items.length;
+      const itemsOk = items.filter((it: any) =>
+        it?.arnesCondicion === 'Operativo' || it?.condicionGeneral === 'Operativo',
+      ).length;
+      return totalItems > 0 ? { totalItems, itemsOk } : null;
+    }
+
+    if (Array.isArray(obj['ubicaciones'])) {
+      const ubicaciones = obj['ubicaciones'] as Array<{
+        materiales?: Array<{ cantidadActual?: number; cantidadRequerida?: number; nombre?: string }>;
+      }>;
+      let totalItems = 0;
+      let itemsOk = 0;
+      for (const u of ubicaciones) {
+        for (const m of u.materiales ?? []) {
+          const req = Math.max(0, Number(m.cantidadRequerida ?? 0));
+          const act = Math.max(0, Number(m.cantidadActual ?? 0));
+          if (!m.nombre?.trim()) continue;
+          totalItems += 1;
+          if (req > 0 && act >= req) itemsOk += 1;
+        }
+      }
+      return totalItems > 0 ? { totalItems, itemsOk } : null;
+    }
+
+    if (typeof obj['totalItems'] === 'number') {
+      return {
+        totalItems: Number(obj['totalItems']),
+        itemsOk: Number(obj['itemsOk'] ?? 0),
+      };
+    }
+  }
+
+  if (Array.isArray(data)) {
+    const totalItems = data.length;
+    const itemsOk = data.filter((m: any) => m?.ok || m?.estado === 'OK').length;
+    return totalItems > 0 ? { totalItems, itemsOk } : null;
+  }
+
+  return null;
+}
+
+export const getDashboardResumen = async (anioParam?: number, claveFilter?: string, carroIdFilter?: string) => {
   const anio = anioParam || new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
@@ -23,11 +81,7 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
   if (carroIdFilter) {
     whereClause.unidades = {
       some: {
-        carro: {
-          id: {
-            endsWith: String(carroIdFilter), // Simple match since ID is string/UUID
-          },
-        },
+        carroId: carroIdFilter,
       },
     };
   }
@@ -75,7 +129,9 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
     const period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     monthGroups[period] = (monthGroups[period] || 0) + 1;
   }
-  const porMes = Object.entries(monthGroups).map(([period, cantidad]) => ({ period, cantidad })).sort((a, b) => a.period.localeCompare(b.period));
+  const porMes = Object.entries(monthGroups)
+    .map(([periodo, cantidad]) => ({ periodo, cantidad }))
+    .sort((a, b) => a.periodo.localeCompare(b.periodo));
 
   const partesParaAnios = await prisma.parteEmergencia.findMany({
     where: { estadoId: { not: 3 } },
@@ -163,46 +219,41 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
   // 10. Unidades Semáforo
   const ejecucionesChecklist = await prisma.checklistEjecucion.findMany({
     where: {
-      fechaRevision: { gte: inicioMes, lte: finMes },
+      fechaRevision: { gte: inicioAnio, lte: finAnio },
     },
     orderBy: { fechaRevision: 'desc' },
   });
 
+  const ultimaEjecucionPorCarroTipo = new Map<string, (typeof ejecucionesChecklist)[number]>();
+  for (const exec of ejecucionesChecklist) {
+    const key = `${exec.entidadId}::${exec.entidadTipo}`;
+    if (!ultimaEjecucionPorCarroTipo.has(key)) {
+      ultimaEjecucionPorCarroTipo.set(key, exec);
+    }
+  }
+
   const unidadesSemaforo = carros.map((c) => {
     const semaforo = c.estadoOperativo === 1 ? 'operativa' : 'fuera_servicio';
-    const cleanCarId = c.id.replace(/[^0-9]/g, '');
-    const id = parseInt(cleanCarId, 10) || 0;
 
-    // Get latest checklist for this carro
-    const checkUnidad = ejecucionesChecklist.find((e) => e.entidadId === c.id && e.entidadTipo === 'CARRO');
-    const checkEra = ejecucionesChecklist.find((e) => e.entidadId === c.id && e.entidadTipo === 'ERA');
-    const checkTrauma = ejecucionesChecklist.find((e) => e.entidadId === c.id && e.entidadTipo === 'TRAUMA');
-
-    const mapChecklist = (exec: any) => {
+    const mapChecklist = (exec: (typeof ejecucionesChecklist)[number] | undefined) => {
       if (!exec) return null;
-      try {
-        const resp = JSON.parse(exec.respuestasJson || '{}');
-        const items = Object.values(resp);
-        const totalItems = items.length;
-        const itemsOk = items.filter((v) => v === 'OK' || v === true || v === 'cumple').length;
-        return {
-          fecha: exec.fechaRevision.toISOString(),
-          totalItems,
-          itemsOk,
-          completo: exec.estado === 'COMPLETADO',
-        };
-      } catch {
-        return {
-          fecha: exec.fechaRevision.toISOString(),
-          totalItems: null,
-          itemsOk: null,
-          completo: exec.estado === 'COMPLETADO',
-        };
-      }
+      const conteo = contarItemsDesdeRespuestas(exec.respuestasJson);
+      return {
+        fecha: exec.fechaRevision.toISOString(),
+        totalItems: conteo?.totalItems ?? null,
+        itemsOk: conteo?.itemsOk ?? null,
+        completo: exec.estado === 'COMPLETADO' && (conteo ? conteo.itemsOk >= conteo.totalItems : false),
+      };
     };
 
+    const checkUnidad =
+      ultimaEjecucionPorCarroTipo.get(`${c.id}::CARRO`) ??
+      ultimaEjecucionPorCarroTipo.get(`${c.id}::UNIDAD`);
+    const checkEra = ultimaEjecucionPorCarroTipo.get(`${c.id}::ERA`);
+    const checkTrauma = ultimaEjecucionPorCarroTipo.get(`${c.id}::TRAUMA`);
+
     return {
-      id,
+      id: c.id,
       nomenclatura: c.nomenclatura,
       nombre: c.nombre,
       estadoOperativo: c.estadoOperativo === 1,

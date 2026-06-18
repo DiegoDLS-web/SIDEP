@@ -17,6 +17,11 @@ export class UsuariosService {
     return this.http.get<UsuarioListaDto[]>('/api/usuarios');
   }
 
+  /** Usuarios activos para selects OBAC (accesible a cualquier rol autenticado). */
+  selectorObac(): Observable<UsuarioListaDto[]> {
+    return this.http.get<UsuarioListaDto[]>('/api/usuarios/selector');
+  }
+
   metricas(): Observable<UsuariosMetricasDto> {
     return this.http.get<UsuariosMetricasDto>('/api/usuarios/metricas');
   }

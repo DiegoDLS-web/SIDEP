@@ -22,11 +22,17 @@ export const editCarro = async (req: Request, res: Response) => {
 export const getHistorialGeneralCarros = async (req: Request, res: Response) => {
     try {
         const { carroId, desde, hasta } = req.query;
-        const filas = await carrosService.historialMantenimientoGeneral({
-            carroId: typeof carroId === 'string' ? carroId : undefined,
-            desde: typeof desde === 'string' ? desde : undefined,
-            hasta: typeof hasta === 'string' ? hasta : undefined,
-        });
+        const filtros: { carroId?: string; desde?: string; hasta?: string } = {};
+        if (typeof carroId === 'string' && carroId.trim()) {
+            filtros.carroId = carroId.trim();
+        }
+        if (typeof desde === 'string' && desde.trim()) {
+            filtros.desde = desde.trim();
+        }
+        if (typeof hasta === 'string' && hasta.trim()) {
+            filtros.hasta = hasta.trim();
+        }
+        const filas = await carrosService.historialMantenimientoGeneral(filtros);
         res.status(200).json(filas);
     } catch (error: any) {
         res.status(error.statusCode || 500).json({ success: false, message: error.message });
