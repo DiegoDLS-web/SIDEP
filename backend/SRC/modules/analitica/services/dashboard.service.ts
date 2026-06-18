@@ -77,6 +77,12 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
   }
   const porMes = Object.entries(monthGroups).map(([period, cantidad]) => ({ period, cantidad })).sort((a, b) => a.period.localeCompare(b.period));
 
+  const partesParaAnios = await prisma.parteEmergencia.findMany({
+    where: { estadoId: { not: 3 } },
+    select: { fechaEmergencia: true },
+  });
+  const aniosConDatos = [...new Set(partesParaAnios.map((p) => p.fechaEmergencia.getFullYear()))].sort((a, b) => b - a);
+
   // 6. porTipo
   const partesConClave = await prisma.parteEmergencia.findMany({
     where: whereClause,
@@ -221,6 +227,7 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
     porTipo,
     recientes,
     heatmapSemanas,
+    aniosConDatos,
     alertas,
     unidadesSemaforo,
     generadoEn: new Date().toISOString(),

@@ -16,6 +16,8 @@ router.patch('/carros/:id/estado', protect, requireRoles('ADMIN', 'OFICIAL'), ca
 
 // --- EQUIPAMIENTO ---
 router.post('/equipamiento/bolsos', protect, requireRoles('ADMIN', 'OFICIAL'), equipamientoController.addBolsoTrauma);
+router.get('/equipamiento/bolsos/selector', protect, equipamientoController.getSelectorBolsos);
+router.get('/equipamiento/bolsos/historial', protect, equipamientoController.getHistorialBolsos);
 router.post('/equipamiento/materiales', protect, requireRoles('ADMIN', 'OFICIAL'), equipamientoController.addMaterialCarro);
 router.get('/equipamiento/carro/:carroId', protect, equipamientoController.getInventarioCarro);
 

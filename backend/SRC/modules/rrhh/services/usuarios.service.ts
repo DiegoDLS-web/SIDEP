@@ -385,11 +385,15 @@ export const actualizarUsuario = async (rut: string, datos: any) => {
       if (usuarioExistente.fotoPerfilPublicId) {
         await StorageService.deleteFile(usuarioExistente.fotoPerfilPublicId);
       }
-      const uploadRes = await cloudinary.uploader.upload(datos.fotoPerfil, {
-        folder: 'sidep/perfiles',
-      });
-      updateData.fotoPerfilUrl = uploadRes.secure_url;
-      updateData.fotoPerfilPublicId = uploadRes.public_id;
+      try {
+        const uploadRes = await cloudinary.uploader.upload(datos.fotoPerfil, {
+          folder: 'sidep/perfiles',
+        });
+        updateData.fotoPerfilUrl = uploadRes.secure_url;
+        updateData.fotoPerfilPublicId = uploadRes.public_id;
+      } catch (err) {
+        console.warn('No se pudo subir foto de perfil (Cloudinary):', err);
+      }
     } else {
       updateData.fotoPerfilUrl = datos.fotoPerfil;
     }
@@ -407,11 +411,15 @@ export const actualizarUsuario = async (rut: string, datos: any) => {
       if (usuarioExistente.firmaImagenPublicId) {
         await StorageService.deleteFile(usuarioExistente.firmaImagenPublicId);
       }
-      const uploadRes = await cloudinary.uploader.upload(datos.firmaImagen, {
-        folder: 'sidep/firmas',
-      });
-      updateData.firmaImagenUrl = uploadRes.secure_url;
-      updateData.firmaImagenPublicId = uploadRes.public_id;
+      try {
+        const uploadRes = await cloudinary.uploader.upload(datos.firmaImagen, {
+          folder: 'sidep/firmas',
+        });
+        updateData.firmaImagenUrl = uploadRes.secure_url;
+        updateData.firmaImagenPublicId = uploadRes.public_id;
+      } catch (err) {
+        console.warn('No se pudo subir firma (Cloudinary):', err);
+      }
     } else {
       updateData.firmaImagenUrl = datos.firmaImagen;
     }

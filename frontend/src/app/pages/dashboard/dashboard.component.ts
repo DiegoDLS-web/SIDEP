@@ -93,7 +93,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     const y = new Date().getFullYear();
-    for (let a = y - 2; a <= y; a++) {
+    for (let a = y - 5; a <= y + 1; a++) {
       this.aniosDisponibles.push(a);
     }
     this.carrosApi.listar().subscribe({
@@ -138,6 +138,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
           const d = actual;
           this.datos = d;
           this.cuadroHonor = honor;
+          this.actualizarAniosDisponibles(d.aniosConDatos ?? []);
           this.actualizarStats(d);
           this.mesesChart = this.buildMesesChart(d, previo);
           this.maxMes = Math.max(
@@ -165,6 +166,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
       const cantidadPrev = previo?.porMes.find((p) => p.periodo === periodoPrev)?.cantidad ?? 0;
       return { mes, cantidadActual, cantidadPrev };
     });
+  }
+
+  private actualizarAniosDisponibles(aniosConDatos: number[]): void {
+    const set = new Set(this.aniosDisponibles);
+    for (const a of aniosConDatos) set.add(a);
+    this.aniosDisponibles.length = 0;
+    this.aniosDisponibles.push(...[...set].sort((a, b) => b - a));
   }
 
   private actualizarStats(d: DashboardResumenDto): void {
@@ -232,6 +240,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   tiposEmergenciaTop(): Array<{ claveEmergencia: string; cantidad: number }> {
     return (this.datos?.porTipo ?? []).slice(0, 8);
+  }
+
+  chartSinDatosAnio(): boolean {
+    if (!this.datos) return false;
+    return this.mesesChart.every((m) => m.cantidadActual === 0 && m.cantidadPrev === 0);
+  }
+
+  otrosAniosConDatos(): number[] {
+    return (this.datos?.aniosConDatos ?? []).filter((a) => a !== this.anio);
   }
 
   maxHeat(): number {

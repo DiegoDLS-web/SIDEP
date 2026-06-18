@@ -480,6 +480,11 @@
         }
         </div>
       </div>
+      @if (chartSinDatosAnio() && otrosAniosConDatos().length > 0) {
+        <p class="mt-3 text-xs text-amber-200/90">
+          No hay emergencias en {{ anio }}. Cambia el año del filtro a {{ otrosAniosConDatos().join(', ') }}.
+        </p>
+      }
     </div>
 
     <div sidScrollReveal class="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">

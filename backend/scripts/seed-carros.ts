@@ -11,21 +11,30 @@ const CARROS = [
     nombre: 'Carro Bomba',
     marca: 'Renault',
     patente: 'WC-28-50',
-    descripcion: '5000 litros',
+    kilometraje: 46343,
+    tipo: 'Bomba',
+    capacidadAgua: '5000 litros',
+    anioFabricacion: 2004,
   },
   {
     nomenclatura: 'BX-1',
     nombre: 'Carro multipropósito',
     marca: 'Iveco',
     patente: 'JW-RT-93',
-    descripcion: '3000 litros',
+    kilometraje: 22874,
+    tipo: 'Multipropósito',
+    capacidadAgua: '3000 litros',
+    anioFabricacion: 2017,
   },
   {
     nomenclatura: 'R-1',
     nombre: 'Carro de rescate',
     marca: 'Man',
     patente: 'RS-VH-37',
-    descripcion: '2000 litros',
+    kilometraje: 12325,
+    tipo: 'Rescate',
+    capacidadAgua: '2000 litros',
+    anioFabricacion: 2021,
   },
 ];
 
@@ -39,6 +48,7 @@ async function main() {
           nombre: c.nombre,
           marca: c.marca,
           patente: c.patente,
+          kilometraje: c.kilometraje,
           estadoOperativo: 1,
         },
       });
@@ -54,10 +64,10 @@ async function main() {
         marca: c.marca,
         patente: c.patente,
         estadoOperativo: 1,
-        kilometraje: 0,
+        kilometraje: c.kilometraje,
       },
     });
-    console.log(`Creado: ${c.nomenclatura} — ${c.marca} ${c.descripcion}, patente ${c.patente}`);
+    console.log(`Creado: ${c.nomenclatura} — ${c.marca} ${c.capacidadAgua}, ${c.anioFabricacion}, patente ${c.patente}`);
   }
 }
 

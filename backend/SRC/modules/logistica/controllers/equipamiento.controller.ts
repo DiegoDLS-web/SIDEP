@@ -31,3 +31,25 @@ export const getInventarioCarro = async (req: Request, res: Response) => {
         res.status(500).json({ success: false, message: 'Error al obtener inventario' });
     }
 };
+
+export const getSelectorBolsos = async (req: Request, res: Response) => {
+    try {
+        const data = await equipamientoService.obtenerSelectorBolsos();
+        res.status(200).json(data);
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message || 'Error al obtener selector de bolsos' });
+    }
+};
+
+export const getHistorialBolsos = async (req: Request, res: Response) => {
+    try {
+        const filtros: { unidades?: string; desde?: string; hasta?: string } = {};
+        if (req.query.unidades) filtros.unidades = String(req.query.unidades);
+        if (req.query.desde) filtros.desde = String(req.query.desde);
+        if (req.query.hasta) filtros.hasta = String(req.query.hasta);
+        const data = await equipamientoService.obtenerHistorialBolsos(filtros);
+        res.status(200).json(data);
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message || 'Error al obtener historial' });
+    }
+};

@@ -7,7 +7,13 @@ export const crearParte = async (req: Request, res: Response): Promise<Response>
     return res.status(201).json(nuevoParte);
   } catch (error: any) {
     console.error('Error al crear parte:', error);
-    return res.status(400).json({ message: error.message || 'Error al crear parte' });
+    const msg = error.message || 'Error al crear parte';
+    if (msg.includes('OBAC')) return res.status(400).json({ message: `${msg} Verifica que el usuario OBAC exista y esté activo.` });
+    if (msg.includes('Clave')) return res.status(400).json({ message: `${msg} Revisa el tipo de emergencia seleccionado.` });
+    if (msg.includes('Unique constraint') || msg.includes('correlativo')) {
+      return res.status(409).json({ message: 'Ya existe un parte con ese correlativo. Intenta guardar de nuevo.' });
+    }
+    return res.status(400).json({ message: msg });
   }
 };
 

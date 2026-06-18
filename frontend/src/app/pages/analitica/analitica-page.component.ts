@@ -50,7 +50,7 @@ export class AnaliticaPageComponent implements OnInit {
 
   ngOnInit(): void {
     const y = new Date().getFullYear();
-    for (let a = y - 2; a <= y + 1; a++) this.aniosDisponibles.push(a);
+    for (let a = y - 5; a <= y + 1; a++) this.aniosDisponibles.push(a);
     this.cargar();
   }
 

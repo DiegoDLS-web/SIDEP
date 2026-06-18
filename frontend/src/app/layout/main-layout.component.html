@@ -33,7 +33,7 @@
       </div>
     </div>
 
-    <nav class="sid-scroll-dark flex-1 overflow-y-auto overflow-x-hidden p-4" aria-label="Secciones">
+    <nav class="sid-sidebar-nav flex-1 overflow-x-hidden overflow-y-hidden p-4" aria-label="Secciones">
       @for (section of sectionesSidebar(); track section.title; let si = $index) {
         <div class="sid-nav-section px-1 py-1" [class.mt-5]="si > 0">
           <p class="sid-nav-section-title mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">

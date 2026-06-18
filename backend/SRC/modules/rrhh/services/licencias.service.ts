@@ -58,8 +58,15 @@ const INCLUDE_LICENCIA = {
 // ─── Buscar estado de licencia por nombre ───────────────────────────
 
 async function buscarEstadoPorNombre(nombre: string): Promise<number> {
+  const valor = nombre.trim();
   const estado = await prisma.catalogoEstadoLicencia.findFirst({
-    where: { nombre: { equals: nombre.trim(), mode: 'insensitive' } },
+    where: {
+      OR: [
+        { codigo: { equals: valor, mode: 'insensitive' } },
+        { nombre: { equals: valor, mode: 'insensitive' } },
+      ],
+      activo: 1,
+    },
   });
   if (!estado) {
     throw new Error(`Estado de licencia "${nombre}" no encontrado en catálogo.`);

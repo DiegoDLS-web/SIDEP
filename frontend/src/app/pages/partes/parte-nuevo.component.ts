@@ -21,6 +21,7 @@ import {
   type AsistenciaItemDef,
 } from './asistencia-roster.constants';
 import { etiquetaDirectorioVoluntario, nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
+import { mensajeApiError } from '../../utils/api-error.util';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 
@@ -478,7 +479,34 @@ export class ParteNuevoComponent implements OnInit {
     return `Voluntario suspendido${fechas(rangoSusp)}.`;
   }
 
-  private reconstruirAsistenciaLayout(): void { this.asistenciaLayoutVista = this.asistenciaLayout; }
+  private reconstruirAsistenciaLayout(): void {
+    for (const k of Object.keys(this.usuarioAsistenciaPorId)) {
+      delete this.usuarioAsistenciaPorId[k];
+    }
+
+    const voluntariosActivos = this.usuarios
+      .filter((u) => u.activo && !this.esAspirante(u))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+
+    const itemsVoluntarios = voluntariosActivos.map((u) => {
+      const id = `usr-${u.id}`;
+      this.usuarioAsistenciaPorId[id] = u;
+      return { id, label: nombreListaSoloPersona(u) };
+    });
+
+    const columnaVoluntarios: AsistenciaColumnaDef = {
+      secciones: [
+        {
+          titulo: 'Voluntarios activos',
+          items: itemsVoluntarios,
+        },
+      ],
+    };
+
+    this.asistenciaLayoutVista = itemsVoluntarios.length > 0
+      ? [...this.asistenciaLayout, columnaVoluntarios]
+      : [...this.asistenciaLayout];
+  }
 
   carrosDisponiblesParaUnidad(index: number): CarroDto[] {
     const usados = new Set<string>();
@@ -718,8 +746,8 @@ export class ParteNuevoComponent implements OnInit {
         this.toast.exito('Borrador relacional guardado en PostgreSQL.');
         void this.router.navigate(['/partes', registro.id]);
       },
-      error: () => {
-        this.guardadoError = 'Error de conexión con la Base de Datos PostgreSQL.';
+      error: (err) => {
+        this.guardadoError = mensajeApiError(err, 'No se pudo guardar el borrador en el servidor.');
         this.toast.error(this.guardadoError);
         this.submitting = false;
       },
@@ -777,8 +805,8 @@ export class ParteNuevoComponent implements OnInit {
         this.toast.exito('Parte relacional registrado con éxito en PostgreSQL.');
         void this.router.navigate(['/partes', registro.id]);
       },
-      error: () => {
-        this.guardadoError = 'Error al registrar el parte relacional.';
+      error: (err) => {
+        this.guardadoError = mensajeApiError(err, 'No se pudo registrar el parte. Revisa los datos e intenta de nuevo.');
         this.toast.error(this.guardadoError);
         this.submitting = false;
       },

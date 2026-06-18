@@ -949,22 +949,18 @@ body.motion-suave .sid-brand-e-bar {
   border: 2px solid rgba(10, 10, 10, 0.95);
 }
 
-.sid-shell__aside nav {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(71, 85, 105, 0.9) rgba(10, 10, 10, 0.95);
+.sid-shell__aside nav,
+.sid-sidebar-nav {
+  overflow-x: hidden;
+  overflow-y: hidden;
+  scrollbar-width: none;
 }
 
-.sid-shell__aside nav::-webkit-scrollbar {
-  width: 8px;
-}
-
-.sid-shell__aside nav::-webkit-scrollbar-track {
-  background: rgba(10, 10, 10, 0.95);
-}
-
-.sid-shell__aside nav::-webkit-scrollbar-thumb {
-  background: rgba(71, 85, 105, 0.9);
-  border-radius: 999px;
+.sid-shell__aside nav::-webkit-scrollbar,
+.sid-sidebar-nav::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .sid-sidebar-footer {

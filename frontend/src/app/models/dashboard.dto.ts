@@ -10,7 +10,7 @@ export interface DashboardResumenDto {
   porMes: Array<{ periodo: string; cantidad: number }>;
   porTipo: Array<{ claveEmergencia: string; cantidad: number }>;
   recientes: Array<{
-    id: number;
+    id: string | number;
     correlativo: string;
     claveEmergencia: string;
     direccion: string;
@@ -19,6 +19,7 @@ export interface DashboardResumenDto {
     unidades: string[];
   }>;
   heatmapSemanas: number[][];
+  aniosConDatos?: number[];
   alertas: Array<{
     tipo: string;
     severidad: 'critico' | 'advertencia';
