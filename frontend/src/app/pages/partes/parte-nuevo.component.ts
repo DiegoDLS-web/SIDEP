@@ -693,10 +693,30 @@ export class ParteNuevoComponent implements OnInit {
   }
 
   private resolverObacId(): string | null {
-    if (typeof this.obacId === 'string' && this.obacId.trim().length > 0) {
-      if (this.usuariosElegiblesObac.some((u) => u.id === this.obacId)) return this.obacId;
-    }
+    const raw = typeof this.obacId === 'string' ? this.obacId.trim() : '';
+    if (!raw) return null;
+
+    const elegible = this.usuariosElegiblesObac.find((u) => u.id === raw || u.rut === raw);
+    if (elegible) return elegible.id;
+
+    const historico = this.usuarios.find((u) => (u.id === raw || u.rut === raw) && u.activo && !this.esAspirante(u));
+    if (historico) return historico.id;
+
+    if (this.editandoParteId && raw.length >= 7) return raw;
     return null;
+  }
+
+  private extraerHoraDeRegistro(valor: unknown): string {
+    if (!valor) return '';
+    if (typeof valor === 'string') {
+      const t = valor.trim();
+      if (/^\d{1,2}:\d{2}$/.test(t)) return t;
+      const m = t.match(/T(\d{2}):(\d{2})/);
+      if (m) return `${m[1]}:${m[2]}`;
+    }
+    const d = new Date(valor as string | Date);
+    if (Number.isNaN(d.getTime())) return '';
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   }
 
   // ============================================================================
@@ -719,6 +739,7 @@ export class ParteNuevoComponent implements OnInit {
       claveEmergencia: this.claveEmergencia.trim() || CLAVE_BORRADOR_DEFAULT,
       direccion: this.direccion.trim() || '— Borrador (sin dirección)',
       obacId: obac,
+      obacRut: obac,
       fecha: this.buildFechaIso() ?? new Date().toISOString(),
       estado: 'BORRADOR',
       unidades: this.parseUnidadesPayload(),
@@ -743,8 +764,13 @@ export class ParteNuevoComponent implements OnInit {
 
     request$.subscribe({
       next: (registro) => {
-        this.toast.exito('Borrador relacional guardado en PostgreSQL.');
-        void this.router.navigate(['/partes', registro.id]);
+        this.submitting = false;
+        const eraNuevo = this.editandoParteId == null;
+        this.editandoParteId = registro.id;
+        this.toast.exito(eraNuevo ? 'Borrador guardado.' : 'Borrador actualizado.');
+        if (eraNuevo) {
+          void this.router.navigate(['/partes/nuevo'], { queryParams: { editar: registro.id } });
+        }
       },
       error: (err) => {
         this.guardadoError = mensajeApiError(err, 'No se pudo guardar el borrador en el servidor.');
@@ -778,6 +804,7 @@ export class ParteNuevoComponent implements OnInit {
       claveEmergencia: this.claveEmergencia.trim(),
       direccion: this.direccion.trim(),
       obacId: obac,
+      obacRut: obac,
       fecha: fechaIso,
       estado: 'PENDIENTE',
       unidades: this.parseUnidadesPayload(),
@@ -802,7 +829,8 @@ export class ParteNuevoComponent implements OnInit {
 
     request$.subscribe({
       next: (registro) => {
-        this.toast.exito('Parte relacional registrado con éxito en PostgreSQL.');
+        this.submitting = false;
+        this.toast.exito(this.esEdicion ? 'Parte actualizado correctamente.' : 'Parte registrado correctamente.');
         void this.router.navigate(['/partes', registro.id]);
       },
       error: (err) => {
@@ -843,8 +871,17 @@ export class ParteNuevoComponent implements OnInit {
       otraCompaniaUnidad: asis.otraCompaniaUnidad ?? '',
       oficial128: asis.oficial128 ?? '',
       encargadoDatos: asis.encargadoDatos ?? '',
-      nombreObac: asis.nombreObac ?? '',
+      nombreObac: asis.nombreObac ?? parte.obac?.nombre ?? '',
     };
+
+    if (asis.radiosSeleccion && typeof asis.radiosSeleccion === 'object') {
+      Object.entries(asis.radiosSeleccion as Record<string, boolean>).forEach(([k, v]) => {
+        if (v) this.radiosSeleccion[k] = true;
+      });
+    }
+    if (asis.radiosDetalle && typeof asis.radiosDetalle === 'object') {
+      Object.assign(this.radiosDetalle, asis.radiosDetalle);
+    }
 
     this.firmaEncargadoDatos = asis.firmaEncargadoDatos ?? '';
     this.firmaObac = asis.firmaObac ?? '';
@@ -854,10 +891,15 @@ export class ParteNuevoComponent implements OnInit {
     const origUnidades = parte.unidades ?? parte.carrosAsistentes ?? [];
     this.unidades = origUnidades.map((u: any) => ({
       carroId: u.carroId,
-      conductor: parte.metadata?.conductoresPorCarroId?.[String(u.carroId)] ?? '',
-      hora6_0: u.hora6_0 ?? '', hora6_3: u.hora6_3 ?? '',
-      hora6_9: u.hora6_9 ?? '', hora6_10: u.hora6_10 ?? '',
-      kmSalida: String(u.kmSalida ?? ''), kmLlegada: String(u.kmLlegada ?? ''),
+      conductor: parte.metadata?.conductoresPorCarroId?.[String(u.carroId)]
+        ?? (u.conductor?.nombres ? `${u.conductor.nombres} ${u.conductor.apellidoPaterno ?? ''}`.trim() : '')
+        ?? '',
+      hora6_0: u.hora6_0 ?? this.extraerHoraDeRegistro(u.horaSalida),
+      hora6_3: u.hora6_3 ?? this.extraerHoraDeRegistro(u.hora6_3 ?? u.horaSalida),
+      hora6_9: u.hora6_9 ?? this.extraerHoraDeRegistro(u.hora6_9),
+      hora6_10: u.hora6_10 ?? this.extraerHoraDeRegistro(u.horaLlegada),
+      kmSalida: String(u.kmSalida ?? ''),
+      kmLlegada: String(u.kmLlegada ?? ''),
     }));
     if (this.unidades.length === 0) this.agregarUnidad();
 

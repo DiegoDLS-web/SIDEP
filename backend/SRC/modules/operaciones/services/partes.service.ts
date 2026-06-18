@@ -86,6 +86,10 @@ async function resolverClaveId(claveEmergencia?: string, claveId?: number): Prom
   return clave.id;
 }
 
+function normalizarRutBusqueda(rut: string): string {
+  return rut.replace(/[^0-9kK]/g, '').toUpperCase();
+}
+
 async function resolverObacRut(data: Record<string, unknown>): Promise<string> {
   const candidato = String(data.obacRut || data.obacId || '').trim();
   if (!candidato) throw new Error('OBAC es obligatorio');
@@ -93,11 +97,27 @@ async function resolverObacRut(data: Record<string, unknown>): Promise<string> {
   const porRut = await prisma.usuario.findUnique({ where: { rut: candidato } });
   if (porRut) return porRut.rut;
 
+  const porClave = await prisma.usuario.findFirst({
+    where: { claveNomina: candidato, activo: 1 },
+  });
+  if (porClave) return porClave.rut;
+
+  const norm = normalizarRutBusqueda(candidato);
+  if (norm.length >= 7) {
+    const candidatos = await prisma.usuario.findMany({
+      where: { activo: 1 },
+      select: { rut: true },
+    });
+    const exacto = candidatos.find((u) => normalizarRutBusqueda(u.rut) === norm);
+    if (exacto) return exacto.rut;
+  }
+
   const porRutParcial = await prisma.usuario.findFirst({
     where: {
       OR: [
         { rut: { contains: candidato } },
         { nombres: { contains: candidato, mode: 'insensitive' } },
+        { claveNomina: { contains: candidato, mode: 'insensitive' } },
       ],
       activo: 1,
     },
@@ -471,7 +491,18 @@ export const actualizarParte = async (id: string, data: Record<string, unknown>)
   const metadataActual = parseMetadata(existente.metadata) || {};
   const metadataNuevo = data.metadata && typeof data.metadata === 'object'
     ? { ...metadataActual, ...(data.metadata as Record<string, unknown>) }
-    : metadataActual;
+    : { ...metadataActual };
+
+  const metaEntrante = data.metadata as Record<string, unknown> | undefined;
+  if (metaEntrante?.asistencia && typeof metaEntrante.asistencia === 'object') {
+    const prev = metadataActual.asistencia && typeof metadataActual.asistencia === 'object'
+      ? metadataActual.asistencia as Record<string, unknown>
+      : {};
+    metadataNuevo.asistencia = {
+      ...prev,
+      ...(metaEntrante.asistencia as Record<string, unknown>),
+    };
+  }
 
   const camposMeta = ['descripcionEmergencia', 'trabajoRealizado', 'materialUtilizado', 'observaciones', 'horaDelLlamado', 'asistencia', 'conductoresPorCarroId'] as const;
   for (const campo of camposMeta) {
@@ -509,7 +540,9 @@ export const actualizarParte = async (id: string, data: Record<string, unknown>)
 
   if (data.obacId !== undefined || data.obacRut !== undefined) {
     const obacRut = await resolverObacRut(data);
-    updateData.obac = { connect: { rut: obacRut } };
+    if (obacRut !== existente.obacRut) {
+      updateData.obac = { connect: { rut: obacRut } };
+    }
   }
 
   const fechaBase = data.fecha || data.fechaEmergencia

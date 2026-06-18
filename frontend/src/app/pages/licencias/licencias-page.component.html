@@ -544,19 +544,7 @@
         </p>
       </div>
 
-      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
-        <label class="flex flex-col gap-1 xl:col-span-1">
-          <span class="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Unidad</span>
-          <select disabled class="sid-history-filter cursor-not-allowed text-sm opacity-60">
-            <option>No aplica</option>
-          </select>
-        </label>
-        <label class="flex flex-col gap-1 xl:col-span-1">
-          <span class="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Tipo de emergencia</span>
-          <select disabled class="sid-history-filter cursor-not-allowed text-sm opacity-60">
-            <option>No aplica</option>
-          </select>
-        </label>
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <label class="flex flex-col gap-1 xl:col-span-1">
           <span class="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Estado</span>
           <select
@@ -572,34 +560,36 @@
           </select>
         </label>
         <label class="flex flex-col gap-1 md:col-span-2 xl:col-span-2">
-          <span class="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Inspector u OBAC</span>
+          <span class="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Búsqueda</span>
           <input
             type="search"
             [(ngModel)]="filtroHistorialTexto"
             (ngModelChange)="onFiltroHistorialChange()"
-            placeholder="Nombre, motivo o resolución…"
+            placeholder="Solicitante, motivo o resolución…"
             class="sid-history-filter text-sm"
           />
         </label>
-        <div class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 md:col-span-2 xl:col-span-2">
-          <app-sid-date-input
-            preset="filter"
-            [dense]="true"
-            inputClass="sid-history-filter dark-date-input w-full min-w-0 text-sm"
-            title="Desde"
-            ariaLabel="Filtrar desde fecha"
-            [(ngModel)]="filtroHistorialDesde"
-            (ngModelChange)="onFiltroHistorialChange()"
-          />
-          <app-sid-date-input
-            preset="filter"
-            [dense]="true"
-            inputClass="sid-history-filter dark-date-input w-full min-w-0 text-sm"
-            title="Hasta"
-            ariaLabel="Filtrar hasta fecha"
-            [(ngModel)]="filtroHistorialHasta"
-            (ngModelChange)="onFiltroHistorialChange()"
-          />
+        <div class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 md:col-span-2 xl:col-span-1">
+          <label class="flex flex-col gap-1">
+            <span class="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Desde</span>
+            <app-sid-date-input
+              preset="filter"
+              [dense]="true"
+              inputClass="sid-history-filter dark-date-input w-full min-w-0 text-sm"
+              [(ngModel)]="filtroHistorialDesde"
+              (ngModelChange)="onFiltroHistorialChange()"
+            />
+          </label>
+          <label class="flex flex-col gap-1">
+            <span class="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Hasta</span>
+            <app-sid-date-input
+              preset="filter"
+              [dense]="true"
+              inputClass="sid-history-filter dark-date-input w-full min-w-0 text-sm"
+              [(ngModel)]="filtroHistorialHasta"
+              (ngModelChange)="onFiltroHistorialChange()"
+            />
+          </label>
         </div>
       </div>
 

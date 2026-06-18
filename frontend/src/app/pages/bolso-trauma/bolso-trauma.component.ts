@@ -16,7 +16,6 @@ import { etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
 import { etiquetaCompletandoOCompletado } from '../../utils/etiqueta-completitud';
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
-import { historialCoincideSeleccionTipoEmergencia } from '../../utils/tipo-emergencia-modulo-match';
 import * as XLSX from 'xlsx';
 
 @Component({
@@ -222,11 +221,6 @@ export class BolsoTraumaComponent implements OnInit {
     return this.historial.filter((h) => {
       const estado = h.estadoChecklist ?? 'PENDIENTE';
       if (this.filtroEstado !== 'TODOS' && estado !== this.filtroEstado) return false;
-      if (
-        !historialCoincideSeleccionTipoEmergencia(h.tipo ?? 'TRAUMA', this.filtroTiposEmergenciaBolso)
-      ) {
-        return false;
-      }
       if (!txt) {
         return true;
       }

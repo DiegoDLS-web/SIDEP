@@ -14,8 +14,6 @@ import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 import { etiquetaCompletandoOCompletado } from '../../utils/etiqueta-completitud';
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
-import { historialCoincideSeleccionTipoEmergencia } from '../../utils/tipo-emergencia-modulo-match';
-
 @Component({
   selector: 'app-checklist-selector',
   standalone: true,
@@ -172,10 +170,6 @@ export class ChecklistSelectorComponent implements OnInit {
       const coincideUnidad =
         this.filtroUnidadesHistorial.length === 0 ||
         this.filtroUnidadesHistorial.includes(registro.unidad);
-      const coincideTipoEmergencia = historialCoincideSeleccionTipoEmergencia(
-        registro.tipo,
-        this.filtroTiposEmergenciaHistorial,
-      );
       const estado = this.estadoHistorialFila(registro);
       const coincideEstado =
         this.filtroEstadoHistorial === 'TODOS' ||
@@ -201,7 +195,7 @@ export class ChecklistSelectorComponent implements OnInit {
         const d1 = new Date(`${tHasta}T23:59:59.999`).getTime();
         if (!Number.isNaN(d1)) coincideFecha = coincideFecha && fechaReg <= d1;
       }
-      return coincideUnidad && coincideTipoEmergencia && coincideEstado && coincideTexto && coincideFecha;
+      return coincideUnidad && coincideEstado && coincideTexto && coincideFecha;
     });
   }
 

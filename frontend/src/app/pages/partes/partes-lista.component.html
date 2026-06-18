@@ -336,7 +336,7 @@
           </div>
         </div>
 
-        <div class="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3 xl:grid-cols-4 md:gap-x-8 md:gap-y-6">
+        <div class="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5 md:gap-x-6 md:gap-y-6">
           <div class="min-w-0">
             <label class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">Desde</label>
             <app-sid-date-input
@@ -357,9 +357,9 @@
               (ngModelChange)="onRangoFiltroChange()"
             />
           </div>
-          <div class="min-w-0 md:col-span-2">
+          <div class="min-w-0 md:col-span-2 xl:col-span-2">
             <label class="mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400" for="partes-filtro-fecha"
-              >Fecha del parte (opcional)</label
+              >Día exacto (opcional)</label
             >
             <input
               id="partes-filtro-fecha"
@@ -368,7 +368,7 @@
               (ngModelChange)="onFechaFiltroInput()"
               [attr.aria-invalid]="fechaFiltroError ? 'true' : null"
               [attr.aria-describedby]="fechaFiltroError ? 'partes-filtro-fecha-err' : null"
-              placeholder="DD/MM/AAAA · con filtro rápido o solo día"
+              placeholder="DD/MM/AAAA"
               [class.ring-1]="fechaFiltroError"
               [class.ring-red-500/55]="fechaFiltroError"
               class="sid-input sid-history-filter min-h-[var(--sid-control-height)] w-full rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] px-3 py-2.5 text-sm text-white placeholder:text-slate-500"
@@ -425,8 +425,8 @@
           </button>
         </div>
 
-        <div class="mt-8 md:mt-10">
-          <p class="mb-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">Filtro rápido (fecha / período)</p>
+        <div class="mt-6 rounded-xl border border-rose-900/35 bg-rose-950/15 p-4 md:p-5">
+          <p class="mb-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-rose-300/90">Período rápido (solo partes)</p>
           <div
             class="grid grid-cols-4 gap-1.5 sm:gap-3"
             role="group"
