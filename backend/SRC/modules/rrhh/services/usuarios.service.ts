@@ -125,27 +125,51 @@ export const listarUsuariosPaginado = async (
   }
 
   if (estado && estado.trim()) {
-    andConditions.push({
-      estadoVoluntario: {
-        nombre: { equals: estado.trim(), mode: 'insensitive' },
-      },
-    });
+    const estadoId = await resolverEstadoVoluntarioId(estado);
+    if (estadoId) {
+      andConditions.push({ estadoVoluntarioId: estadoId });
+    } else {
+      andConditions.push({
+        estadoVoluntario: {
+          OR: [
+            { codigo: { equals: estado.trim(), mode: 'insensitive' } },
+            { nombre: { equals: estado.trim(), mode: 'insensitive' } },
+          ],
+        },
+      });
+    }
   }
 
   if (tipoVoluntario && tipoVoluntario.trim()) {
-    andConditions.push({
-      tipoVoluntario: {
-        nombre: { equals: tipoVoluntario.trim(), mode: 'insensitive' },
-      },
-    });
+    const tipoId = await resolverTipoVoluntarioId(tipoVoluntario);
+    if (tipoId) {
+      andConditions.push({ tipoVoluntarioId: tipoId });
+    } else {
+      andConditions.push({
+        tipoVoluntario: {
+          OR: [
+            { codigo: { equals: tipoVoluntario.trim(), mode: 'insensitive' } },
+            { nombre: { equals: tipoVoluntario.trim(), mode: 'insensitive' } },
+          ],
+        },
+      });
+    }
   }
 
   if (cargo && cargo.trim()) {
-    andConditions.push({
-      cargo: {
-        nombre: { equals: cargo.trim(), mode: 'insensitive' },
-      },
-    });
+    const cargoId = await resolverCargoId(cargo);
+    if (cargoId) {
+      andConditions.push({ cargoId });
+    } else {
+      andConditions.push({
+        cargo: {
+          OR: [
+            { codigo: { equals: cargo.trim(), mode: 'insensitive' } },
+            { nombre: { equals: cargo.trim(), mode: 'insensitive' } },
+          ],
+        },
+      });
+    }
   }
 
   const whereClause = andConditions.length > 0 ? { AND: andConditions } : {};

@@ -335,7 +335,7 @@
                 <div class="mb-2 flex items-start justify-between gap-3">
                   <div class="min-w-0">
                     <p class="text-sm font-semibold text-white">{{ row.nombre }}</p>
-                    <p class="text-xs text-gray-400">{{ cargoCuadroHonor(row.cargo) }} · {{ row.tipo }}</p>
+                    <p class="text-xs text-gray-400">{{ etiquetaCuadroHonorFila(row.cargo, row.tipo) }}</p>
                   </div>
                   <span
                     class="inline-flex min-h-[1.875rem] min-w-[2.25rem] items-center justify-center rounded-md border border-zinc-700/80 bg-zinc-900/60 px-2 text-sm font-semibold tabular-nums text-zinc-300"
@@ -371,8 +371,7 @@
                       N°
                     </th>
                     <th class="px-3 py-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Voluntario</th>
-                    <th class="px-3 py-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Cargo</th>
-                    <th class="px-3 py-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Tipo</th>
+                    <th class="px-3 py-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Categoría</th>
                     <th
                       class="px-3 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-gray-500"
                       title="Todos los días distintos del mes"
@@ -400,8 +399,7 @@
                       <td class="max-w-[10rem] px-3 py-2 align-middle font-medium text-gray-100 sm:max-w-none">
                         {{ row.nombre }}
                       </td>
-                      <td class="px-3 py-2 align-middle text-gray-300">{{ cargoCuadroHonor(row.cargo) }}</td>
-                      <td class="px-3 py-2 align-middle text-gray-400">{{ row.tipo }}</td>
+                      <td class="px-3 py-2 align-middle text-gray-300">{{ etiquetaCuadroHonorFila(row.cargo, row.tipo) }}</td>
                       <td class="px-3 py-2 text-right align-middle">
                         <span
                           class="inline-flex min-w-14 justify-center rounded-lg border border-red-500/35 bg-red-500/15 px-2 py-0.5 text-sm font-semibold tabular-nums text-red-100 ring-1 ring-inset ring-red-400/15"

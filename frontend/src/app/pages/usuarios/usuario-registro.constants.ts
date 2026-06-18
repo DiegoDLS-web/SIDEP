@@ -125,6 +125,19 @@ export function etiquetaDirectorioVoluntario(
   return porTipo || 'Voluntario';
 }
 
+/** Etiqueta unificada para cuadro de honor: cargo si tiene oficialidad, si no el tipo de voluntario. */
+export function etiquetaCuadroHonor(
+  cargoOficialidad: string | null | undefined,
+  tipoVoluntario: string | null | undefined,
+): string {
+  const cargo = (cargoOficialidad ?? '').trim().toUpperCase();
+  if (cargo && cargo !== 'VOLUNTARIO') {
+    return ETIQUETAS_CARGO_OFICIALIDAD[cargo] ?? cargo.replace(/_/g, ' ').toLowerCase();
+  }
+  const tipo = (tipoVoluntario ?? '').trim().toUpperCase();
+  return ETIQUETAS_TIPO_VOLUNTARIO[tipo] ?? 'Voluntario';
+}
+
 /** Solo cargo institucional (oficialidad), alineado con los datos que alimentan asistencia en partes. */
 export function etiquetaOficialidadCargo(
   cargoOficialidad: string | null | undefined,

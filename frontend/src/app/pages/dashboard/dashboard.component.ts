@@ -14,7 +14,7 @@ import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
 import type { CuadroHonorDto } from '../../models/reportes.dto';
-import { etiquetaOficialidadCargo } from '../usuarios/usuario-registro.constants';
+import { etiquetaCuadroHonor } from '../usuarios/usuario-registro.constants';
 
 type StatCard = {
   label: string;
@@ -450,7 +450,5 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.mostrarCuadroHonor = !this.mostrarCuadroHonor;
   }
 
-  cargoCuadroHonor(cargo: string | null | undefined): string {
-    return etiquetaOficialidadCargo(cargo, null);
-  }
+  etiquetaCuadroHonorFila = etiquetaCuadroHonor;
 }

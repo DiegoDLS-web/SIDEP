@@ -1,4 +1,5 @@
 import prisma from '../../../prisma';
+import { parteWhereNoAnulado } from '../../operaciones/partes-where';
 import { NotFoundError, ValidationError, ConflictError } from '../../../utils/errors/AppError';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -9,9 +10,7 @@ export const getAsistenciasVoluntario = async (rut: string, anio?: number, mes?:
 
   const whereClause: any = {
     usuarioRut: rut,
-    parte: {
-      estadoId: { not: 3 }, // Not canceled
-    },
+    parte: parteWhereNoAnulado(),
   };
 
   if (anio) {

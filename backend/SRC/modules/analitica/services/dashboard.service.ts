@@ -1,4 +1,5 @@
 import prisma from '../../../prisma';
+import { parteWhereNoAnulado } from '../../operaciones/partes-where';
 
 function contarItemsDesdeRespuestas(raw: string | null | undefined): { totalItems: number; itemsOk: number } | null {
   if (!raw) return null;
@@ -69,10 +70,9 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
   const finMes = new Date(Date.UTC(anio, currentMonth, 0, 23, 59, 59, 999));
 
   // Build filter criteria
-  const whereClause: any = {
+  const whereClause = parteWhereNoAnulado({
     fechaEmergencia: { gte: inicioAnio, lte: finAnio },
-    estadoId: { not: 3 }, // Not canceled
-  };
+  });
 
   if (claveFilter && claveFilter !== 'todos') {
     whereClause.clave = { codigo: claveFilter };
@@ -134,7 +134,7 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
     .sort((a, b) => a.periodo.localeCompare(b.periodo));
 
   const partesParaAnios = await prisma.parteEmergencia.findMany({
-    where: { estadoId: { not: 3 } },
+    where: parteWhereNoAnulado(),
     select: { fechaEmergencia: true },
   });
   const aniosConDatos = [...new Set(partesParaAnios.map((p) => p.fechaEmergencia.getFullYear()))].sort((a, b) => b - a);

@@ -600,27 +600,32 @@
           </div>
         </div>
         <div class="sid-history-wrap w-full min-w-0 overflow-x-auto">
-          <table class="sid-history-table sid-history-table--asistencia-vol w-full min-w-0 table-fixed border-separate border-spacing-0">
-            <colgroup>
-              <col style="width: 46%" />
-              <col style="width: 27%" />
-              <col style="width: 27%" />
-            </colgroup>
+          <table class="sid-history-table sid-history-table--asistencia-vol w-full min-w-[20rem] border-separate border-spacing-0">
             <thead>
               <tr>
-                <th class="px-3 py-2 text-left align-bottom">Voluntario</th>
-                <th class="px-3 py-2 text-right align-bottom tabular-nums">Asistencias</th>
-                <th class="px-3 py-2 text-right align-bottom tabular-nums">Partes</th>
+                <th class="px-4 py-2.5 text-left align-bottom text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  Voluntario
+                </th>
+                <th class="w-28 px-4 py-2.5 text-right align-bottom text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  Asistencias
+                </th>
+                <th class="w-28 px-4 py-2.5 text-right align-bottom text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  Partes
+                </th>
               </tr>
             </thead>
             <tbody>
               @for (v of detalleAsistenciaMesSeleccionado()?.voluntarios ?? []; track v.usuarioId) {
                 <tr>
-                  <td class="break-words px-3 py-2 font-medium leading-snug text-slate-100" [title]="v.nombre">
+                  <td class="break-words px-4 py-2.5 font-medium leading-snug text-slate-100" [title]="v.nombre">
                     {{ v.nombre }}
                   </td>
-                  <td class="px-3 py-2 text-right tabular-nums font-semibold text-emerald-300">{{ v.asistenciasRegistradas }}</td>
-                  <td class="px-3 py-2 text-right tabular-nums font-semibold text-slate-300">{{ v.partesConAsistencia }}</td>
+                  <td class="w-28 px-4 py-2.5 text-right align-middle tabular-nums font-semibold text-emerald-300">
+                    {{ v.asistenciasRegistradas }}
+                  </td>
+                  <td class="w-28 px-4 py-2.5 text-right align-middle tabular-nums font-semibold text-slate-300">
+                    {{ v.partesConAsistencia }}
+                  </td>
                 </tr>
               } @empty {
                 <tr>

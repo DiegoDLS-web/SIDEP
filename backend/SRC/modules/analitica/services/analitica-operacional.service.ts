@@ -1,4 +1,5 @@
 import prisma from '../../../prisma';
+import { parteWhereNoAnulado } from '../../operaciones/partes-where';
 
 export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesParam?: number) => {
   const anio = anioParam || new Date().getFullYear();
@@ -22,10 +23,9 @@ export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesPara
   // 1. Fetch units in emergencies for current month
   const unidadesMes = await prisma.unidadEnEmergencia.findMany({
     where: {
-      parte: {
+      parte: parteWhereNoAnulado({
         fechaEmergencia: { gte: inicioMes, lte: finMes },
-        estadoId: { not: 3 },
-      },
+      }),
     },
     include: {
       carro: true,
@@ -36,10 +36,9 @@ export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesPara
   // 2. Fetch units in emergencies for previous month (for comparative)
   const unidadesMesAnt = await prisma.unidadEnEmergencia.findMany({
     where: {
-      parte: {
+      parte: parteWhereNoAnulado({
         fechaEmergencia: { gte: inicioMesAnt, lte: finMesAnt },
-        estadoId: { not: 3 },
-      },
+      }),
     },
   });
 
@@ -203,10 +202,9 @@ export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesPara
 
   const asistenciasAnio = await prisma.asistenciaPersonal.findMany({
     where: {
-      parte: {
+      parte: parteWhereNoAnulado({
         fechaEmergencia: { gte: inicioAnio, lte: finAnio },
-        estadoId: { not: 3 },
-      },
+      }),
     },
     include: {
       parte: true,
@@ -218,11 +216,10 @@ export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesPara
 
   // Complemento: partes con asistencia solo en metadata (registros anteriores al sync relacional)
   const partesConMetaAsistencia = await prisma.parteEmergencia.findMany({
-    where: {
+    where: parteWhereNoAnulado({
       fechaEmergencia: { gte: inicioAnio, lte: finAnio },
-      estadoId: { not: 3 },
       metadata: { not: null },
-    },
+    }),
     select: { id: true, fechaEmergencia: true, metadata: true },
   });
 
@@ -303,10 +300,9 @@ export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesPara
 
   // Partes del mes por clave (10-0, 10-1, etc.)
   const partesMes = await prisma.parteEmergencia.findMany({
-    where: {
+    where: parteWhereNoAnulado({
       fechaEmergencia: { gte: inicioMes, lte: finMes },
-      estadoId: { not: 3 },
-    },
+    }),
     include: { clave: true },
   });
 
@@ -344,7 +340,13 @@ export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesPara
       }
     }
 
-    const voluntarios = Object.entries(userMap).map(([rut, data]) => {
+    const voluntarios = Object.entries(userMap)
+      .filter(([, data]) => {
+        if ((data.rol ?? '').trim().toUpperCase() === 'ADMIN') return false;
+        const nom = (data.nombre ?? '').toLowerCase();
+        return !nom.includes('admin de pruebas') && !nom.includes('admin pruebas');
+      })
+      .map(([rut, data]) => {
       const cleanRut = rut.replace(/[^0-9]/g, '');
       const usuarioId = parseInt(cleanRut, 10) || 0;
 

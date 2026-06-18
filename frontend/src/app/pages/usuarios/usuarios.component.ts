@@ -20,7 +20,7 @@ import {
   REGIONES_COMUNAS_CHILE,
   ROLES_SISTEMA_FALLBACK,
   TIPOS_VOLUNTARIO_ORDEN,
-  etiquetaOficialidadCargo,
+  etiquetaDirectorioVoluntario,
 } from './usuario-registro.constants';
 import { claveNominaParaNombreCompleto } from '../../data/clave-nomina-por-nombre';
 import { jsPDF } from 'jspdf';
@@ -407,7 +407,9 @@ export class UsuariosComponent implements OnInit {
   }
 
   etiquetaChipOficialidad(usuario: UsuarioListaDto): string {
-    return etiquetaOficialidadCargo(usuario.cargoOficialidad, usuario.rol);
+    const rol = (usuario.rol ?? '').trim().toUpperCase();
+    if (rol === 'ADMIN') return 'Administrador del sistema';
+    return etiquetaDirectorioVoluntario(usuario.tipoVoluntario, usuario.cargoOficialidad);
   }
 
   private limpiarQueryEditId(): void {
