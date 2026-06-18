@@ -1006,10 +1006,17 @@ export class ChecklistEraComponent implements OnInit {
     this.mostrarRegistro = true;
     this.editandoPlantilla = false;
     this.snapshotPlantillaEra = null;
-    this.unidad = h.carro?.nomenclatura || this.unidad;
+    this.unidad = h.carro?.nomenclatura || h.unidad || this.unidad;
     this.inspector = h.inspector ?? '';
     this.grupoGuardia = h.grupoGuardia ?? '';
     this.observaciones = h.observaciones ?? '';
+    const obacId = String(h.cuarteleroId ?? h.cuartelero?.id ?? '').trim();
+    if (obacId) {
+      const match = this.usuarios.find((u) => u.id === obacId || u.rut === obacId);
+      this.cuarteleroId = match?.id ?? obacId;
+    } else {
+      this.cuarteleroId = '';
+    }
     const det = (h.detalle ?? {}) as {
       fechaInspeccion?: string;
       equipos?: EraEquipo[];
@@ -1017,6 +1024,8 @@ export class ChecklistEraComponent implements OnInit {
     };
     if (det.fechaInspeccion) {
       this.fechaInspeccion = String(det.fechaInspeccion).slice(0, 10);
+    } else if (h.fecha) {
+      this.fechaInspeccion = String(h.fecha).slice(0, 10);
     }
     if (Array.isArray(det.equipos) && det.equipos.length > 0) {
       this.equipos = det.equipos;
@@ -1026,7 +1035,11 @@ export class ChecklistEraComponent implements OnInit {
     }
     if (h.firmaOficial?.startsWith('data:image')) {
       this.firmaInicialServidor = h.firmaOficial;
+      this.fechaCierreChecklist = h.fecha ?? null;
       setTimeout(() => this.restaurarFirmaDesdeServidor(this.firmaInicialServidor), 0);
+    } else {
+      this.firmaInicialServidor = null;
+      this.fechaCierreChecklist = null;
     }
     const fInsp = h.firmaInspector?.trim();
     if (fInsp?.startsWith('data:image')) {
@@ -1040,7 +1053,8 @@ export class ChecklistEraComponent implements OnInit {
       this.inicializarCanvasFirma();
       this.inicializarCanvasFirmaInspector();
     }, 0);
-    this.flash(`Registro ${h.id} cargado para edición.`);
+    const etiquetaUnidad = h.carro?.nomenclatura ?? h.unidad ?? 'ERA';
+    this.toast.info(`Checklist ${etiquetaUnidad} cargado para edición.`);
   }
 
   verRegistroEra(h: ChecklistRegistroDto): void {

@@ -837,18 +837,27 @@ export class ParteNuevoComponent implements OnInit {
     this.guardadoError = null;
     const obac = this.resolverObacId();
     if (obac === null || !this.claveEmergencia.trim() || !this.direccion.trim() || !this.descripcionEmergencia.trim() || !this.trabajoRealizado.trim() || !this.horaDelLlamado.trim()) {
-      this.guardadoError = 'Por favor completa todos los campos básicos obligatorios.';
+      const msg = 'Por favor completa todos los campos básicos obligatorios.';
+      this.guardadoError = msg;
+      this.toast.error(msg);
+      this.pasoIdx = this.pasosVisibles.indexOf('basicos');
       return;
     }
     const faltantesCierre = this.faltantesCierreParte();
     if (faltantesCierre.length > 0) {
-      this.guardadoError = `Faltan datos de cierre: ${faltantesCierre.join('; ')}.`;
+      const msg = `Faltan datos de cierre: ${faltantesCierre.join('; ')}.`;
+      this.guardadoError = msg;
+      this.toast.error(msg);
       this.pasoIdx = this.pasosVisibles.indexOf('obs');
       return;
     }
     const fechaIso = this.buildFechaIso();
     if (!fechaIso || this.unidadesFormularioInvalidasParaGuardar()) {
-      this.guardadoError = 'Revisa los tiempos y datos de las unidades en despacho.';
+      const msg = this.exigeUnidadesDespacho
+        ? 'Revisa las unidades en despacho: carro, conductor, horas 6-0 a 6-10 y kilómetros.'
+        : 'Revisa los tiempos y datos de las unidades en despacho.';
+      this.guardadoError = msg;
+      this.toast.error(msg);
       this.pasoIdx = this.pasosVisibles.indexOf('basicos');
       return;
     }
@@ -860,7 +869,7 @@ export class ParteNuevoComponent implements OnInit {
       obacId: obac,
       obacRut: obac,
       fecha: fechaIso,
-      estado: 'PENDIENTE',
+      estado: 'COMPLETADO',
       unidades: this.parseUnidadesPayload(),
       pacientes: this.parsePacientesPayload(),
       asistencias: this.parseAsistenciasPayload(),

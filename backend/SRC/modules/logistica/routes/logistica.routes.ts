@@ -16,6 +16,8 @@ router.patch('/carros/:id/estado', protect, requireRoles('ADMIN', 'OFICIAL'), ca
 router.post('/equipamiento/bolsos', protect, requireRoles('ADMIN', 'OFICIAL'), equipamientoController.addBolsoTrauma);
 router.get('/equipamiento/bolsos/selector', protect, equipamientoController.getSelectorBolsos);
 router.get('/equipamiento/bolsos/historial', protect, equipamientoController.getHistorialBolsos);
+router.get('/equipamiento/bolsos/unidad/:unidad', protect, equipamientoController.getUnidadBolsoTrauma);
+router.post('/equipamiento/bolsos/unidad/:unidad/revision', protect, equipamientoController.postRevisionBolsoTrauma);
 router.post('/equipamiento/materiales', protect, requireRoles('ADMIN', 'OFICIAL'), equipamientoController.addMaterialCarro);
 router.get('/equipamiento/carro/:carroId', protect, equipamientoController.getInventarioCarro);
 // --- CHECKLISTS ---

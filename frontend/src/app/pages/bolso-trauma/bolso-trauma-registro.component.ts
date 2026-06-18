@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { forkJoin, catchError } from 'rxjs';
+import { forkJoin, catchError, of } from 'rxjs';
 import type { UsuarioListaDto } from '../../models/usuario.dto';
 import { BolsosTraumaService } from '../../services/bolsos-trauma.service';
 import { ChecklistsService } from '../../services/checklists.service';
@@ -182,15 +182,17 @@ export class BolsoTraumaRegistroComponent implements OnInit {
     this.fechaInspeccion = hoy;
 
     forkJoin({
-      data: this.bolsosApi.obtenerUnidad(this.unidad),
-      usuarios: this.usuariosApi.selectorObac(),
-      plantilla: (this.checklistsApi as any).obtenerPlantilla('TRAUMA', this.unidad),
+      data: this.bolsosApi.obtenerUnidad(this.unidad).pipe(
+        catchError(() => of({ carro: { nombre: `Unidad ${this.unidad}` }, checklist: null })),
+      ),
+      usuarios: this.usuariosApi.selectorObac().pipe(catchError(() => of([] as UsuarioListaDto[]))),
+      plantilla: (this.checklistsApi as any).obtenerPlantilla('TRAUMA', this.unidad).pipe(catchError(() => of(null))),
     }).subscribe({
       next: ({ data, usuarios, plantilla }) => {
-        this.usuarios = usuarios;
-        this.nombreCarro = (data.carro.nombre ?? '').trim() || '—';
+        this.usuarios = usuarios ?? [];
+        this.nombreCarro = (data?.carro?.nombre ?? '').trim() || `Unidad ${this.unidad}`;
 
-        const checklist = data.checklist;
+        const checklist = data?.checklist;
         const detalle = checklist?.detalle as {
           bolsos?: Bolso[];
           fecha?: string;
@@ -214,10 +216,19 @@ export class BolsoTraumaRegistroComponent implements OnInit {
         if (checklist?.inspector) this.nombreInspector = checklist.inspector;
         if (checklist?.grupoGuardia) this.grupoGuardia = checklist.grupoGuardia;
         if (checklist?.observaciones) this.observaciones = checklist.observaciones;
-        if (checklist?.cuarteleroId && usuarios.some((u) => u.id === String(checklist.cuarteleroId))) {
-          this.cuarteleroId = String(checklist.cuarteleroId);
+        if (checklist?.cuarteleroId) {
+          const id = String(checklist.cuarteleroId);
+          const match = usuarios.find((u) => u.id === id || u.rut === id);
+          this.cuarteleroId = match?.id ?? id;
         } else if (usuarios.length > 0) {
           this.cuarteleroId = usuarios[0].id;
+        }
+
+        if (!this.nombreInspector.trim()) {
+          const perfil = this.auth.usuarioActual;
+          const nom = perfil?.nombre?.trim() ?? '';
+          const clave = (perfil as { claveNomina?: string })?.claveNomina?.trim() ?? '';
+          this.nombreInspector = nom && clave ? `${nom} / ${clave}` : nom;
         }
 
         const fi = detalle?.fechaInspeccion ?? detalle?.fecha;
@@ -238,6 +249,8 @@ export class BolsoTraumaRegistroComponent implements OnInit {
         this.loading = false;
       },
       error: () => {
+        this.usuarios = [];
+        this.bolsos = defaultBolsos(this.unidad);
         this.error = 'No se pudo cargar el registro del bolso de trauma.';
         this.loading = false;
       },
@@ -461,7 +474,7 @@ export class BolsoTraumaRegistroComponent implements OnInit {
 
   validarBolsoCompleto(): string | null {
     if (this.cuarteleroId === '') {
-      return 'Selecciona un oficial responsable (OBAC).';
+      return 'Selecciona un voluntario responsable (OBAC).';
     }
     if (!this.nombreInspector.trim()) {
       return 'Indica el nombre del inspector o clave.';

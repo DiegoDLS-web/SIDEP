@@ -53,3 +53,31 @@ export const getHistorialBolsos = async (req: Request, res: Response) => {
         res.status(500).json({ success: false, message: error.message || 'Error al obtener historial' });
     }
 };
+
+export const getUnidadBolsoTrauma = async (req: Request, res: Response) => {
+    try {
+        const unidad = String(req.params.unidad ?? '').trim();
+        if (!unidad) {
+            return res.status(400).json({ message: 'Unidad no indicada.' });
+        }
+        const data = await equipamientoService.obtenerUnidadBolsoTrauma(unidad);
+        return res.status(200).json(data);
+    } catch (error: any) {
+        const status = error.statusCode || 500;
+        return res.status(status).json({ message: error.message || 'Error al cargar unidad de bolso trauma' });
+    }
+};
+
+export const postRevisionBolsoTrauma = async (req: Request, res: Response) => {
+    try {
+        const unidad = String(req.params.unidad ?? '').trim();
+        if (!unidad) {
+            return res.status(400).json({ message: 'Unidad no indicada.' });
+        }
+        const data = await equipamientoService.guardarRevisionBolsoTrauma(unidad, req.body);
+        return res.status(201).json(data);
+    } catch (error: any) {
+        const status = error.statusCode || 500;
+        return res.status(status).json({ message: error.message || 'Error al guardar revisión de bolso trauma' });
+    }
+};
