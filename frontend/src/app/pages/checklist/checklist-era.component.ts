@@ -1275,6 +1275,7 @@ export class ChecklistEraComponent implements OnInit {
           this.refrescarHistorialEra();
           this.cargarHistorialGeneral();
           this.toast.exito('Checklist ERA guardado.');
+          this.volverSeleccionUnidad();
         },
         error: () => {
           this.error = 'No se pudo guardar checklist ERA.';

@@ -336,6 +336,9 @@ model MantenimientoCarro {
   fechaInspeccion           DateTime? @map("fecha_inspeccion") @db.Date
   inspectorRut              String?   @map("inspector_rut") @db.VarChar(20)
   conductorRut              String?   @map("conductor_rut") @db.VarChar(20)
+  inspectorNombre           String?   @map("inspector_nombre") @db.VarChar(100)
+  conductorNombre           String?   @map("conductor_nombre") @db.VarChar(100)
+  firmaInspector            String?   @map("firma_inspector") @db.Text
   descripcion               String?
   carro                     Carro     @relation(fields: [carroId], references: [id])
   conductor                 Usuario?  @relation("conductor", fields: [conductorRut], references: [rut])

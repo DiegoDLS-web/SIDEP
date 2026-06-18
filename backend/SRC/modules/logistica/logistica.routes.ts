@@ -9,6 +9,7 @@ const router = Router();
 
 // --- CARROS ---
 router.get('/carros', protect, carrosController.getCarros);
+router.get('/carros/historial-general', protect, carrosController.getHistorialGeneralCarros);
 router.get('/carros/:id', protect, carrosController.obtenerCarroPorId);
 router.post('/carros', protect, requireRoles('ADMIN', 'OFICIAL'), carrosController.addCarro);
 router.patch('/carros/:id', protect, requireRoles('ADMIN', 'OFICIAL', 'CUARTELERO'), carrosController.editCarro);

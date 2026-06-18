@@ -519,6 +519,7 @@ export class CarrosPageComponent {
         this.guardando = false;
         this.editando = false;
         this.mensajeEdicion = 'Datos del carro actualizados correctamente.';
+        this.cargarHistorialGeneral();
       },
       error: () => {
         this.guardando = false;

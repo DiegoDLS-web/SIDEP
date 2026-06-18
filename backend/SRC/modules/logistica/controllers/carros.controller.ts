@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import * as carrosService from '../services/carros.service';
-import { prisma } from '../../../prisma';
 
 export const addCarro = async (req: Request, res: Response) => {
     try {
@@ -13,9 +12,22 @@ export const addCarro = async (req: Request, res: Response) => {
 
 export const editCarro = async (req: Request, res: Response) => {
     try {
-        // Añadimos "as string"
         const carro = await carrosService.actualizarCarro(req.params.id as string, req.body);
         res.status(200).json({ success: true, data: carro });
+    } catch (error: any) {
+        res.status(error.statusCode || 500).json({ success: false, message: error.message });
+    }
+};
+
+export const getHistorialGeneralCarros = async (req: Request, res: Response) => {
+    try {
+        const { carroId, desde, hasta } = req.query;
+        const filas = await carrosService.historialMantenimientoGeneral({
+            carroId: typeof carroId === 'string' ? carroId : undefined,
+            desde: typeof desde === 'string' ? desde : undefined,
+            hasta: typeof hasta === 'string' ? hasta : undefined,
+        });
+        res.status(200).json(filas);
     } catch (error: any) {
         res.status(error.statusCode || 500).json({ success: false, message: error.message });
     }
@@ -49,17 +61,9 @@ export const toggleEstadoCarro = async (req: Request, res: Response) => {
 export const obtenerCarroPorId = async (req: Request, res: Response): Promise<Response> => {
     try {
         const id = String(req.params.id);
-        const carro = await prisma.carro.findUnique({
-            where: { id },
-            include: {
-                materiales: true,
-                bolsos: true,
-                mantenimientos: true
-            }
-        });
-        if (!carro) return res.status(404).json({ success: false, message: 'Carro no encontrado' });
+        const carro = await carrosService.obtenerCarroEnriquecido(id);
         return res.status(200).json({ success: true, data: carro });
     } catch (error: any) {
-        return res.status(500).json({ success: false, message: error.message });
+        return res.status(error.statusCode || 500).json({ success: false, message: error.message });
     }
 };
