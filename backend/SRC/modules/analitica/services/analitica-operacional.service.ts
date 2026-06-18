@@ -308,7 +308,16 @@ export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesPara
 
   const claveGroups: Record<string, number> = {};
   for (const p of partesMes) {
-    const codigo = p.clave?.codigo || 'SIN_CLAVE';
+    let codigo = p.clave?.codigo || 'SIN_CLAVE';
+    if (p.metadata) {
+      try {
+        const meta = JSON.parse(p.metadata) as Record<string, unknown>;
+        const mc = typeof meta['claveEmergencia'] === 'string' ? meta['claveEmergencia'].trim() : '';
+        if (mc) codigo = mc;
+      } catch {
+        /* ignore */
+      }
+    }
     claveGroups[codigo] = (claveGroups[codigo] || 0) + 1;
   }
 

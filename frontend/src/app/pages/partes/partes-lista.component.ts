@@ -173,9 +173,13 @@ export class PartesListaComponent implements OnInit {
   // ADAPTADOR: Transforma el DTO de Base de Datos al Formato del HTML
   // ============================================================================
   private mapearAUI(dto: any): ParteListaUI {
+    const meta = dto.metadata ?? {};
+    const claveMeta =
+      typeof meta.claveEmergencia === 'string' ? meta.claveEmergencia.trim() : '';
     return {
       id: String(dto.id),
-      claveEmergencia: dto.claveEmergencia ?? dto.fechaEmergencia ?? dto.codigoEmergencia ?? '10-0',
+      claveEmergencia:
+        claveMeta || dto.claveEmergencia || dto.codigoEmergencia || '10-9',
       fecha: dto.fecha ?? dto.fechaEmergencia ?? new Date().toISOString(),
       direccion: dto.direccion ?? 'Sin dirección',
       estado: dto.estado ?? 'PENDIENTE',
@@ -672,7 +676,11 @@ export class PartesListaComponent implements OnInit {
       next: (p: any) => {
         this.vistaModalCargando = false;
         
-        p.claveEmergencia = p.claveEmergencia ?? p.fechaEmergencia ?? p.codigoEmergencia ?? '10-0';
+        const meta = p.metadata ?? {};
+        const claveMeta =
+          typeof meta.claveEmergencia === 'string' ? meta.claveEmergencia.trim() : '';
+        p.claveEmergencia =
+          claveMeta || p.claveEmergencia || p.codigoEmergencia || '10-9';
         p.fecha = p.fecha ?? p.fechaEmergencia ?? new Date().toISOString();
         p.unidades = p.unidades ?? p.carrosAsistentes ?? [];
         p.obac = p.obac ?? { nombre: p.revisorRut ?? p.obacId ?? 'Sin Oficial' };

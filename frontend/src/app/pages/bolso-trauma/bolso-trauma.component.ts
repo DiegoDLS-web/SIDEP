@@ -76,9 +76,10 @@ export class BolsoTraumaComponent implements OnInit {
     this.bolsosApi
       .selector()
       .pipe(
+        map((raw) => this.normalizarSelectorUnidades(raw)),
         switchMap((data) => {
-          if (Array.isArray(data) && data.length > 0) {
-            return of(data as BolsoTraumaSelectorUnidadDto[]);
+          if (data.length > 0) {
+            return of(data);
           }
           return this.carrosApi.listar().pipe(map((carros) => this.unidadesDesdeCarros(carros)));
         }),
@@ -120,12 +121,55 @@ export class BolsoTraumaComponent implements OnInit {
 
   private unidadesDesdeCarros(carros: CarroDto[]): BolsoTraumaSelectorUnidadDto[] {
     return carros.map((c) => ({
-      unidad: c.nomenclatura,
-      nombre: c.nombre?.trim() || c.nomenclatura,
+      unidad: (c.nomenclatura ?? '').trim() || String(c.id),
+      nombre: c.nombre?.trim() || c.nomenclatura || `Unidad ${c.id}`,
       cantidadBolsos: this.cantidadBolsosUnidad(c.nomenclatura),
       bolsos: this.bolsosPlaceholder(c.nomenclatura),
       ultimaRevision: null,
     }));
+  }
+
+  private normalizarSelectorUnidades(raw: unknown): BolsoTraumaSelectorUnidadDto[] {
+    const arr = Array.isArray(raw)
+      ? raw
+      : raw && typeof raw === 'object' && Array.isArray((raw as { data?: unknown }).data)
+        ? (raw as { data: unknown[] }).data
+        : [];
+    return arr
+      .map((item: any) => {
+        const unidad = String(item?.unidad ?? item?.nomenclatura ?? '').trim();
+        if (!unidad) return null;
+        return {
+          unidad,
+          nombre: String(item?.nombre ?? unidad).trim() || unidad,
+          cantidadBolsos: Number(item?.cantidadBolsos) || this.cantidadBolsosUnidad(unidad),
+          bolsos: item?.bolsos ?? this.bolsosPlaceholder(unidad),
+          ultimaRevision: item?.ultimaRevision ?? null,
+        } as BolsoTraumaSelectorUnidadDto;
+      })
+      .filter((x): x is BolsoTraumaSelectorUnidadDto => x != null);
+  }
+
+  etiquetaUnidadFiltro(u: BolsoTraumaSelectorUnidadDto): string {
+    const nom = (u.unidad ?? (u as { nomenclatura?: string }).nomenclatura ?? '').trim();
+    return nom || (u.nombre ?? '').trim() || '—';
+  }
+
+  private refrescarUnidadesDesdeHistorial(): void {
+    const porNom = new Map(this.unidades.map((u) => [this.etiquetaUnidadFiltro(u), u]));
+    for (const h of this.historial) {
+      const nom = (h.unidad ?? '').trim();
+      if (!nom || porNom.has(nom)) continue;
+      const nueva: BolsoTraumaSelectorUnidadDto = {
+        unidad: nom,
+        nombre: nom,
+        cantidadBolsos: this.cantidadBolsosUnidad(nom),
+        bolsos: this.bolsosPlaceholder(nom),
+        ultimaRevision: null,
+      };
+      this.unidades = [...this.unidades, nueva];
+      porNom.set(nom, nueva);
+    }
   }
 
   fechaHora(iso: string | null | undefined): { fecha: string; hora: string } {
@@ -174,6 +218,7 @@ export class BolsoTraumaComponent implements OnInit {
       .subscribe({
         next: (data) => {
           this.historial = data;
+          this.refrescarUnidadesDesdeHistorial();
           this.paginaHistorial = 1;
           this.loadingHistorial = false;
         },

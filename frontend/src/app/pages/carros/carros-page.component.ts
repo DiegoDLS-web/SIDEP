@@ -196,9 +196,38 @@ export class CarrosPageComponent {
   }
 
   historialGeneralFiltrado(): CarroHistorialGeneralFila[] {
+    let rows = this.historialGeneralFilas;
     const t = this.filtroInspectorHistorial.trim().toLowerCase();
-    if (!t) return this.historialGeneralFilas;
-    return this.historialGeneralFilas.filter((r) => (r.ultimoInspector ?? '').toLowerCase().includes(t));
+    if (t) {
+      rows = rows.filter((r) => (r.ultimoInspector ?? '').toLowerCase().includes(t));
+    }
+    const desde = this.parseFiltroFechaLocal(this.filtroHistorialDesde, false);
+    const hasta = this.parseFiltroFechaLocal(this.filtroHistorialHasta, true);
+    if (desde || hasta) {
+      rows = rows.filter((r) => {
+        const ref = new Date(r.creadoEn);
+        if (Number.isNaN(ref.getTime())) return false;
+        if (desde && ref < desde) return false;
+        if (hasta && ref > hasta) return false;
+        return true;
+      });
+    }
+    return rows;
+  }
+
+  private parseFiltroFechaLocal(val: string, finDeDia: boolean): Date | null {
+    const t = (val ?? '').trim();
+    if (!t) return null;
+    const m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) {
+      const d = new Date(t);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    const y = Number(m[1]);
+    const mo = Number(m[2]) - 1;
+    const day = Number(m[3]);
+    if (finDeDia) return new Date(y, mo, day, 23, 59, 59, 999);
+    return new Date(y, mo, day, 0, 0, 0, 0);
   }
 
   totalPaginasHistorialGeneral(): number {

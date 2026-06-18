@@ -72,6 +72,15 @@ export const ETIQUETAS_TIPO_VOLUNTARIO: Record<string, string> = {
   CONFEDERADO: 'Confederado',
 };
 
+/** Cargos de alta comandancia (padrón de asistencia en parte, sección propia). */
+export const CARGOS_ALTA_COMANDANCIA = new Set([
+  'SEGUNDO_COMANDANTE',
+  'TESORERO_GENERAL',
+  'SECRETARIO_GENERAL',
+  'VICE_SUPERINTENDENTE',
+  'SUPERINTENDENTE',
+]);
+
 export const TIPOS_VOLUNTARIO_ORDEN = [
   'ASPIRANTE',
   'VOLUNTARIO',

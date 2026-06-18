@@ -114,16 +114,24 @@ async function resolverEstadoId(estado?: string): Promise<number> {
 
 async function resolverClaveId(claveEmergencia?: string, claveId?: number): Promise<number> {
   if (claveId && Number.isFinite(claveId)) return Number(claveId);
-  const codigo = (claveEmergencia || '10-0').trim();
-  const clave = await prisma.catalogoClaveEmergencia.findFirst({
-    where: { codigo, activo: 1 },
-  });
-  if (!clave) {
+  const codigo = (claveEmergencia || '10-9').trim();
+  if (!codigo) {
     const fallback = await prisma.catalogoClaveEmergencia.findFirst({ where: { activo: 1 } });
-    if (!fallback) throw new Error(`Clave de emergencia "${codigo}" no encontrada`);
+    if (!fallback) throw new Error('No hay claves de emergencia activas en catálogo');
     return fallback.id;
   }
-  return clave.id;
+  const existente = await prisma.catalogoClaveEmergencia.findFirst({
+    where: { codigo, activo: 1 },
+  });
+  if (existente) return existente.id;
+  const creada = await prisma.catalogoClaveEmergencia.create({
+    data: {
+      codigo,
+      nombre: codigo.length > 100 ? codigo.slice(0, 100) : codigo,
+      activo: 1,
+    },
+  });
+  return creada.id;
 }
 
 function normalizarRutBusqueda(rut: string): string {
@@ -294,6 +302,7 @@ function construirMetadataPersistencia(data: Record<string, unknown>): string | 
     : {}) as Record<string, unknown>;
 
   const campos = [
+    'claveEmergencia',
     'descripcionEmergencia',
     'trabajoRealizado',
     'materialUtilizado',
@@ -305,6 +314,10 @@ function construirMetadataPersistencia(data: Record<string, unknown>): string | 
     'asistencia',
     'conductoresPorCarroId',
   ] as const;
+
+  if (data.claveEmergencia !== undefined && data.claveEmergencia !== null) {
+    base.claveEmergencia = String(data.claveEmergencia).trim() || null;
+  }
 
   for (const campo of campos) {
     if (data[campo] !== undefined && data[campo] !== null) {
@@ -347,11 +360,13 @@ export function mapParteToDto(p: ParteConRelaciones | null) {
     descripcionEmergencia: metadata?.descripcionEmergencia,
     observaciones: metadata?.observaciones,
     claveEmergencia:
-      p.clave?.codigo ??
-      (typeof metadata?.claveEmergencia === 'string' ? metadata.claveEmergencia : undefined),
+      (typeof metadata?.claveEmergencia === 'string' && metadata.claveEmergencia.trim()
+        ? metadata.claveEmergencia.trim()
+        : undefined) ?? p.clave?.codigo,
     codigoEmergencia:
-      p.clave?.codigo ??
-      (typeof metadata?.claveEmergencia === 'string' ? metadata.claveEmergencia : undefined),
+      (typeof metadata?.claveEmergencia === 'string' && metadata.claveEmergencia.trim()
+        ? metadata.claveEmergencia.trim()
+        : undefined) ?? p.clave?.codigo,
     estado: estadoCodigo,
     clave: p.clave,
     obac: p.obac
@@ -653,9 +668,21 @@ export const actualizarParte = async (id: string, data: Record<string, unknown>)
     };
   }
 
-  const camposMeta = ['descripcionEmergencia', 'trabajoRealizado', 'materialUtilizado', 'observaciones', 'horaDelLlamado', 'asistencia', 'conductoresPorCarroId'] as const;
+  const camposMeta = [
+    'claveEmergencia',
+    'descripcionEmergencia',
+    'trabajoRealizado',
+    'materialUtilizado',
+    'observaciones',
+    'horaDelLlamado',
+    'asistencia',
+    'conductoresPorCarroId',
+  ] as const;
   for (const campo of camposMeta) {
     if (data[campo] !== undefined) metadataNuevo[campo] = data[campo];
+  }
+  if (data.claveEmergencia !== undefined && data.claveEmergencia !== null) {
+    metadataNuevo.claveEmergencia = String(data.claveEmergencia).trim() || null;
   }
   if (data.vehiculosAfectados) metadataNuevo.vehiculos = data.vehiculosAfectados;
   if (data.apoyosExternos) metadataNuevo.apoyoExterno = data.apoyosExternos;

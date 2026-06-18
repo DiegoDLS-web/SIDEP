@@ -19,8 +19,9 @@ import {
   RADIOS_PARTE_OPCIONES,
   type AsistenciaColumnaDef,
   type AsistenciaItemDef,
+  type AsistenciaSeccionDef,
 } from './asistencia-roster.constants';
-import { etiquetaDirectorioVoluntario, etiquetaOficialidadCargo, nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
+import { etiquetaDirectorioVoluntario, etiquetaOficialidadCargo, nombreListaSoloPersona, CARGOS_ALTA_COMANDANCIA } from '../usuarios/usuario-registro.constants';
 import { mensajeApiError } from '../../utils/api-error.util';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
@@ -496,61 +497,96 @@ export class ParteNuevoComponent implements OnInit {
       delete this.usuarioAsistenciaPorId[k];
     }
 
-    const voluntariosActivos = this.usuarios
-      .filter((u) => u.activo && !this.esAspirante(u) && !this.esUsuarioExcluidoAsistencia(u))
-      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    const pool = this.usuarios
+      .filter((u) => u.activo && !this.esAspirante(u) && !this.esUsuarioExcluidoAsistencia(u));
 
-    const oficiales = this.usuarios
-      .filter((u) => u.activo && !this.esAspirante(u) && !this.esUsuarioExcluidoAsistencia(u))
+    const usados = new Set<string>();
+    const sortNombre = (a: UsuarioListaDto, b: UsuarioListaDto) =>
+      a.nombre.localeCompare(b.nombre, 'es');
+
+    const mkItem = (u: UsuarioListaDto, sufijo?: string): AsistenciaItemDef => {
+      const id = `usr-${u.id}`;
+      usados.add(id);
+      this.usuarioAsistenciaPorId[id] = u;
+      const base = nombreListaSoloPersona(u);
+      return { id, label: sufijo ? `${base} (${sufijo})` : base };
+    };
+
+    const tipo = (u: UsuarioListaDto) => (u.tipoVoluntario ?? '').trim().toUpperCase();
+    const cargo = (u: UsuarioListaDto) => (u.cargoOficialidad ?? '').trim().toUpperCase();
+
+    const honorarios = pool
+      .filter((u) => tipo(u) === 'HONORARIO')
+      .sort(sortNombre)
+      .map((u) => mkItem(u, 'Honorario'));
+
+    const insignes = pool
+      .filter((u) => tipo(u) === 'INSIGNE' && !usados.has(`usr-${u.id}`))
+      .sort(sortNombre)
+      .map((u) => mkItem(u, 'Insigne'));
+
+    const altaOficialidad = pool
+      .filter((u) => CARGOS_ALTA_COMANDANCIA.has(cargo(u)) && !usados.has(`usr-${u.id}`))
+      .sort((a, b) => {
+        const ca = etiquetaOficialidadCargo(a.cargoOficialidad, a.rol);
+        const cb = etiquetaOficialidadCargo(b.cargoOficialidad, b.rol);
+        return ca.localeCompare(cb, 'es') || sortNombre(a, b);
+      })
+      .map((u) => mkItem(u, etiquetaOficialidadCargo(u.cargoOficialidad, u.rol)));
+
+    const oficialesCompania = pool
       .filter((u) => {
-        const cargo = (u.cargoOficialidad ?? '').trim();
-        return cargo.length > 0 && cargo !== 'VOLUNTARIO';
+        if (usados.has(`usr-${u.id}`)) return false;
+        const c = cargo(u);
+        return c.length > 0 && c !== 'VOLUNTARIO';
       })
       .sort((a, b) => {
         const ca = etiquetaOficialidadCargo(a.cargoOficialidad, a.rol);
         const cb = etiquetaOficialidadCargo(b.cargoOficialidad, b.rol);
-        return ca.localeCompare(cb, 'es') || a.nombre.localeCompare(b.nombre, 'es');
-      });
+        return ca.localeCompare(cb, 'es') || sortNombre(a, b);
+      })
+      .map((u) => mkItem(u, etiquetaOficialidadCargo(u.cargoOficialidad, u.rol)));
 
-    const itemsOficiales: AsistenciaItemDef[] = oficiales.map((u) => {
-      const id = `usr-${u.id}`;
-      this.usuarioAsistenciaPorId[id] = u;
-      const cargo = etiquetaOficialidadCargo(u.cargoOficialidad, u.rol);
-      return { id, label: `${nombreListaSoloPersona(u)} (${cargo})` };
-    });
-
-    if (itemsOficiales.length === 0) {
+    if (oficialesCompania.length === 0) {
       for (const col of ASISTENCIA_LAYOUT) {
         for (const sec of col.secciones) {
           for (const it of sec.items) {
-            itemsOficiales.push({ ...it });
+            oficialesCompania.push({ ...it });
           }
         }
       }
     }
 
-    const columnaOficialidad: AsistenciaColumnaDef = {
-      secciones: [{ titulo: 'Oficialidad (compañía)', items: itemsOficiales }],
-    };
+    const voluntariosActivos = pool
+      .filter((u) => !usados.has(`usr-${u.id}`))
+      .sort(sortNombre)
+      .map((u) => mkItem(u));
 
-    const itemsVoluntarios = voluntariosActivos.map((u) => {
-      const id = `usr-${u.id}`;
-      this.usuarioAsistenciaPorId[id] = u;
-      return { id, label: nombreListaSoloPersona(u) };
-    });
+    const seccionesIzq: AsistenciaSeccionDef[] = [];
+    if (honorarios.length > 0) {
+      seccionesIzq.push({ titulo: 'Voluntarios honorarios', items: honorarios });
+    }
+    if (insignes.length > 0) {
+      seccionesIzq.push({ titulo: 'Voluntarios insignes', items: insignes });
+    }
+    if (altaOficialidad.length > 0) {
+      seccionesIzq.push({ titulo: 'Alta oficialidad', items: altaOficialidad });
+    }
+    if (oficialesCompania.length > 0) {
+      seccionesIzq.push({ titulo: 'Oficialidad (compañía)', items: oficialesCompania });
+    }
 
+    const columnaIzq: AsistenciaColumnaDef = { secciones: seccionesIzq };
     const columnaVoluntarios: AsistenciaColumnaDef = {
-      secciones: [
-        {
-          titulo: 'Voluntarios activos',
-          items: itemsVoluntarios,
-        },
-      ],
+      secciones: [{ titulo: 'Voluntarios activos', items: voluntariosActivos }],
     };
 
-    this.asistenciaLayoutVista = itemsVoluntarios.length > 0
-      ? [columnaOficialidad, columnaVoluntarios]
-      : [columnaOficialidad];
+    this.asistenciaLayoutVista =
+      voluntariosActivos.length > 0 && seccionesIzq.length > 0
+        ? [columnaIzq, columnaVoluntarios]
+        : seccionesIzq.length > 0
+          ? [columnaIzq]
+          : [columnaVoluntarios];
   }
 
   /** Excluye cuentas admin de prueba del padrón de asistencia. */
@@ -757,6 +793,7 @@ export class ParteNuevoComponent implements OnInit {
       if (Object.keys(horarios).length > 0) unidadesHorarios[String(u.carroId)] = horarios;
     }
     return {
+      claveEmergencia: this.claveEmergencia.trim() || undefined,
       descripcionEmergencia: this.descripcionEmergencia.trim() || undefined,
       trabajoRealizado: this.trabajoRealizado.trim() || undefined,
       horaDelLlamado: this.horaDelLlamado.trim() || undefined,
@@ -969,7 +1006,7 @@ export class ParteNuevoComponent implements OnInit {
       obacId: obac,
       obacRut,
       fecha: fechaIso,
-      estado: 'COMPLETADO',
+      estado: 'PENDIENTE',
       unidades: this.parseUnidadesPayload(),
       pacientes: this.parsePacientesPayload(),
       asistencias: this.parseAsistenciasPayload(),
@@ -992,7 +1029,7 @@ export class ParteNuevoComponent implements OnInit {
     request$.subscribe({
       next: () => {
         this.submitting = false;
-        this.toast.exito(this.esEdicion ? 'Parte actualizado y completado.' : 'Parte registrado correctamente.');
+        this.toast.exito(this.esEdicion ? 'Parte actualizado correctamente.' : 'Parte registrado correctamente.');
         void this.router.navigate(['/partes']);
       },
       error: (err) => {
@@ -1144,6 +1181,16 @@ export class ParteNuevoComponent implements OnInit {
     this.otrasCompanias = (parte.otrasCompanias || asis.otrasCompanias || []).map((o: any) => ({
       obac: o.obac ?? '', compania: o.compania ?? '', unidad: o.unidad ?? ''
     }));
+
+    if (!(this.asistencia.encargadoDatos ?? '').trim() && (this.asistencia.nombreObac ?? '').trim()) {
+      this.asistencia.encargadoDatos = this.asistencia.nombreObac;
+    }
+    if (!(this.asistencia.oficial128 ?? '').trim() && (this.asistencia.nombreObac ?? '').trim()) {
+      this.asistencia.oficial128 = this.asistencia.nombreObac;
+    }
+    if (this.obacId) {
+      this.aplicarObacEnAsistenciaYCierre();
+    }
   }
 
   private resolverNombreConductorParaSelect(nombreGuardado: string): string {

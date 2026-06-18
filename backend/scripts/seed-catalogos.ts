@@ -117,9 +117,35 @@ async function main() {
   ]);
 
   await upsertCatalogo('catalogoClaveEmergencia', [
-    { codigo: '10-0', nombre: '10-0 Incendio estructural' },
-    { codigo: '10-1', nombre: '10-1 Incendio vehículo' },
-    { codigo: '10-3', nombre: '10-3 Rescate' },
+    { codigo: '10-0-1', nombre: '10-0-1 Incendio en vivienda' },
+    { codigo: '10-0-2', nombre: '10-0-2 Incendio estructural con público' },
+    { codigo: '10-1-1', nombre: '10-1-1 Incendio de vehículo' },
+    { codigo: '10-1-2', nombre: '10-1-2 Incendio de vehículo pesado' },
+    { codigo: '10-2-1', nombre: '10-2-1 Pastizales y matorrales' },
+    { codigo: '10-2-2', nombre: '10-2-2 Incendio forestal' },
+    { codigo: '10-3-1', nombre: '10-3-1 Rescate de persona' },
+    { codigo: '10-4-1', nombre: '10-4-1 Rescate vehicular' },
+    { codigo: '10-4-2', nombre: '10-4-2 Rescate vehicular pesado' },
+    { codigo: '10-5', nombre: '10-5 Materiales peligrosos' },
+    { codigo: '10-6', nombre: '10-6 Emanación de gases' },
+    { codigo: '10-7', nombre: '10-7 Accidente eléctrico' },
+    { codigo: '10-8', nombre: '10-8 No clasificado' },
+    { codigo: '10-9', nombre: '10-9 Otros servicios' },
+    { codigo: '10-10', nombre: '10-10 Escombros' },
+    { codigo: '10-11', nombre: '10-11 Apoyo aeródromo' },
+    { codigo: '10-12', nombre: '10-12 Apoyo otros cuerpos' },
+    { codigo: '10-13', nombre: '10-13 Atentados terroristas' },
+    { codigo: '10-14', nombre: '10-14 Accidentes aéreos' },
+    { codigo: '10-15', nombre: '10-15 Simulacro' },
+    { codigo: '10-16', nombre: '10-16 Derrumbe' },
+    { codigo: '10-17', nombre: '10-17 Inundación o anegamiento' },
+    { codigo: '10-18', nombre: '10-18 Emergencia marítima' },
+    { codigo: '10-0', nombre: '10-0 Incendio estructural (legado)' },
+    { codigo: '10-1', nombre: '10-1 Incendio vehículo (legado)' },
+    { codigo: '10-3', nombre: '10-3 Rescate (legado)' },
+    { codigo: 'ACUARTELAMIENTO', nombre: 'Acuartelamiento' },
+    { codigo: 'REUNION_COMPANIA', nombre: 'Reunión de compañía' },
+    { codigo: 'ASAMBLEA_GENERAL', nombre: 'Asamblea general' },
   ]);
 
   await upsertCatalogo('catalogoTriage', [

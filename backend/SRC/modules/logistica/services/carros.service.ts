@@ -275,6 +275,20 @@ export const obtenerCarros = async () => {
   });
 };
 
+function parseFechaFiltroLocal(isoDate: string, finDeDia = false): Date | null {
+  const t = isoDate.trim();
+  const m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) {
+    const d = new Date(t);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const y = Number(m[1]);
+  const mo = Number(m[2]) - 1;
+  const day = Number(m[3]);
+  if (finDeDia) return new Date(y, mo, day, 23, 59, 59, 999);
+  return new Date(y, mo, day, 0, 0, 0, 0);
+}
+
 export const historialMantenimientoGeneral = async (filtros: {
   carroId?: string;
   desde?: string;
@@ -287,15 +301,12 @@ export const historialMantenimientoGeneral = async (filtros: {
   if (filtros.desde?.trim() || filtros.hasta?.trim()) {
     const fechaRegistro: Record<string, Date> = {};
     if (filtros.desde?.trim()) {
-      const d = new Date(filtros.desde.trim());
-      if (!Number.isNaN(d.getTime())) fechaRegistro.gte = d;
+      const d = parseFechaFiltroLocal(filtros.desde.trim(), false);
+      if (d) fechaRegistro.gte = d;
     }
     if (filtros.hasta?.trim()) {
-      const h = new Date(filtros.hasta.trim());
-      if (!Number.isNaN(h.getTime())) {
-        h.setHours(23, 59, 59, 999);
-        fechaRegistro.lte = h;
-      }
+      const h = parseFechaFiltroLocal(filtros.hasta.trim(), true);
+      if (h) fechaRegistro.lte = h;
     }
     if (Object.keys(fechaRegistro).length > 0) {
       where.fechaRegistro = fechaRegistro;

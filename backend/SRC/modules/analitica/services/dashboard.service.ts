@@ -1,6 +1,26 @@
 import prisma from '../../../prisma';
 import { parteWhereNoAnulado } from '../../operaciones/partes-where';
 
+function parseMetadataParte(raw: string | null | undefined): Record<string, unknown> | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function claveCodigoParte(p: {
+  clave?: { codigo: string } | null;
+  metadata: string | null;
+}): string {
+  const meta = parseMetadataParte(p.metadata);
+  const metaClave =
+    typeof meta?.['claveEmergencia'] === 'string' ? String(meta['claveEmergencia']).trim() : '';
+  return metaClave || p.clave?.codigo || 'SIN_CLAVE';
+}
+
 function contarItemsDesdeRespuestas(raw: string | null | undefined): { totalItems: number; itemsOk: number } | null {
   if (!raw) return null;
   let data: unknown;
@@ -146,7 +166,7 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
   });
   const typeGroups: Record<string, number> = {};
   for (const p of partesConClave) {
-    const code = p.clave.codigo;
+    const code = claveCodigoParte(p);
     typeGroups[code] = (typeGroups[code] || 0) + 1;
   }
   const porTipo = Object.entries(typeGroups).map(([claveEmergencia, cantidad]) => ({ claveEmergencia, cantidad }));
@@ -162,7 +182,7 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
   const recientes = recientesPartes.map((p) => ({
     id: p.id,
     correlativo: p.correlativo,
-    claveEmergencia: p.clave.codigo,
+    claveEmergencia: claveCodigoParte(p),
     direccion: p.direccion,
     fecha: p.fechaEmergencia.toISOString(),
     estado: p.estado.nombre,
