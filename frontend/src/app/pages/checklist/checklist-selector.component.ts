@@ -14,6 +14,7 @@ import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 import { etiquetaCompletandoOCompletado } from '../../utils/etiqueta-completitud';
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
+import { etiquetaUnidadCarro } from '../../utils/etiqueta-unidad-carro';
 @Component({
   selector: 'app-checklist-selector',
   standalone: true,
@@ -40,11 +41,10 @@ export class ChecklistSelectorComponent implements OnInit {
   historialLoading = false;
   /** Índice alineado con `unidades` (evita colisiones de clave en Object). */
   historialesPorUnidad: ChecklistRegistroDto[][] = [];
-  /** Nomenclaturas seleccionadas; vacío = todas. */
-  filtroUnidadesHistorial: string[] = [];
+  /** Nomenclatura seleccionada; TODAS = sin filtro. */
+  filtroUnidadHistorial: string | 'TODAS' = 'TODAS';
   /** Claves de catálogo (CHECKLIST_UNIDAD y similares aplican a `registro.tipo`). */
   filtroTiposEmergenciaHistorial: string[] = [];
-  filtroUnidadesPanelAbierto = false;
   filtroTipoEmergenciaPanelAbierto = false;
   filtroEstadoHistorial = 'TODOS';
   filtroTextoHistorial = '';
@@ -168,8 +168,8 @@ export class ChecklistSelectorComponent implements OnInit {
     const texto = this.filtroTextoHistorial.trim().toLowerCase();
     return this.historialGeneral().filter((registro) => {
       const coincideUnidad =
-        this.filtroUnidadesHistorial.length === 0 ||
-        this.filtroUnidadesHistorial.includes(registro.unidad);
+        this.filtroUnidadHistorial === 'TODAS' ||
+        registro.unidad === this.filtroUnidadHistorial;
       const estado = this.estadoHistorialFila(registro);
       const coincideEstado =
         this.filtroEstadoHistorial === 'TODOS' ||
@@ -214,11 +214,12 @@ export class ChecklistSelectorComponent implements OnInit {
     this.paginaHistorial = Math.min(Math.max(next, 1), total);
   }
 
-  etiquetaFiltroUnidadesHistorial(): string {
-    const n = this.filtroUnidadesHistorial.length;
-    if (n === 0) return 'Todas las unidades';
-    if (n === 1) return this.filtroUnidadesHistorial[0] ?? '1 unidad';
-    return `${n} unidades seleccionadas`;
+  etiquetaUnidadCarro = etiquetaUnidadCarro;
+
+  unidadesOrdenadas(): ChecklistResumenUnidadDto[] {
+    return [...this.unidades].sort((a, b) =>
+      String(a.unidad ?? '').localeCompare(String(b.unidad ?? ''), 'es'),
+    );
   }
 
   etiquetaFiltroTipoEmergenciaHistorial(): string {
@@ -234,42 +235,9 @@ export class ChecklistSelectorComponent implements OnInit {
     return this.catalogoEmergencias.etiqueta(c.value);
   }
 
-  toggleFiltroUnidadesPanel(ev: MouseEvent): void {
-    ev.stopPropagation();
-    this.filtroUnidadesPanelAbierto = !this.filtroUnidadesPanelAbierto;
-    if (this.filtroUnidadesPanelAbierto) {
-      this.filtroTipoEmergenciaPanelAbierto = false;
-    }
-  }
-
   toggleFiltroTipoEmergenciaPanel(ev: MouseEvent): void {
     ev.stopPropagation();
     this.filtroTipoEmergenciaPanelAbierto = !this.filtroTipoEmergenciaPanelAbierto;
-    if (this.filtroTipoEmergenciaPanelAbierto) {
-      this.filtroUnidadesPanelAbierto = false;
-    }
-  }
-
-  unidadHistorialSeleccionada(nom: string): boolean {
-    return this.filtroUnidadesHistorial.includes(nom);
-  }
-
-  toggleUnidadHistorial(nom: string, ev?: MouseEvent): void {
-    ev?.stopPropagation();
-    const i = this.filtroUnidadesHistorial.indexOf(nom);
-    if (i >= 0) {
-      this.filtroUnidadesHistorial = this.filtroUnidadesHistorial.filter((_, j) => j !== i);
-    } else {
-      this.filtroUnidadesHistorial = [...this.filtroUnidadesHistorial, nom];
-    }
-    this.paginaHistorial = 1;
-  }
-
-  limpiarUnidadesHistorial(ev: MouseEvent): void {
-    ev.stopPropagation();
-    if (this.filtroUnidadesHistorial.length === 0) return;
-    this.filtroUnidadesHistorial = [];
-    this.paginaHistorial = 1;
   }
 
   tipoEmergenciaHistorialSeleccionado(valor: string): boolean {
@@ -298,11 +266,7 @@ export class ChecklistSelectorComponent implements OnInit {
   cerrarPanelesHistorial(ev: MouseEvent): void {
     const t = ev.target;
     if (!(t instanceof Node)) return;
-    const wu = document.getElementById('checklist-hist-unidades-wrap');
     const wt = document.getElementById('checklist-hist-tipo-emergencia-wrap');
-    if (this.filtroUnidadesPanelAbierto && !wu?.contains(t)) {
-      this.filtroUnidadesPanelAbierto = false;
-    }
     if (this.filtroTipoEmergenciaPanelAbierto && !wt?.contains(t)) {
       this.filtroTipoEmergenciaPanelAbierto = false;
     }
@@ -399,14 +363,13 @@ export class ChecklistSelectorComponent implements OnInit {
   }
 
   limpiarFiltrosHistorial(): void {
-    this.filtroUnidadesHistorial = [];
+    this.filtroUnidadHistorial = 'TODAS';
     this.filtroTiposEmergenciaHistorial = [];
     this.filtroEstadoHistorial = 'TODOS';
     this.filtroTextoHistorial = '';
     this.filtroHistorialDesde = '';
     this.filtroHistorialHasta = '';
     this.paginaHistorial = 1;
-    this.filtroUnidadesPanelAbierto = false;
     this.filtroTipoEmergenciaPanelAbierto = false;
   }
 
@@ -436,12 +399,11 @@ export class ChecklistSelectorComponent implements OnInit {
     if (historial.length === 0) {
       return;
     }
-    const n = this.filtroUnidadesHistorial.length;
-    const u0 = n === 1 ? this.filtroUnidadesHistorial[0]! : '';
+    const u0 = this.filtroUnidadHistorial !== 'TODAS' ? this.filtroUnidadHistorial : '';
     this.pdfExport.exportarHistorialChecklistUnidad({
-      unidad: n === 1 ? u0 : 'GENERAL',
+      unidad: u0 || 'GENERAL',
       nombreUnidad:
-        n === 1 ? this.unidades.find((u) => u.unidad === u0)?.nombre ?? 'Unidad' : 'Historial general de unidades',
+        u0 ? this.unidades.find((u) => u.unidad === u0)?.nombre ?? 'Unidad' : 'Historial general de unidades',
       registros: historial,
     });
   }
@@ -449,7 +411,6 @@ export class ChecklistSelectorComponent implements OnInit {
   actualizarHistorial(): void {
     this.cargarHistorialGeneral();
     this.paginaHistorial = 1;
-    this.filtroUnidadesPanelAbierto = false;
     this.filtroTipoEmergenciaPanelAbierto = false;
   }
 

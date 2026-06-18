@@ -144,6 +144,7 @@
                   <select
                     [(ngModel)]="obacId"
                     name="obacId"
+                    (ngModelChange)="onObacSeleccionado()"
                     autocomplete="off"
                     class="sid-obac-select min-h-[48px] w-full rounded-xl border border-gray-700 bg-[#0a0a0a] px-4 py-3 text-base text-white focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
                   >

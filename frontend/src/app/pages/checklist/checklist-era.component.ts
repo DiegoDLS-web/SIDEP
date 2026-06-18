@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, HostListener, OnInit, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
@@ -20,6 +20,7 @@ import { firmaEfectiva } from '../../utils/firma-resolver';
 import type { EstadoChecklist } from '../../models/checklist.dto';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 import { etiquetaCompletandoOCompletado } from '../../utils/etiqueta-completitud';
+import { etiquetaUnidadCarro } from '../../utils/etiqueta-unidad-carro';
 
 export type EraEquipo = {
   numero: number;
@@ -195,8 +196,8 @@ export class ChecklistEraComponent implements OnInit {
   historialGeneralLoading = false;
   historialGeneralError: string | null = null;
   /** Nomenclaturas; vacío = todas (consulta al servidor). */
-  filtroUnidadesEra: string[] = [];
-  filtroUnidadesEraPanelAbierto = false;
+  /** Nomenclatura seleccionada; TODAS = sin filtro. */
+  filtroUnidadEra: string | 'TODAS' = 'TODAS';
   filtroDesde = '';
   filtroHasta = '';
   mostrarRegistro = false;
@@ -869,7 +870,10 @@ export class ChecklistEraComponent implements OnInit {
       .eraPagina({
         page: this.paginaHistorial,
         pageSize: this.tamanioPaginaHistorial,
-        unidades: this.filtroUnidadesEra.length ? [...this.filtroUnidadesEra].sort().join(',') : undefined,
+        unidades:
+          this.filtroUnidadEra !== 'TODAS' && this.filtroUnidadEra.trim()
+            ? this.filtroUnidadEra.trim()
+            : undefined,
         desde: this.filtroDesde || undefined,
         hasta: this.filtroHasta || undefined,
       })
@@ -916,54 +920,11 @@ export class ChecklistEraComponent implements OnInit {
   }
 
   aplicarFiltrosHistorialEra(): void {
-    this.filtroUnidadesEraPanelAbierto = false;
     this.paginaHistorial = 1;
     this.cargarTablaHistorialEra();
   }
 
-  etiquetaFiltroUnidadesEra(): string {
-    const n = this.filtroUnidadesEra.length;
-    if (n === 0) return 'Todas las unidades';
-    if (n === 1) return this.filtroUnidadesEra[0] ?? '1 unidad';
-    return `${n} unidades seleccionadas`;
-  }
-
-  toggleFiltroUnidadesEraPanel(ev: MouseEvent): void {
-    ev.stopPropagation();
-    this.filtroUnidadesEraPanelAbierto = !this.filtroUnidadesEraPanelAbierto;
-  }
-
-  unidadEraSeleccionada(nom: string): boolean {
-    return this.filtroUnidadesEra.includes(nom);
-  }
-
-  toggleUnidadEra(nom: string, ev?: MouseEvent): void {
-    ev?.stopPropagation();
-    const i = this.filtroUnidadesEra.indexOf(nom);
-    if (i >= 0) {
-      this.filtroUnidadesEra = this.filtroUnidadesEra.filter((_, j) => j !== i);
-    } else {
-      this.filtroUnidadesEra = [...this.filtroUnidadesEra, nom];
-    }
-    this.paginaHistorial = 1;
-  }
-
-  limpiarUnidadesEra(ev: MouseEvent): void {
-    ev.stopPropagation();
-    if (this.filtroUnidadesEra.length === 0) return;
-    this.filtroUnidadesEra = [];
-    this.paginaHistorial = 1;
-  }
-
-  @HostListener('document:click', ['$event'])
-  cerrarPanelUnidadesEra(ev: MouseEvent): void {
-    const t = ev.target;
-    if (!(t instanceof Node)) return;
-    const w = document.getElementById('era-hist-unidades-wrap');
-    if (this.filtroUnidadesEraPanelAbierto && !w?.contains(t)) {
-      this.filtroUnidadesEraPanelAbierto = false;
-    }
-  }
+  etiquetaUnidadCarro = etiquetaUnidadCarro;
 
   fechaHoraCard(iso: string | null | undefined): { fecha: string; hora: string } {
     return splitFechaHoraEsCl(iso);

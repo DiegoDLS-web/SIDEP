@@ -161,79 +161,19 @@
         <div
           class="sid-filtros-bar__grid min-w-0 flex-1 xl:min-w-[280px]"
         >
-          <div id="checklist-hist-unidades-wrap" class="relative z-[60] min-w-0">
-            <label
-              class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500"
-              for="checklist-hist-unidades-btn"
-              >Unidades</label
+          <label class="flex min-w-0 flex-col gap-1 text-sm sm:min-w-[10rem] sm:flex-none xl:min-w-[11rem]">
+            <span class="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Unidad</span>
+            <select
+              [(ngModel)]="filtroUnidadHistorial"
+              (ngModelChange)="paginaHistorial = 1"
+              class="sid-history-filter min-w-0 sm:min-w-[10rem]"
             >
-            <button
-              type="button"
-              id="checklist-hist-unidades-btn"
-              class="sid-input sid-history-filter flex min-h-[var(--sid-control-height)] w-full items-center justify-between gap-2 rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 pl-3 pr-2.5 text-left text-sm text-white"
-              aria-haspopup="listbox"
-              [attr.aria-expanded]="filtroUnidadesPanelAbierto"
-              (click)="toggleFiltroUnidadesPanel($event)"
-            >
-              <span class="min-w-0 flex-1 truncate">{{ etiquetaFiltroUnidadesHistorial() }}</span>
-              <lucide-icon
-                name="chevron-down"
-                class="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200"
-                [class.rotate-180]="filtroUnidadesPanelAbierto"
-                [size]="16"
-                color="currentColor"
-                aria-hidden="true"
-              ></lucide-icon>
-            </button>
-            @if (filtroUnidadesPanelAbierto) {
-              <div
-                class="sid-partes-filtro-tipo-listbox sid-scroll-dark absolute left-0 right-0 top-full z-[80] mt-1.5 max-h-[min(20rem,48vh)] overflow-y-auto rounded-xl border border-slate-600/80 bg-[var(--sid-surface-inset)] py-1.5 shadow-xl ring-1 ring-black/30"
-                role="listbox"
-                aria-multiselectable="true"
-              >
-                <button
-                  type="button"
-                  role="option"
-                  class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-slate-100 transition-colors hover:bg-slate-800/90"
-                  [class.bg-emerald-950/40]="filtroUnidadesHistorial.length === 0"
-                  (click)="limpiarUnidadesHistorial($event)"
-                >
-                  <span
-                    class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
-                    [class.border-emerald-400]="filtroUnidadesHistorial.length === 0"
-                    [class.bg-emerald-600]="filtroUnidadesHistorial.length === 0"
-                    [class.border-slate-500]="filtroUnidadesHistorial.length > 0"
-                  >
-                    @if (filtroUnidadesHistorial.length === 0) {
-                      <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
-                    }
-                  </span>
-                  Todas las unidades
-                </button>
-                @for (u of unidades; track u.unidad) {
-                  <button
-                    type="button"
-                    role="option"
-                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
-                    [class.bg-emerald-950/30]="unidadHistorialSeleccionada(u.unidad)"
-                    (click)="toggleUnidadHistorial(u.unidad, $event)"
-                  >
-                    <span
-                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
-                      [class.border-emerald-400]="unidadHistorialSeleccionada(u.unidad)"
-                      [class.bg-emerald-600]="unidadHistorialSeleccionada(u.unidad)"
-                      [class.border-slate-500]="!unidadHistorialSeleccionada(u.unidad)"
-                    >
-                      @if (unidadHistorialSeleccionada(u.unidad)) {
-                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
-                      }
-                    </span>
-                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{ u.unidad }} · {{ u.nombre }}</span>
-                  </button>
-                }
-              </div>
-            }
-          </div>
+              <option [ngValue]="'TODAS'">Todas</option>
+              @for (u of unidadesOrdenadas(); track u.unidad) {
+                <option [ngValue]="u.unidad">{{ etiquetaUnidadCarro({ nomenclatura: u.unidad, nombre: u.nombre, patente: '' }) }}</option>
+              }
+            </select>
+          </label>
 
           <div class="min-w-0">
             <label class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500" for="chk-hist-estado"

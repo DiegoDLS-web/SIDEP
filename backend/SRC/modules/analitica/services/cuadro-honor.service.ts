@@ -82,7 +82,7 @@ export const getCuadroHonorReporte = async (anioParam?: number, mesParam?: numbe
   });
 
   // Sort by monthly assistances descending
-  rows.sort((a, b) => b.diasMensual - a.diasMensual);
+  rows.sort((a, b) => b.diasMensual - a.diasMensual || b.diasAnual - a.diasAnual);
 
   return {
     anio,
@@ -92,6 +92,6 @@ export const getCuadroHonorReporte = async (anioParam?: number, mesParam?: numbe
       finMes: finMes.toISOString().split('T')[0] || '',
       finQuincena: finQuincena.toISOString().split('T')[0] || '',
     },
-    rows,
+    rows: rows.slice(0, 15),
   };
 };

@@ -33,10 +33,22 @@ export async function resolverRolId(valor?: string | null, fallbackId = 2): Prom
   return r?.id ?? fallbackId;
 }
 
+const ALIAS_CARGO: Record<string, string> = {
+  'TENIENTE 1': 'TENIENTE_PRIMERO',
+  'TENIENTE PRIMERO': 'TENIENTE_PRIMERO',
+  'TENIENTE 2': 'TENIENTE_SEGUNDO',
+  'TENIENTE SEGUNDO': 'TENIENTE_SEGUNDO',
+  'TENIENTE 3': 'TENIENTE_TERCERO',
+  'TENIENTE TERCERO': 'TENIENTE_TERCERO',
+  'TENIENTE 4': 'TENIENTE_CUARTO',
+  'TENIENTE CUARTO': 'TENIENTE_CUARTO',
+};
+
 export async function resolverCargoId(valor?: string | null): Promise<number | null> {
   if (!valor?.trim()) return null;
+  const normalizado = ALIAS_CARGO[valor.trim().toUpperCase()] ?? valor.trim();
   const c = await prisma.catalogoCargoOficialidad.findFirst({
-    where: { OR: condicionesCodigoNombre(valor), activo: 1 },
+    where: { OR: condicionesCodigoNombre(normalizado), activo: 1 },
   });
   return c?.id ?? null;
 }

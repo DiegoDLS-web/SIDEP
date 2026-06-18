@@ -20,7 +20,7 @@ import {
   type AsistenciaColumnaDef,
   type AsistenciaItemDef,
 } from './asistencia-roster.constants';
-import { etiquetaDirectorioVoluntario, nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
+import { etiquetaDirectorioVoluntario, etiquetaOficialidadCargo, nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 import { mensajeApiError } from '../../utils/api-error.util';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
@@ -217,7 +217,7 @@ export class ParteNuevoComponent implements OnInit {
           return;
         }
         this.carros = carros?.data ? carros.data : (carros ?? []);
-        this.usuarios = usuarios ?? [];
+        this.usuarios = (usuarios ?? []).filter((u: UsuarioListaDto) => !this.esUsuarioExcluidoAsistencia(u));
         this.aplicarLicenciasActivas(licencias);
         this.reconstruirAsistenciaLayout();
         for (const r of this.radiosParteOpciones) {
@@ -497,8 +497,41 @@ export class ParteNuevoComponent implements OnInit {
     }
 
     const voluntariosActivos = this.usuarios
-      .filter((u) => u.activo && !this.esAspirante(u))
+      .filter((u) => u.activo && !this.esAspirante(u) && !this.esUsuarioExcluidoAsistencia(u))
       .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+
+    const oficiales = this.usuarios
+      .filter((u) => u.activo && !this.esAspirante(u) && !this.esUsuarioExcluidoAsistencia(u))
+      .filter((u) => {
+        const cargo = (u.cargoOficialidad ?? '').trim();
+        return cargo.length > 0 && cargo !== 'VOLUNTARIO';
+      })
+      .sort((a, b) => {
+        const ca = etiquetaOficialidadCargo(a.cargoOficialidad, a.rol);
+        const cb = etiquetaOficialidadCargo(b.cargoOficialidad, b.rol);
+        return ca.localeCompare(cb, 'es') || a.nombre.localeCompare(b.nombre, 'es');
+      });
+
+    const itemsOficiales: AsistenciaItemDef[] = oficiales.map((u) => {
+      const id = `usr-${u.id}`;
+      this.usuarioAsistenciaPorId[id] = u;
+      const cargo = etiquetaOficialidadCargo(u.cargoOficialidad, u.rol);
+      return { id, label: `${nombreListaSoloPersona(u)} (${cargo})` };
+    });
+
+    if (itemsOficiales.length === 0) {
+      for (const col of ASISTENCIA_LAYOUT) {
+        for (const sec of col.secciones) {
+          for (const it of sec.items) {
+            itemsOficiales.push({ ...it });
+          }
+        }
+      }
+    }
+
+    const columnaOficialidad: AsistenciaColumnaDef = {
+      secciones: [{ titulo: 'Oficialidad (compañía)', items: itemsOficiales }],
+    };
 
     const itemsVoluntarios = voluntariosActivos.map((u) => {
       const id = `usr-${u.id}`;
@@ -516,8 +549,55 @@ export class ParteNuevoComponent implements OnInit {
     };
 
     this.asistenciaLayoutVista = itemsVoluntarios.length > 0
-      ? [...this.asistenciaLayout, columnaVoluntarios]
-      : [...this.asistenciaLayout];
+      ? [columnaOficialidad, columnaVoluntarios]
+      : [columnaOficialidad];
+  }
+
+  /** Excluye cuentas admin de prueba del padrón de asistencia. */
+  private esUsuarioExcluidoAsistencia(u: UsuarioListaDto): boolean {
+    const rol = (u.rol ?? '').trim().toUpperCase();
+    if (rol === 'ADMIN') return true;
+    const nom = (u.nombre ?? '').trim().toLowerCase();
+    return nom.includes('admin de pruebas') || nom.includes('admin pruebas');
+  }
+
+  onObacSeleccionado(): void {
+    this.aplicarObacEnAsistenciaYCierre();
+  }
+
+  private aplicarObacEnAsistenciaYCierre(): void {
+    const obac = this.resolverObacId();
+    if (!obac) return;
+    const u =
+      this.usuariosElegiblesObac.find((x) => x.id === obac || x.rut === obac) ??
+      this.usuarios.find((x) => x.id === obac || x.rut === obac);
+    if (!u) return;
+
+    const id = `usr-${u.id}`;
+    this.asistenciaPorContexto.emergencia[id] = true;
+
+    const clave = u.claveNomina?.trim() ?? '';
+    const nom = nombreListaSoloPersona(u);
+    this.asistencia.nombreObac = clave || nom;
+    if (!(this.asistencia.oficial128 ?? '').trim()) {
+      this.asistencia.oficial128 = clave || nom;
+    }
+
+    const firma = u.firmaImagen?.trim() ?? '';
+    if (firma.startsWith('data:image')) {
+      this.firmaObac = firma;
+    }
+  }
+
+  private prepararCierreAntesDeGuardar(): void {
+    this.aplicarObacEnAsistenciaYCierre();
+    if (!(this.asistencia.oficial128 ?? '').trim()) {
+      const obac = this.resolverObacId();
+      const u = this.usuariosElegiblesObac.find((x) => x.id === obac);
+      if (u) {
+        this.asistencia.oficial128 = u.claveNomina?.trim() || nombreListaSoloPersona(u);
+      }
+    }
   }
 
   carrosDisponiblesParaUnidad(index: number): CarroDto[] {
@@ -541,7 +621,9 @@ export class ParteNuevoComponent implements OnInit {
   private debePriorizarAlFinalParaObac(u: UsuarioListaDto): boolean { return (u.rol ?? '').trim().toUpperCase() === 'ADMIN'; }
 
   get usuariosElegiblesObac(): UsuarioListaDto[] {
-    return this.usuarios.filter((u) => u.activo && !this.esAspirante(u)).sort((a, b) => {
+    return this.usuarios
+      .filter((u) => u.activo && !this.esAspirante(u) && !this.esUsuarioExcluidoAsistencia(u))
+      .sort((a, b) => {
       const da = this.debePriorizarAlFinalParaObac(a) ? 1 : 0;
       const db = this.debePriorizarAlFinalParaObac(b) ? 1 : 0;
       return da !== db ? da - db : a.nombre.localeCompare(b.nombre, 'es');
@@ -712,10 +794,10 @@ export class ParteNuevoComponent implements OnInit {
     const ruts = new Set<string>();
     for (const key of Object.keys(this.asistenciaPorContexto) as AsistenciaContextoKey[]) {
       for (const [id, v] of Object.entries(this.asistenciaPorContexto[key] || {})) {
-        if (v && id.startsWith('usr-')) {
-          const rut = id.slice(4).trim();
-          if (rut) ruts.add(rut);
-        }
+        if (!v || !id.startsWith('usr-')) continue;
+        const u = this.usuarioAsistenciaPorId[id];
+        const rut = u?.rut?.trim() || id.slice(4).trim();
+        if (rut) ruts.add(rut);
       }
     }
     return [...ruts].map((usuarioRut) => ({ usuarioRut }));
@@ -770,6 +852,14 @@ export class ParteNuevoComponent implements OnInit {
     return null;
   }
 
+  /** RUT del OBAC para el API (id en lista ya es el RUT). */
+  private resolverObacRut(): string | null {
+    const id = this.resolverObacId();
+    if (!id) return null;
+    const u = this.usuarios.find((x) => x.id === id || x.rut === id);
+    return u?.rut ?? id;
+  }
+
   private extraerHoraDeRegistro(valor: unknown): string {
     if (!valor) return '';
     if (typeof valor === 'string') {
@@ -789,7 +879,8 @@ export class ParteNuevoComponent implements OnInit {
   guardarBorrador(): void {
     this.guardadoError = null;
     const obac = this.resolverObacId();
-    if (obac === null) {
+    const obacRut = this.resolverObacRut();
+    if (obac === null || !obacRut) {
       this.guardadoError = 'Selecciona OBAC en datos básicos.';
       return;
     }
@@ -797,13 +888,14 @@ export class ParteNuevoComponent implements OnInit {
       this.guardadoError = 'Un conductor no puede estar en más de una unidad.';
       return;
     }
-    
+
+    this.prepararCierreAntesDeGuardar();
     this.submitting = true;
     const payload = {
       claveEmergencia: this.claveEmergencia.trim() || CLAVE_BORRADOR_DEFAULT,
       direccion: this.direccion.trim() || '— Borrador (sin dirección)',
       obacId: obac,
-      obacRut: obac,
+      obacRut,
       fecha: this.buildFechaIso() ?? new Date().toISOString(),
       estado: 'BORRADOR',
       unidades: this.parseUnidadesPayload(),
@@ -826,14 +918,10 @@ export class ParteNuevoComponent implements OnInit {
       : this.partesApi.crear(payload);
 
     request$.subscribe({
-      next: (registro) => {
+      next: () => {
         this.submitting = false;
-        const eraNuevo = this.editandoParteId == null;
-        this.editandoParteId = registro.id;
-        this.toast.exito(eraNuevo ? 'Borrador guardado.' : 'Borrador actualizado.');
-        if (eraNuevo) {
-          void this.router.navigate(['/partes/nuevo'], { queryParams: { editar: registro.id } });
-        }
+        this.toast.exito(this.esEdicion ? 'Borrador actualizado.' : 'Borrador guardado.');
+        void this.router.navigate(['/partes']);
       },
       error: (err) => {
         this.guardadoError = mensajeApiError(err, 'No se pudo guardar el borrador en el servidor.');
@@ -845,8 +933,10 @@ export class ParteNuevoComponent implements OnInit {
 
   guardarParte(): void {
     this.guardadoError = null;
+    this.prepararCierreAntesDeGuardar();
     const obac = this.resolverObacId();
-    if (obac === null || !this.claveEmergencia.trim() || !this.direccion.trim() || !this.descripcionEmergencia.trim() || !this.trabajoRealizado.trim() || !this.horaDelLlamado.trim()) {
+    const obacRut = this.resolverObacRut();
+    if (obac === null || !obacRut || !this.claveEmergencia.trim() || !this.direccion.trim() || !this.descripcionEmergencia.trim() || !this.trabajoRealizado.trim() || !this.horaDelLlamado.trim()) {
       const msg = 'Por favor completa todos los campos básicos obligatorios.';
       this.guardadoError = msg;
       this.toast.error(msg);
@@ -877,7 +967,7 @@ export class ParteNuevoComponent implements OnInit {
       claveEmergencia: this.claveEmergencia.trim(),
       direccion: this.direccion.trim(),
       obacId: obac,
-      obacRut: obac,
+      obacRut,
       fecha: fechaIso,
       estado: 'COMPLETADO',
       unidades: this.parseUnidadesPayload(),
@@ -900,10 +990,10 @@ export class ParteNuevoComponent implements OnInit {
       : this.partesApi.crear(payload);
 
     request$.subscribe({
-      next: (registro) => {
+      next: () => {
         this.submitting = false;
-        this.toast.exito(this.esEdicion ? 'Parte actualizado correctamente.' : 'Parte registrado correctamente.');
-        void this.router.navigate(['/partes', registro.id]);
+        this.toast.exito(this.esEdicion ? 'Parte actualizado y completado.' : 'Parte registrado correctamente.');
+        void this.router.navigate(['/partes']);
       },
       error: (err) => {
         this.guardadoError = mensajeApiError(err, 'No se pudo registrar el parte. Revisa los datos e intenta de nuevo.');
@@ -928,6 +1018,7 @@ export class ParteNuevoComponent implements OnInit {
     if (obacRut) {
       const match = this.usuariosElegiblesObac.find((u) => u.id === obacRut || u.rut === obacRut);
       this.obacId = match?.id ?? obacRut;
+      this.aplicarObacEnAsistenciaYCierre();
     } else {
       this.obacId = null;
     }

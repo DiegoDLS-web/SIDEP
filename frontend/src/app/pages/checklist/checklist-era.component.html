@@ -813,74 +813,19 @@
 
       <div class="mb-4 flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-end xl:justify-between">
         <div class="flex min-w-0 flex-1 flex-wrap items-end gap-3">
-          <div id="era-hist-unidades-wrap" class="relative z-[60] w-full min-w-[10rem] sm:w-auto sm:max-w-[18rem]">
-            <label class="mb-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Unidades</label>
-            <button
-              type="button"
-              class="sid-input sid-history-filter flex min-h-[var(--sid-control-height)] w-full items-center justify-between gap-2 rounded-lg border border-slate-700/90 bg-[var(--sid-surface-inset)] py-2.5 pl-3 pr-2.5 text-left text-sm text-white"
-              aria-haspopup="listbox"
-              [attr.aria-expanded]="filtroUnidadesEraPanelAbierto"
-              (click)="toggleFiltroUnidadesEraPanel($event)"
+          <label class="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-[10rem] sm:flex-none xl:min-w-[11rem]">
+            <span class="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Unidad</span>
+            <select
+              [(ngModel)]="filtroUnidadEra"
+              (ngModelChange)="aplicarFiltrosHistorialEra()"
+              class="sid-history-filter min-w-0 sm:min-w-[10rem]"
             >
-              <span class="min-w-0 flex-1 truncate">{{ etiquetaFiltroUnidadesEra() }}</span>
-              <lucide-icon
-                name="chevron-down"
-                class="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200"
-                [class.rotate-180]="filtroUnidadesEraPanelAbierto"
-                [size]="16"
-                color="currentColor"
-                aria-hidden="true"
-              ></lucide-icon>
-            </button>
-            @if (filtroUnidadesEraPanelAbierto) {
-              <div
-                class="sid-partes-filtro-tipo-listbox sid-scroll-dark absolute left-0 right-0 top-full z-[80] mt-1.5 max-h-[min(20rem,48vh)] overflow-y-auto rounded-xl border border-slate-600/80 bg-[var(--sid-surface-inset)] py-1.5 shadow-xl ring-1 ring-black/30"
-                role="listbox"
-                aria-multiselectable="true"
-              >
-                <button
-                  type="button"
-                  role="option"
-                  class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-slate-100 transition-colors hover:bg-slate-800/90"
-                  [class.bg-violet-950/40]="filtroUnidadesEra.length === 0"
-                  (click)="limpiarUnidadesEra($event)"
-                >
-                  <span
-                    class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
-                    [class.border-violet-400]="filtroUnidadesEra.length === 0"
-                    [class.bg-violet-600]="filtroUnidadesEra.length === 0"
-                    [class.border-slate-500]="filtroUnidadesEra.length > 0"
-                  >
-                    @if (filtroUnidadesEra.length === 0) {
-                      <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
-                    }
-                  </span>
-                  Todas las unidades
-                </button>
-                @for (c of carrosOrdenados(); track c.id) {
-                  <button
-                    type="button"
-                    role="option"
-                    class="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800/90"
-                    [class.bg-violet-950/30]="unidadEraSeleccionada(c.nomenclatura)"
-                    (click)="toggleUnidadEra(c.nomenclatura, $event)"
-                  >
-                    <span
-                      class="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
-                      [class.border-violet-400]="unidadEraSeleccionada(c.nomenclatura)"
-                      [class.bg-violet-600]="unidadEraSeleccionada(c.nomenclatura)"
-                      [class.border-slate-500]="!unidadEraSeleccionada(c.nomenclatura)"
-                    >
-                      @if (unidadEraSeleccionada(c.nomenclatura)) {
-                        <lucide-icon name="check" class="h-3 w-3 text-white" [size]="12" color="currentColor" aria-hidden="true"></lucide-icon>
-                      }
-                    </span>
-                    <span class="sid-filtro-opcion-label min-w-0 flex-1 text-left leading-snug">{{ c.nomenclatura }}</span>
-                  </button>
-                }
-              </div>
-            }
-          </div>
+              <option [ngValue]="'TODAS'">Todas</option>
+              @for (c of carrosOrdenados(); track c.id) {
+                <option [ngValue]="c.nomenclatura">{{ etiquetaUnidadCarro(c) }}</option>
+              }
+            </select>
+          </label>
           <div class="min-w-[10rem] flex-1 sm:flex-initial">
             <label class="mb-1 block text-xs text-gray-400">Desde</label>
             <app-sid-date-input
