@@ -104,9 +104,15 @@
             <input
               [(ngModel)]="nombreInspector"
               name="inspector"
+              list="inspectores-bolso-trauma"
               placeholder="Ej: Juan Pérez · clave 1234"
               class="sid-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white placeholder:text-gray-600"
             />
+            <datalist id="inspectores-bolso-trauma">
+              @for (v of usuarios; track v.id) {
+                <option [value]="nombreListaSoloPersona(v)"></option>
+              }
+            </datalist>
           </div>
           <div>
             <label class="mb-1.5 block text-xs font-medium text-gray-400"

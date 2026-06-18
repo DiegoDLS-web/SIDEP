@@ -15,7 +15,9 @@ import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { firmaEfectiva } from '../../utils/firma-resolver';
+import { filtrarUsuariosChecklist } from '../../utils/usuarios-checklist.util';
 import { ubicacionesPlantillaTraumaOficial } from './trauma-plantilla-oficial';
+import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 
 type MaterialItem = {
   id: string;
@@ -133,6 +135,8 @@ function fusionarBolsosConPlantillaCanon(bolsos: Bolso[], unidad: string): Bolso
   templateUrl: './bolso-trauma-registro.component.html',
 })
 export class BolsoTraumaRegistroComponent implements OnInit {
+  readonly nombreListaSoloPersona = nombreListaSoloPersona;
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly bolsosApi = inject(BolsosTraumaService);
@@ -191,7 +195,7 @@ export class BolsoTraumaRegistroComponent implements OnInit {
       plantilla: (this.checklistsApi as any).obtenerPlantilla('TRAUMA', this.unidad).pipe(catchError(() => of(null))),
     }).subscribe({
       next: ({ data, usuarios, plantilla }) => {
-        this.usuarios = usuarios?.length ? usuarios : this.usuariosDesdeSesion();
+        this.usuarios = filtrarUsuariosChecklist(usuarios?.length ? usuarios : this.usuariosDesdeSesion());
         this.nombreCarro = (data?.carro?.nombre ?? '').trim() || `Unidad ${this.unidad}`;
 
         const checklist = data?.checklist;
@@ -534,16 +538,16 @@ export class BolsoTraumaRegistroComponent implements OnInit {
     if (!this.firmaResueltaInspector()) {
       return 'La firma del inspector es obligatoria.';
     }
-    const flat = this.bolsos.flatMap((b) => b.ubicaciones.flatMap((u) => u.materiales));
+    const flat = this.bolsoActual.ubicaciones.flatMap((u) => u.materiales);
     if (flat.length === 0) {
-      return 'No hay materiales registrados en los bolsos.';
+      return 'No hay materiales registrados en el bolso seleccionado.';
     }
     for (const m of flat) {
       if (!m.nombre.trim()) {
         return 'Todo material debe tener nombre indicado.';
       }
       if (m.cantidadActual < m.cantidadMinima) {
-        return 'Completa todos los materiales: cantidad actual debe ser al menos el mínimo en todos los bolsos.';
+        return `Completa todos los materiales del bolso ${this.bolsoNumero}: la cantidad actual debe ser al menos el mínimo.`;
       }
     }
     return null;
@@ -644,6 +648,7 @@ export class BolsoTraumaRegistroComponent implements OnInit {
           if (reg?.fecha) this.fechaCierreChecklist = reg.fecha;
           this.flash('Borrador guardado.');
           this.toast.exito('Borrador de bolso trauma guardado.');
+          void this.router.navigate(['/bolso-trauma']);
         },
         error: () => {
           this.error = 'No se pudo guardar el borrador.';

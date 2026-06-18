@@ -13,8 +13,10 @@ import { UsuariosService } from '../../services/usuarios.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { firmaEfectiva } from '../../utils/firma-resolver';
+import { filtrarUsuariosChecklist } from '../../utils/usuarios-checklist.util';
 import { mensajeApiError } from '../../utils/api-error.util';
 import { CHECKLIST_UNIDAD_TEMPLATES } from './checklist-unidad.templates';
+import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 
 type Material = {
   id: string;
@@ -31,6 +33,8 @@ type Ubicacion = { nombre: string; materiales: Material[] };
   templateUrl: './checklist-unidad.component.html',
 })
 export class ChecklistUnidadComponent implements OnInit {
+  readonly nombreListaSoloPersona = nombreListaSoloPersona;
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly checklistsApi = inject(ChecklistsService);
@@ -88,7 +92,7 @@ export class ChecklistUnidadComponent implements OnInit {
       usuarios: this.usuariosApi.voluntariosParaSelect().pipe(catchError(() => of([] as UsuarioListaDto[]))),
     }).subscribe({
       next: ({ unidadData, plantillaData, usuarios }: any) => {
-        this.usuarios = usuarios?.length ? usuarios : this.usuariosDesdeSesion();
+        this.usuarios = filtrarUsuariosChecklist(usuarios?.length ? usuarios : this.usuariosDesdeSesion());
         const c = unidadData.carro;
         this.nombreCarro = c ? (c.nombre?.trim() || c.nomenclatura?.trim() || null) : null;
         const checklist = unidadData.checklist;
@@ -679,6 +683,7 @@ export class ChecklistUnidadComponent implements OnInit {
           }
           this.flash('Borrador guardado. Puedes continuar editando o completar firma y guardar el checklist.');
           this.toast.exito('Borrador del checklist guardado.');
+          void this.router.navigate(['/checklist']);
         },
         error: () => {
           this.error = 'No se pudo guardar el borrador.';

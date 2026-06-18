@@ -161,10 +161,16 @@
             <input
               [(ngModel)]="nombreInspector"
               name="nombreInspector"
+              list="inspectores-checklist-unidad"
               placeholder="Ej: Juan Pérez · clave 1234"
               autocomplete="name"
               class="sid-input w-full rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2.5 text-sm text-white placeholder:text-gray-600"
             />
+            <datalist id="inspectores-checklist-unidad">
+              @for (v of usuarios; track v.id) {
+                <option [value]="nombreListaSoloPersona(v)"></option>
+              }
+            </datalist>
           </div>
           <div>
             <label class="mb-2 block text-sm font-medium text-gray-300"

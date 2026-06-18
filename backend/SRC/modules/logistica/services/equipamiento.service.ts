@@ -64,6 +64,23 @@ export const obtenerSelectorBolsos = async () => {
     return ['R-1', 'B-1', 'BX-1'].includes(n) ? 3 : 1;
   };
 
+  const ejecuciones = await prisma.checklistEjecucion.findMany({
+    where: { entidadTipo: 'TRAUMA' },
+    include: {
+      revisor: { select: { nombres: true, apellidoPaterno: true, rut: true } },
+    },
+    orderBy: { fechaRevision: 'desc' },
+    take: 500,
+  });
+
+  const ultimaPorCarro = new Map<string, (typeof ejecuciones)[number]>();
+  for (const e of ejecuciones) {
+    if (ultimaPorCarro.has(e.entidadId)) continue;
+    const detalle = parseRespuestasJson(e.respuestasJson);
+    if (detalle['borrador'] === true) continue;
+    ultimaPorCarro.set(e.entidadId, e);
+  }
+
   return carros.map((carro) => {
     const bolsosDb = carro.bolsos;
     const bolsos =
@@ -89,12 +106,31 @@ export const obtenerSelectorBolsos = async () => {
             estadoChecklist: 'PENDIENTE',
           }));
 
+    const ultima = ultimaPorCarro.get(carro.id);
+    let ultimaRevision: Record<string, unknown> | null = null;
+    if (ultima) {
+      const detalle = parseRespuestasJson(ultima.respuestasJson);
+      const obacNombre = ultima.revisor
+        ? `${ultima.revisor.nombres} ${ultima.revisor.apellidoPaterno}`.trim()
+        : null;
+      const total = Number(detalle['totalItems']) || 0;
+      const ok = Number(detalle['itemsOk']) || 0;
+      ultimaRevision = {
+        fecha: ultima.fechaRevision.toISOString(),
+        inspector: typeof detalle['inspector'] === 'string' ? detalle['inspector'] : null,
+        obac: obacNombre,
+        responsable: obacNombre,
+        bolsoNumero: detalle['bolsoNumero'] ?? null,
+        porcentaje: total > 0 ? Math.round((ok / total) * 100) : 0,
+      };
+    }
+
     return {
       unidad: carro.nomenclatura,
       nombre: carro.nombre,
       cantidadBolsos: bolsos.length,
       bolsos,
-      ultimaRevision: null,
+      ultimaRevision,
     };
   });
 };
@@ -124,17 +160,29 @@ export const obtenerHistorialBolsos = async (_filtros?: {
     const obacNombre = e.revisor
       ? `${e.revisor.nombres} ${e.revisor.apellidoPaterno}`.trim()
       : null;
+    const bolsoNumeroRaw = detalle['bolsoNumero'];
+    const bolsoNumero =
+      typeof bolsoNumeroRaw === 'number'
+        ? bolsoNumeroRaw
+        : typeof bolsoNumeroRaw === 'string' && bolsoNumeroRaw.trim()
+          ? Number(bolsoNumeroRaw)
+          : null;
+    const total = Number(detalle['totalItems']) || 0;
+    const ok = Number(detalle['itemsOk']) || 0;
     return {
       id: e.id,
       unidad: carro?.nomenclatura ?? e.entidadId,
       fecha: e.fechaRevision.toISOString(),
+      bolsoNumero: Number.isFinite(bolsoNumero) ? bolsoNumero : null,
       inspector: typeof detalle['inspector'] === 'string' ? detalle['inspector'] : null,
       grupoGuardia: detalle['grupoGuardia'] ?? null,
       cuarteleroId: e.revisorRut,
       cuartelero: obacNombre ? { id: e.revisorRut, nombre: obacNombre } : null,
+      responsable: obacNombre,
       observaciones: typeof detalle['observaciones'] === 'string' ? detalle['observaciones'] : null,
-      totalItems: Number(detalle['totalItems']) || 0,
-      itemsOk: Number(detalle['itemsOk']) || 0,
+      totalItems: total,
+      itemsOk: ok,
+      porcentaje: total > 0 ? Math.round((ok / total) * 100) : null,
       detalle,
       borrador: detalle['borrador'] === true,
     };

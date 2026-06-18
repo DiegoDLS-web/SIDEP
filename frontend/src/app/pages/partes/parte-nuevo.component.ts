@@ -1006,7 +1006,19 @@ export class ParteNuevoComponent implements OnInit {
   // --- MÉTODOS DE RENDERIZADO Y CONTROL DE ARREGLOS RESTAURADOS ---
 
   private cargarParteEnFormulario(parte: any): void {
-    this.claveEmergencia = parte.claveEmergencia ?? parte.codigoEmergencia ?? parte.clave?.codigo ?? '';
+    const meta = parte.metadata ?? {};
+    this.claveEmergencia =
+      parte.claveEmergencia ??
+      parte.codigoEmergencia ??
+      parte.clave?.codigo ??
+      meta.claveEmergencia ??
+      '';
+    if (!this.claveEmergencia.trim() && parte.claveId != null) {
+      const porId = this.catalogoEmergencias
+        .nuevosParte()
+        .find((c) => String(c.value).trim() === String(parte.claveId));
+      if (porId) this.claveEmergencia = porId.value;
+    }
     this.direccion = parte.direccion ?? '';
     this.estado = parte.estado ?? 'PENDIENTE';
     if (parte.fecha) {
@@ -1016,7 +1028,26 @@ export class ParteNuevoComponent implements OnInit {
     }
     const obacRut = parte.obacRut ?? parte.obacId ?? parte.obac?.rut ?? null;
     if (obacRut) {
-      const match = this.usuariosElegiblesObac.find((u) => u.id === obacRut || u.rut === obacRut);
+      if (!this.usuarios.some((u) => u.id === obacRut || u.rut === obacRut) && parte.obac) {
+        const nombreObac =
+          parte.obac.nombre ??
+          `${parte.obac.nombres ?? ''} ${parte.obac.apellidoPaterno ?? ''}`.trim();
+        this.usuarios = [
+          ...this.usuarios,
+          {
+            id: obacRut,
+            rut: obacRut,
+            nombre: nombreObac,
+            nombres: parte.obac.nombres ?? nombreObac,
+            apellidoPaterno: parte.obac.apellidoPaterno ?? '',
+            activo: true,
+            rol: 'VOLUNTARIOS',
+          } as UsuarioListaDto,
+        ];
+      }
+      const match =
+        this.usuariosElegiblesObac.find((u) => u.id === obacRut || u.rut === obacRut) ??
+        this.usuarios.find((u) => u.id === obacRut || u.rut === obacRut);
       this.obacId = match?.id ?? obacRut;
       this.aplicarObacEnAsistenciaYCierre();
     } else {
@@ -1024,13 +1055,16 @@ export class ParteNuevoComponent implements OnInit {
     }
 
     // Soporte bidireccional (Lee desde tablas relacionales o desde metadata legado)
-    this.descripcionEmergencia = parte.descripcionEmergencia ?? parte.metadata?.descripcionEmergencia ?? '';
-    this.trabajoRealizado = parte.trabajoRealizado ?? parte.metadata?.trabajoRealizado ?? '';
-    this.materialUtilizado = parte.materialUtilizado ?? parte.metadata?.materialUtilizado ?? '';
-    this.observaciones = parte.observaciones ?? parte.metadata?.observaciones ?? '';
-    this.horaDelLlamado = parte.metadata?.horaDelLlamado ?? this.horaDelLlamado;
+    this.descripcionEmergencia = parte.descripcionEmergencia ?? meta.descripcionEmergencia ?? '';
+    this.trabajoRealizado = parte.trabajoRealizado ?? meta.trabajoRealizado ?? '';
+    this.materialUtilizado = parte.materialUtilizado ?? meta.materialUtilizado ?? '';
+    this.observaciones = parte.observaciones ?? meta.observaciones ?? '';
+    this.horaDelLlamado = meta.horaDelLlamado ?? this.horaDelLlamado;
+    if (!this.horaDelLlamado?.trim() && parte.fecha) {
+      this.horaDelLlamado = this.toTimeInput(new Date(parte.fecha));
+    }
 
-    const asis = parte.metadata?.asistencia ?? {};
+    const asis = meta.asistencia ?? {};
     this.asistencia = {
       comandoIncidenteCi: asis.comandoIncidenteCi ?? '',
       comandoIncidenteJs: asis.comandoIncidenteJs ?? '',
@@ -1069,15 +1103,21 @@ export class ParteNuevoComponent implements OnInit {
     }
     this.asistenciaPorContexto = baseCtx;
 
-    const horariosMeta = parte.metadata?.unidadesHorarios as Record<string, Record<string, string>> | undefined;
+    const horariosMeta = meta.unidadesHorarios as Record<string, Record<string, string>> | undefined;
+    const conductoresMeta = meta.conductoresPorCarroId as Record<string, string> | undefined;
     const origUnidades = parte.unidades ?? parte.carrosAsistentes ?? [];
     this.unidades = origUnidades.map((u: any) => {
-      const h = horariosMeta?.[String(u.carroId)] ?? {};
+      const carroKey = String(u.carroId ?? u.carro?.id ?? '');
+      const h = horariosMeta?.[carroKey] ?? {};
+      const conductorRaw =
+        conductoresMeta?.[carroKey] ??
+        (u.conductor?.nombres
+          ? `${u.conductor.nombres} ${u.conductor.apellidoPaterno ?? ''} ${u.conductor.apellidoMaterno ?? ''}`.trim()
+          : '') ??
+        '';
       return {
-        carroId: u.carroId,
-        conductor: parte.metadata?.conductoresPorCarroId?.[String(u.carroId)]
-          ?? (u.conductor?.nombres ? `${u.conductor.nombres} ${u.conductor.apellidoPaterno ?? ''}`.trim() : '')
-          ?? '',
+        carroId: carroKey,
+        conductor: this.resolverNombreConductorParaSelect(conductorRaw),
         hora6_0: h['hora6_0'] ?? u.hora6_0 ?? this.extraerHoraDeRegistro(u.horaSalida),
         hora6_3: h['hora6_3'] ?? u.hora6_3 ?? this.extraerHoraDeRegistro(u.hora6_3 ?? u.horaSalida),
         hora6_9: h['hora6_9'] ?? u.hora6_9 ?? this.extraerHoraDeRegistro(u.hora6_9),
@@ -1087,16 +1127,17 @@ export class ParteNuevoComponent implements OnInit {
       };
     });
     if (this.unidades.length === 0) this.agregarUnidad();
+    this.sanearConductoresDuplicadosUnidades();
 
     this.pacientes = (parte.pacientes || []).map((p: any) => ({
       nombre: p.nombre ?? '', edad: p.edad ? String(p.edad) : '', rut: p.rut ?? '', triage: p.triage ?? 'VERDE'
     }));
 
-    this.vehiculos = (parte.vehiculosAfectados || parte.metadata?.vehiculos || []).map((v: any) => ({
+    this.vehiculos = (parte.vehiculosAfectados || meta.vehiculos || []).map((v: any) => ({
       tipo: v.tipo ?? '', patente: v.patente ?? '', marca: v.marca ?? '', conductor: v.conductor ?? '', rut: v.rut ?? ''
     }));
 
-    this.apoyos = (parte.apoyosExternos || parte.metadata?.apoyoExterno || []).map((a: any) => ({
+    this.apoyos = (parte.apoyosExternos || meta.apoyoExterno || []).map((a: any) => ({
       tipo: a.tipo ?? 'SAMU', nombre: a.nombre ?? '', cargo: a.cargo ?? '', patente: a.patente ?? '', conductor: a.conductor ?? ''
     }));
 
@@ -1104,4 +1145,22 @@ export class ParteNuevoComponent implements OnInit {
       obac: o.obac ?? '', compania: o.compania ?? '', unidad: o.unidad ?? ''
     }));
   }
+
+  private resolverNombreConductorParaSelect(nombreGuardado: string): string {
+    const n = (nombreGuardado ?? '').trim();
+    if (!n) return '';
+    const exacto = this.voluntariosConductores.find((v) => nombreListaSoloPersona(v) === n);
+    if (exacto) return nombreListaSoloPersona(exacto);
+    const porNombreCompleto = this.voluntariosConductores.find((v) => (v.nombre ?? '').trim() === n);
+    if (porNombreCompleto) return nombreListaSoloPersona(porNombreCompleto);
+    const parcial = this.voluntariosConductores.find((v) => {
+      const lista = nombreListaSoloPersona(v).toLowerCase();
+      const full = (v.nombre ?? '').toLowerCase();
+      const buscado = n.toLowerCase();
+      return lista === buscado || full === buscado || full.startsWith(buscado) || buscado.startsWith(lista);
+    });
+    return parcial ? nombreListaSoloPersona(parcial) : n;
+  }
+
+  // --- MÉTODOS DE RENDERIZADO Y CONTROL DE ARREGLOS RESTAURADOS ---
 }

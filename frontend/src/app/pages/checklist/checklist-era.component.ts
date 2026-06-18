@@ -20,7 +20,9 @@ import { firmaEfectiva } from '../../utils/firma-resolver';
 import type { EstadoChecklist } from '../../models/checklist.dto';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 import { etiquetaCompletandoOCompletado } from '../../utils/etiqueta-completitud';
+import { filtrarUsuariosChecklist } from '../../utils/usuarios-checklist.util';
 import { etiquetaUnidadCarro } from '../../utils/etiqueta-unidad-carro';
+import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 
 export type EraEquipo = {
   numero: number;
@@ -163,6 +165,8 @@ const ERA_PRESETS_UNIDAD: Record<string, EraPreset> = {
   templateUrl: './checklist-era.component.html',
 })
 export class ChecklistEraComponent implements OnInit {
+  readonly nombreListaSoloPersona = nombreListaSoloPersona;
+
   @ViewChild('firmaCanvas') firmaCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('firmaCanvasInspector') firmaCanvasInspector?: ElementRef<HTMLCanvasElement>;
 
@@ -248,7 +252,7 @@ export class ChecklistEraComponent implements OnInit {
     }).subscribe({
       next: ({ carros, usuarios }) => {
         this.carros = carros ?? [];
-        this.usuarios = usuarios ?? [];
+        this.usuarios = filtrarUsuariosChecklist(usuarios ?? []);
         this.error = null;
         if (this.carros.length > 0) {
           const pref = this.carros.find((c) => c.nomenclatura === 'R-1') ?? this.carros[0];
@@ -420,6 +424,7 @@ export class ChecklistEraComponent implements OnInit {
   }
 
   private limpiarCapturaRegistroEra(): void {
+    this.resetEstadoCanvasFirma();
     this.inspector = '';
     this.grupoGuardia = '';
     this.cuarteleroId = '';
@@ -474,6 +479,7 @@ export class ChecklistEraComponent implements OnInit {
     this.limpiarCapturaRegistroEra();
     this.aplicarPlantillaDesdeServidorOPresetParaUnidad(this.unidad);
     setTimeout(() => {
+      this.resetEstadoCanvasFirma();
       this.inicializarCanvasFirma();
       this.inicializarCanvasFirmaInspector();
     }, 0);
@@ -481,7 +487,17 @@ export class ChecklistEraComponent implements OnInit {
   }
 
   volverSeleccionUnidad(): void {
+    this.resetEstadoCanvasFirma();
     this.mostrarRegistro = false;
+  }
+
+  private resetEstadoCanvasFirma(): void {
+    this.firmaCanvasInicializado = false;
+    this.firmaCanvasInspectorInicializado = false;
+    this.ctx = null;
+    this.ctxInspector = null;
+    this.dibujandoFirma = false;
+    this.dibujandoFirmaInspector = false;
   }
 
   nombreCarroActual(): string {
@@ -1012,6 +1028,7 @@ export class ChecklistEraComponent implements OnInit {
       setTimeout(() => this.limpiarFirmaInspector(), 0);
     }
     setTimeout(() => {
+      this.resetEstadoCanvasFirma();
       this.inicializarCanvasFirma();
       this.inicializarCanvasFirmaInspector();
     }, 0);
@@ -1314,6 +1331,7 @@ export class ChecklistEraComponent implements OnInit {
           this.cargarHistorialGeneral();
           this.flash('Borrador guardado.');
           this.toast.exito('Borrador ERA guardado.');
+          this.volverSeleccionUnidad();
         },
         error: () => {
           this.error = 'No se pudo guardar el borrador.';

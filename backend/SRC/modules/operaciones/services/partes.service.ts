@@ -346,8 +346,12 @@ export function mapParteToDto(p: ParteConRelaciones | null) {
     metadata,
     descripcionEmergencia: metadata?.descripcionEmergencia,
     observaciones: metadata?.observaciones,
-    claveEmergencia: p.clave?.codigo,
-    codigoEmergencia: p.clave?.codigo,
+    claveEmergencia:
+      p.clave?.codigo ??
+      (typeof metadata?.claveEmergencia === 'string' ? metadata.claveEmergencia : undefined),
+    codigoEmergencia:
+      p.clave?.codigo ??
+      (typeof metadata?.claveEmergencia === 'string' ? metadata.claveEmergencia : undefined),
     estado: estadoCodigo,
     clave: p.clave,
     obac: p.obac

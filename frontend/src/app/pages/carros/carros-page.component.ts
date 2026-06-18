@@ -2,7 +2,7 @@ import { CommonModule, formatDate } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { catchError, map, of, startWith, switchMap, tap, type Observable } from 'rxjs';
+import { catchError, forkJoin, map, of, startWith, switchMap, tap, type Observable } from 'rxjs';
 import type {
   CarroHistorialGeneralFila,
   CarroRegistroHistorialDto,
@@ -19,6 +19,7 @@ import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
+import { nombreArchivoPdfSidep } from '../../utils/pdf-nombre-archivo.util';
 import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -109,6 +110,7 @@ export class CarrosPageComponent {
       const id = pm.get('id');
       if (!id) {
         return this.carrosApi.listar().pipe(
+          switchMap((carros) => this.hidratarListadoDesdeHistorialSiFalta(carros)),
           map((carros): CarrosView => ({ status: 'list', carros })),
           tap((v) => {
             if (v.status === 'list') {
@@ -241,7 +243,7 @@ export class CarrosPageComponent {
       styles: { fontSize: 8 },
       margin: { left: 14, right: 14 },
     });
-    doc.save(`SIDEP-historial-mantencion-${new Date().toISOString().slice(0, 10)}.pdf`);
+    doc.save(nombreArchivoPdfSidep(['Carro', 'Historial mantención'], new Date()));
   }
 
   cambiarPaginaHistorialGeneral(delta: number): void {
@@ -332,41 +334,65 @@ export class CarrosPageComponent {
     return new URL(path, document.baseURI).toString();
   }
 
-  private hidratarDetalleDesdeHistorialSiFalta(carro: CarroDto): Observable<CarroDto> {
+  private camposMantenimientoHistorial(): Array<keyof CarroHistorialGeneralFila> {
+    return [
+      'ultimoMantenimiento',
+      'proximoMantenimiento',
+      'proximaRevisionTecnica',
+      'ultimaRevisionBombaAgua',
+      'descripcionUltimoMantenimiento',
+      'ultimoInspector',
+      'firmaUltimoInspector',
+      'fechaUltimaInspeccion',
+      'ultimoConductor',
+    ];
+  }
+
+  private fusionarCarroConHistorial(carro: CarroDto, snap?: CarroHistorialGeneralFila | null): CarroDto {
+    if (!snap) return carro;
+    const out: CarroDto = { ...carro };
+    for (const campo of this.camposMantenimientoHistorial()) {
+      const valorSnap = snap[campo];
+      if (valorSnap == null || String(valorSnap).trim() === '') continue;
+      const claveDto = campo as keyof CarroDto;
+      const actual = out[claveDto];
+      if (actual != null && String(actual).trim() !== '') continue;
+      (out as unknown as Record<string, unknown>)[claveDto as string] = valorSnap;
+    }
+    return out;
+  }
+
+  private carroNecesitaHistorial(carro: CarroDto): boolean {
     const t = (v: string | null | undefined) => (v ?? '').trim();
-    const incompleto =
-      !t(carro.ultimoMantenimiento) ||
-      !t(carro.proximoMantenimiento) ||
-      !t(carro.descripcionUltimoMantenimiento ?? '') ||
-      !t(carro.ultimoInspector ?? '') ||
-      !t(carro.firmaUltimoInspector ?? '') ||
-      !t(carro.fechaUltimaInspeccion ?? '');
-    if (!incompleto) return of(carro);
-    
-    return this.carrosApi.historialGeneral({ carroId: carro.id }).pipe(
-      map((rows): CarroDto => {
-        const snap = rows[0];
-        if (!snap) return carro;
-        const out: CarroDto = { ...carro };
-        const pegarSiHueco = (campo: keyof CarroHistorialGeneralFila): void => {
-          const valorSnap = snap[campo];
-          if (valorSnap == null || String(valorSnap).trim() === '') return;
-          const claveDto = campo as keyof CarroDto;
-          const actual = out[claveDto];
-          if (actual != null && String(actual).trim() !== '') return;
-          (out as unknown as Record<string, unknown>)[claveDto as string] = valorSnap;
-        };
-        pegarSiHueco('ultimoMantenimiento');
-        pegarSiHueco('proximoMantenimiento');
-        pegarSiHueco('proximaRevisionTecnica');
-        pegarSiHueco('ultimaRevisionBombaAgua');
-        pegarSiHueco('descripcionUltimoMantenimiento');
-        pegarSiHueco('ultimoInspector');
-        pegarSiHueco('firmaUltimoInspector');
-        pegarSiHueco('fechaUltimaInspeccion');
-        pegarSiHueco('ultimoConductor');
-        return out;
+    return this.camposMantenimientoHistorial().some((campo) => {
+      const val = carro[campo as keyof CarroDto];
+      return !t(val == null ? '' : String(val));
+    });
+  }
+
+  private hidratarListadoDesdeHistorialSiFalta(carros: CarroDto[]): Observable<CarroDto[]> {
+    const pendientes = carros.filter((c) => this.carroNecesitaHistorial(c));
+    if (pendientes.length === 0) return of(carros);
+    return forkJoin(
+      pendientes.map((c) =>
+        this.carrosApi.historialGeneral({ carroId: c.id }).pipe(
+          map((rows) => ({ id: c.id, snap: rows[0] ?? null })),
+          catchError(() => of({ id: c.id, snap: null })),
+        ),
+      ),
+    ).pipe(
+      map((snaps) => {
+        const porId = new Map(snaps.map((s) => [String(s.id), s.snap]));
+        return carros.map((c) => this.fusionarCarroConHistorial(c, porId.get(String(c.id)) ?? null));
       }),
+    );
+  }
+
+  private hidratarDetalleDesdeHistorialSiFalta(carro: CarroDto): Observable<CarroDto> {
+    if (!this.carroNecesitaHistorial(carro)) return of(carro);
+    return this.carrosApi.historialGeneral({ carroId: carro.id }).pipe(
+      map((rows) => this.fusionarCarroConHistorial(carro, rows[0] ?? null)),
+      catchError(() => of(carro)),
     );
   }
 
@@ -465,6 +491,17 @@ export class CarrosPageComponent {
     this.editando = true;
     this.mensajeEdicion = '';
     this.errorValidacion = null;
+    this.rellenarEditFormDesdeCarro(carro);
+    this.carrosApi.historialGeneral({ carroId: carro.id }).subscribe({
+      next: (rows) => {
+        const fusionado = this.fusionarCarroConHistorial(carro, rows[0] ?? null);
+        Object.assign(carro, fusionado);
+        this.rellenarEditFormDesdeCarro(fusionado);
+      },
+    });
+  }
+
+  private rellenarEditFormDesdeCarro(carro: CarroDto): void {
     this.editForm.ultimoConductor = carro.ultimoConductor ?? carro.conductorAsignado ?? '';
     this.editForm.ultimoMantenimiento = this.fechaInput(carro.ultimoMantenimiento);
     this.editForm.proximoMantenimiento = this.fechaInput(carro.proximoMantenimiento);
@@ -548,6 +585,7 @@ export class CarrosPageComponent {
     if (dias < 0) return `${etiqueta} vencido hace ${Math.abs(dias)} día(s).`;
     if (dias === 0) return `${etiqueta} vence hoy.`;
     if (dias <= 30) return `${etiqueta} vence este mes (${dias} día(s) restantes).`;
+    if (dias <= 90) return `${etiqueta} próximo (${dias} día(s) restantes).`;
     return null;
   }
 

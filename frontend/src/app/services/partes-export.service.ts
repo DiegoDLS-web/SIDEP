@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { CatalogoTiposEmergenciaService } from './catalogo-tipos-emergencia.service';
+import { nombreArchivoPdfSidep } from '../utils/pdf-nombre-archivo.util';
 
 @Injectable({ providedIn: 'root' })
 export class PartesExportService {
@@ -32,7 +33,7 @@ export class PartesExportService {
       margin: { left: 14, right: 14 },
     });
 
-    doc.save(`Partes_SIDEP_${generado.getTime()}.pdf`);
+    doc.save(nombreArchivoPdfSidep(['Partes historial'], generado));
   }
 
   exportarExcelListado(partes: any[]): void {
@@ -98,6 +99,11 @@ export class PartesExportService {
     doc.setFontSize(8);
     doc.text(`Generado: ${generado.toLocaleString('es-CL')}`, 14, 285);
     const id = parte.correlativo ?? parte.id ?? generado.getTime();
-    doc.save(`Parte_${id}.pdf`);
+    doc.save(
+      nombreArchivoPdfSidep(
+        ['Parte', parte.correlativo ? `P-${parte.correlativo}` : String(id)],
+        parte.fecha ?? generado,
+      ),
+    );
   }
 }

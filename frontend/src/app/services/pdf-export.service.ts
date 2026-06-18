@@ -10,6 +10,7 @@ import type { CarroRegistroHistorialDto } from '../models/carro-registro-histori
 import type { ChecklistRegistroDto } from '../models/checklist.dto';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../utils/checklist-estado';
 import { prepararLogoParaPdf } from '../utils/pdf-logo-embed.util';
+import { nombreArchivoPdfSidep } from '../utils/pdf-nombre-archivo.util';
 
 type UnidadMaterial = {
   ubicacion: string;
@@ -378,9 +379,13 @@ export class PdfExportService {
       y += 10;
     }
 
-    const safeNom = input.nomenclatura.replace(/[^\w-]+/g, '_');
     this.finalizarDocumentoPdf(doc);
-    doc.save(`SIDEP-carro-${safeNom}-historial-${r.id}-${stampFechaArchivo()}.pdf`);
+    doc.save(
+      nombreArchivoPdfSidep(
+        ['Carro', input.nomenclatura, 'Mantención e inspección'],
+        r.creadoEn ?? new Date(),
+      ),
+    );
   }
 
   async exportarChecklistUnidad(input: {
@@ -525,7 +530,12 @@ export class PdfExportService {
     }
 
     this.finalizarDocumentoPdf(doc);
-    doc.save(`SIDEP-checklist-unidad-${input.unidad}-${stampFechaArchivo()}.pdf`);
+    doc.save(
+      nombreArchivoPdfSidep(
+        ['Carro', input.unidad, 'Checklist unidad'],
+        input.fechaRegistro ?? new Date(),
+      ),
+    );
   }
 
   async exportarRegistroChecklistHistorial(input: {
@@ -594,9 +604,13 @@ export class PdfExportService {
         // ignore image errors
       }
     }
-    const safeNom = input.unidad.replace(/[^\w-]+/g, '_');
     this.finalizarDocumentoPdf(doc);
-    doc.save(`SIDEP-checklist-${safeNom}-registro-${r.id}-${stampFechaArchivo()}.pdf`);
+    doc.save(
+      nombreArchivoPdfSidep(
+        ['Carro', input.unidad, 'Checklist registro'],
+        r.fecha ?? new Date(),
+      ),
+    );
   }
 
   async exportarHistorialChecklistUnidad(input: {
@@ -671,9 +685,10 @@ export class PdfExportService {
       doc.text(`Obs: ${obs}`, 14, y);
     }
 
-    const safeNom = input.unidad.replace(/[^\w-]+/g, '_');
     this.finalizarDocumentoPdf(doc);
-    doc.save(`SIDEP-checklist-${safeNom}-historial-${stampFechaArchivo()}.pdf`);
+    doc.save(
+      nombreArchivoPdfSidep(['Carro', input.unidad, 'Checklist historial'], new Date()),
+    );
   }
 
   async exportarChecklistEra(input: {
@@ -902,7 +917,12 @@ export class PdfExportService {
     }
 
     this.finalizarDocumentoPdf(doc);
-    doc.save(`SIDEP-checklist-era-${input.unidad}-${stampFechaArchivo()}.pdf`);
+    doc.save(
+      nombreArchivoPdfSidep(
+        ['Carro', input.unidad, 'Checklist ERA'],
+        input.fechaInspeccion ?? new Date(),
+      ),
+    );
   }
 
   /** Tabla de historial de bolsos de trauma (mismo criterio visual que la pantalla). */
@@ -961,7 +981,7 @@ export class PdfExportService {
     });
 
     this.finalizarDocumentoPdf(doc);
-    doc.save(`SIDEP-bolsos-trauma-historial-${stampFechaArchivo()}.pdf`);
+    doc.save(nombreArchivoPdfSidep(['Carro', 'Bolso trauma historial'], new Date()));
   }
 
   async exportarLicencia(input: {
@@ -1071,6 +1091,6 @@ export class PdfExportService {
     }
 
     this.finalizarDocumentoPdf(doc);
-    doc.save(`SIDEP-licencia-${input.id}-${stampFechaArchivo()}.pdf`);
+    doc.save(nombreArchivoPdfSidep(['Licencia', String(input.id)], input.fechaInicio ?? new Date()));
   }
 }
