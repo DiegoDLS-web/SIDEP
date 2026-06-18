@@ -2,8 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, ElementRef, HostListener, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, forkJoin, of } from 'rxjs';
 import type { ChecklistRegistroDto } from '../../models/checklist.dto';
 import type { CarroDto } from '../../models/carro.dto';
 import type { UsuarioListaDto } from '../../models/usuario.dto';
@@ -242,13 +241,16 @@ export class ChecklistEraComponent implements OnInit {
   private snapshotPlantillaEra: { equipos: EraEquipo[]; recambios: CilindroRecambio[] } | null = null;
 
   ngOnInit(): void {
-    Promise.all([
-      this.carrosApi.listar().toPromise(),
-      firstValueFrom(this.usuariosApi.selectorObac().pipe(catchError(() => this.usuariosApi.listar()))),
-    ])
-      .then(([carros, usuarios]) => {
+    forkJoin({
+      carros: this.carrosApi.listar().pipe(catchError(() => of([] as CarroDto[]))),
+      usuarios: this.usuariosApi.selectorObac().pipe(
+        catchError(() => this.usuariosApi.listar().pipe(catchError(() => of([] as UsuarioListaDto[])))),
+      ),
+    }).subscribe({
+      next: ({ carros, usuarios }) => {
         this.carros = carros ?? [];
         this.usuarios = usuarios ?? [];
+        this.error = null;
         if (this.carros.length > 0) {
           const pref = this.carros.find((c) => c.nomenclatura === 'R-1') ?? this.carros[0];
           this.unidad = pref.nomenclatura;
@@ -265,12 +267,13 @@ export class ChecklistEraComponent implements OnInit {
           this.restaurarFirmaDesdeServidor(this.firmaInicialServidor);
           this.restaurarFirmaInspectorDesdeServidor(this.firmaInspectorInicialServidor);
         }, 0);
-      })
-      .catch(() => {
+      },
+      error: () => {
         this.error = 'No se pudieron cargar carros/usuarios para checklist ERA.';
         this.loading = false;
         setTimeout(() => this.inicializarCanvasFirma(), 0);
-      });
+      },
+    });
   }
 
   private readonly imagenFallbackCarro =

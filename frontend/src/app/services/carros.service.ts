@@ -136,13 +136,16 @@ export class CarrosService {
 
   listar(): Observable<CarroDto[]> {
     return this.http.get<{ success: boolean; data: CarroDto[] }>('/api/logistica/carros').pipe(
-      map((res) => res.data),
-      catchError(() =>
-        of(
-          this.demoCarros.map(({ historialRegistros: _h, ...c }) => ({ ...c })),
-        ),
-      ),
+      map((res) => {
+        const data = res.data ?? [];
+        return data.length > 0 ? data : this.demoCarrosActivos();
+      }),
+      catchError(() => of(this.demoCarrosActivos())),
     );
+  }
+
+  private demoCarrosActivos(): CarroDto[] {
+    return this.demoCarros.map(({ historialRegistros: _h, ...c }) => ({ ...c }));
   }
 
   historialGeneral(filtros?: {

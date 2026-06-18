@@ -1,4 +1,5 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://localhost:3000/api/'
+  /** Rutas relativas: el proxy de `ng serve` reenvía a localhost:3000. */
+  apiUrl: '/api/',
 };

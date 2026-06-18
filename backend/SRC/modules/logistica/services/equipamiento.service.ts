@@ -59,22 +59,44 @@ export const obtenerSelectorBolsos = async () => {
     orderBy: { nomenclatura: 'asc' },
   });
 
-  return carros.map((carro) => ({
-    unidad: carro.nomenclatura,
-    nombre: carro.nombre,
-    cantidadBolsos: carro.bolsos.length,
-    bolsos: carro.bolsos.map((b, idx) => ({
-      id: b.id,
-      numero: idx + 1,
-      nombre: b.nombreIdentificador || `Bolso ${idx + 1}`,
-      tipo: b.catalogoBolso?.nombre || 'Trauma',
-      completitud: 0,
-      itemsFaltantes: 0,
-      status: 'pending',
-      estadoChecklist: 'PENDIENTE',
-    })),
-    ultimaRevision: null,
-  }));
+  const cantidadDefault = (nom: string) => {
+    const n = nom.trim().toUpperCase();
+    return ['R-1', 'B-1', 'BX-1'].includes(n) ? 3 : 1;
+  };
+
+  return carros.map((carro) => {
+    const bolsosDb = carro.bolsos;
+    const bolsos =
+      bolsosDb.length > 0
+        ? bolsosDb.map((b, idx) => ({
+            id: b.id,
+            numero: idx + 1,
+            nombre: b.nombreIdentificador || `Bolso ${idx + 1}`,
+            tipo: b.catalogoBolso?.nombre || 'Trauma',
+            completitud: 0,
+            itemsFaltantes: 0,
+            status: 'pending',
+            estadoChecklist: 'PENDIENTE',
+          }))
+        : Array.from({ length: cantidadDefault(carro.nomenclatura) }, (_, idx) => ({
+            id: null,
+            numero: idx + 1,
+            nombre: `Bolso ${idx + 1}`,
+            tipo: 'Trauma',
+            completitud: 0,
+            itemsFaltantes: 0,
+            status: 'pending',
+            estadoChecklist: 'PENDIENTE',
+          }));
+
+    return {
+      unidad: carro.nomenclatura,
+      nombre: carro.nombre,
+      cantidadBolsos: bolsos.length,
+      bolsos,
+      ultimaRevision: null,
+    };
+  });
 };
 
 export const obtenerHistorialBolsos = async (_filtros?: {

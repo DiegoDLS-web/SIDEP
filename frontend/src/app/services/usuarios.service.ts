@@ -13,7 +13,7 @@ import type {
 @Injectable({ providedIn: 'root' })
 export class UsuariosService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = `${environment.apiUrl}usuarios`;
+  private readonly apiUrl = `${environment.apiUrl}/usuarios`;
 
   listar(): Observable<UsuarioListaDto[]> {
     return this.http.get<UsuarioListaDto[]>(this.apiUrl);

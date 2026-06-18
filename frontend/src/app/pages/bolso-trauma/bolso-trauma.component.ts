@@ -2,12 +2,15 @@ import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { catchError, map, of, switchMap } from 'rxjs';
 import type {
   BolsoTraumaHistorialDto,
   BolsoTraumaRegistroDto,
   BolsoTraumaSelectorUnidadDto,
 } from '../../models/bolso-trauma.dto';
+import type { CarroDto } from '../../models/carro.dto';
 import { BolsosTraumaService } from '../../services/bolsos-trauma.service';
+import { CarrosService } from '../../services/carros.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
@@ -26,6 +29,7 @@ import * as XLSX from 'xlsx';
 })
 export class BolsoTraumaComponent implements OnInit {
   private readonly bolsosApi = inject(BolsosTraumaService);
+  private readonly carrosApi = inject(CarrosService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly router = inject(Router);
   readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
@@ -69,18 +73,59 @@ export class BolsoTraumaComponent implements OnInit {
   readonly tamanioPaginaHistorial = 10;
 
   ngOnInit(): void {
-    this.bolsosApi.selector().subscribe({
-      next: (data) => {
-        this.unidades = data;
-        this.loading = false;
-      },
-      error: () => {
-        this.error = 'No se pudo cargar el control de bolsos de trauma.';
-        this.loading = false;
-      },
-    });
+    this.bolsosApi
+      .selector()
+      .pipe(
+        switchMap((data) => {
+          if (Array.isArray(data) && data.length > 0) {
+            return of(data as BolsoTraumaSelectorUnidadDto[]);
+          }
+          return this.carrosApi.listar().pipe(map((carros) => this.unidadesDesdeCarros(carros)));
+        }),
+        catchError(() =>
+          this.carrosApi.listar().pipe(map((carros) => this.unidadesDesdeCarros(carros))),
+        ),
+      )
+      .subscribe({
+        next: (data) => {
+          this.unidades = data;
+          this.loading = false;
+        },
+        error: () => {
+          this.error = 'No se pudo cargar el control de bolsos de trauma.';
+          this.loading = false;
+        },
+      });
 
     this.cargarHistorial();
+  }
+
+  private cantidadBolsosUnidad(nomenclatura: string): number {
+    const n = (nomenclatura ?? '').trim().toUpperCase();
+    return ['R-1', 'B-1', 'BX-1'].includes(n) ? 3 : 1;
+  }
+
+  private bolsosPlaceholder(nomenclatura: string): BolsoTraumaSelectorUnidadDto['bolsos'] {
+    const cantidad = this.cantidadBolsosUnidad(nomenclatura);
+    return Array.from({ length: cantidad }, (_, i) => ({
+      numero: i + 1,
+      nombre: `Bolso ${i + 1}`,
+      tipo: 'Trauma',
+      completitud: 0,
+      itemsFaltantes: 0,
+      status: 'pending',
+      estadoChecklist: 'PENDIENTE',
+    }));
+  }
+
+  private unidadesDesdeCarros(carros: CarroDto[]): BolsoTraumaSelectorUnidadDto[] {
+    return carros.map((c) => ({
+      unidad: c.nomenclatura,
+      nombre: c.nombre?.trim() || c.nomenclatura,
+      cantidadBolsos: this.cantidadBolsosUnidad(c.nomenclatura),
+      bolsos: this.bolsosPlaceholder(c.nomenclatura),
+      ultimaRevision: null,
+    }));
   }
 
   fechaHora(iso: string | null | undefined): { fecha: string; hora: string } {

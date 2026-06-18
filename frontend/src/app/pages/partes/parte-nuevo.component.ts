@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { forkJoin, of } from 'rxjs';
+import { catchError, forkJoin, of } from 'rxjs';
 import type { CarroDto } from '../../models/carro.dto';
 import type { UsuarioListaDto } from '../../models/usuario.dto';
 import { CarrosService } from '../../services/carros.service';
@@ -200,14 +200,24 @@ export class ParteNuevoComponent implements OnInit {
     }
 
     forkJoin({
-      carros: this.carrosApi.listar(),
-      usuarios: this.usuariosApi.listar(),
-      licencias: this.licenciasApi.listarActivas(this.fechaDia),
-      parteEdicion: this.editandoParteId != null ? this.partesApi.obtener(String(this.editandoParteId)) : of(null),
+      carros: this.carrosApi.listar().pipe(catchError(() => of([]))),
+      usuarios: this.usuariosApi.listar().pipe(
+        catchError(() => this.usuariosApi.selectorObac().pipe(catchError(() => of([] as UsuarioListaDto[])))),
+      ),
+      licencias: this.licenciasApi.listarActivas(this.fechaDia).pipe(catchError(() => of([]))),
+      parteEdicion:
+        this.editandoParteId != null
+          ? this.partesApi.obtener(String(this.editandoParteId)).pipe(catchError(() => of(null)))
+          : of(null),
     }).subscribe({
       next: ({ carros, usuarios, licencias, parteEdicion }: any) => {
-        this.carros = carros.data ? carros.data : carros; // Soporte por si Carros retorna success/data
-        this.usuarios = usuarios;
+        if (this.editandoParteId && !parteEdicion) {
+          this.error = 'No se pudo cargar el parte a editar.';
+          this.loading = false;
+          return;
+        }
+        this.carros = carros?.data ? carros.data : (carros ?? []);
+        this.usuarios = usuarios ?? [];
         this.aplicarLicenciasActivas(licencias);
         this.reconstruirAsistenciaLayout();
         for (const r of this.radiosParteOpciones) {
