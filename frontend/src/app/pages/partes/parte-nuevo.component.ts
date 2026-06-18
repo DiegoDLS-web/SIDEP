@@ -23,6 +23,8 @@ import {
 } from './asistencia-roster.constants';
 import { etiquetaDirectorioVoluntario, etiquetaOficialidadCargo, nombreListaSoloPersona, CARGOS_ALTA_COMANDANCIA } from '../usuarios/usuario-registro.constants';
 import { mensajeApiError } from '../../utils/api-error.util';
+import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
+import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 
@@ -57,7 +59,7 @@ type PasoId = 'basicos' | 'emergencia' | 'trabajo' | 'asistencia' | 'apoyo' | 'o
   imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidDateInputComponent],
   templateUrl: './parte-nuevo.component.html',
 })
-export class ParteNuevoComponent implements OnInit {
+export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendiente {
   readonly nombreListaSoloPersona = nombreListaSoloPersona;
 
   get exigeUnidadesDespacho(): boolean {
@@ -177,6 +179,30 @@ export class ParteNuevoComponent implements OnInit {
   
   editandoParteId: string | number | null = null;
 
+  private readonly controlEdicion = crearControlEdicionPendiente(() => ({
+    claveEmergencia: this.claveEmergencia,
+    direccion: this.direccion,
+    fechaDia: this.fechaDia,
+    horaIncidente: this.horaIncidente,
+    horaDelLlamado: this.horaDelLlamado,
+    obacId: this.obacId,
+    descripcionEmergencia: this.descripcionEmergencia,
+    trabajoRealizado: this.trabajoRealizado,
+    materialUtilizado: this.materialUtilizado,
+    observaciones: this.observaciones,
+    unidades: this.unidades,
+    pacientes: this.pacientes,
+    asistencia: this.asistencia,
+    asistenciaPorContexto: this.asistenciaPorContexto,
+    firmaEncargadoDatos: this.firmaEncargadoDatos,
+    firmaObac: this.firmaObac,
+  }));
+
+  tieneEdicionPendiente(): boolean {
+    if (this.loading || this.submitting) return false;
+    return this.controlEdicion.tieneCambios();
+  }
+
   readonly triageOpciones = [
     { v: 'VERDE', l: 'Verde' },
     { v: 'AMARILLO', l: 'Amarillo' },
@@ -230,6 +256,7 @@ export class ParteNuevoComponent implements OnInit {
           // Si parteEdicion viene con .data (nuestro backend) o directo
           this.cargarParteEnFormulario(parteEdicion.data ? parteEdicion.data : parteEdicion);
         }
+        this.controlEdicion.marcarLimpio();
         this.loading = false;
       },
       error: () => {
@@ -634,6 +661,9 @@ export class ParteNuevoComponent implements OnInit {
         this.asistencia.oficial128 = u.claveNomina?.trim() || nombreListaSoloPersona(u);
       }
     }
+    if (!(this.asistencia.encargadoDatos ?? '').trim() && (this.asistencia.nombreObac ?? '').trim()) {
+      this.asistencia.encargadoDatos = this.asistencia.nombreObac;
+    }
   }
 
   carrosDisponiblesParaUnidad(index: number): CarroDto[] {
@@ -914,7 +944,9 @@ export class ParteNuevoComponent implements OnInit {
   // INTERCEPCIÓN RELACIONAL: Mapeo estricto del JSON Metadata a Tablas Relacionales
   // ============================================================================
   guardarBorrador(): void {
+    if (this.loading || this.submitting) return;
     this.guardadoError = null;
+    this.prepararCierreAntesDeGuardar();
     const obac = this.resolverObacId();
     const obacRut = this.resolverObacRut();
     if (obac === null || !obacRut) {
@@ -926,7 +958,6 @@ export class ParteNuevoComponent implements OnInit {
       return;
     }
 
-    this.prepararCierreAntesDeGuardar();
     this.submitting = true;
     const payload = {
       claveEmergencia: this.claveEmergencia.trim() || CLAVE_BORRADOR_DEFAULT,
@@ -955,9 +986,14 @@ export class ParteNuevoComponent implements OnInit {
       : this.partesApi.crear(payload);
 
     request$.subscribe({
-      next: () => {
+      next: (registro) => {
         this.submitting = false;
-        this.toast.exito(this.esEdicion ? 'Borrador actualizado.' : 'Borrador guardado.');
+        const eraNuevo = this.editandoParteId == null;
+        if (registro?.id) {
+          this.editandoParteId = registro.id;
+        }
+        this.controlEdicion.marcarLimpio();
+        this.toast.exito(eraNuevo ? 'Borrador guardado.' : 'Borrador actualizado.');
         void this.router.navigate(['/partes']);
       },
       error: (err) => {
@@ -969,12 +1005,20 @@ export class ParteNuevoComponent implements OnInit {
   }
 
   guardarParte(): void {
+    if (this.loading || this.submitting) return;
     this.guardadoError = null;
     this.prepararCierreAntesDeGuardar();
     const obac = this.resolverObacId();
     const obacRut = this.resolverObacRut();
     if (obac === null || !obacRut || !this.claveEmergencia.trim() || !this.direccion.trim() || !this.descripcionEmergencia.trim() || !this.trabajoRealizado.trim() || !this.horaDelLlamado.trim()) {
       const msg = 'Por favor completa todos los campos básicos obligatorios.';
+      this.guardadoError = msg;
+      this.toast.error(msg);
+      this.pasoIdx = this.pasosVisibles.indexOf('basicos');
+      return;
+    }
+    if (this.hayConductorRepetidoEnUnidades()) {
+      const msg = 'Un conductor no puede estar en más de una unidad.';
       this.guardadoError = msg;
       this.toast.error(msg);
       this.pasoIdx = this.pasosVisibles.indexOf('basicos');
@@ -1006,7 +1050,7 @@ export class ParteNuevoComponent implements OnInit {
       obacId: obac,
       obacRut,
       fecha: fechaIso,
-      estado: 'PENDIENTE',
+      estado: 'COMPLETADO',
       unidades: this.parseUnidadesPayload(),
       pacientes: this.parsePacientesPayload(),
       asistencias: this.parseAsistenciasPayload(),
@@ -1027,8 +1071,12 @@ export class ParteNuevoComponent implements OnInit {
       : this.partesApi.crear(payload);
 
     request$.subscribe({
-      next: () => {
+      next: (registro) => {
         this.submitting = false;
+        if (registro?.id) {
+          this.editandoParteId = registro.id;
+        }
+        this.controlEdicion.marcarLimpio();
         this.toast.exito(this.esEdicion ? 'Parte actualizado correctamente.' : 'Parte registrado correctamente.');
         void this.router.navigate(['/partes']);
       },

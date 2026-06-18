@@ -21,6 +21,8 @@ import type { EstadoChecklist } from '../../models/checklist.dto';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 import { etiquetaCompletandoOCompletado } from '../../utils/etiqueta-completitud';
 import { filtrarUsuariosChecklist } from '../../utils/usuarios-checklist.util';
+import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
+import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
 import { etiquetaUnidadCarro } from '../../utils/etiqueta-unidad-carro';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 
@@ -164,7 +166,7 @@ const ERA_PRESETS_UNIDAD: Record<string, EraPreset> = {
   imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidEmptyStateComponent, SidDateInputComponent],
   templateUrl: './checklist-era.component.html',
 })
-export class ChecklistEraComponent implements OnInit {
+export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendiente {
   readonly nombreListaSoloPersona = nombreListaSoloPersona;
 
   @ViewChild('firmaCanvas') firmaCanvas?: ElementRef<HTMLCanvasElement>;
@@ -244,6 +246,25 @@ export class ChecklistEraComponent implements OnInit {
   /** Nota opcional al guardar plantilla; inspector/OBAC/fechas no se usan en modo plantilla. */
   motivoEdicionPlantilla = '';
   private snapshotPlantillaEra: { equipos: EraEquipo[]; recambios: CilindroRecambio[] } | null = null;
+
+  private readonly controlEdicion = crearControlEdicionPendiente(() => ({
+    unidad: this.unidad,
+    cuarteleroId: this.cuarteleroId,
+    inspector: this.inspector,
+    grupoGuardia: this.grupoGuardia,
+    fechaInspeccion: this.fechaInspeccion,
+    observaciones: this.observaciones,
+    equipos: this.equipos,
+    recambios: this.recambios,
+    fechaCierreChecklist: this.fechaCierreChecklist,
+  }));
+
+  tieneEdicionPendiente(): boolean {
+    if (!this.mostrarRegistro || this.loading || this.saving || this.savingBorrador || this.editandoPlantilla) {
+      return false;
+    }
+    return this.controlEdicion.tieneCambios();
+  }
 
   ngOnInit(): void {
     forkJoin({
@@ -482,6 +503,7 @@ export class ChecklistEraComponent implements OnInit {
       this.resetEstadoCanvasFirma();
       this.inicializarCanvasFirma();
       this.inicializarCanvasFirmaInspector();
+      this.controlEdicion.marcarLimpio();
     }, 0);
     this.refrescarHistorialEra();
   }
@@ -1031,6 +1053,7 @@ export class ChecklistEraComponent implements OnInit {
       this.resetEstadoCanvasFirma();
       this.inicializarCanvasFirma();
       this.inicializarCanvasFirmaInspector();
+      this.controlEdicion.marcarLimpio();
     }, 0);
     const etiquetaUnidad = h.carro?.nomenclatura ?? h.unidad ?? 'ERA';
     this.toast.info(`Checklist ${etiquetaUnidad} cargado para edición.`);
@@ -1269,6 +1292,7 @@ export class ChecklistEraComponent implements OnInit {
         next: (reg : any) => {
           this.saving = false;
           this.error = null;
+          this.controlEdicion.marcarLimpio();
           if (reg?.fecha) {
             this.fechaCierreChecklist = reg.fecha;
           }
@@ -1324,6 +1348,7 @@ export class ChecklistEraComponent implements OnInit {
         next: (reg : any) => {
           this.savingBorrador = false;
           this.error = null;
+          this.controlEdicion.marcarLimpio();
           if (reg?.fecha) {
             this.fechaCierreChecklist = reg.fecha;
           }

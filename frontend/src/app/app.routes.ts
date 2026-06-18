@@ -4,6 +4,7 @@ import { adminGuard } from './guards/admin.guard';
 import { gestionUsuariosGuard } from './guards/gestion-usuarios.guard';
 import { catalogoEmergenciasGuard } from './guards/catalogo-emergencias.guard';
 import { guestGuard } from './guards/guest.guard';
+import { edicionPendienteGuard } from './guards/edicion-pendiente.guard';
 import {
   loadBolsoTraumaComponent,
   loadBolsoTraumaRegistroComponent,
@@ -66,6 +67,7 @@ export const routes: Routes = [
       {
         path: 'partes/nuevo',
         title: 'Nuevo parte · SIDEP',
+        canDeactivate: [edicionPendienteGuard],
         loadComponent: loadParteNuevoComponent,
       },
       {
@@ -99,11 +101,13 @@ export const routes: Routes = [
       {
         path: 'checklist-era',
         title: 'Checklist ERA · SIDEP',
+        canDeactivate: [edicionPendienteGuard],
         loadComponent: loadChecklistEraComponent,
       },
       {
         path: 'checklist/:unidad',
         title: 'Checklist por unidad · SIDEP',
+        canDeactivate: [edicionPendienteGuard],
         loadComponent: loadChecklistUnidadComponent,
       },
       {
@@ -123,6 +127,7 @@ export const routes: Routes = [
           {
             path: ':unidad',
             title: 'Registro bolso de trauma · SIDEP',
+            canDeactivate: [edicionPendienteGuard],
             loadComponent: loadBolsoTraumaRegistroComponent,
           },
         ],

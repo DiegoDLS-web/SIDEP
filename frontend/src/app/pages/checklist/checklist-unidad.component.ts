@@ -15,6 +15,8 @@ import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { firmaEfectiva } from '../../utils/firma-resolver';
 import { filtrarUsuariosChecklist } from '../../utils/usuarios-checklist.util';
 import { mensajeApiError } from '../../utils/api-error.util';
+import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
+import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
 import { CHECKLIST_UNIDAD_TEMPLATES } from './checklist-unidad.templates';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 
@@ -32,7 +34,7 @@ type Ubicacion = { nombre: string; materiales: Material[] };
   imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent],
   templateUrl: './checklist-unidad.component.html',
 })
-export class ChecklistUnidadComponent implements OnInit {
+export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPendiente {
   readonly nombreListaSoloPersona = nombreListaSoloPersona;
 
   private readonly route = inject(ActivatedRoute);
@@ -73,6 +75,21 @@ export class ChecklistUnidadComponent implements OnInit {
   mensajeFlash: string | null = null;
   private flashTimer: ReturnType<typeof setTimeout> | null = null;
   private nombreOriginalMaterial = new Map<string, string>();
+
+  private readonly controlEdicion = crearControlEdicionPendiente(() => ({
+    cuarteleroId: this.cuarteleroId,
+    nombreInspector: this.nombreInspector,
+    grupoGuardia: this.grupoGuardia,
+    observaciones: this.observaciones,
+    ubicaciones: this.ubicaciones,
+    firmaObacValor: this.firmaObacValor,
+    firmaInspectorValor: this.firmaInspectorValor,
+  }));
+
+  tieneEdicionPendiente(): boolean {
+    if (this.loading || this.saving || this.savingBorrador || this.editandoPlantilla) return false;
+    return this.controlEdicion.tieneCambios();
+  }
 
   ngOnInit(): void {
     this.unidad = this.route.snapshot.paramMap.get('unidad') ?? 'R-1';
@@ -130,6 +147,7 @@ export class ChecklistUnidadComponent implements OnInit {
         if (fInsp?.startsWith('data:image')) {
           this.firmaInspectorValor = fInsp;
         }
+        this.controlEdicion.marcarLimpio();
         this.loading = false;
       },
       error: () => {
@@ -638,6 +656,7 @@ export class ChecklistUnidadComponent implements OnInit {
       .subscribe({
         next: () => {
           this.saving = false;
+          this.controlEdicion.marcarLimpio();
           const estado =
             this.itemsCriticos() > 0
               ? 'Unidad marcada como NO operativa hasta corregir faltantes.'
@@ -678,6 +697,7 @@ export class ChecklistUnidadComponent implements OnInit {
       .subscribe({
         next: (reg: any) => {
           this.savingBorrador = false;
+          this.controlEdicion.marcarLimpio();
           if (reg.fecha) {
             this.fechaCierreChecklist = reg.fecha;
           }

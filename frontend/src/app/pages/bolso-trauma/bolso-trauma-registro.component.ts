@@ -16,6 +16,8 @@ import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { firmaEfectiva } from '../../utils/firma-resolver';
 import { filtrarUsuariosChecklist } from '../../utils/usuarios-checklist.util';
+import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
+import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
 import { ubicacionesPlantillaTraumaOficial } from './trauma-plantilla-oficial';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 
@@ -134,7 +136,7 @@ function fusionarBolsosConPlantillaCanon(bolsos: Bolso[], unidad: string): Bolso
   imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidDateInputComponent],
   templateUrl: './bolso-trauma-registro.component.html',
 })
-export class BolsoTraumaRegistroComponent implements OnInit {
+export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicionPendiente {
   readonly nombreListaSoloPersona = nombreListaSoloPersona;
 
   private readonly route = inject(ActivatedRoute);
@@ -177,6 +179,22 @@ export class BolsoTraumaRegistroComponent implements OnInit {
   motivoEdicionPlantilla = '';
   /** Acordeón por compartimiento (índice); true = expandido. */
   private ubicacionesExpandidas: Record<number, boolean> = {};
+
+  private readonly controlEdicion = crearControlEdicionPendiente(() => ({
+    cuarteleroId: this.cuarteleroId,
+    nombreInspector: this.nombreInspector,
+    grupoGuardia: this.grupoGuardia,
+    fechaInspeccion: this.fechaInspeccion,
+    observaciones: this.observaciones,
+    bolsos: this.bolsos,
+    firmaDataUrl: this.firmaDataUrl,
+    firmaInspectorDataUrl: this.firmaInspectorDataUrl,
+  }));
+
+  tieneEdicionPendiente(): boolean {
+    if (this.loading || this.saving || this.savingBorrador || this.editandoPlantilla) return false;
+    return this.controlEdicion.tieneCambios();
+  }
 
   ngOnInit(): void {
     this.unidad = this.route.snapshot.paramMap.get('unidad') ?? 'R-1';
@@ -254,6 +272,7 @@ export class BolsoTraumaRegistroComponent implements OnInit {
           this.firmaInspectorDataUrl = fInsp;
         }
 
+        this.controlEdicion.marcarLimpio();
         this.loading = false;
       },
       error: () => {
@@ -604,6 +623,7 @@ export class BolsoTraumaRegistroComponent implements OnInit {
       .subscribe({
         next: (reg) => {
           this.saving = false;
+          this.controlEdicion.marcarLimpio();
           if (reg?.fecha) this.fechaCierreChecklist = reg.fecha;
           this.toast.exito('Checklist de bolso trauma guardado.');
           void this.router.navigate(['/bolso-trauma']);
@@ -645,6 +665,7 @@ export class BolsoTraumaRegistroComponent implements OnInit {
       .subscribe({
         next: (reg) => {
           this.savingBorrador = false;
+          this.controlEdicion.marcarLimpio();
           if (reg?.fecha) this.fechaCierreChecklist = reg.fecha;
           this.flash('Borrador guardado.');
           this.toast.exito('Borrador de bolso trauma guardado.');
