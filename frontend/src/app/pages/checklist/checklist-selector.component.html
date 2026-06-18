@@ -150,9 +150,16 @@
         </div>
       </div>
 
-      <div class="mb-4 flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-end xl:justify-between">
+      <div class="sid-filtros-bar mb-4">
+        <div class="sid-filtros-bar__head">
+          <div>
+            <p class="sid-filtros-bar__title">Filtros de historial</p>
+            <p class="sid-filtros-bar__hint">Checklist por unidad, estado e inspector</p>
+          </div>
+        </div>
+        <div class="flex flex-col gap-3 xl:flex-row xl:flex-wrap xl:items-end xl:justify-between">
         <div
-          class="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 xl:min-w-[280px]"
+          class="sid-filtros-bar__grid min-w-0 flex-1 xl:min-w-[280px]"
         >
           <div id="checklist-hist-unidades-wrap" class="relative z-[60] min-w-0">
             <label
@@ -281,9 +288,7 @@
             />
           </div>
         </div>
-        <div
-          class="flex w-full shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end max-xl:border-t max-xl:border-slate-800/80 max-xl:pt-3 xl:col-span-4"
-        >
+        <div class="sid-filtros-bar__actions w-full shrink-0 xl:w-auto xl:max-w-none">
           <button
             type="button"
             (click)="aplicarFiltrosHistorial()"
@@ -324,6 +329,7 @@
             <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
             Descargar Excel
           </button>
+        </div>
         </div>
       </div>
 

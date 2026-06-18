@@ -684,6 +684,19 @@ export class ParteNuevoComponent implements OnInit {
       .filter((u) => u.carroId && this.carros.some((c) => String(c.id) === u.carroId));
   }
 
+  private parseAsistenciasPayload(): Array<{ usuarioRut: string }> {
+    const ruts = new Set<string>();
+    for (const key of Object.keys(this.asistenciaPorContexto) as AsistenciaContextoKey[]) {
+      for (const [id, v] of Object.entries(this.asistenciaPorContexto[key] || {})) {
+        if (v && id.startsWith('usr-')) {
+          const rut = id.slice(4).trim();
+          if (rut) ruts.add(rut);
+        }
+      }
+    }
+    return [...ruts].map((usuarioRut) => ({ usuarioRut }));
+  }
+
   private parsePacientesPayload(): any[] {
     return this.pacientes.filter((p) => p.nombre.trim().length > 0).map((p) => ({
       nombre: p.nombre.trim(), triage: p.triage,
@@ -744,8 +757,7 @@ export class ParteNuevoComponent implements OnInit {
       estado: 'BORRADOR',
       unidades: this.parseUnidadesPayload(),
       pacientes: this.parsePacientesPayload(),
-      
-      // Mapeo Desglosado para las Tablas de PostgreSQL
+      asistencias: this.parseAsistenciasPayload(),
       descripcionEmergencia: this.descripcionEmergencia.trim() || null,
       trabajoRealizado: this.trabajoRealizado.trim() || null,
       materialUtilizado: this.materialUtilizado.trim() || null,
@@ -787,7 +799,7 @@ export class ParteNuevoComponent implements OnInit {
       this.guardadoError = 'Por favor completa todos los campos básicos obligatorios.';
       return;
     }
-    if (!Object.values(this.radiosSeleccion).some(Boolean) || !(this.asistencia.encargadoDatos ?? '').trim() || !(this.asistencia.oficial128 ?? '').trim() || !this.firmaEncargadoDatos || !this.firmaObac) {
+    if (!(this.asistencia.encargadoDatos ?? '').trim() || !(this.asistencia.oficial128 ?? '').trim() || !this.firmaEncargadoDatos || !this.firmaObac) {
       this.guardadoError = 'Faltan firmas o datos de cierre obligatorios.';
       this.pasoIdx = this.pasosVisibles.indexOf('obs');
       return;
@@ -809,8 +821,7 @@ export class ParteNuevoComponent implements OnInit {
       estado: 'PENDIENTE',
       unidades: this.parseUnidadesPayload(),
       pacientes: this.parsePacientesPayload(),
-      
-      // Mapeo Relacional Directo (PostgreSQL Puro)
+      asistencias: this.parseAsistenciasPayload(),
       descripcionEmergencia: this.descripcionEmergencia.trim(),
       trabajoRealizado: this.trabajoRealizado.trim(),
       materialUtilizado: this.materialUtilizado.trim() || null,

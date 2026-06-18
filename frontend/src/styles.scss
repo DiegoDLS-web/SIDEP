@@ -1147,10 +1147,64 @@ body.motion-suave .sid-brand-e-bar {
   background: var(--sid-shell-aside);
 }
 
-/** Partes: listboxes del filtro deben poder salir del borde redondeado sin recortarse. */
+/** Barra de filtros compacta (historiales y listados). */
+.sid-filtros-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.sid-filtros-bar__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.sid-filtros-bar__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #f3f4f6;
+}
+
+.sid-filtros-bar__hint {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.sid-filtros-bar__grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+}
+
+.sid-filtros-bar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(51, 65, 85, 0.55);
+}
+
+.sid-filtros-bar__label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
 .sid-partes-filtros-card {
   overflow: visible !important;
+  border-color: rgba(190, 24, 38, 0.22) !important;
+  background: linear-gradient(180deg, rgba(24, 10, 12, 0.55) 0%, rgba(18, 18, 18, 0.95) 100%) !important;
 }
+
 
 .sid-history-title {
   font-size: 1.2rem;

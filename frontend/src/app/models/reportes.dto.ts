@@ -84,4 +84,9 @@ export interface AnaliticaOperacionalDto {
       partesConAsistencia: number;
     }>;
   }>;
+  totalPartesMes?: number;
+  partesPorClave?: Array<{
+    claveEmergencia: string;
+    cantidad: number;
+  }>;
 }

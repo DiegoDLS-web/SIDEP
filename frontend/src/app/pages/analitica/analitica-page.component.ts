@@ -258,7 +258,16 @@ export class AnaliticaPageComponent implements OnInit {
     return 'bg-red-500';
   }
 
-  etiquetaClaveDashboard(clave: string): string {
+  parte10_0Mes(): number {
+    return this.datos?.partesPorClave?.find((p) => p.claveEmergencia === '10-0')?.cantidad ?? 0;
+  }
+
+  maxPartesPorClave(): number {
+    const rows = this.datos?.partesPorClave ?? [];
+    return Math.max(...rows.map((r) => r.cantidad), 1);
+  }
+
+  etiquetaClaveAnalitica(clave: string): string {
     return this.catalogoEmergencias.etiqueta(clave);
   }
 
@@ -553,6 +562,11 @@ export class AnaliticaPageComponent implements OnInit {
       asistenciaVoluntariosPorMes,
       asistenciaVoluntariosTotalAnual: toNumber(asistenciaVoluntariosTotalAnual),
       asistenciaVoluntariosDetallePorMes,
+      totalPartesMes: toNumber(raw.totalPartesMes),
+      partesPorClave: (raw.partesPorClave ?? []).map((p) => ({
+        claveEmergencia: String(p.claveEmergencia ?? ''),
+        cantidad: toNumber(p.cantidad),
+      })),
     };
   }
 

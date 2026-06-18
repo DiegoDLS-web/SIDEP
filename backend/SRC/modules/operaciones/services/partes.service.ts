@@ -90,6 +90,110 @@ function normalizarRutBusqueda(rut: string): string {
   return rut.replace(/[^0-9kK]/g, '').toUpperCase();
 }
 
+/** Solo devuelve RUT si cabe en VarChar(20); nombres/claves se resuelven o quedan solo en metadata. */
+async function resolverConductorRutFk(
+  tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  valor?: string,
+): Promise<string | null> {
+  if (!valor?.trim()) return null;
+  const t = valor.trim();
+
+  const directo = await tx.usuario.findUnique({ where: { rut: t } });
+  if (directo?.rut && directo.rut.length <= 20) return directo.rut;
+
+  const porClave = await tx.usuario.findFirst({ where: { claveNomina: t, activo: 1 } });
+  if (porClave?.rut && porClave.rut.length <= 20) return porClave.rut;
+
+  const norm = normalizarRutBusqueda(t);
+  if (norm.length >= 7) {
+    const candidatos = await tx.usuario.findMany({ where: { activo: 1 }, select: { rut: true } });
+    const match = candidatos.find((u) => normalizarRutBusqueda(u.rut) === norm);
+    if (match?.rut && match.rut.length <= 20) return match.rut;
+  }
+
+  const partesNombre = t.split(/\s+/).filter(Boolean);
+  if (partesNombre.length >= 2) {
+    const primer = partesNombre[0]!;
+    const segundo = partesNombre[1]!;
+    const porNombre = await tx.usuario.findFirst({
+      where: {
+        nombres: { contains: primer, mode: 'insensitive' },
+        apellidoPaterno: { contains: segundo, mode: 'insensitive' },
+        activo: 1,
+      },
+      select: { rut: true },
+    });
+    if (porNombre?.rut && porNombre.rut.length <= 20) return porNombre.rut;
+  }
+
+  if (t.length <= 20 && /^[\d.\-kK]+$/i.test(t.replace(/\s/g, ''))) {
+    return t;
+  }
+
+  return null;
+}
+
+function extraerRutsAsistencia(data: Record<string, unknown>): string[] {
+  const ruts = new Set<string>();
+
+  if (Array.isArray(data.asistencias)) {
+    for (const a of data.asistencias as Record<string, unknown>[]) {
+      const rut = String(a.usuarioRut || a.rut || '').trim();
+      if (rut) ruts.add(rut);
+    }
+  }
+
+  const meta = (data.metadata && typeof data.metadata === 'object'
+    ? data.metadata
+    : {}) as Record<string, unknown>;
+  const asis = (meta.asistencia || data.asistencia) as Record<string, unknown> | undefined;
+  const apc = asis?.asistenciaPorContexto as Record<string, Record<string, boolean>> | undefined;
+  if (apc && typeof apc === 'object') {
+    for (const ctx of Object.values(apc)) {
+      if (!ctx || typeof ctx !== 'object') continue;
+      for (const [id, mark] of Object.entries(ctx)) {
+        if (mark && id.startsWith('usr-')) {
+          const rut = id.slice(4).trim();
+          if (rut) ruts.add(rut);
+        }
+      }
+    }
+  }
+
+  return [...ruts];
+}
+
+async function sincronizarAsistencias(
+  tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+  parteId: string,
+  data: Record<string, unknown>,
+) {
+  const ruts = extraerRutsAsistencia(data);
+  await tx.asistenciaPersonal.deleteMany({ where: { parteId } });
+  if (ruts.length === 0) return;
+
+  const filas: Prisma.AsistenciaPersonalCreateManyInput[] = [];
+  for (const candidato of ruts) {
+    let rutFinal: string | null = null;
+    const directo = await tx.usuario.findUnique({ where: { rut: candidato } });
+    if (directo) {
+      rutFinal = directo.rut;
+    } else {
+      const norm = normalizarRutBusqueda(candidato);
+      const usuarios = await tx.usuario.findMany({ where: { activo: 1 }, select: { rut: true } });
+      const match = usuarios.find((u) => normalizarRutBusqueda(u.rut) === norm);
+      if (match) rutFinal = match.rut;
+    }
+    if (rutFinal) {
+      filas.push({ id: uuidv4(), parteId, usuarioRut: rutFinal });
+    }
+  }
+
+  if (filas.length > 0) {
+    await tx.asistenciaPersonal.createMany({ data: filas });
+  }
+}
+
 async function resolverObacRut(data: Record<string, unknown>): Promise<string> {
   const candidato = String(data.obacRut || data.obacId || '').trim();
   if (!candidato) throw new Error('OBAC es obligatorio');
@@ -241,15 +345,16 @@ async function sincronizarUnidades(
     const carroId = String(u.carroId || '').trim();
     if (!carroId) continue;
 
-    const conductorRut = (u.conductorRut as string | undefined)
+    const rawConductor = (u.conductorRut as string | undefined)
       || conductoresPorCarroId?.[carroId]
       || undefined;
+    const conductorRut = await resolverConductorRutFk(tx, rawConductor);
 
     data.push({
       id: uuidv4(),
       parteId,
       carroId,
-      conductorRut: conductorRut || null,
+      conductorRut,
       horaSalida: combinarFechaHora(fechaBase, String(u.horaSalida || u.hora6_0 || '00:00')),
       horaLlegada: combinarFechaHora(fechaBase, String(u.horaLlegada || u.hora6_10 || '00:00')),
       kmSalida: Number(u.kmSalida) || 0,
@@ -346,19 +451,7 @@ export const crearParteConRelaciones = async (data: Record<string, unknown>) => 
       },
     });
 
-    if (Array.isArray(data.asistencias) && data.asistencias.length > 0) {
-      const asistenciasUnicas = new Map<string, Prisma.AsistenciaPersonalCreateManyInput>();
-      for (const a of data.asistencias as Record<string, unknown>[]) {
-        const rut = String(a.usuarioRut || a.rut || a).trim();
-        if (rut && !asistenciasUnicas.has(rut)) {
-          asistenciasUnicas.set(rut, { id: uuidv4(), parteId, usuarioRut: rut });
-        }
-      }
-      const asistenciasData = Array.from(asistenciasUnicas.values());
-      if (asistenciasData.length > 0) {
-        await tx.asistenciaPersonal.createMany({ data: asistenciasData });
-      }
-    }
+    await sincronizarAsistencias(tx, parteId, data);
 
     await sincronizarUnidades(tx, parteId, data.unidades as unknown[], fechaEmergencia, conductores);
     await sincronizarVehiculos(tx, parteId, (data.vehiculosAfectados || data.vehiculosCiviles) as unknown[]);
@@ -562,6 +655,7 @@ export const actualizarParte = async (id: string, data: Record<string, unknown>)
     if (data.pacientes !== undefined) {
       await sincronizarPacientes(tx, id, data.pacientes as unknown[]);
     }
+    await sincronizarAsistencias(tx, id, { ...data, metadata: metadataNuevo });
   });
 
   return obtenerPorId(id);
