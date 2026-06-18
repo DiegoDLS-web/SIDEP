@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { forkJoin, catchError } from 'rxjs';
+import { forkJoin, catchError, of } from 'rxjs';
 import type { UsuarioListaDto } from '../../models/usuario.dto';
 import { AuthService } from '../../services/auth.service';
 import { ChecklistsService } from '../../services/checklists.service';
@@ -73,19 +73,29 @@ export class ChecklistUnidadComponent implements OnInit {
   ngOnInit(): void {
     this.unidad = this.route.snapshot.paramMap.get('unidad') ?? 'R-1';
     forkJoin({
-      unidadData: this.checklistsApi.obtenerChecklistUnidad(this.unidad),
-      plantillaData: this.checklistsApi.obtenerPlantillaUnidad(this.unidad),
-      usuarios: this.usuariosApi.selectorObac().pipe(catchError(() => this.usuariosApi.listar())),
+      unidadData: this.checklistsApi.obtenerChecklistUnidad(this.unidad).pipe(
+        catchError(() =>
+          of({
+            unidad: this.unidad,
+            carro: { id: '', nomenclatura: this.unidad, nombre: `Unidad ${this.unidad}` },
+            checklist: null,
+          }),
+        ),
+      ),
+      plantillaData: this.checklistsApi.obtenerPlantillaUnidad(this.unidad).pipe(
+        catchError(() => of({ ubicaciones: [] })),
+      ),
+      usuarios: this.usuariosApi.voluntariosParaSelect().pipe(catchError(() => of([] as UsuarioListaDto[]))),
     }).subscribe({
       next: ({ unidadData, plantillaData, usuarios }: any) => {
-        this.usuarios = usuarios;
+        this.usuarios = usuarios?.length ? usuarios : this.usuariosDesdeSesion();
         const c = unidadData.carro;
         this.nombreCarro = c ? (c.nombre?.trim() || c.nomenclatura?.trim() || null) : null;
         const checklist = unidadData.checklist;
         if (checklist?.cuarteleroId) {
           this.cuarteleroId = String(checklist.cuarteleroId);
-        } else if (usuarios.length > 0) {
-          this.cuarteleroId = usuarios[0].id;
+        } else if (this.usuarios.length > 0) {
+          this.cuarteleroId = this.usuarios[0].id;
         }
         const baseTemplate = this.defaultUbicaciones(this.unidad);
         const detalle = (checklist?.detalle as { ubicaciones?: Ubicacion[] } | null)?.ubicaciones;
@@ -124,6 +134,44 @@ export class ChecklistUnidadComponent implements OnInit {
         this.loading = false;
       },
     });
+  }
+
+  private usuariosDesdeSesion(): UsuarioListaDto[] {
+    const u = this.auth.usuarioActual;
+    if (!u?.rut) return [];
+    const nombre = (u.nombre ?? '').trim() || 'Usuario de sesión';
+    const ahora = new Date().toISOString();
+    return [
+      {
+        id: u.rut,
+        rut: u.rut,
+        nombre,
+        rol: u.rol ?? 'VOLUNTARIOS',
+        email: null,
+        telefono: null,
+        activo: true,
+        nombres: nombre,
+        apellidoPaterno: null,
+        apellidoMaterno: null,
+        nacionalidad: null,
+        grupoSanguineo: null,
+        direccion: null,
+        region: null,
+        comuna: null,
+        actividad: null,
+        fechaNacimiento: null,
+        fechaIngreso: null,
+        tipoVoluntario: null,
+        cuerpoBombero: null,
+        compania: null,
+        estadoVoluntario: null,
+        cargoOficialidad: null,
+        observacionesRegistro: null,
+        firmaImagen: null,
+        createdAt: ahora,
+        updatedAt: ahora,
+      },
+    ];
   }
 
   get puedeEditarPlantilla(): boolean {

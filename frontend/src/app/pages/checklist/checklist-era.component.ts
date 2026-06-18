@@ -243,9 +243,7 @@ export class ChecklistEraComponent implements OnInit {
   ngOnInit(): void {
     forkJoin({
       carros: this.carrosApi.listar().pipe(catchError(() => of([] as CarroDto[]))),
-      usuarios: this.usuariosApi.selectorObac().pipe(
-        catchError(() => this.usuariosApi.listar().pipe(catchError(() => of([] as UsuarioListaDto[])))),
-      ),
+      usuarios: this.usuariosApi.voluntariosParaSelect(),
     }).subscribe({
       next: ({ carros, usuarios }) => {
         this.carros = carros ?? [];

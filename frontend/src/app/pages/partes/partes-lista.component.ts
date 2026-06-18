@@ -3,7 +3,7 @@ import { Component, DestroyRef, HostListener, OnInit, inject } from '@angular/co
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, ParamMap, Router, RouterLink } from '@angular/router';
-import { forkJoin, skip, take } from 'rxjs';
+import { forkJoin, skip, take, catchError, of } from 'rxjs';
 
 import type { ParteEmergenciaDTO } from '../../models/parte.dto';
 import { PartesExportService } from '../../services/partes-export.service';
@@ -114,13 +114,31 @@ export class PartesListaComponent implements OnInit {
     this.lastQuerySig = this.firmaQueriesDesdeEstado();
 
     forkJoin({
-      metricas: this.partesApi.metricas(),
+      metricas: this.partesApi.metricas().pipe(
+        catchError(() =>
+          of({
+            totalSistema: 0,
+            enAnioActual: 0,
+            enMesActual: 0,
+          } satisfies PartesMetricasResp),
+        ),
+      ),
       pagina: this.partesApi.listarPagina({
         page: this.paginaPartes,
         pageSize: this.tamanioPaginaPartes,
         ...this.filtrosApi(),
-      }),
-      carros: this.carrosApi.listar(),
+      }).pipe(
+        catchError(() =>
+          of({
+            items: [],
+            total: 0,
+            page: this.paginaPartes,
+            pageSize: this.tamanioPaginaPartes,
+            totalPages: 1,
+          } satisfies PartesPaginaResp),
+        ),
+      ),
+      carros: this.carrosApi.listar().pipe(catchError(() => of([] as CarroDto[]))),
     }).subscribe({
       next: ({ metricas, pagina, carros }: any) => {
         this.metricas = metricas;

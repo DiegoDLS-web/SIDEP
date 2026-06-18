@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, catchError, of } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { apiUrl } from '../utils/api-url.util';
 import type { BolsoTraumaDTO, CrearBolsoTraumaDTO } from '../models/bolso-trauma.dto';
 
 @Injectable({
@@ -10,7 +10,7 @@ import type { BolsoTraumaDTO, CrearBolsoTraumaDTO } from '../models/bolso-trauma
 export class BolsosTraumaService {
   private readonly http = inject(HttpClient);
   // Endpoint del nuevo backend relacional
-  private apiUrl = `${environment.apiUrl}/logistica/equipamiento/bolsos`;
+  private readonly apiUrl = apiUrl('logistica', 'equipamiento', 'bolsos');
 
   // =======================================================================
   // MÉTODOS CRUD BÁSICOS (NUEVO BACKEND)

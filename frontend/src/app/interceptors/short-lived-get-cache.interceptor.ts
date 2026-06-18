@@ -21,24 +21,31 @@ function pathSinQuery(url: string): string {
   return noQuery;
 }
 
-/** POST/PATCH/DELETE/PUT sobre partes (lista, detalle o raíz). */
+function debeCachearse(urlCompleto: string): boolean {
+  const p = pathSinQuery(urlCompleto);
+  return (
+    p.endsWith('/api/operaciones/partes/metricas') ||
+    p.endsWith('/api/partes/metricas') ||
+    p.includes('/api/dashboard/resumen')
+  );
+}
+
 function esMutacionPartes(rutaSinQuery: string): boolean {
-  if (!/^\/api\/partes\b/.test(rutaSinQuery)) {
+  if (!/^\/api\/(?:operaciones\/)?partes\b/.test(rutaSinQuery)) {
     return false;
   }
   return !rutaSinQuery.endsWith('/metricas') && !rutaSinQuery.endsWith('/pagina');
-}
-
-function debeCachearse(urlCompleto: string): boolean {
-  const p = pathSinQuery(urlCompleto);
-  return p.endsWith('/api/partes/metricas') || p.includes('/api/dashboard/resumen');
 }
 
 function invalidarCachesPartesYDashboard(): void {
   const keys = [...cache.keys()];
   for (const k of keys) {
     const p = pathSinQuery(k);
-    if (p.endsWith('/api/partes/metricas') || p.includes('/api/dashboard/resumen')) {
+    if (
+      p.endsWith('/api/operaciones/partes/metricas') ||
+      p.endsWith('/api/partes/metricas') ||
+      p.includes('/api/dashboard/resumen')
+    ) {
       cache.delete(k);
     }
   }

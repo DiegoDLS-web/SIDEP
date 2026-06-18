@@ -6,6 +6,7 @@ import type {
   CarroRegistroHistorialDto,
 } from '../models/carro-registro-historial.dto';
 import type { CarroDto } from '../models/carro.dto';
+import { apiUrl } from '../utils/api-url.util';
 
 @Injectable({ providedIn: 'root' })
 export class CarrosService {
@@ -135,7 +136,7 @@ export class CarrosService {
   ];
 
   listar(): Observable<CarroDto[]> {
-    return this.http.get<{ success: boolean; data: CarroDto[] }>('/api/logistica/carros').pipe(
+    return this.http.get<{ success: boolean; data: CarroDto[] }>(apiUrl('logistica', 'carros')).pipe(
       map((res) => {
         const data = res.data ?? [];
         return data.length > 0 ? data : this.demoCarrosActivos();
@@ -163,7 +164,7 @@ export class CarrosService {
     if (filtros?.hasta?.trim()) {
       params = params.set('hasta', filtros.hasta.trim());
     }
-    return this.http.get<CarroHistorialGeneralFila[]>('/api/logistica/carros/historial-general', { params }).pipe(
+    return this.http.get<CarroHistorialGeneralFila[]>(apiUrl('logistica', 'carros', 'historial-general'), { params }).pipe(
       catchError(() => of(this.demoHistorialGeneral(filtros))),
     );
   }
@@ -209,7 +210,7 @@ export class CarrosService {
 
   obtener(idONomenclatura: string | number): Observable<CarroDto> {
     const segment = String(idONomenclatura);
-    return this.http.get<{ success: boolean; data: CarroDto }>(`/api/logistica/carros/${encodeURIComponent(segment)}`).pipe(
+    return this.http.get<{ success: boolean; data: CarroDto }>(apiUrl('logistica', 'carros', encodeURIComponent(segment))).pipe(
       map((res) => res.data),
       catchError(() => {
         const fallback = this.demoCarros.find(
@@ -232,7 +233,7 @@ export class CarrosService {
   }
 
   actualizar(id: string | number, payload: Partial<CarroDto>): Observable<CarroDto> {
-    return this.http.patch<{ success: boolean; data: CarroDto }>(`/api/logistica/carros/${id}`, payload).pipe(
+    return this.http.patch<{ success: boolean; data: CarroDto }>(apiUrl('logistica', 'carros', String(id)), payload).pipe(
       map((res) => res.data),
       catchError(() => {
         const idx = this.demoCarros.findIndex((c) => String(c.id) === String(id));
@@ -251,6 +252,6 @@ export class CarrosService {
 
   // --- NUEVA FUNCIÓN PARA EL BOTÓN ---
   toggleEstado(id: string, estadoOperativo: number): Observable<any> {
-    return this.http.patch(`/api/logistica/carros/${id}/estado`, { estadoOperativo });
+    return this.http.patch(apiUrl('logistica', 'carros', id, 'estado'), { estadoOperativo });
   }
 }

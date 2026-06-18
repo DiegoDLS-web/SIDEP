@@ -129,6 +129,7 @@ export class CarrosPageComponent {
         switchMap((carro) => this.hidratarDetalleDesdeHistorialSiFalta(carro)),
         switchMap((carro) =>
           this.usuariosApi.listar().pipe(
+            catchError(() => of([] as UsuarioListaDto[])),
             map((usuarios) => {
               this.usuariosConductoresAutorizados = usuarios
                 .filter((u) => u.activo && u.autorizadoConducir === true)

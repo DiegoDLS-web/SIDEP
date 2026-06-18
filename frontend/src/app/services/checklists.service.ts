@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, forkJoin, of, throwError } from 'rxjs';
 import { map, catchError, switchMap } from 'rxjs/operators';
-import { environment } from '../../environments/environment';
+import { apiUrl } from '../utils/api-url.util';
 import {
   ChecklistPlantillaDTO,
   ChecklistEjecucionDTO,
@@ -21,7 +21,7 @@ type PlantillaTipo = 'ERA' | 'TRAUMA' | string;
 export class ChecklistsService {
   private readonly http = inject(HttpClient);
   private readonly carrosApi = inject(CarrosService);
-  private apiUrl = `${environment.apiUrl}/logistica/checklist`;
+  private readonly apiUrl = apiUrl('logistica', 'checklist');
 
   private readonly storagePlantillas = 'sidep_checklist_plantillas_v1';
   private readonly storageEraHistorial = 'sidep_checklist_era_historial_v1';

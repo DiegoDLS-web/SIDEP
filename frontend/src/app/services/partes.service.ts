@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { Observable, catchError, of } from 'rxjs';
+import { apiUrl } from '../utils/api-url.util';
 import type { ParteEmergenciaDTO } from '../models/parte.dto';
 
 // Interfaces que la tabla necesita para funcionar correctamente
@@ -23,10 +23,10 @@ export interface PartesMetricasResp {
 export class PartesService {
   private readonly http = inject(HttpClient);
   // Apuntando al nuevo backend
-  private readonly apiUrl = `${environment.apiUrl}/operaciones/partes`;
+  private readonly base = apiUrl('operaciones', 'partes');
 
   listar(): Observable<ParteEmergenciaDTO[]> {
-    return this.http.get<ParteEmergenciaDTO[]>(this.apiUrl);
+    return this.http.get<ParteEmergenciaDTO[]>(this.base);
   }
 
   listarPagina(filtros: any): Observable<PartesPaginaResp> {
@@ -37,26 +37,26 @@ export class PartesService {
       }
     });
     // Se asume que el backend tiene la ruta /pagina, ajústala a tu API si es distinta
-    return this.http.get<PartesPaginaResp>(`${this.apiUrl}/pagina`, { params });
+    return this.http.get<PartesPaginaResp>(apiUrl('operaciones', 'partes', 'pagina'), { params });
   }
 
   metricas(): Observable<PartesMetricasResp> {
-    return this.http.get<PartesMetricasResp>(`${this.apiUrl}/metricas`);
+    return this.http.get<PartesMetricasResp>(apiUrl('operaciones', 'partes', 'metricas'));
   }
 
   obtener(id: string): Observable<ParteEmergenciaDTO> {
-    return this.http.get<ParteEmergenciaDTO>(`${this.apiUrl}/${id}`);
+    return this.http.get<ParteEmergenciaDTO>(apiUrl('operaciones', 'partes', id));
   }
 
   crear(payload: any): Observable<ParteEmergenciaDTO> {
-    return this.http.post<ParteEmergenciaDTO>(this.apiUrl, payload);
+    return this.http.post<ParteEmergenciaDTO>(this.base, payload);
   }
 
   actualizar(id: string, payload: any): Observable<ParteEmergenciaDTO> {
-    return this.http.patch<ParteEmergenciaDTO>(`${this.apiUrl}/${id}`, payload);
+    return this.http.patch<ParteEmergenciaDTO>(apiUrl('operaciones', 'partes', id), payload);
   }
 
   deleteParte(id: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/${id}`);
+    return this.http.delete(apiUrl('operaciones', 'partes', id));
   }
 }

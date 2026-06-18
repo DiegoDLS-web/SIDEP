@@ -185,11 +185,13 @@ export class BolsoTraumaRegistroComponent implements OnInit {
       data: this.bolsosApi.obtenerUnidad(this.unidad).pipe(
         catchError(() => of({ carro: { nombre: `Unidad ${this.unidad}` }, checklist: null })),
       ),
-      usuarios: this.usuariosApi.selectorObac().pipe(catchError(() => of([] as UsuarioListaDto[]))),
+      usuarios: this.usuariosApi.voluntariosParaSelect().pipe(
+        catchError(() => of(this.usuariosDesdeSesion())),
+      ),
       plantilla: (this.checklistsApi as any).obtenerPlantilla('TRAUMA', this.unidad).pipe(catchError(() => of(null))),
     }).subscribe({
       next: ({ data, usuarios, plantilla }) => {
-        this.usuarios = usuarios ?? [];
+        this.usuarios = usuarios?.length ? usuarios : this.usuariosDesdeSesion();
         this.nombreCarro = (data?.carro?.nombre ?? '').trim() || `Unidad ${this.unidad}`;
 
         const checklist = data?.checklist;
@@ -218,10 +220,12 @@ export class BolsoTraumaRegistroComponent implements OnInit {
         if (checklist?.observaciones) this.observaciones = checklist.observaciones;
         if (checklist?.cuarteleroId) {
           const id = String(checklist.cuarteleroId);
-          const match = usuarios.find((u) => u.id === id || u.rut === id);
+          const match = this.usuarios.find((u) => u.id === id || u.rut === id);
           this.cuarteleroId = match?.id ?? id;
-        } else if (usuarios.length > 0) {
-          this.cuarteleroId = usuarios[0].id;
+        } else if (this.usuarios.length > 0) {
+          const id = this.usuarios[0].id;
+          const match = this.usuarios.find((u) => u.id === id || u.rut === id);
+          this.cuarteleroId = match?.id ?? id;
         }
 
         if (!this.nombreInspector.trim()) {
@@ -255,6 +259,45 @@ export class BolsoTraumaRegistroComponent implements OnInit {
         this.loading = false;
       },
     });
+  }
+
+  /** Si la API de usuarios falla, permite al menos seleccionar al usuario de la sesión. */
+  private usuariosDesdeSesion(): UsuarioListaDto[] {
+    const u = this.auth.usuarioActual;
+    if (!u?.rut) return [];
+    const nombre = (u.nombre ?? '').trim() || 'Usuario de sesión';
+    const ahora = new Date().toISOString();
+    return [
+      {
+        id: u.rut,
+        rut: u.rut,
+        nombre,
+        rol: u.rol ?? 'VOLUNTARIOS',
+        email: null,
+        telefono: null,
+        activo: true,
+        nombres: nombre,
+        apellidoPaterno: null,
+        apellidoMaterno: null,
+        nacionalidad: null,
+        grupoSanguineo: null,
+        direccion: null,
+        region: null,
+        comuna: null,
+        actividad: null,
+        fechaNacimiento: null,
+        fechaIngreso: null,
+        tipoVoluntario: null,
+        cuerpoBombero: null,
+        compania: null,
+        estadoVoluntario: null,
+        cargoOficialidad: null,
+        observacionesRegistro: null,
+        firmaImagen: null,
+        createdAt: ahora,
+        updatedAt: ahora,
+      },
+    ];
   }
 
   get bolsoActual(): Bolso {
