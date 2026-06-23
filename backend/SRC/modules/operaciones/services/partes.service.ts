@@ -1,6 +1,7 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '../../../prisma';
+import { formatearRutDesdeNormalizado } from '../../../utils/rut.util';
 
 const parteInclude = {
   clave: true,
@@ -28,6 +29,30 @@ const parteInclude = {
   pacientes: { include: { triage: true } },
   _count: { select: { asistencias: true, unidades: true } },
 } satisfies Prisma.ParteEmergenciaInclude;
+
+/** Consulta liviana para listados paginados (sin asistencias, pacientes ni metadata pesada). */
+const parteIncludeListado = {
+  clave: { select: { codigo: true, nombre: true } },
+  estado: { select: { codigo: true, nombre: true } },
+  obac: {
+    select: {
+      nombres: true,
+      apellidoPaterno: true,
+      apellidoMaterno: true,
+      rut: true,
+    },
+  },
+  unidades: {
+    include: {
+      carro: { select: { id: true, nomenclatura: true, nombre: true } },
+    },
+  },
+} satisfies Prisma.ParteEmergenciaInclude;
+
+type ParteListado = Prisma.ParteEmergenciaGetPayload<{ include: typeof parteIncludeListado }>;
+
+const estadoIdCache = new Map<string, number>();
+const claveIdCache = new Map<string, number>();
 
 type ParteConRelaciones = Prisma.ParteEmergenciaGetPayload<{ include: typeof parteInclude }>;
 
@@ -101,15 +126,19 @@ function construirUnidadesHorariosMetadata(unidades: unknown): Record<string, Re
 }
 
 async function resolverEstadoId(estado?: string): Promise<number> {
-  if (!estado) return 1;
-  const codigo = estado.trim().toUpperCase();
+  const codigo = (estado || 'PENDIENTE').trim().toUpperCase();
+  const cached = estadoIdCache.get(codigo);
+  if (cached != null) return cached;
+
   const encontrado = await prisma.catalogoEstadoParte.findFirst({
     where: {
       OR: [{ codigo }, { nombre: { equals: codigo, mode: 'insensitive' } }],
       activo: 1,
     },
   });
-  return encontrado?.id ?? 1;
+  const id = encontrado?.id ?? 1;
+  estadoIdCache.set(codigo, id);
+  return id;
 }
 
 async function resolverClaveId(claveEmergencia?: string, claveId?: number): Promise<number> {
@@ -120,10 +149,15 @@ async function resolverClaveId(claveEmergencia?: string, claveId?: number): Prom
     if (!fallback) throw new Error('No hay claves de emergencia activas en catálogo');
     return fallback.id;
   }
+  const cached = claveIdCache.get(codigo);
+  if (cached != null) return cached;
   const existente = await prisma.catalogoClaveEmergencia.findFirst({
     where: { codigo, activo: 1 },
   });
-  if (existente) return existente.id;
+  if (existente) {
+    claveIdCache.set(codigo, existente.id);
+    return existente.id;
+  }
   const creada = await prisma.catalogoClaveEmergencia.create({
     data: {
       codigo,
@@ -131,6 +165,7 @@ async function resolverClaveId(claveEmergencia?: string, claveId?: number): Prom
       activo: 1,
     },
   });
+  claveIdCache.set(codigo, creada.id);
   return creada.id;
 }
 
@@ -154,9 +189,18 @@ async function resolverConductorRutFk(
 
   const norm = normalizarRutBusqueda(t);
   if (norm.length >= 7) {
-    const candidatos = await tx.usuario.findMany({ where: { activo: 1 }, select: { rut: true } });
-    const match = candidatos.find((u) => normalizarRutBusqueda(u.rut) === norm);
-    if (match?.rut && match.rut.length <= 20) return match.rut;
+    const formateado = formatearRutDesdeNormalizado(norm);
+    if (formateado) {
+      const porFormato = await tx.usuario.findUnique({ where: { rut: formateado }, select: { rut: true } });
+      if (porFormato?.rut && porFormato.rut.length <= 20) return porFormato.rut;
+    }
+    const porNorm = await tx.usuario.findFirst({
+      where: { activo: 1, rut: { contains: norm.slice(-4) } },
+      select: { rut: true },
+    });
+    if (porNorm?.rut && normalizarRutBusqueda(porNorm.rut) === norm && porNorm.rut.length <= 20) {
+      return porNorm.rut;
+    }
   }
 
   const partesNombre = t.split(/\s+/).filter(Boolean);
@@ -228,9 +272,18 @@ async function sincronizarAsistencias(
       rutFinal = directo.rut;
     } else {
       const norm = normalizarRutBusqueda(candidato);
-      const usuarios = await tx.usuario.findMany({ where: { activo: 1 }, select: { rut: true } });
-      const match = usuarios.find((u) => normalizarRutBusqueda(u.rut) === norm);
-      if (match) rutFinal = match.rut;
+      const formateado = formatearRutDesdeNormalizado(norm);
+      if (formateado) {
+        const porFmt = await tx.usuario.findUnique({ where: { rut: formateado }, select: { rut: true } });
+        if (porFmt) rutFinal = porFmt.rut;
+      }
+      if (!rutFinal) {
+        const porNorm = await tx.usuario.findFirst({
+          where: { activo: 1, rut: { contains: norm.slice(-4) } },
+          select: { rut: true },
+        });
+        if (porNorm && normalizarRutBusqueda(porNorm.rut) === norm) rutFinal = porNorm.rut;
+      }
     }
     if (rutFinal) {
       filas.push({ id: uuidv4(), parteId, usuarioRut: rutFinal });
@@ -398,6 +451,41 @@ export function mapParteToDto(p: ParteConRelaciones | null) {
     pacientes: p.pacientes,
     _count: p._count,
     createdAt: p.createdAt,
+  };
+}
+
+function mapParteListadoToDto(p: ParteListado) {
+  const metadata = parseMetadata(p.metadata);
+  const estadoCodigo = (p.estado?.codigo || p.estado?.nombre || 'PENDIENTE').toUpperCase();
+  const nombreObac = p.obac
+    ? `${p.obac.nombres} ${p.obac.apellidoPaterno}`.trim()
+    : undefined;
+  const claveMeta =
+    typeof metadata?.claveEmergencia === 'string' && metadata.claveEmergencia.trim()
+      ? metadata.claveEmergencia.trim()
+      : undefined;
+
+  return {
+    id: p.id,
+    correlativo: p.correlativo,
+    direccion: p.direccion,
+    estadoId: p.estadoId,
+    claveId: p.claveId,
+    obacRut: p.obacRut,
+    obacId: p.obacRut,
+    fechaEmergencia: p.fechaEmergencia,
+    fecha: p.fechaEmergencia,
+    metadata: claveMeta ? { claveEmergencia: claveMeta } : null,
+    claveEmergencia: claveMeta ?? p.clave?.codigo,
+    codigoEmergencia: claveMeta ?? p.clave?.codigo,
+    estado: estadoCodigo,
+    clave: p.clave,
+    obac: p.obac ? { ...p.obac, nombre: nombreObac } : undefined,
+    unidades: p.unidades?.map((u) => ({
+      id: u.id,
+      carroId: u.carroId,
+      carro: u.carro,
+    })),
   };
 }
 
@@ -613,7 +701,7 @@ export const listarPagina = async (filtros: PartesPaginaFiltros) => {
     prisma.parteEmergencia.count({ where }),
     prisma.parteEmergencia.findMany({
       where,
-      include: parteInclude,
+      include: parteIncludeListado,
       orderBy: { fechaEmergencia: 'desc' },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -621,7 +709,7 @@ export const listarPagina = async (filtros: PartesPaginaFiltros) => {
   ]);
 
   return {
-    items: partes.map((p) => mapParteToDto(p)),
+    items: partes.map((p) => mapParteListadoToDto(p)),
     total,
     page,
     pageSize,

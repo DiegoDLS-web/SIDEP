@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import type { ConfiguracionSistemaDto, LogosPdfCabecera } from '../../models/configuracion.dto';
@@ -10,14 +10,18 @@ import { ToastService } from '../../services/toast.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { OPCIONES_MENU_SIDEP, rutasMenuFallbackPorRol } from '../../layout/nav-menu-opciones';
+import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
+import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
+import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
+import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 
 @Component({
   selector: 'app-configuraciones',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidDateInputComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidDateInputComponent, SidEdicionPendienteBannerComponent],
   templateUrl: './configuraciones.component.html',
 })
-export class ConfiguracionesComponent implements OnInit {
+export class ConfiguracionesComponent implements OnInit, ComponenteConEdicionPendiente {
   readonly opcionesLogosPdf: { value: LogosPdfCabecera; label: string }[] = [
     { value: 'AMBOS', label: 'SIDEP y compañía (como en partes)' },
     { value: 'SIDEP', label: 'Solo marca SIDEP' },
@@ -39,6 +43,25 @@ export class ConfiguracionesComponent implements OnInit {
   roles: RolUsuarioDto[] = [];
   readonly logoCompaniaPreview = signal<string | null>(null);
   archivoLogoCompania: File | null = null;
+
+  private readonly controlEdicion = crearControlEdicionPendiente(() => ({
+    config: this.config,
+    logo: this.archivoLogoCompania?.name ?? null,
+  }));
+
+  constructor() {
+    const destroyRef = inject(DestroyRef);
+    registrarEdicionPendienteGlobal(destroyRef, () => this.tieneEdicionPendiente());
+  }
+
+  tieneEdicionPendiente(): boolean {
+    if (this.loading || this.guardando) return false;
+    return this.controlEdicion.tieneCambios();
+  }
+
+  configuracionTieneCambios(): boolean {
+    return this.controlEdicion.tieneCambios();
+  }
 
   config: ConfiguracionSistemaDto = {
     compania: {
@@ -76,6 +99,7 @@ export class ConfiguracionesComponent implements OnInit {
         this.loading = false;
         this.tryAsegurarNavegacion();
         void this.actualizarVistaPreviaLogoCompania();
+        this.controlEdicion.marcarLimpio();
       },
       error: () => {
         this.error = 'No se pudieron cargar las configuraciones.';
@@ -228,6 +252,8 @@ export class ConfiguracionesComponent implements OnInit {
         this.guardando = false;
         this.exito = 'Configuraciones guardadas correctamente.';
         this.toast.exito('Configuraciones guardadas correctamente.');
+        this.archivoLogoCompania = null;
+        this.controlEdicion.marcarLimpio();
       },
       error: () => {
         this.guardando = false;

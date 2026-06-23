@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
+import prisma from '../prisma';
 import { verifyToken } from '../utils/security/jwt';
+import { payloadAccesoDenegado, puedeAccederApp } from '../utils/usuario-acceso.util';
 
-export const protect = (req: Request, res: Response, next: NextFunction) => {
+export const protect = async (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -14,19 +16,35 @@ export const protect = (req: Request, res: Response, next: NextFunction) => {
         return res.status(401).json({ success: false, message: 'No autorizado: Token malformado' });
     }
 
-    // El token debe haber sido firmado con el { rut: '...' } en el payload
     const decoded = verifyToken(token);
 
     if (!decoded) {
         return res.status(401).json({ success: false, message: 'No autorizado: Token inválido' });
     }
 
-    // VALIDACIÓN CRÍTICA: Aseguramos que el token contenga el rut
-    // Si tu token aún guarda 'id' en lugar de 'rut', esto fallará.
-    if (!(decoded as any).rut) {
+    if (!(decoded as { rut?: string }).rut) {
         return res.status(401).json({ success: false, message: 'Token no contiene el RUT del usuario' });
     }
 
-    (req as any).user = decoded;
-    next();
+    try {
+        const dbUser = await prisma.usuario.findUnique({
+            where: { rut: (decoded as { rut: string }).rut },
+            include: { rol: true, estadoVoluntario: true },
+        });
+
+        if (!dbUser) {
+            return res.status(401).json({ success: false, message: 'Usuario no encontrado' });
+        }
+
+        if (!puedeAccederApp(dbUser)) {
+            return res.status(403).json(payloadAccesoDenegado(dbUser));
+        }
+
+        (req as any).user = decoded;
+        (req as any).dbUser = dbUser;
+        next();
+    } catch (error) {
+        console.error('🔥 ERROR EN MIDDLEWARE AUTH:', error);
+        return res.status(500).json({ success: false, message: 'Error interno de autenticación' });
+    }
 };

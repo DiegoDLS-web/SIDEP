@@ -90,18 +90,21 @@
         </table>
       </div>
       <div class="flex flex-col gap-3 border-t border-slate-800 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <button
-          type="button"
-          class="sid-btn sid-btn-neutral rounded-xl border-slate-600 px-4 py-2.5 text-sm font-medium"
-          (click)="agregarFila()"
-        >
-          Añadir tipo
-        </button>
+        <div class="space-y-2">
+          <app-sid-edicion-pendiente-banner [visible]="catalogoTieneCambios()" />
+          <button
+            type="button"
+            class="sid-btn sid-btn-neutral rounded-xl border-slate-600 px-4 py-2.5 text-sm font-medium"
+            (click)="agregarFila()"
+          >
+            Añadir tipo
+          </button>
+        </div>
         <button
           type="button"
           class="sid-btn sid-btn-primary min-h-[44px] rounded-xl px-6 font-semibold disabled:opacity-50"
           (click)="guardar()"
-          [disabled]="guardando"
+          [disabled]="guardando || !catalogoTieneCambios()"
         >
           {{ guardando ? 'Guardando…' : 'Guardar catálogo' }}
         </button>

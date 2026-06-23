@@ -6,6 +6,8 @@ export interface LoginResponseDto {
     rol: string;
     email: string | null;
     rut?: string;
+    activo?: boolean;
+    estadoVoluntario?: string | null;
     requiereCambioPassword?: boolean;
   };
 }
@@ -17,5 +19,6 @@ export interface SesionUsuarioDto {
   email: string | null;
   rut: string;
   activo: boolean;
+  estadoVoluntario?: string | null;
   requiereCambioPassword?: boolean;
 }

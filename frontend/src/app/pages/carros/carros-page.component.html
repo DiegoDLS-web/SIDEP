@@ -499,6 +499,7 @@
             }
 
             @if (editando) {
+              <app-sid-edicion-pendiente-banner [visible]="mantenimientoTieneCambios()" />
               <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                 <label class="text-sm">
                   <span class="mb-1 block text-gray-400">Último Conductor <span class="text-red-400">*</span></span>

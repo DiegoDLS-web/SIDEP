@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
+import { Component, DestroyRef, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
@@ -11,6 +11,7 @@ import { AuthService } from '../../services/auth.service';
 import { ChecklistsService } from '../../services/checklists.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { ToastService } from '../../services/toast.service';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
@@ -22,8 +23,11 @@ import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/ch
 import { etiquetaCompletandoOCompletado } from '../../utils/etiqueta-completitud';
 import { filtrarUsuariosChecklist } from '../../utils/usuarios-checklist.util';
 import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
+import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util';
 import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
+import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
 import { etiquetaUnidadCarro } from '../../utils/etiqueta-unidad-carro';
+import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 
 export type EraEquipo = {
@@ -163,7 +167,7 @@ const ERA_PRESETS_UNIDAD: Record<string, EraPreset> = {
 @Component({
   selector: 'app-checklist-era',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidEmptyStateComponent, SidDateInputComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidEmptyStateComponent, SidDateInputComponent, SidEdicionPendienteBannerComponent],
   templateUrl: './checklist-era.component.html',
 })
 export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendiente {
@@ -178,6 +182,13 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
   private readonly checklistsApi = inject(ChecklistsService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly toast = inject(ToastService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
+
+  constructor() {
+    const destroyRef = inject(DestroyRef);
+    registrarEdicionPendienteGlobal(destroyRef, () => this.tieneEdicionPendiente());
+  }
+
   readonly optSiNo = ['', 'Si', 'No'];
   readonly optOperativo = ['', 'Operativo', 'No Operativo'];
   readonly optBueno = ['', 'Bueno', 'Regular', 'Malo'];
@@ -260,9 +271,15 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
   }));
 
   tieneEdicionPendiente(): boolean {
-    if (!this.mostrarRegistro || this.loading || this.saving || this.savingBorrador || this.editandoPlantilla) {
-      return false;
-    }
+    if (this.loading || this.saving || this.savingBorrador) return false;
+    if (this.editandoPlantilla && this.plantillaEraTieneCambios()) return true;
+    if (!this.mostrarRegistro) return false;
+    return this.controlEdicion.tieneCambios();
+  }
+
+  checklistTieneCambios(): boolean {
+    if (this.editandoPlantilla) return this.plantillaEraTieneCambios();
+    if (!this.mostrarRegistro) return false;
     return this.controlEdicion.tieneCambios();
   }
 
@@ -349,6 +366,23 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
   }
 
   cancelarEdicionPlantilla(): void {
+    void this.intentarCancelarEdicionPlantilla();
+  }
+
+  private plantillaEraTieneCambios(): boolean {
+    if (!this.snapshotPlantillaEra) return false;
+    return (
+      JSON.stringify(this.equipos) !== JSON.stringify(this.snapshotPlantillaEra.equipos) ||
+      JSON.stringify(this.recambios) !== JSON.stringify(this.snapshotPlantillaEra.recambios)
+    );
+  }
+
+  async intentarCancelarEdicionPlantilla(): Promise<void> {
+    const ok = await confirmarDescartarCambios(this.confirmDialog, this.plantillaEraTieneCambios(), {
+      title: 'Salir de edición de plantilla',
+      message: 'Hay cambios en la plantilla ERA sin guardar. ¿Deseas descartarlos?',
+    });
+    if (!ok) return;
     if (this.snapshotPlantillaEra) {
       this.equipos = this.clonarListaEquiposDesde(this.snapshotPlantillaEra.equipos);
       this.recambios = this.clonarListaRecambiosDesde(this.snapshotPlantillaEra.recambios);
@@ -509,6 +543,18 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
   }
 
   volverSeleccionUnidad(): void {
+    void this.intentarVolverSeleccionUnidad();
+  }
+
+  async intentarVolverSeleccionUnidad(): Promise<void> {
+    if (this.mostrarRegistro && this.tieneEdicionPendiente()) {
+      const ok = await confirmarDescartarCambios(this.confirmDialog, true, {
+        title: 'Salir del registro',
+        message: 'Tienes un checklist ERA en curso sin guardar. ¿Deseas descartar los cambios?',
+      });
+      if (!ok) return;
+      this.controlEdicion.marcarLimpio();
+    }
     this.resetEstadoCanvasFirma();
     this.mostrarRegistro = false;
   }

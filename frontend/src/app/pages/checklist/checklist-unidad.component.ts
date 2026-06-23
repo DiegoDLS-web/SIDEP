@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, catchError, of } from 'rxjs';
@@ -15,9 +15,12 @@ import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { firmaEfectiva } from '../../utils/firma-resolver';
 import { filtrarUsuariosChecklist } from '../../utils/usuarios-checklist.util';
 import { mensajeApiError } from '../../utils/api-error.util';
+import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util';
 import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
 import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
+import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
 import { CHECKLIST_UNIDAD_TEMPLATES } from './checklist-unidad.templates';
+import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 
 type Material = {
@@ -31,7 +34,7 @@ type Ubicacion = { nombre: string; materiales: Material[] };
 @Component({
   selector: 'app-checklist-unidad',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidEdicionPendienteBannerComponent],
   templateUrl: './checklist-unidad.component.html',
 })
 export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPendiente {
@@ -45,6 +48,11 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly usuariosApi = inject(UsuariosService);
   private readonly toast = inject(ToastService);
+
+  constructor() {
+    const destroyRef = inject(DestroyRef);
+    registrarEdicionPendienteGlobal(destroyRef, () => this.tieneEdicionPendiente());
+  }
 
   unidad = 'R-1';
   nombreCarro: string | null = null;
@@ -87,7 +95,13 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
   }));
 
   tieneEdicionPendiente(): boolean {
-    if (this.loading || this.saving || this.savingBorrador || this.editandoPlantilla) return false;
+    if (this.loading || this.saving || this.savingBorrador) return false;
+    if (this.editandoPlantilla && this.plantillaTieneCambiosSinGuardar()) return true;
+    return this.controlEdicion.tieneCambios();
+  }
+
+  checklistTieneCambios(): boolean {
+    if (this.editandoPlantilla) return this.plantillaTieneCambiosSinGuardar();
     return this.controlEdicion.tieneCambios();
   }
 
@@ -209,6 +223,20 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
   }
 
   cancelarEdicionPlantilla(): void {
+    void this.intentarCancelarEdicionPlantilla();
+  }
+
+  private plantillaTieneCambiosSinGuardar(): boolean {
+    if (this.plantillaUbicacionesBackup == null) return false;
+    return JSON.stringify(this.ubicaciones) !== JSON.stringify(this.plantillaUbicacionesBackup);
+  }
+
+  async intentarCancelarEdicionPlantilla(): Promise<void> {
+    const ok = await confirmarDescartarCambios(this.confirmDialog, this.plantillaTieneCambiosSinGuardar(), {
+      title: 'Salir de edición de plantilla',
+      message: 'Hay cambios en la plantilla del checklist sin guardar. ¿Deseas descartarlos?',
+    });
+    if (!ok) return;
     if (this.plantillaUbicacionesBackup != null) {
       this.ubicaciones = this.clonarUbicaciones(this.plantillaUbicacionesBackup);
     }

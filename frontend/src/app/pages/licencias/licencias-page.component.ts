@@ -1,5 +1,5 @@
 import { CommonModule, formatDate } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { HttpEventType } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { catchError, finalize, of } from 'rxjs';
@@ -12,18 +12,36 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
+import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 import { etiquetaOficialidadCargo } from '../usuarios/usuario-registro.constants';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
+import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util';
+import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
+import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
 
 @Component({
   selector: 'app-licencias-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidepIconsModule, SidDateInputComponent],
+  imports: [CommonModule, FormsModule, SidepIconsModule, SidDateInputComponent, SidEdicionPendienteBannerComponent],
   templateUrl: './licencias-page.component.html',
 })
-export class LicenciasPageComponent implements OnInit {
+export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendiente {
   private readonly api = inject(LicenciasService);
   private readonly auth = inject(AuthService);
   private readonly pdfExport = inject(PdfExportService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
+
+  private resolucionBaseline: Record<string, { estado: LicenciaEstado; observacion: string }> = {};
+
+  constructor() {
+    const destroyRef = inject(DestroyRef);
+    registrarEdicionPendienteGlobal(destroyRef, () => this.tieneEdicionPendiente());
+  }
+
+  tieneEdicionPendiente(): boolean {
+    if (this.modalNuevaSolicitudAbierta && this.solicitudTieneDatosSinGuardar()) return true;
+    return this.puedeGestionar && this.tieneResolucionPendiente();
+  }
 
   loading = false;
   guardando = false;
@@ -249,11 +267,52 @@ export class LicenciasPageComponent implements OnInit {
         this.gestionLicencias = rows;
         this.paginaGestion = 1;
         this.paginaHistorial = 1;
-        for (const l of rows) {
-          this.estadoEdicion[l.id] = l.estado;
-          this.observacionEdicion[l.id] = l.observacionResolucion ?? '';
-        }
+        this.sincronizarBaselineResolucion(rows);
       });
+  }
+
+  private sincronizarBaselineResolucion(rows: LicenciaMedicaDto[]): void {
+    this.resolucionBaseline = {};
+    for (const l of rows) {
+      this.resolucionBaseline[l.id] = {
+        estado: l.estado,
+        observacion: l.observacionResolucion ?? '',
+      };
+      this.estadoEdicion[l.id] = l.estado;
+      this.observacionEdicion[l.id] = l.observacionResolucion ?? '';
+    }
+  }
+
+  filaResolucionTieneCambios(id: string): boolean {
+    const base = this.resolucionBaseline[id];
+    if (!base) return false;
+    return (
+      this.estadoEdicion[id] !== base.estado ||
+      (this.observacionEdicion[id] ?? '').trim() !== base.observacion.trim()
+    );
+  }
+
+  tieneResolucionPendiente(): boolean {
+    return this.gestionLicencias.some((l) => this.filaResolucionTieneCambios(l.id));
+  }
+
+  private revertirResolucionPendiente(): void {
+    for (const l of this.gestionLicencias) {
+      const base = this.resolucionBaseline[l.id];
+      if (!base) continue;
+      this.estadoEdicion[l.id] = base.estado;
+      this.observacionEdicion[l.id] = base.observacion;
+    }
+  }
+
+  private async confirmarSiHayResolucionPendiente(mensaje: string): Promise<boolean> {
+    if (!this.tieneResolucionPendiente()) return true;
+    const ok = await confirmarDescartarCambios(this.confirmDialog, true, {
+      title: 'Cambios sin guardar',
+      message: mensaje,
+    });
+    if (ok) this.revertirResolucionPendiente();
+    return ok;
   }
 
   cargarResumen(): void {
@@ -327,12 +386,20 @@ export class LicenciasPageComponent implements OnInit {
       });
   }
 
-  setFiltro(estado: '' | LicenciaEstado): void {
+  async setFiltro(estado: '' | LicenciaEstado): Promise<void> {
+    const ok = await this.confirmarSiHayResolucionPendiente(
+      'Tienes cambios sin guardar al resolver licencias. Si cambias el filtro se descartarán.',
+    );
+    if (!ok) return;
     this.filtroGestion = estado;
     this.paginaGestion = 1;
   }
 
-  limpiarFiltrosGestion(): void {
+  async limpiarFiltrosGestion(): Promise<void> {
+    const ok = await this.confirmarSiHayResolucionPendiente(
+      'Tienes cambios sin guardar al resolver licencias. Si limpias los filtros se descartarán.',
+    );
+    if (!ok) return;
     this.filtroGestion = '';
     this.filtroGestionTexto = '';
     this.filtroGestionDesde = '';
@@ -348,7 +415,11 @@ export class LicenciasPageComponent implements OnInit {
     this.paginaHistorial = 1;
   }
 
-  cambiarPaginaGestion(delta: number): void {
+  async cambiarPaginaGestion(delta: number): Promise<void> {
+    const ok = await this.confirmarSiHayResolucionPendiente(
+      'Tienes observaciones o estados sin guardar. Si cambias de página se descartarán.',
+    );
+    if (!ok) return;
     const next = this.paginaGestion + delta;
     if (next < 1 || next > this.totalPaginasGestion) {
       return;
@@ -363,6 +434,29 @@ export class LicenciasPageComponent implements OnInit {
 
   cerrarModalNuevaSolicitud(): void {
     this.modalNuevaSolicitudAbierta = false;
+  }
+
+  private solicitudTieneDatosSinGuardar(): boolean {
+    return !!(
+      this.form.fechaInicio?.trim() ||
+      this.form.fechaTermino?.trim() ||
+      this.form.motivo?.trim() ||
+      this.adjuntoFile
+    );
+  }
+
+  solicitudTieneCambios(): boolean {
+    return this.solicitudTieneDatosSinGuardar();
+  }
+
+  async intentarCerrarModalNuevaSolicitud(): Promise<void> {
+    const ok = await confirmarDescartarCambios(this.confirmDialog, this.solicitudTieneDatosSinGuardar(), {
+      title: 'Cerrar solicitud',
+      message: 'Tienes una solicitud en curso. Si cierras se perderán los datos ingresados. ¿Deseas continuar?',
+    });
+    if (!ok) return;
+    this.limpiarFormulario();
+    this.cerrarModalNuevaSolicitud();
   }
 
   setEstadoRapido(item: LicenciaMedicaDto, estado: LicenciaEstado): void {

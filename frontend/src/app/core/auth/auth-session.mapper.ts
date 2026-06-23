@@ -11,7 +11,8 @@ export function mapLoginUsuarioASesion(resp: LoginResponseDto['usuario']): Sesio
     rol: resp.rol,
     email: resp.email,
     rut: resp.rut ?? '',
-    activo: true,
+    activo: resp.activo !== false,
+    estadoVoluntario: resp.estadoVoluntario ?? null,
     requiereCambioPassword: resp.requiereCambioPassword,
   };
 }

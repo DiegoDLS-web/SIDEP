@@ -6,6 +6,8 @@ import { finalize } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { ConfiguracionesService } from '../../services/configuraciones.service';
 import { ToastService } from '../../services/toast.service';
+import { mensajeApiError } from '../../utils/api-error.util';
+import { esErrorUsuarioInactivo } from '../../core/auth/acceso-bloqueado.util';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SidepBrandLockupComponent } from '../../shared/sidep-brand-lockup.component';
 
@@ -28,8 +30,14 @@ export class LoginComponent implements OnInit {
   recordarme = false;
   loading = false;
   error: string | null = null;
+  accesoBloqueado = false;
 
   ngOnInit(): void {
+    const aviso = this.auth.consumirAvisoAccesoBloqueado();
+    if (aviso) {
+      this.error = aviso;
+      this.accesoBloqueado = true;
+    }
     this.configApi.brandingPublic().subscribe({
       next: (b) => this.nombreCompaniaTag.set(b.nombreCompania?.trim() || null),
       error: () => this.nombreCompaniaTag.set('1ª Compañía Santa Juana'),
@@ -51,9 +59,15 @@ export class LoginComponent implements OnInit {
         next: () => {
           void this.router.navigateByUrl('/');
         },
-        error: () => {
-          this.error = 'Credenciales inválidas o usuario inactivo.';
-          this.toast.error('Credenciales inválidas o usuario inactivo.');
+        error: (err) => {
+          this.accesoBloqueado = esErrorUsuarioInactivo(err);
+          this.error = mensajeApiError(
+            err,
+            this.accesoBloqueado
+              ? 'Tu acceso a SIDEP está restringido.'
+              : 'Credenciales inválidas o usuario inactivo.',
+          );
+          this.toast.error(this.error);
         },
       });
   }

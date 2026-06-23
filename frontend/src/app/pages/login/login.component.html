@@ -17,8 +17,20 @@
       <h2 class="sid-title-balanced mb-2 text-2xl font-bold text-white">Iniciar Sesión</h2>
       <p class="mb-5 text-sm text-gray-400">Ingresa tus credenciales institucionales para acceder al sistema.</p>
       @if (error) {
-        <div class="sid-feedback mb-4 rounded-lg border border-red-700 bg-red-900/20 px-4 py-3 text-sm text-red-300">
-          {{ error }}
+        <div
+          class="sid-feedback mb-4 rounded-lg border px-4 py-3 text-sm"
+          [class.border-red-700]="!accesoBloqueado"
+          [class.bg-red-900/20]="!accesoBloqueado"
+          [class.text-red-300]="!accesoBloqueado"
+          [class.border-amber-600/60]="accesoBloqueado"
+          [class.bg-amber-950/30]="accesoBloqueado"
+          [class.text-amber-100]="accesoBloqueado"
+          role="alert"
+        >
+          @if (accesoBloqueado) {
+            <p class="mb-1 font-semibold">Acceso restringido</p>
+          }
+          <p>{{ error }}</p>
         </div>
       }
 

@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 import {
@@ -10,10 +10,17 @@ import {
   shareReplay,
   switchMap,
   tap,
+  throwError,
 } from 'rxjs';
 import { AuthLocalStorageService, mapLoginUsuarioASesion } from '../core/auth';
+import {
+  consumirMensajeAccesoBloqueado,
+  esErrorUsuarioInactivo,
+  guardarMensajeAccesoBloqueado,
+} from '../core/auth/acceso-bloqueado.util';
 import { limpiarBienvenidaSesionAlLogout } from '../core/welcome-overlay-session';
 import type { SesionUsuarioDto } from '../models/auth.dto';
+import { mensajeApiError } from '../utils/api-error.util';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -95,14 +102,26 @@ export class AuthService {
       return of(null);
     }
     if (!this.meRequest$) {
-      // El GET /me devuelve el usuario directamente, por eso NO usamos .data
       this.meRequest$ = this.http.get<SesionUsuarioDto>('/api/auth/me').pipe(
         tap((u) => {
+          if (u && u.activo === false) {
+            throw new HttpErrorResponse({
+              status: 403,
+              error: {
+                codigo: 'USUARIO_INACTIVO',
+                message: 'Tu acceso a SIDEP está restringido.',
+              },
+            });
+          }
           this.userSubject.next(u);
           this.storage.setUsuarioGuardado(u);
         }),
         map((u) => u),
-        catchError(() => {
+        catchError((err) => {
+          if (esErrorUsuarioInactivo(err)) {
+            this.cerrarSesionPorAccesoBloqueado(mensajeApiError(err, 'Tu acceso a SIDEP está restringido.'));
+            return of(null);
+          }
           this.clearLocal();
           this.userSubject.next(null);
           return of(null);
@@ -135,6 +154,18 @@ export class AuthService {
     this.userSubject.next(null);
     limpiarBienvenidaSesionAlLogout();
     void this.router.navigateByUrl('/login');
+  }
+
+  cerrarSesionPorAccesoBloqueado(mensaje: string): void {
+    guardarMensajeAccesoBloqueado(mensaje);
+    this.clearLocal();
+    this.userSubject.next(null);
+    limpiarBienvenidaSesionAlLogout();
+    void this.router.navigateByUrl('/login');
+  }
+
+  consumirAvisoAccesoBloqueado(): string | null {
+    return consumirMensajeAccesoBloqueado();
   }
 
   private clearLocal(): void {

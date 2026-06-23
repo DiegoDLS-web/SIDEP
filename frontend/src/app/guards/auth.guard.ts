@@ -15,6 +15,10 @@ export const authGuard: CanActivateFn = (_route, state) => {
       if (!u) {
         return router.createUrlTree(['/login']);
       }
+      if (u.activo === false) {
+        auth.cerrarSesionPorAccesoBloqueado('Tu acceso a SIDEP está restringido.');
+        return router.createUrlTree(['/login']);
+      }
       const enCambio = state.url.includes('cambiar-password-inicial');
       if (u.requiereCambioPassword === true && !enCambio) {
         return router.createUrlTree(['/cambiar-password-inicial']);

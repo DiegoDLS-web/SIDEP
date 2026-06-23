@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
@@ -21,12 +21,14 @@ import {
   type AsistenciaItemDef,
   type AsistenciaSeccionDef,
 } from './asistencia-roster.constants';
-import { etiquetaDirectorioVoluntario, etiquetaOficialidadCargo, nombreListaSoloPersona, CARGOS_ALTA_COMANDANCIA } from '../usuarios/usuario-registro.constants';
+import { etiquetaDirectorioVoluntario, etiquetaPadronAsistenciaParte, nombreListaSoloPersona, ordenPorClaveNomina, CARGOS_INSPECTORES_COMANDANCIA, CARGOS_OFICIALES_COMPANIA, CARGOS_OFICIALES_GENERALES } from '../usuarios/usuario-registro.constants';
 import { mensajeApiError } from '../../utils/api-error.util';
 import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
 import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
+import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
+import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 
 // Corrección de Import: Usamos el DTO de PostgreSQL
 import type { ParteEmergenciaDTO } from '../../models/parte.dto';
@@ -56,7 +58,7 @@ type PasoId = 'basicos' | 'emergencia' | 'trabajo' | 'asistencia' | 'apoyo' | 'o
 @Component({
   selector: 'app-parte-nuevo',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidDateInputComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidDateInputComponent, SidEdicionPendienteBannerComponent],
   templateUrl: './parte-nuevo.component.html',
 })
 export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendiente {
@@ -74,6 +76,11 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
+
+  constructor() {
+    const destroyRef = inject(DestroyRef);
+    registrarEdicionPendienteGlobal(destroyRef, () => this.tieneEdicionPendiente());
+  }
 
   readonly asistenciaLayout = ASISTENCIA_LAYOUT;
   asistenciaLayoutVista: AsistenciaColumnaDef[] = ASISTENCIA_LAYOUT;
@@ -200,6 +207,10 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
 
   tieneEdicionPendiente(): boolean {
     if (this.loading || this.submitting) return false;
+    return this.controlEdicion.tieneCambios();
+  }
+
+  parteTieneCambios(): boolean {
     return this.controlEdicion.tieneCambios();
   }
 
@@ -528,51 +539,47 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
       .filter((u) => u.activo && !this.esAspirante(u) && !this.esUsuarioExcluidoAsistencia(u));
 
     const usados = new Set<string>();
-    const sortNombre = (a: UsuarioListaDto, b: UsuarioListaDto) =>
-      a.nombre.localeCompare(b.nombre, 'es');
+    const sortClave = (a: UsuarioListaDto, b: UsuarioListaDto) => ordenPorClaveNomina(a, b);
 
-    const mkItem = (u: UsuarioListaDto, sufijo?: string): AsistenciaItemDef => {
+    const mkItem = (u: UsuarioListaDto): AsistenciaItemDef => {
       const id = `usr-${u.id}`;
       usados.add(id);
       this.usuarioAsistenciaPorId[id] = u;
-      const base = nombreListaSoloPersona(u);
-      return { id, label: sufijo ? `${base} (${sufijo})` : base };
+      return { id, label: etiquetaPadronAsistenciaParte(u) };
     };
 
     const tipo = (u: UsuarioListaDto) => (u.tipoVoluntario ?? '').trim().toUpperCase();
     const cargo = (u: UsuarioListaDto) => (u.cargoOficialidad ?? '').trim().toUpperCase();
 
-    const honorarios = pool
-      .filter((u) => tipo(u) === 'HONORARIO')
-      .sort(sortNombre)
-      .map((u) => mkItem(u, 'Honorario'));
+    const oficialesGenerales = pool
+      .filter((u) => CARGOS_OFICIALES_GENERALES.has(cargo(u)))
+      .sort(sortClave)
+      .map((u) => mkItem(u));
+
+    const inspectoresComandancia = pool
+      .filter((u) => CARGOS_INSPECTORES_COMANDANCIA.has(cargo(u)) && !usados.has(`usr-${u.id}`))
+      .sort(sortClave)
+      .map((u) => mkItem(u));
 
     const insignes = pool
       .filter((u) => tipo(u) === 'INSIGNE' && !usados.has(`usr-${u.id}`))
-      .sort(sortNombre)
-      .map((u) => mkItem(u, 'Insigne'));
+      .sort(sortClave)
+      .map((u) => mkItem(u));
 
-    const altaOficialidad = pool
-      .filter((u) => CARGOS_ALTA_COMANDANCIA.has(cargo(u)) && !usados.has(`usr-${u.id}`))
-      .sort((a, b) => {
-        const ca = etiquetaOficialidadCargo(a.cargoOficialidad, a.rol);
-        const cb = etiquetaOficialidadCargo(b.cargoOficialidad, b.rol);
-        return ca.localeCompare(cb, 'es') || sortNombre(a, b);
-      })
-      .map((u) => mkItem(u, etiquetaOficialidadCargo(u.cargoOficialidad, u.rol)));
+    const honorarios = pool
+      .filter((u) => tipo(u) === 'HONORARIO' && !usados.has(`usr-${u.id}`))
+      .sort(sortClave)
+      .map((u) => mkItem(u));
 
-    const oficialesCompania = pool
+    let oficialesCompania = pool
       .filter((u) => {
         if (usados.has(`usr-${u.id}`)) return false;
         const c = cargo(u);
-        return c.length > 0 && c !== 'VOLUNTARIO';
+        if (CARGOS_OFICIALES_COMPANIA.has(c)) return true;
+        return c.length > 0 && c !== 'VOLUNTARIO' && !CARGOS_OFICIALES_GENERALES.has(c) && !CARGOS_INSPECTORES_COMANDANCIA.has(c);
       })
-      .sort((a, b) => {
-        const ca = etiquetaOficialidadCargo(a.cargoOficialidad, a.rol);
-        const cb = etiquetaOficialidadCargo(b.cargoOficialidad, b.rol);
-        return ca.localeCompare(cb, 'es') || sortNombre(a, b);
-      })
-      .map((u) => mkItem(u, etiquetaOficialidadCargo(u.cargoOficialidad, u.rol)));
+      .sort(sortClave)
+      .map((u) => mkItem(u));
 
     if (oficialesCompania.length === 0) {
       for (const col of ASISTENCIA_LAYOUT) {
@@ -586,34 +593,50 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
 
     const voluntariosActivos = pool
       .filter((u) => !usados.has(`usr-${u.id}`))
-      .sort(sortNombre)
+      .sort(sortClave)
       .map((u) => mkItem(u));
 
     const seccionesIzq: AsistenciaSeccionDef[] = [];
-    if (honorarios.length > 0) {
-      seccionesIzq.push({ titulo: 'Voluntarios honorarios', items: honorarios });
+    if (oficialesGenerales.length > 0) {
+      seccionesIzq.push({ titulo: 'Oficiales generales', items: oficialesGenerales });
+    }
+    if (inspectoresComandancia.length > 0) {
+      seccionesIzq.push({ titulo: 'Inspectores de comandancia', items: inspectoresComandancia });
     }
     if (insignes.length > 0) {
-      seccionesIzq.push({ titulo: 'Voluntarios insignes', items: insignes });
+      seccionesIzq.push({ titulo: 'Insignes', items: insignes });
     }
-    if (altaOficialidad.length > 0) {
-      seccionesIzq.push({ titulo: 'Alta oficialidad', items: altaOficialidad });
+    if (honorarios.length > 0) {
+      seccionesIzq.push({ titulo: 'Honorarios', items: honorarios });
+    }
+
+    const columnas: AsistenciaColumnaDef[] = [];
+    if (seccionesIzq.length > 0) {
+      columnas.push({ secciones: seccionesIzq });
     }
     if (oficialesCompania.length > 0) {
-      seccionesIzq.push({ titulo: 'Oficialidad (compañía)', items: oficialesCompania });
+      columnas.push({
+        secciones: [{ titulo: 'Oficiales de compañía', items: oficialesCompania, columnasGrid: 2 }],
+      });
+    }
+    if (voluntariosActivos.length > 0) {
+      columnas.push({
+        secciones: [{ titulo: 'Voluntarios', items: voluntariosActivos, columnasGrid: 2, columnasGridXl: 3 }],
+      });
     }
 
-    const columnaIzq: AsistenciaColumnaDef = { secciones: seccionesIzq };
-    const columnaVoluntarios: AsistenciaColumnaDef = {
-      secciones: [{ titulo: 'Voluntarios activos', items: voluntariosActivos }],
-    };
+    this.asistenciaLayoutVista = columnas.length > 0 ? columnas : [{ secciones: [] }];
+  }
 
-    this.asistenciaLayoutVista =
-      voluntariosActivos.length > 0 && seccionesIzq.length > 0
-        ? [columnaIzq, columnaVoluntarios]
-        : seccionesIzq.length > 0
-          ? [columnaIzq]
-          : [columnaVoluntarios];
+  clasesGridAsistencia(sec: AsistenciaSeccionDef): Record<string, boolean> {
+    if (!sec.columnasGrid) return {};
+    if (sec.columnasGridXl) {
+      return { 'grid-cols-1': true, 'sm:grid-cols-2': true, 'xl:grid-cols-3': sec.columnasGridXl === 3 };
+    }
+    return {
+      'grid-cols-1': sec.columnasGrid <= 2,
+      'sm:grid-cols-2': sec.columnasGrid === 2,
+    };
   }
 
   /** Excluye cuentas admin de prueba del padrón de asistencia. */

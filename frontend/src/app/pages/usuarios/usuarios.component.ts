@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostListener, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, HostListener, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import type { UsuarioActualizarDto, UsuarioCrearDto, UsuarioListaDto, UsuariosMetricasDto } from '../../models/usuario.dto';
@@ -23,6 +23,11 @@ import {
   etiquetaDirectorioVoluntario,
 } from './usuario-registro.constants';
 import { claveNominaParaNombreCompleto } from '../../data/clave-nomina-por-nombre';
+import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
+import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util';
+import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
+import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
+import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -59,10 +64,10 @@ type FormUsuario = {
 @Component({
   selector: 'app-usuarios',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidDateInputComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidDateInputComponent, SidEdicionPendienteBannerComponent],
   templateUrl: './usuarios.component.html',
 })
-export class UsuariosComponent implements OnInit {
+export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente {
   private readonly usuariosApi = inject(UsuariosService);
   private readonly rolesApi = inject(RolesService);
   private readonly auth = inject(AuthService);
@@ -109,6 +114,21 @@ export class UsuariosComponent implements OnInit {
   private readonly fotosListaFallidas = new Set<string>();
 
   form: FormUsuario = this.formVacio();
+
+  private readonly controlEdicionForm = crearControlEdicionPendiente(() => ({ ...this.form }));
+
+  constructor() {
+    const destroyRef = inject(DestroyRef);
+    registrarEdicionPendienteGlobal(destroyRef, () => this.tieneEdicionPendiente());
+  }
+
+  tieneEdicionPendiente(): boolean {
+    return this.mostrandoFormulario && this.controlEdicionForm.tieneCambios();
+  }
+
+  formularioTieneCambios(): boolean {
+    return this.controlEdicionForm.tieneCambios();
+  }
 
   roles: RolUsuarioDto[] = [];
 
@@ -333,6 +353,7 @@ export class UsuariosComponent implements OnInit {
     if (this.roles.length > 0) {
       this.form.rol = this.roles[0]!.nombre;
     }
+    this.controlEdicionForm.marcarLimpio();
   }
 
   editar(usuario: UsuarioListaDto): void {
@@ -369,9 +390,10 @@ export class UsuariosComponent implements OnInit {
       autorizadoConducir: usuario.autorizadoConducir === true,
       claveNomina: usuario.claveNomina?.trim() ?? '',
     };
+    this.controlEdicionForm.marcarLimpio();
   }
 
-  cancelarForm(): void {
+  private cerrarFormularioSinConfirmar(): void {
     document.body.classList.remove('confirm-open');
     this.mostrandoFormulario = false;
     this.editandoId = null;
@@ -379,17 +401,34 @@ export class UsuariosComponent implements OnInit {
     this.fotoInicialEdicion = null;
   }
 
+  async intentarCancelarForm(): Promise<void> {
+    const ok = await confirmarDescartarCambios(
+      this.confirmDialog,
+      this.mostrandoFormulario && this.controlEdicionForm.tieneCambios(),
+      {
+        title: 'Cerrar registro',
+        message: 'Tienes un usuario en edición. Si cierras se perderán los cambios. ¿Deseas continuar?',
+      },
+    );
+    if (!ok) return;
+    this.cerrarFormularioSinConfirmar();
+  }
+
+  cancelarForm(): void {
+    void this.intentarCancelarForm();
+  }
+
   /** Cierra modal al hacer clic en el backdrop (sin cerrar desde el panel interior). */
-  cerrarSiBackdrop(ev: MouseEvent): void {
+  async cerrarSiBackdrop(ev: MouseEvent): Promise<void> {
     if (ev.target === ev.currentTarget) {
-      this.cancelarForm();
+      await this.intentarCancelarForm();
     }
   }
 
   @HostListener('document:keydown.escape')
   cerrarModalConEscape(): void {
     if (this.mostrandoFormulario) {
-      this.cancelarForm();
+      void this.intentarCancelarForm();
     }
   }
 
@@ -739,9 +778,7 @@ export class UsuariosComponent implements OnInit {
       this.usuariosApi.actualizar(this.editandoId, payload).subscribe({
         next: () => {
           this.guardando = false;
-          document.body.classList.remove('confirm-open');
-          this.mostrandoFormulario = false;
-          this.editandoId = null;
+          this.cerrarFormularioSinConfirmar();
           this.exito = 'Usuario actualizado correctamente.';
           this.toast.exito('Usuario actualizado correctamente.');
           this.recargarTrasMutacion();
@@ -797,8 +834,7 @@ export class UsuariosComponent implements OnInit {
     this.usuariosApi.crear(crear).subscribe({
       next: () => {
         this.guardando = false;
-        document.body.classList.remove('confirm-open');
-        this.mostrandoFormulario = false;
+        this.cerrarFormularioSinConfirmar();
         this.exito = 'Usuario creado correctamente.';
         this.toast.exito('Usuario creado correctamente.');
         this.recargarTrasMutacion();

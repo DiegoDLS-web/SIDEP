@@ -6,6 +6,7 @@ import { take } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { NavegacionUiService } from '../services/navegacion-ui.service';
 import { ConfirmDialogService } from '../services/confirm-dialog.service';
+import { EdicionPendienteRegistryService } from '../services/edicion-pendiente-registry.service';
 import { MotionProfileService } from '../services/motion-profile.service';
 import { UiDensityService } from '../services/ui-density.service';
 import { SidepIconsModule } from '../shared/sidep-icons.module';
@@ -51,6 +52,7 @@ export class MainLayoutComponent implements OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
   private readonly navUi = inject(NavegacionUiService);
   private readonly confirmDialog = inject(ConfirmDialogService);
+  private readonly edicionPendienteRegistry = inject(EdicionPendienteRegistryService);
   private readonly motionProfile = inject(MotionProfileService);
   private readonly uiDensity = inject(UiDensityService);
   private readonly configApi = inject(ConfiguracionesService);
@@ -301,6 +303,13 @@ export class MainLayoutComponent implements OnDestroy {
       .join('')
       .toUpperCase()
       .slice(0, 2);
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (!this.edicionPendienteRegistry.hayAlgunoPendiente()) return;
+    event.preventDefault();
+    event.returnValue = '';
   }
 
   async logout(): Promise<void> {

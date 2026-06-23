@@ -177,6 +177,7 @@
           <lucide-icon name="x" class="h-5 w-5" [size]="20" color="currentColor" />
         </button>
       <div class="mb-6 border-b border-gray-800/80 pb-4 pr-10">
+        <app-sid-edicion-pendiente-banner [visible]="formularioTieneCambios()" />
         <h2 id="titulo-form-usuario" class="text-xl font-bold text-white sm:text-2xl">
           {{ editandoId ? 'Editar usuario' : 'Nuevo usuario' }}
         </h2>

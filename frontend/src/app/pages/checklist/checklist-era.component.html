@@ -36,6 +36,8 @@
       </div>
     }
 
+    <app-sid-edicion-pendiente-banner [visible]="checklistTieneCambios()" />
+
     @if (!mostrarRegistro) {
       @if (carrosOrdenados().length === 0) {
         <app-sid-empty-state

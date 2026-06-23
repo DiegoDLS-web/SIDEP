@@ -8,6 +8,10 @@ export interface AsistenciaItemDef {
 export interface AsistenciaSeccionDef {
   titulo: string;
   items: AsistenciaItemDef[];
+  /** Columnas del grid de ítems (como el padrón impreso). */
+  columnasGrid?: number;
+  /** Grid más amplio en pantallas grandes (p. ej. voluntarios: 2 → 3 columnas). */
+  columnasGridXl?: number;
 }
 
 export interface AsistenciaColumnaDef {

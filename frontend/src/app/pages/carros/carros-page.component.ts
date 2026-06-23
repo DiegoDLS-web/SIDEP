@@ -1,5 +1,5 @@
 import { CommonModule, formatDate } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, forkJoin, map, of, startWith, switchMap, tap, type Observable } from 'rxjs';
@@ -21,6 +21,12 @@ import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { nombreArchivoPdfSidep } from '../../utils/pdf-nombre-archivo.util';
 import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
+import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
+import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
+import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
+import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
+import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -43,10 +49,11 @@ type CarrosView =
     SidScrollRevealDirective,
     SidEmptyStateComponent,
     SidDateInputComponent,
+    SidEdicionPendienteBannerComponent,
   ],
   templateUrl: './carros-page.component.html',
 })
-export class CarrosPageComponent {
+export class CarrosPageComponent implements ComponenteConEdicionPendiente {
   readonly nombreListaSoloPersona = nombreListaSoloPersona;
 
   private readonly route = inject(ActivatedRoute);
@@ -55,6 +62,13 @@ export class CarrosPageComponent {
   private readonly usuariosApi = inject(UsuariosService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly toast = inject(ToastService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
+  private readonly cdr = inject(ChangeDetectorRef);
+
+  constructor() {
+    const destroyRef = inject(DestroyRef);
+    registrarEdicionPendienteGlobal(destroyRef, () => this.tieneEdicionPendiente());
+  }
 
   private readonly imagenPorNomenclatura: Record<string, string> = {
     'B-1': this.assetUrl('assets/carros/b1.png'),
@@ -105,6 +119,8 @@ export class CarrosPageComponent {
     fechaUltimaInspeccion: '',
   };
 
+  private readonly controlEdicionMantenimiento = crearControlEdicionPendiente(() => ({ ...this.editForm }));
+
   readonly vm$ = this.route.paramMap.pipe(
     switchMap((pm) => {
       const id = pm.get('id');
@@ -128,7 +144,7 @@ export class CarrosPageComponent {
         );
       }
       return this.carrosApi.obtener(id).pipe(
-        switchMap((carro) => this.hidratarDetalleDesdeHistorialSiFalta(carro)),
+        switchMap((carro) => this.hidratarDetalleDesdeHistorial(carro)),
         switchMap((carro) =>
           this.usuariosApi.listar().pipe(
             catchError(() => of([] as UsuarioListaDto[])),
@@ -383,10 +399,7 @@ export class CarrosPageComponent {
     for (const campo of this.camposMantenimientoHistorial()) {
       const valorSnap = snap[campo];
       if (valorSnap == null || String(valorSnap).trim() === '') continue;
-      const claveDto = campo as keyof CarroDto;
-      const actual = out[claveDto];
-      if (actual != null && String(actual).trim() !== '') continue;
-      (out as unknown as Record<string, unknown>)[claveDto as string] = valorSnap;
+      (out as unknown as Record<string, unknown>)[campo as string] = valorSnap;
     }
     return out;
   }
@@ -417,12 +430,23 @@ export class CarrosPageComponent {
     );
   }
 
-  private hidratarDetalleDesdeHistorialSiFalta(carro: CarroDto): Observable<CarroDto> {
-    if (!this.carroNecesitaHistorial(carro)) return of(carro);
+  private hidratarDetalleDesdeHistorial(carro: CarroDto): Observable<CarroDto> {
     return this.carrosApi.historialGeneral({ carroId: carro.id }).pipe(
       map((rows) => this.fusionarCarroConHistorial(carro, rows[0] ?? null)),
       catchError(() => of(carro)),
     );
+  }
+
+  private refrescarCarroEnVista(carro: CarroDto): void {
+    forkJoin({
+      refresco: this.carrosApi.obtener(carro.id),
+      historial: this.carrosApi.historialGeneral({ carroId: carro.id }),
+    }).subscribe({
+      next: ({ refresco, historial }) => {
+        Object.assign(carro, this.fusionarCarroConHistorial(refresco, historial[0] ?? null));
+        this.cdr.markForCheck();
+      },
+    });
   }
 
   esFirmaImagen(val: string | null | undefined): boolean {
@@ -521,11 +545,13 @@ export class CarrosPageComponent {
     this.mensajeEdicion = '';
     this.errorValidacion = null;
     this.rellenarEditFormDesdeCarro(carro);
+    this.controlEdicionMantenimiento.marcarLimpio();
     this.carrosApi.historialGeneral({ carroId: carro.id }).subscribe({
       next: (rows) => {
         const fusionado = this.fusionarCarroConHistorial(carro, rows[0] ?? null);
         Object.assign(carro, fusionado);
         this.rellenarEditFormDesdeCarro(fusionado);
+        this.controlEdicionMantenimiento.marcarLimpio();
       },
     });
   }
@@ -542,10 +568,28 @@ export class CarrosPageComponent {
     this.editForm.fechaUltimaInspeccion = this.fechaInput(carro.fechaUltimaInspeccion);
   }
 
-  cancelarEdicion(): void {
+  mantenimientoTieneCambios(): boolean {
+    return this.controlEdicionMantenimiento.tieneCambios();
+  }
+
+  tieneEdicionPendiente(): boolean {
+    return this.editando;
+  }
+
+  private cerrarEdicionMantenimiento(): void {
     this.editando = false;
     this.guardando = false;
     this.errorValidacion = null;
+  }
+
+  async cancelarEdicion(): Promise<void> {
+    const ok = await confirmarDescartarCambios(this.confirmDialog, this.tieneEdicionPendiente(), {
+      title: 'Cancelar mantención',
+      message: 'Tienes un registro de mantención sin guardar. ¿Deseas descartar los cambios?',
+    });
+    if (!ok) return;
+    this.cerrarEdicionMantenimiento();
+    this.controlEdicionMantenimiento.marcarLimpio();
   }
 
   guardarEdicion(carro: CarroDto): void {
@@ -584,12 +628,11 @@ export class CarrosPageComponent {
       next: (actualizado) => {
         Object.assign(carro, actualizado);
         this.guardando = false;
-        this.editando = false;
+        this.cerrarEdicionMantenimiento();
+        this.controlEdicionMantenimiento.marcarLimpio();
         this.mensajeEdicion = 'Datos del carro actualizados correctamente.';
         this.cargarHistorialGeneral();
-        this.carrosApi.obtener(carro.id).subscribe({
-          next: (refresco) => Object.assign(carro, refresco),
-        });
+        this.refrescarCarroEnVista(carro);
       },
       error: () => {
         this.guardando = false;

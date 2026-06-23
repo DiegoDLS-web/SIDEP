@@ -72,14 +72,46 @@ export const ETIQUETAS_TIPO_VOLUNTARIO: Record<string, string> = {
   CONFEDERADO: 'Confederado',
 };
 
-/** Cargos de alta comandancia (padrón de asistencia en parte, sección propia). */
-export const CARGOS_ALTA_COMANDANCIA = new Set([
-  'SEGUNDO_COMANDANTE',
-  'TESORERO_GENERAL',
-  'SECRETARIO_GENERAL',
-  'VICE_SUPERINTENDENTE',
+/** Cargos de alta comandancia (oficiales generales en padrón de asistencia). */
+export const CARGOS_OFICIALES_GENERALES = new Set([
   'SUPERINTENDENTE',
+  'VICE_SUPERINTENDENTE',
+  'SECRETARIO_GENERAL',
+  'TESORERO_GENERAL',
+  'PRIMER_COMANDANTE',
+  'SEGUNDO_COMANDANTE',
 ]);
+
+/** Inspectores y oficialidad de comandancia (padrón impreso). */
+export const CARGOS_INSPECTORES_COMANDANCIA = new Set([
+  'INSPECTOR_COMANDANCIA_1',
+  'INSPECTOR_COMANDANCIA_2',
+  'INSPECTOR_MATERIAL_MAYOR',
+  'AYUDANTE_COMANDANTE',
+  'INSPECTOR_COMUNICACIONES',
+  'SEGUNDO_AYUDANTE',
+  'OFICIAL_MAQUINAS',
+  'INTENDENTE_CUARTEL',
+  'INTENDENTE',
+]);
+
+/** Oficialidad de compañía (directorio impreso, columna central). */
+export const CARGOS_OFICIALES_COMPANIA = new Set([
+  'DIRECTOR_COMPANIA',
+  'SECRETARIO_COMPANIA',
+  'TESORERO_COMPANIA',
+  'PRO_SECRETARIO_COMPANIA',
+  'CAPITAN_COMPANIA',
+  'TENIENTE_PRIMERO',
+  'TENIENTE_SEGUNDO',
+  'TENIENTE_TERCERO',
+  'TENIENTE_CUARTO',
+  'AYUDANTE_COMPANIA',
+  'PRO_AYUDANTE',
+]);
+
+/** @deprecated Usar CARGOS_OFICIALES_GENERALES */
+export const CARGOS_ALTA_COMANDANCIA = CARGOS_OFICIALES_GENERALES;
 
 export const TIPOS_VOLUNTARIO_ORDEN = [
   'ASPIRANTE',
@@ -157,6 +189,33 @@ export function etiquetaOficialidadCargo(
   const c = (cargoOficialidad ?? '').trim();
   if (!c || c === 'VOLUNTARIO') return 'Sin cargo de oficialidad';
   return ETIQUETAS_CARGO_OFICIALIDAD[c] ?? c.replace(/_/g, ' ');
+}
+
+/** Etiqueta del padrón impreso: clave de nómina + nombre en mayúsculas. */
+export function etiquetaPadronAsistenciaParte(u: {
+  claveNomina?: string | null;
+  nombre: string;
+  nombres?: string | null;
+  apellidoPaterno?: string | null;
+  apellidoMaterno?: string | null;
+  rol?: string | null;
+}): string {
+  const clave = (u.claveNomina ?? '').trim();
+  const nombre = nombreListaSoloPersona(u).toUpperCase();
+  return clave ? `${clave} ${nombre}` : nombre;
+}
+
+export function ordenPorClaveNomina(
+  a: { claveNomina?: string | null; nombre: string },
+  b: { claveNomina?: string | null; nombre: string },
+): number {
+  const num = (u: { claveNomina?: string | null }) => {
+    const raw = (u.claveNomina ?? '').trim().replace(/[^\d.]/g, '');
+    const n = parseFloat(raw);
+    return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+  };
+  const diff = num(a) - num(b);
+  return diff !== 0 ? diff : a.nombre.localeCompare(b.nombre, 'es');
 }
 
 export const REGIONES_COMUNAS_CHILE: ReadonlyArray<{ region: string; comunas: readonly string[] }> = [

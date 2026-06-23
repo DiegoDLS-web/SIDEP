@@ -1,6 +1,6 @@
 import { CommonModule, formatDate } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import type { UsuarioListaDto } from '../../models/usuario.dto';
@@ -17,18 +17,30 @@ import {
   REGIONES_COMUNAS_CHILE,
   GRUPOS_SANGUINEOS,
 } from '../usuarios/usuario-registro.constants';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
+import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
+import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util';
+import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
+import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
+import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 
 @Component({
   selector: 'app-mi-perfil',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidEdicionPendienteBannerComponent],
   templateUrl: './mi-perfil.component.html',
 })
-export class MiPerfilComponent implements OnInit {
+export class MiPerfilComponent implements OnInit, ComponenteConEdicionPendiente {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
   readonly navUi = inject(NavegacionUiService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
+
+  constructor() {
+    const destroyRef = inject(DestroyRef);
+    registrarEdicionPendienteGlobal(destroyRef, () => this.tieneEdicionPendiente());
+  }
 
   loading = true;
   error: string | null = null;
@@ -70,6 +82,12 @@ export class MiPerfilComponent implements OnInit {
   fotoInicialMisDatos = '';
   firmaInicialMisDatos = '';
   miForm = this.miFormVacio();
+
+  private readonly controlEdicionPerfil = crearControlEdicionPendiente(() => ({ ...this.miForm, firma: this.miForm.firmaImagen }));
+
+  perfilTieneCambios(): boolean {
+    return this.controlEdicionPerfil.tieneCambios();
+  }
 
   comunasDisponiblesMis: readonly string[] = [];
 
@@ -267,14 +285,35 @@ export class MiPerfilComponent implements OnInit {
     this.editandoMisDatos = true;
     this.errorForm = null;
     this.poblarMisForm(this.perfil);
+    this.controlEdicionPerfil.marcarLimpio();
   }
 
-  cancelarEdicionMisDatos(): void {
+  tieneEdicionPendiente(): boolean {
+    if (this.mostrarFormPassword && this.passwordTieneDatos()) return true;
+    if (!this.editandoMisDatos) return false;
+    return this.controlEdicionPerfil.tieneCambios();
+  }
+
+  passwordTieneDatos(): boolean {
+    return !!(
+      this.passwordActual.trim() ||
+      this.passwordNueva.trim() ||
+      this.passwordConfirmar.trim()
+    );
+  }
+
+  async cancelarEdicionMisDatos(): Promise<void> {
     if (!this.perfil) return;
+    const ok = await confirmarDescartarCambios(this.confirmDialog, this.controlEdicionPerfil.tieneCambios(), {
+      title: 'Descartar edición',
+      message: 'Tienes cambios en tu perfil sin guardar. ¿Deseas descartarlos?',
+    });
+    if (!ok) return;
     this.editandoMisDatos = false;
     this.errorForm = null;
     this.guardandoPerfil = false;
     this.poblarMisForm(this.perfil);
+    this.controlEdicionPerfil.marcarLimpio();
   }
 
   private emailEsValido(value: string): boolean {
@@ -435,6 +474,7 @@ export class MiPerfilComponent implements OnInit {
         this.guardandoPerfil = false;
         this.fotoRota = false;
         this.poblarMisForm(p);
+        this.controlEdicionPerfil.marcarLimpio();
         this.toast.exito('Tus datos se actualizaron correctamente.');
       },
       error: (err: { error?: { error?: string } }) => {
@@ -454,7 +494,12 @@ export class MiPerfilComponent implements OnInit {
     this.errorPasswordForm = null;
   }
 
-  cancelarCambioPassword(): void {
+  async cancelarCambioPassword(): Promise<void> {
+    const ok = await confirmarDescartarCambios(this.confirmDialog, this.passwordTieneDatos(), {
+      title: 'Cerrar cambio de contraseña',
+      message: 'Tienes datos en el formulario de contraseña. ¿Deseas descartarlos?',
+    });
+    if (!ok) return;
     this.mostrarFormPassword = false;
     this.passwordActual = '';
     this.passwordNueva = '';

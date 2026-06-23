@@ -1,5 +1,5 @@
 import { CommonModule, formatDate } from '@angular/common';
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, DestroyRef, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, filter, forkJoin, map, of, startWith, switchMap, type Observable } from 'rxjs';
@@ -11,6 +11,12 @@ import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { ASISTENCIA_CONTEXTO_OPCIONES, resolverEtiquetaAsistenciaId } from './asistencia-roster.constants';
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
+import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
+import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util';
+import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
+import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
+import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 
 type DetalleVm =
   | { status: 'loading' }
@@ -29,17 +35,23 @@ type ParteAnalitica = {
 @Component({
   selector: 'app-parte-detalle',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidEdicionPendienteBannerComponent],
   templateUrl: './parte-detalle.component.html',
 })
-export class ParteDetalleComponent implements OnInit {
+export class ParteDetalleComponent implements OnInit, ComponenteConEdicionPendiente {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly partesApi = inject(PartesService);
   private readonly exportador = inject(PartesExportService);
   private readonly toast = inject(ToastService);
   private readonly usuariosApi = inject(UsuariosService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
+
+  constructor() {
+    const destroyRef = inject(DestroyRef);
+    registrarEdicionPendienteGlobal(destroyRef, () => this.tieneEdicionPendiente());
+  }
 
   private nombresPorRut: Record<string, string> = {};
 
@@ -94,6 +106,16 @@ export class ParteDetalleComponent implements OnInit {
     estado: '',
   };
 
+  private readonly controlEdicion = crearControlEdicionPendiente(() => ({ ...this.form }));
+
+  tieneEdicionPendiente(): boolean {
+    return this.editando && this.controlEdicion.tieneCambios();
+  }
+
+  edicionInlineTieneCambios(): boolean {
+    return this.controlEdicion.tieneCambios();
+  }
+
   idDisplay(correlativo: string): string {
     return `P-${correlativo}`;
   }
@@ -142,11 +164,18 @@ export class ParteDetalleComponent implements OnInit {
       fecha: this.isoLocal(parte.fecha),
       estado: parte.estado,
     };
+    this.controlEdicion.marcarLimpio();
   }
 
-  cancelarEdicion(): void {
+  async cancelarEdicion(): Promise<void> {
+    const ok = await confirmarDescartarCambios(this.confirmDialog, this.edicionInlineTieneCambios(), {
+      title: 'Descartar edición',
+      message: 'Tienes cambios en el parte sin guardar. ¿Deseas descartarlos?',
+    });
+    if (!ok) return;
     this.editando = false;
     this.errorEdicion = null;
+    this.controlEdicion.marcarLimpio();
   }
 
   guardarEdicion(parte: any): void {
@@ -167,6 +196,7 @@ export class ParteDetalleComponent implements OnInit {
         next: () => {
           this.guardando = false;
           this.editando = false;
+          this.controlEdicion.marcarLimpio();
           this.toast.programarTrasRecarga('Parte actualizado correctamente.');
           window.location.reload();
         },

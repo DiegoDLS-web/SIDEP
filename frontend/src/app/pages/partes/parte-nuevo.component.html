@@ -45,6 +45,7 @@
       </div>
       <!-- Progreso -->
       <div class="mx-auto w-full min-w-0 max-w-none px-4 pb-3 pt-2 sm:px-6 md:px-8 lg:px-10 xl:px-12">
+        <app-sid-edicion-pendiente-banner [visible]="parteTieneCambios()" />
         <div class="flex snap-x snap-mandatory items-center gap-2 overflow-x-auto pb-1 sm:justify-between">
           @for (p of pasosVisibles; track p; let i = $index) {
             <button
@@ -587,16 +588,22 @@
                   <div class="space-y-3 lg:max-h-[min(72vh,760px)] lg:overflow-y-auto lg:pr-1 [scrollbar-color:#4b5563_#111827] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-[#111827] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-600">
                     @for (sec of col.secciones; track sec.titulo) {
                       @if (itemsAsistenciaFiltrados(sec.items).length > 0) {
-                        <div class="rounded-xl border border-gray-800 bg-[#0a0a0a] p-3">
+                        <div class="rounded-xl border border-gray-800 bg-[#0a0a0a] p-3 sm:p-4">
                           <p
-                            class="mb-2 border-b border-gray-800 pb-1.5 text-[10px] font-bold uppercase tracking-wide text-red-500/90 sm:text-[11px]"
+                            class="mb-3 border-b border-gray-800 pb-2 text-[10px] font-bold uppercase tracking-wide text-red-500/90 sm:text-[11px]"
                           >
                             {{ sec.titulo }}
                           </p>
-                          <div class="space-y-1">
+                          <div
+                            class="space-y-1.5"
+                            [class.grid]="sec.columnasGrid"
+                            [class.gap-x-4]="sec.columnasGrid"
+                            [class.gap-y-2]="sec.columnasGrid"
+                            [ngClass]="clasesGridAsistencia(sec)"
+                          >
                             @for (it of itemsAsistenciaFiltrados(sec.items); track it.id) {
                               <label
-                                class="flex cursor-pointer items-start gap-2 rounded-lg border border-transparent px-2 py-1.5 text-sm text-gray-200 transition-colors hover:bg-gray-800/50"
+                                class="flex min-w-0 cursor-pointer items-start gap-2.5 rounded-lg border border-gray-800/60 bg-[#0f0f0f]/40 px-2.5 py-2 text-xs leading-relaxed text-gray-200 transition-colors hover:border-gray-700 hover:bg-gray-800/40 sm:text-[13px]"
                                 [class.opacity-60]="
                                   asistenciaBloqueadaPorOtroContexto(it.id) || asistenciaNoSeleccionable(it.id)
                                 "
@@ -615,7 +622,7 @@
                                   (change)="onToggleAsistencia(it.id, $event)"
                                 />
                                 <span
-                                  class="leading-snug"
+                                  class="min-w-0 flex-1 break-words leading-snug"
                                   [class.text-yellow-300]="estadoDisponibilidadAsistencia(it.id) === 'licencia'"
                                   [class.text-gray-500]="estadoDisponibilidadAsistencia(it.id) === 'bloqueado'"
                                 >

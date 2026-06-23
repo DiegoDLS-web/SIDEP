@@ -2,6 +2,12 @@ import { Request, Response } from 'express';
 import { loginUsuario, registrarUsuario } from './autenticacion.service';
 import prisma from '../../prisma'; 
 import { validarRut } from '../../utils/rut.util';
+import { esErrorConexionPrisma } from '../../utils/db-retry.util';
+import {
+    CODIGO_ACCESO_USUARIO_INACTIVO,
+    payloadAccesoDenegado,
+    puedeAccederApp,
+} from '../../utils/usuario-acceso.util';
 
 // 1. Registro
 export const register = async (req: Request, res: Response) => {
@@ -56,10 +62,24 @@ export const login = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('🔥 ERROR EN LOGIN:', error);
-        const statusCode = error.statusCode || 500;
-        return res.status(statusCode).json({ 
-            success: false, 
-            message: error.message 
+        if (esErrorConexionPrisma(error)) {
+            return res.status(503).json({
+                success: false,
+                message: 'No se pudo conectar con la base de datos. Espera unos segundos e intenta de nuevo.',
+            });
+        }
+        const msg = String(error?.message ?? 'Error al iniciar sesión');
+        const statusCode = msg.includes('Credenciales')
+            ? 401
+            : error?.codigo === CODIGO_ACCESO_USUARIO_INACTIVO || msg.includes('restringido')
+              ? 403
+              : error.statusCode || 500;
+        return res.status(statusCode).json({
+            success: false,
+            message: msg,
+            ...(error?.codigo === CODIGO_ACCESO_USUARIO_INACTIVO
+                ? { codigo: CODIGO_ACCESO_USUARIO_INACTIVO }
+                : {}),
         });
     }
 };
@@ -71,11 +91,15 @@ export const me = async (req: Request, res: Response) => {
         
         const usuario = await prisma.usuario.findUnique({
             where: { rut: userRut },
-            include: { rol: true } 
+            include: { rol: true, estadoVoluntario: true },
         });
 
         if (!usuario) {
             return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+        }
+
+        if (!puedeAccederApp(usuario)) {
+            return res.status(403).json(payloadAccesoDenegado(usuario));
         }
 
         const nombreCompleto = `${usuario.nombres} ${usuario.apellidoPaterno} ${usuario.apellidoMaterno}`.trim();
@@ -86,7 +110,8 @@ export const me = async (req: Request, res: Response) => {
             nombre: nombreCompleto,
             rol: usuario.rol?.codigo || 'USER',
             email: usuario.email,
-            activo: usuario.activo === 1
+            activo: usuario.activo === 1,
+            estadoVoluntario: usuario.estadoVoluntario?.codigo ?? null,
         });
     } catch (error) {
         console.error('🔥 ERROR EN ME:', error);

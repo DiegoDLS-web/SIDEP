@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, catchError, of } from 'rxjs';
@@ -16,9 +16,12 @@ import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { firmaEfectiva } from '../../utils/firma-resolver';
 import { filtrarUsuariosChecklist } from '../../utils/usuarios-checklist.util';
+import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util';
 import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
 import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
+import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
 import { ubicacionesPlantillaTraumaOficial } from './trauma-plantilla-oficial';
+import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 
 type MaterialItem = {
@@ -133,7 +136,7 @@ function fusionarBolsosConPlantillaCanon(bolsos: Bolso[], unidad: string): Bolso
 @Component({
   selector: 'app-bolso-trauma-registro',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidDateInputComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidDateInputComponent, SidEdicionPendienteBannerComponent],
   templateUrl: './bolso-trauma-registro.component.html',
 })
 export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicionPendiente {
@@ -148,6 +151,11 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
   private readonly pdf = inject(PdfExportService);
   private readonly toast = inject(ToastService);
   private readonly auth = inject(AuthService);
+
+  constructor() {
+    const destroyRef = inject(DestroyRef);
+    registrarEdicionPendienteGlobal(destroyRef, () => this.tieneEdicionPendiente());
+  }
 
   unidad = 'R-1';
   nombreCarro = '';
@@ -177,6 +185,7 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
   editandoPlantilla = false;
   guardandoPlantilla = false;
   motivoEdicionPlantilla = '';
+  private snapshotPlantillaBolso: Bolso[] | null = null;
   /** Acordeón por compartimiento (índice); true = expandido. */
   private ubicacionesExpandidas: Record<number, boolean> = {};
 
@@ -192,7 +201,13 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
   }));
 
   tieneEdicionPendiente(): boolean {
-    if (this.loading || this.saving || this.savingBorrador || this.editandoPlantilla) return false;
+    if (this.loading || this.saving || this.savingBorrador) return false;
+    if (this.editandoPlantilla && this.plantillaBolsoTieneCambios()) return true;
+    return this.controlEdicion.tieneCambios();
+  }
+
+  registroTieneCambios(): boolean {
+    if (this.editandoPlantilla) return this.plantillaBolsoTieneCambios();
     return this.controlEdicion.tieneCambios();
   }
 
@@ -388,10 +403,29 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
 
   activarEdicionPlantilla(): void {
     this.motivoEdicionPlantilla = '';
+    this.snapshotPlantillaBolso = JSON.parse(JSON.stringify(this.bolsos)) as Bolso[];
     this.editandoPlantilla = true;
   }
 
   cancelarEdicionPlantilla(): void {
+    void this.intentarCancelarEdicionPlantilla();
+  }
+
+  private plantillaBolsoTieneCambios(): boolean {
+    if (!this.snapshotPlantillaBolso) return false;
+    return JSON.stringify(this.bolsos) !== JSON.stringify(this.snapshotPlantillaBolso);
+  }
+
+  async intentarCancelarEdicionPlantilla(): Promise<void> {
+    const ok = await confirmarDescartarCambios(this.confirmDialog, this.plantillaBolsoTieneCambios(), {
+      title: 'Salir de edición de plantilla',
+      message: 'Hay cambios en la plantilla del bolso sin guardar. ¿Deseas descartarlos?',
+    });
+    if (!ok) return;
+    if (this.snapshotPlantillaBolso) {
+      this.bolsos = JSON.parse(JSON.stringify(this.snapshotPlantillaBolso)) as Bolso[];
+    }
+    this.snapshotPlantillaBolso = null;
     this.motivoEdicionPlantilla = '';
     this.editandoPlantilla = false;
   }

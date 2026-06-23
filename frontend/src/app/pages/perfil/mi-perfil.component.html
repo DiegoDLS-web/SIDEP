@@ -195,6 +195,7 @@
 
           @if (editandoMisDatos) {
             <div class="space-y-6 rounded-xl border border-slate-800/90 bg-black/25 p-4 ring-1 ring-inset ring-white/5 sm:p-6">
+              <app-sid-edicion-pendiente-banner [visible]="perfilTieneCambios()" />
               <p class="text-xs uppercase tracking-wide text-slate-500">
                 Puedes actualizar contacto y domicilio. La identidad (RUT, nombres) la gestiona un administrador desde
                 <span class="text-slate-400">Usuarios</span>.
@@ -570,6 +571,7 @@
 
       @if (mostrarFormPassword) {
         <div class="mt-5 space-y-4 rounded-xl border border-slate-800 bg-black/25 p-4 ring-1 ring-inset ring-white/5 max-w-lg">
+          <app-sid-edicion-pendiente-banner [visible]="passwordTieneDatos()" />
           @if (errorPasswordForm) {
             <div class="rounded-xl border border-amber-800/55 bg-amber-950/25 px-4 py-3 text-xs text-amber-100">
               {{ errorPasswordForm }}

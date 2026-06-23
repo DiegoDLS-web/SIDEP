@@ -414,7 +414,7 @@
       role="dialog"
       aria-modal="true"
       aria-labelledby="lic-modal-titulo"
-      (click)="$event.target === $event.currentTarget && cerrarModalNuevaSolicitud()"
+      (click)="$event.target === $event.currentTarget && intentarCerrarModalNuevaSolicitud()"
     >
       <div
         class="flex max-h-[min(100dvh,720px)] w-full max-w-lg flex-col rounded-t-2xl border border-slate-700 bg-[#121212] shadow-2xl sm:max-h-[85vh] sm:rounded-2xl"
@@ -425,11 +425,12 @@
             <h2 id="lic-modal-titulo" class="text-lg font-semibold text-white">Nueva solicitud</h2>
             <p class="text-xs text-slate-500">Fechas, motivo y adjunto opcional.</p>
           </div>
-          <button type="button" class="rounded-lg border border-slate-600 p-2 text-slate-300 hover:bg-slate-800" title="Cerrar" (click)="cerrarModalNuevaSolicitud()">
+          <button type="button" class="rounded-lg border border-slate-600 p-2 text-slate-300 hover:bg-slate-800" title="Cerrar" (click)="intentarCerrarModalNuevaSolicitud()">
             <lucide-icon name="x" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
           </button>
         </div>
         <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+          <app-sid-edicion-pendiente-banner [visible]="solicitudTieneCambios()" />
           <div class="grid gap-3 sm:grid-cols-2">
             <label class="text-sm sm:col-span-1">
               <span class="mb-1 block text-gray-400">Fecha inicio</span>

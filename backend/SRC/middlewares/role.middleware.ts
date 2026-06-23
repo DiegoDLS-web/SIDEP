@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../prisma';
+import { payloadAccesoDenegado, puedeAccederApp } from '../utils/usuario-acceso.util';
 
 export const requireRoles = (...allowedRoles: string[]) => {
     return async (req: Request, res: Response, next: NextFunction) => {
@@ -9,18 +10,19 @@ export const requireRoles = (...allowedRoles: string[]) => {
                 return res.status(401).json({ success: false, message: 'No autorizado: Usuario no autenticado' });
             }
 
-            // Consultar en la base de datos para máxima seguridad (cambios de rol o desactivación en tiempo real)
-            const dbUser = await prisma.usuario.findUnique({
-                where: { rut: user.rut },
-                include: { rol: true }
-            });
+            const dbUser =
+                (req as any).dbUser ??
+                (await prisma.usuario.findUnique({
+                    where: { rut: user.rut },
+                    include: { rol: true, estadoVoluntario: true },
+                }));
 
             if (!dbUser) {
                 return res.status(401).json({ success: false, message: 'Usuario no encontrado' });
             }
 
-            if (dbUser.activo !== 1) {
-                return res.status(403).json({ success: false, message: 'Usuario inactivo' });
+            if (!puedeAccederApp(dbUser)) {
+                return res.status(403).json(payloadAccesoDenegado(dbUser));
             }
 
             const userRole = dbUser.rol?.codigo || '';

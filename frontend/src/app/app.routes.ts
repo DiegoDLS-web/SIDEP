@@ -73,6 +73,7 @@ export const routes: Routes = [
       {
         path: 'partes/:id',
         title: 'Detalle de parte · SIDEP',
+        canDeactivate: [edicionPendienteGuard],
         loadComponent: loadParteDetalleComponent,
       },
       {
@@ -83,12 +84,14 @@ export const routes: Routes = [
       {
         path: 'catalogo-emergencias',
         canActivate: [catalogoEmergenciasGuard],
+        canDeactivate: [edicionPendienteGuard],
         title: 'Tipos de emergencia · SIDEP',
         loadComponent: loadCatalogoTiposEmergenciaComponent,
       },
       {
         path: 'carros/:id',
         title: 'Detalle carro · SIDEP',
+        canDeactivate: [edicionPendienteGuard],
         loadComponent: loadCarrosPageComponent,
       },
       {
@@ -135,12 +138,14 @@ export const routes: Routes = [
       {
         path: 'usuarios',
         canActivate: [gestionUsuariosGuard],
+        canDeactivate: [edicionPendienteGuard],
         title: 'Usuarios · SIDEP',
         loadComponent: loadUsuariosComponent,
       },
       {
         path: 'configuraciones',
         canActivate: [adminGuard],
+        canDeactivate: [edicionPendienteGuard],
         title: 'Configuraciones · SIDEP',
         loadComponent: loadConfiguracionesComponent,
       },
@@ -175,6 +180,7 @@ export const routes: Routes = [
       {
         path: 'perfil',
         title: 'Mi perfil · SIDEP',
+        canDeactivate: [edicionPendienteGuard],
         loadComponent: loadMiPerfilComponent,
       },
       {
@@ -190,6 +196,7 @@ export const routes: Routes = [
       {
         path: 'licencias-medicas',
         title: 'Licencias · SIDEP',
+        canDeactivate: [edicionPendienteGuard],
         loadComponent: loadLicenciasPageComponent,
       },
       {
