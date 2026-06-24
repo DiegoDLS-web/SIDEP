@@ -3,7 +3,7 @@
     <div class="space-y-6" role="status" aria-live="polite" aria-busy="true">
       <span class="sr-only">Cargando listado de partes…</span>
       <div class="h-10 max-w-md sid-skeleton rounded-xl"></div>
-      <div class="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-4">
+      <div class="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 xl:grid-cols-4">
         @for (sk of [1, 2, 3, 4]; track sk) {
           <div class="h-28 rounded-2xl border border-[var(--sid-border)] sid-skeleton"></div>
         }
@@ -37,7 +37,7 @@
       </div>
     </section>
 
-    <div sidScrollReveal class="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 lg:grid-cols-4">
+    <div sidScrollReveal class="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 xl:grid-cols-4">
       <div class="sid-card-hover rounded-2xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] p-4 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-5">
         <div class="mb-1.5 flex items-center justify-between">
           <lucide-icon name="file-text" class="h-7 w-7 text-sky-400" [size]="28" color="currentColor" aria-hidden="true"></lucide-icon>
@@ -429,7 +429,7 @@
         <div class="mt-6 rounded-xl border border-rose-900/35 bg-rose-950/15 p-4 md:p-5">
           <p class="mb-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-rose-300/90">Período rápido (solo partes)</p>
           <div
-            class="grid grid-cols-4 gap-1.5 sm:gap-3"
+            class="grid grid-cols-2 gap-1.5 sm:grid-cols-4 sm:gap-3"
             role="group"
             aria-label="Filtrar partes por período"
           >
@@ -504,7 +504,7 @@
     </section>
 
     <section class="sid-partes-historial-shell min-h-[26rem] md:min-h-[34rem]">
-    <div class="relative mb-4 space-y-3 lg:hidden">
+    <div class="relative mb-4 space-y-3 xl:hidden">
       <div class="space-y-3">
       @for (parte of filtradosPaginados(); track parte.id) {
         <div
@@ -569,7 +569,7 @@
       </div>
     </div>
     @if (totalFiltrado > 0) {
-      <div class="mb-6 flex flex-col gap-2 px-1 lg:hidden sm:flex-row sm:items-center sm:justify-between">
+      <div class="mb-6 flex flex-col gap-2 px-1 xl:hidden sm:flex-row sm:items-center sm:justify-between">
         <span class="text-sm text-gray-400">
           Página {{ paginaPartes }} de {{ totalPaginasPartes() }} · {{ totalFiltrado }} resultado(s)
         </span>
@@ -596,7 +596,7 @@
 
     <div
       sidScrollReveal
-      class="relative z-0 hidden overflow-hidden rounded-2xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 lg:block"
+      class="relative z-0 hidden overflow-hidden rounded-2xl border border-[var(--sid-border)] bg-[var(--sid-surface-card)] shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 xl:block"
     >
       <div class="sid-history-head !mb-0 border-b border-slate-800/80 p-4 sm:p-5">
         <div>

@@ -753,6 +753,7 @@ body {
 
 .sid-shell__aside {
   background-color: var(--sid-shell-aside);
+  min-height: 0;
   height: 100dvh;
   height: 100vh;
 }
@@ -952,19 +953,33 @@ body.motion-suave .sid-brand-e-bar {
 .sid-shell__aside nav,
 .sid-sidebar-nav {
   overflow-x: hidden;
-  overflow-y: hidden;
-  scrollbar-width: none;
-}
-
-.sid-shell__aside nav::-webkit-scrollbar,
-.sid-sidebar-nav::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .sid-sidebar-footer {
   background: linear-gradient(180deg, rgba(2, 6, 23, 0.06), rgba(2, 6, 23, 0));
+}
+
+@media (max-height: 820px) {
+  .sid-sidebar-nav {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .sid-sidebar-nav .sid-nav-section.mt-5 {
+    margin-top: 0.75rem;
+  }
+
+  .sid-sidebar-nav .sid-nav-item {
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+  }
+
+  .sid-sidebar-top-divider,
+  .sid-sidebar-footer {
+    padding: 0.75rem;
+  }
 }
 
 .sid-sidebar-top-divider {
@@ -1176,7 +1191,19 @@ body.motion-suave .sid-brand-e-bar {
 .sid-filtros-bar__grid {
   display: grid;
   gap: 0.75rem;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+}
+
+@media (min-width: 768px) {
+  .sid-filtros-bar__grid {
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .sid-filtros-bar__grid {
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  }
 }
 
 .sid-filtros-bar__actions {

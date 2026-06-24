@@ -24,16 +24,16 @@
   <aside
     id="side-navigation"
     aria-label="Navegación principal"
-    class="sid-shell__aside sid-glass-aside fixed inset-y-0 left-0 z-40 flex w-72 max-w-[85vw] -translate-x-full flex-col border-r border-[var(--sid-border)] transition-transform lg:static lg:w-64 lg:max-w-none lg:translate-x-0"
+    class="sid-shell__aside sid-glass-aside fixed inset-y-0 left-0 z-40 flex min-h-0 w-72 max-w-[85vw] -translate-x-full flex-col border-r border-[var(--sid-border)] transition-transform lg:static lg:w-64 lg:max-w-none lg:translate-x-0"
     [class.translate-x-0]="sidebarAbierto"
   >
-    <div class="sid-sidebar-top-divider p-4">
+    <div class="sid-sidebar-top-divider shrink-0 p-4">
       <div class="sid-glass-panel rounded-xl p-2.5">
         <app-sidep-brand-lockup variant="sidebar" [subline]="nombreCompaniaTag() ?? 'Compañía'" />
       </div>
     </div>
 
-    <nav class="sid-sidebar-nav flex-1 overflow-x-hidden overflow-y-hidden p-4" aria-label="Secciones">
+    <nav class="sid-sidebar-nav sid-scroll-dark min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-4" aria-label="Secciones">
       @for (section of sectionesSidebar(); track section.title; let si = $index) {
         <div class="sid-nav-section px-1 py-1" [class.mt-5]="si > 0">
           <p class="sid-nav-section-title mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
@@ -61,7 +61,7 @@
       }
     </nav>
 
-    <div class="sid-sidebar-footer sid-sidebar-bottom-divider p-4">
+    <div class="sid-sidebar-footer sid-sidebar-bottom-divider shrink-0 p-4">
       <a
         routerLink="/perfil"
         (click)="cerrarSidebar()"
