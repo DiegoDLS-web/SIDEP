@@ -32,6 +32,29 @@ export const getInventarioCarro = async (req: Request, res: Response) => {
     }
 };
 
+export const getInventarioChecklistCarro = async (req: Request, res: Response) => {
+    try {
+        const data = await equipamientoService.obtenerInventarioChecklistCarro(req.params.carroId as string);
+        res.status(200).json({ success: true, data });
+    } catch (error: any) {
+        res.status(error.statusCode || 500).json({ success: false, message: error.message });
+    }
+};
+
+export const postSincronizarInventarioCarro = async (req: Request, res: Response) => {
+    try {
+        const carroId = String(req.params.carroId ?? '').trim();
+        const ubicaciones = Array.isArray(req.body?.ubicaciones) ? req.body.ubicaciones : [];
+        if (!carroId) {
+            return res.status(400).json({ success: false, message: 'carroId requerido' });
+        }
+        const data = await equipamientoService.sincronizarInventarioDesdeUbicacionesCarro(carroId, ubicaciones);
+        res.status(200).json({ success: true, data });
+    } catch (error: any) {
+        res.status(error.statusCode || 500).json({ success: false, message: error.message });
+    }
+};
+
 export const getSelectorBolsos = async (req: Request, res: Response) => {
     try {
         const data = await equipamientoService.obtenerSelectorBolsos();

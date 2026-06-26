@@ -10,6 +10,12 @@ const router = Router();
 // --- CARROS ---
 router.get('/carros', protect, carrosController.getCarros);
 router.get('/carros/historial-general', protect, carrosController.getHistorialGeneralCarros);
+router.patch(
+    '/carros/mantenimientos/:id',
+    protect,
+    requireRoles('ADMIN', 'OFICIAL', 'CUARTELERO'),
+    carrosController.editMantenimientoHistorial,
+);
 router.get('/carros/:id', protect, carrosController.obtenerCarroPorId);
 router.post('/carros', protect, requireRoles('ADMIN', 'OFICIAL'), carrosController.addCarro);
 router.patch('/carros/:id', protect, requireRoles('ADMIN', 'OFICIAL', 'CUARTELERO'), carrosController.editCarro);
@@ -23,6 +29,8 @@ router.get('/equipamiento/bolsos/unidad/:unidad', protect, equipamientoControlle
 router.post('/equipamiento/bolsos/unidad/:unidad/revision', protect, equipamientoController.postRevisionBolsoTrauma);
 router.post('/equipamiento/materiales', protect, requireRoles('ADMIN', 'OFICIAL'), equipamientoController.addMaterialCarro);
 router.get('/equipamiento/carro/:carroId', protect, equipamientoController.getInventarioCarro);
+router.get('/equipamiento/carro/:carroId/checklist-inventario', protect, equipamientoController.getInventarioChecklistCarro);
+router.post('/equipamiento/carro/:carroId/sincronizar-inventario', protect, requireRoles('ADMIN', 'OFICIAL'), equipamientoController.postSincronizarInventarioCarro);
 
 // --- CHECKLISTS ---
 router.get('/checklist/plantillas', protect, checklistsController.obtenerPlantillas);

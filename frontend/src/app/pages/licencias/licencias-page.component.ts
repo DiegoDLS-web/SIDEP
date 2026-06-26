@@ -7,10 +7,9 @@ import type { LicenciaEstado, LicenciaMedicaDto, LicenciasResumenDto } from '../
 import { AuthService } from '../../services/auth.service';
 import { LicenciasService } from '../../services/licencias.service';
 import { PdfExportService } from '../../services/pdf-export.service';
+import { exportarExcelSidep } from '../../utils/excel-export.util';
+import { SIDEP_ACTION_ICON } from '../../shared/sidep-action-icons';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 import { etiquetaOficialidadCargo } from '../usuarios/usuario-registro.constants';
@@ -26,6 +25,7 @@ import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-p
   templateUrl: './licencias-page.component.html',
 })
 export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendiente {
+  readonly icon = SIDEP_ACTION_ICON;
   private readonly api = inject(LicenciasService);
   private readonly auth = inject(AuthService);
   private readonly pdfExport = inject(PdfExportService);
@@ -586,41 +586,49 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
     const rows = this.historialFiltrado;
     if (rows.length === 0) return;
     const cols = this.puedeGestionar
-      ? ['Solicitante', 'Período', 'Motivo', 'Estado', 'Resolución']
-      : ['Período', 'Motivo', 'Estado', 'Resolución'];
-    const body = rows.map((l) =>
-      this.puedeGestionar
-        ? [
-            l.usuario?.nombre || `Usuario #${l.usuarioId}`,
-            `${this.fecha(l.fechaInicio)} — ${this.fecha(l.fechaTermino)}`,
-            l.motivo,
-            this.etiquetaEstado(l.estado),
-            l.observacionResolucion || '',
-          ]
-        : [
-            `${this.fecha(l.fechaInicio)} — ${this.fecha(l.fechaTermino)}`,
-            l.motivo,
-            this.etiquetaEstado(l.estado),
-            l.observacionResolucion || '',
-          ],
-    );
-    const aoa = [['SIDEP · Historial licencias médicas'], [`Registros: ${rows.length}`], [], cols, ...body];
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Historial');
-    XLSX.writeFile(wb, `SIDEP-historial-licencias-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      ? ['Solicitante', 'RUT', 'Período inicio', 'Período término', 'Motivo', 'Estado', 'Resolución', 'Resuelto por']
+      : ['Período inicio', 'Período término', 'Motivo', 'Estado', 'Resolución'];
+    const body = rows.map((l) => {
+      const rp = l.resueltoPor;
+      const resueltoPor = rp?.nombre ?? '';
+      if (this.puedeGestionar) {
+        return [
+          l.usuario?.nombre || `Usuario #${l.usuarioId}`,
+          l.usuario?.rut ?? '',
+          this.fecha(l.fechaInicio),
+          this.fecha(l.fechaTermino),
+          l.motivo,
+          this.etiquetaEstado(l.estado),
+          l.observacionResolucion || '',
+          resueltoPor,
+        ];
+      }
+      return [
+        this.fecha(l.fechaInicio),
+        this.fecha(l.fechaTermino),
+        l.motivo,
+        this.etiquetaEstado(l.estado),
+        l.observacionResolucion || '',
+      ];
+    });
+    exportarExcelSidep({
+      titulo: 'SIDEP · Historial de licencias médicas',
+      meta: [`Registros: ${rows.length}`],
+      columnas: cols,
+      filas: body,
+      nombreHoja: 'Licencias',
+      nombreArchivo: `SIDEP-historial-licencias-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      anchosCols: this.puedeGestionar ? [22, 14, 12, 12, 36, 12, 28, 20] : [12, 12, 40, 12, 30],
+    });
   }
 
   exportarHistorialPdf(): void {
     const rows = this.historialFiltrado;
     if (rows.length === 0) return;
-    const doc = new jsPDF({ orientation: 'landscape' });
-    doc.setFontSize(11);
-    doc.text('SIDEP · Historial general de licencias', 14, 14);
-    const head = this.puedeGestionar
-      ? [['Solicitante', 'Período', 'Motivo', 'Estado', 'Resolución']]
-      : [['Período', 'Motivo', 'Estado', 'Resolución']];
-    const body = rows.map((l) =>
+    const columnas = this.puedeGestionar
+      ? ['Solicitante', 'Período', 'Motivo', 'Estado', 'Resolución']
+      : ['Período', 'Motivo', 'Estado', 'Resolución'];
+    const filas = rows.map((l) =>
       this.puedeGestionar
         ? [
             l.usuario?.nombre || `Usuario #${l.usuarioId}`,
@@ -636,8 +644,15 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
             (l.observacionResolucion ?? '').slice(0, 80),
           ],
     );
-    autoTable(doc, { startY: 20, head, body, styles: { fontSize: 7 }, margin: { left: 14, right: 14 } });
-    doc.save(`SIDEP-historial-licencias-${new Date().toISOString().slice(0, 10)}.pdf`);
+    void this.pdfExport.exportarHistorialTabla({
+      titulo: 'Historial general de licencias',
+      subtitulo: 'SIDEP · Licencias médicas',
+      columnas,
+      filas,
+      segmentosNombre: ['Licencias', 'Historial'],
+      landscape: true,
+      resumen: [`Total registros: ${rows.length}`],
+    });
   }
 
   descargarLicenciaPdf(item: LicenciaMedicaDto): void {

@@ -49,7 +49,7 @@
           [disabled]="!datos || exportandoPdf"
           (click)="exportarReportePdf()"
         >
-          <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+          <lucide-icon name="file-down" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
           {{ exportandoPdf ? 'Exportando PDF…' : 'Exportar reporte PDF' }}
         </button>
       </div>
@@ -171,7 +171,7 @@
             [disabled]="exportandoPng === 'kpis'"
             (click)="exportarSeccionPng('kpis')"
           >
-            <lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+            <lucide-icon name="image-down" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
             {{ exportandoPng === 'kpis' ? 'Exportando…' : 'PNG' }}
           </button>
         </div>
@@ -216,7 +216,7 @@
           [disabled]="exportandoPng === 'comparativo-claro'"
           (click)="exportarSeccionPng('comparativo-claro')"
         >
-          <lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+          <lucide-icon name="image-down" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
           {{ exportandoPng === 'comparativo-claro' ? 'Exportando…' : 'PNG' }}
         </button>
       </div>
@@ -317,7 +317,7 @@
               [disabled]="exportandoPng === 'actividad-semanas'"
               (click)="exportarSeccionPng('actividad-semanas')"
             >
-              <lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+              <lucide-icon name="image-down" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
               PNG
             </button>
           </div>
@@ -395,7 +395,7 @@
               [disabled]="exportandoPng === 'sectores-uso'"
               (click)="exportarSeccionPng('sectores-uso')"
             >
-              <lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+              <lucide-icon name="image-down" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
               PNG
             </button>
           </div>
@@ -486,7 +486,7 @@
               [disabled]="exportandoPng === 'checklist-asistencia'"
               (click)="exportarSeccionPng('checklist-asistencia')"
             >
-              <lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+              <lucide-icon name="image-down" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
               PNG
             </button>
           </div>
@@ -586,7 +586,7 @@
               [disabled]="exportandoPng === 'asistencia-voluntario'"
               (click)="exportarSeccionPng('asistencia-voluntario')"
             >
-              <lucide-icon name="download" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
+              <lucide-icon name="image-down" class="h-3.5 w-3.5" [size]="14" color="currentColor"></lucide-icon>
               PNG
             </button>
             <select

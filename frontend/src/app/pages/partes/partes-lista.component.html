@@ -412,7 +412,7 @@
             [disabled]="totalFiltrado === 0"
             (click)="exportarPdf()"
           >
-            <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
+            <lucide-icon [name]="icon.pdf" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
             Descargar PDF
           </button>
           <button
@@ -421,7 +421,7 @@
             [disabled]="totalFiltrado === 0"
             (click)="exportarExcel()"
           >
-            <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
+            <lucide-icon [name]="icon.excel" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
             Descargar Excel
           </button>
         </div>
@@ -556,7 +556,7 @@
               title="PDF"
               (click)="exportarPdfParte(parte)"
             >
-              <lucide-icon name="download" class="h-5 w-5" [size]="20" color="currentColor" aria-hidden="true"></lucide-icon>
+              <lucide-icon [name]="icon.pdf" class="h-5 w-5" [size]="20" color="currentColor" aria-hidden="true"></lucide-icon>
             </button>
           </div>
         </div>
@@ -678,7 +678,7 @@
                       title="Descargar PDF"
                       (click)="exportarPdfParte(parte)"
                     >
-                      <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                      <lucide-icon [name]="icon.pdf" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
                     </button>
                   </div>
                 </td>

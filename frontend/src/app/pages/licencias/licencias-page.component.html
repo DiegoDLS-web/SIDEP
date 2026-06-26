@@ -625,7 +625,7 @@
           [disabled]="historialFiltrado.length === 0"
           (click)="exportarHistorialPdf()"
         >
-          <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+          <lucide-icon [name]="icon.pdf" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
           Descargar PDF
         </button>
         <button
@@ -634,7 +634,7 @@
           [disabled]="historialFiltrado.length === 0"
           (click)="exportarHistorialExcel()"
         >
-          <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+          <lucide-icon [name]="icon.excel" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
           Descargar Excel
         </button>
       </div>

@@ -13,6 +13,7 @@ import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
+import { SIDEP_ACTION_ICON } from '../../shared/sidep-action-icons';
 import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
 import { mensajeApiError } from '../../utils/api-error.util';
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
@@ -51,6 +52,7 @@ export interface ParteListaUI {
   templateUrl: './partes-lista.component.html',
 })
 export class PartesListaComponent implements OnInit {
+  readonly icon = SIDEP_ACTION_ICON;
   private readonly partesApi = inject(PartesService);
   private readonly exportador = inject(PartesExportService);
   private readonly toast = inject(ToastService);
@@ -645,7 +647,7 @@ export class PartesListaComponent implements OnInit {
     this.partesApi.listarPagina({ page: 1, pageSize, ...this.filtrosApi() }).subscribe({
       next: (pagina) => {
         if (this.totalFiltrado > pagina.items.length) this.toast.info(`Se exportan ${pagina.items.length} de ${this.totalFiltrado} registros.`);
-        this.exportador.exportarPdfListado(pagina.items);
+        void this.exportador.exportarPdfListado(pagina.items);
       },
       error: (err) => this.toast.error(mensajeApiError(err, 'No se pudo preparar el PDF.')),
     });
@@ -663,7 +665,7 @@ export class PartesListaComponent implements OnInit {
   }
 
   exportarPdfParte(parteUI: ParteListaUI): void {
-    this.exportador.exportarPdf(parteUI.dtoOriginal);
+    void this.exportador.exportarPdf(parteUI.dtoOriginal);
   }
 
   // SOLUCIÓN: Inyectamos los datos compatibles antes de pasarlo al HTML del Modal

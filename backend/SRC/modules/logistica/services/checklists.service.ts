@@ -1,6 +1,8 @@
 import prisma from '../../../prisma';
-import { AppError } from '../../../utils';
+import { AppError, evaluarEstadoOperativoDesdeChecklist, esChecklistBorrador } from '../../../utils';
 import { randomUUID } from 'crypto';
+
+const TIPOS_CHECKLIST_UNIDAD = new Set(['CARRO', 'UNIDAD']);
 
 export const crearPlantilla = async (datos: any) => {
     return await prisma.checklistPlantilla.create({
@@ -61,39 +63,82 @@ export const registrarEjecucion = async (
     const entidadTipo = String(opciones?.entidadTipo || 'CARRO').trim() || 'CARRO';
     const plantillaResuelta = await resolverPlantillaId(carroId, entidadTipo, plantillaId);
 
-    const payload =
+    const payload: Record<string, unknown> =
         resultados != null && typeof resultados === 'object'
             ? { ...(resultados as Record<string, unknown>) }
             : { items: resultados };
 
-    return await prisma.checklistEjecucion.create({
-        data: {
-            id: randomUUID(),
-            plantillaId: plantillaResuelta,
-            revisorRut: String(revisorRut),
-            fechaRevision: new Date(),
-            estado: 'COMPLETADO',
-            respuestasJson: JSON.stringify(payload),
-            entidadTipo,
-            entidadId: String(carroId),
-            firmaOficial: opciones?.firmaOficial ?? null,
-            firmaRevisor: opciones?.firmaInspector ?? null,
-        },
+    const esChecklistUnidad = TIPOS_CHECKLIST_UNIDAD.has(entidadTipo.toUpperCase());
+    const esBorrador = esChecklistBorrador(payload);
+
+    const evaluacion = esChecklistUnidad && !esBorrador
+        ? evaluarEstadoOperativoDesdeChecklist(payload)
+        : null;
+
+    const ejecucion = await prisma.$transaction(async (tx) => {
+        const creada = await tx.checklistEjecucion.create({
+            data: {
+                id: randomUUID(),
+                plantillaId: plantillaResuelta,
+                revisorRut: String(revisorRut),
+                fechaRevision: new Date(),
+                estado: esBorrador ? 'BORRADOR' : 'COMPLETADO',
+                respuestasJson: JSON.stringify(payload),
+                entidadTipo,
+                entidadId: String(carroId),
+                firmaOficial: opciones?.firmaOficial ?? null,
+                firmaRevisor: opciones?.firmaInspector ?? null,
+            },
+        });
+
+        if (evaluacion) {
+            await tx.carro.update({
+                where: { id: carroId },
+                data: { estadoOperativo: evaluacion.estadoOperativo },
+            });
+        }
+
+        return creada;
     });
+
+    return {
+        ...ejecucion,
+        estadoOperativoActualizado: evaluacion?.estadoOperativo ?? null,
+        semaforoUnidad: evaluacion?.semaforo ?? null,
+    };
 };
 
-export const obtenerHistorial = async (carroId?: string, entidadTipo?: string) => {
+export const obtenerHistorial = async (
+    carroId?: string,
+    opciones?: { entidadTipo?: string; excluirBorradores?: boolean },
+) => {
     const whereClause: Record<string, string> = {};
     if (carroId) whereClause.entidadId = carroId;
-    if (entidadTipo?.trim()) whereClause.entidadTipo = entidadTipo.trim();
 
-    return await prisma.checklistEjecucion.findMany({
+    const tipoFiltro = opciones?.entidadTipo?.trim().toUpperCase();
+    if (tipoFiltro && tipoFiltro !== 'UNIDAD') {
+        whereClause.entidadTipo = tipoFiltro;
+    }
+
+    const rows = await prisma.checklistEjecucion.findMany({
         where: whereClause,
         include: {
             revisor: { select: { nombres: true, apellidoPaterno: true } },
-            plantilla: { select: { nombre: true } }
+            plantilla: { select: { nombre: true } },
         },
-        orderBy: { fechaRevision: 'desc' }
+        orderBy: { fechaRevision: 'desc' },
+    });
+
+    const excluirBorradores = opciones?.excluirBorradores !== false;
+    return rows.filter((row) => {
+        if (excluirBorradores && (row.estado === 'BORRADOR' || esChecklistBorrador(row.respuestasJson))) {
+            return false;
+        }
+        if (tipoFiltro === 'UNIDAD') {
+            const t = String(row.entidadTipo ?? '').toUpperCase();
+            return t === 'CARRO' || t === 'UNIDAD';
+        }
+        return true;
     });
 };
 

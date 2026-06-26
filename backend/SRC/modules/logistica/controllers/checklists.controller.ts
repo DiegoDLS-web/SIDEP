@@ -44,8 +44,13 @@ export const addEjecucion = async (req: Request, res: Response) => {
 
 export const getHistorial = async (req: Request, res: Response) => {
     try {
-        const carroId = req.query.carroId as string;
-        const historial = await checklistsService.obtenerHistorial(carroId);
+        const carroId = req.query.carroId as string | undefined;
+        const entidadTipo = req.query.entidadTipo as string | undefined;
+        const excluirBorradores = req.query.excluirBorradores !== '0';
+        const historial = await checklistsService.obtenerHistorial(carroId, {
+            ...(entidadTipo ? { entidadTipo } : {}),
+            excluirBorradores,
+        });
         res.status(200).json({ success: true, data: historial });
     } catch (error: any) {
         res.status(500).json({ success: false, message: 'Error al obtener historial' });

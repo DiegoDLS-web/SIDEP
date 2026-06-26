@@ -286,9 +286,121 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
   onFechaAsistenciaChange(): void {
     if (!this.fechaDia?.trim()) return;
     this.licenciasApi.listarActivas(this.fechaDia).subscribe({
-      next: (rows) => this.aplicarLicenciasActivas(rows),
-      error: () => this.aplicarLicenciasActivas([]),
+      next: (rows) => {
+        this.aplicarLicenciasActivas(rows);
+        this.sanearSeleccionPorDisponibilidadFecha();
+      },
+      error: () => {
+        this.aplicarLicenciasActivas([]);
+        this.sanearSeleccionPorDisponibilidadFecha();
+      },
     });
+  }
+
+  private voluntarioDisponibleParaParte(u: UsuarioListaDto): boolean {
+    return this.estadoDisponibilidadAsistencia(`usr-${u.id}`) === this.DISP_NORMAL;
+  }
+
+  private mantenimientoVencidoEnFecha(c: CarroDto, fecha: Date): boolean {
+    const ref = new Date(fecha);
+    ref.setHours(0, 0, 0, 0);
+    for (const iso of [c.proximoMantenimiento, c.proximaRevisionTecnica]) {
+      if (!iso) continue;
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) continue;
+      d.setHours(0, 0, 0, 0);
+      if (d < ref) return true;
+    }
+    return false;
+  }
+
+  carroDisponibleParaParte(c: CarroDto | undefined, fecha: Date = this.fechaBaseAsistencia()): boolean {
+    if (!c) return false;
+    if (c.estadoOperativo !== 1) return false;
+    if (this.mantenimientoVencidoEnFecha(c, fecha)) return false;
+    return true;
+  }
+
+  motivoCarroNoDisponible(c: CarroDto, fecha: Date = this.fechaBaseAsistencia()): string {
+    if (c.estadoOperativo !== 1) return 'Fuera de servicio';
+    if (this.mantenimientoVencidoEnFecha(c, fecha)) return 'Mantención o revisión técnica vencida en esa fecha';
+    return '';
+  }
+
+  private sanearSeleccionPorDisponibilidadFecha(): void {
+    const fecha = this.fechaBaseAsistencia();
+    this.unidades.forEach((u) => {
+      if (!u.carroId) return;
+      const carro = this.carros.find((c) => String(c.id) === String(u.carroId));
+      if (!carro || !this.carroDisponibleParaParte(carro, fecha)) {
+        u.carroId = '';
+        u.conductor = '';
+      } else if (u.conductor.trim()) {
+        const conductor = this.voluntariosConductores.find(
+          (v) => nombreListaSoloPersona(v) === u.conductor.trim(),
+        );
+        if (!conductor) u.conductor = '';
+      }
+    });
+
+    for (const { key } of ASISTENCIA_CONTEXTO_OPCIONES) {
+      const ctx = (this.asistenciaPorContexto as Record<string, Record<string, boolean>>)[key] ?? {};
+      for (const id of Object.keys(ctx)) {
+        if (ctx[id] && this.asistenciaNoSeleccionable(id)) {
+          ctx[id] = false;
+        }
+      }
+    }
+
+    const obac = this.resolverObacId();
+    if (obac) {
+      const u = this.usuarios.find((x) => x.id === obac || x.rut === obac);
+      if (u && !this.voluntarioDisponibleParaParte(u)) {
+        this.obacId = '';
+      }
+    }
+  }
+
+  private validarDisponibilidadOperativaAntesDeGuardar(): string | null {
+    const fecha = this.fechaBaseAsistencia();
+    const obac = this.resolverObacId();
+    if (obac) {
+      const u = this.usuarios.find((x) => x.id === obac || x.rut === obac);
+      if (u && !this.voluntarioDisponibleParaParte(u)) {
+        return this.motivoDisponibilidadAsistencia(`usr-${u.id}`) || 'El OBAC seleccionado no está disponible en la fecha del parte.';
+      }
+    }
+
+    for (const u of this.unidades) {
+      if (!u.carroId) continue;
+      const carro = this.carros.find((c) => String(c.id) === String(u.carroId));
+      if (!carro || !this.carroDisponibleParaParte(carro, fecha)) {
+        const nom = carro?.nomenclatura ?? 'seleccionada';
+        const motivo = carro ? this.motivoCarroNoDisponible(carro, fecha) : 'no encontrada';
+        return `La unidad ${nom} no puede despacharse: ${motivo.toLowerCase()}.`;
+      }
+      const conductorNombre = (u.conductor ?? '').trim();
+      if (conductorNombre) {
+        const conductor = this.voluntariosConductores.find((v) => nombreListaSoloPersona(v) === conductorNombre);
+        if (!conductor) {
+          return `El conductor ${conductorNombre} no está disponible en la fecha del parte.`;
+        }
+      }
+    }
+
+    for (const { key } of ASISTENCIA_CONTEXTO_OPCIONES) {
+      const ctx = (this.asistenciaPorContexto as Record<string, Record<string, boolean>>)[key] ?? {};
+      for (const [id, marcado] of Object.entries(ctx)) {
+        if (!marcado || !id.startsWith('usr-')) continue;
+        if (this.asistenciaNoSeleccionable(id)) {
+          const u = this.usuarioAsistenciaPorId[id];
+          const nombre = u ? nombreListaSoloPersona(u) : 'Voluntario';
+          return `${nombre} no puede figurar en asistencia: ${this.motivoDisponibilidadAsistencia(id) || 'no disponible en la fecha.'}`;
+        }
+      }
+    }
+
+    return null;
   }
 
   // Restauración de Métodos de Licencias y Fechas
@@ -630,12 +742,13 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
 
   clasesGridAsistencia(sec: AsistenciaSeccionDef): Record<string, boolean> {
     if (!sec.columnasGrid) return {};
-    if (sec.columnasGridXl) {
-      return { 'grid-cols-1': true, 'sm:grid-cols-2': true, 'xl:grid-cols-3': sec.columnasGridXl === 3 };
+    // Con varias columnas de secciones (oficiales, inspectores…), una sola columna evita texto vertical ilegible.
+    if (this.asistenciaLayoutVista.length > 1) {
+      return { 'grid-cols-1': true };
     }
     return {
-      'grid-cols-1': sec.columnasGrid <= 2,
-      'sm:grid-cols-2': sec.columnasGrid === 2,
+      'grid-cols-1': true,
+      'md:grid-cols-2': sec.columnasGrid >= 2,
     };
   }
 
@@ -696,7 +809,11 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
       const id = this.unidades[i]?.carroId;
       if (id) usados.add(String(id));
     }
-    return this.carros.filter((c) => !usados.has(String(c.id)));
+    const fecha = this.fechaBaseAsistencia();
+    return this.carros.filter((c) => {
+      if (usados.has(String(c.id))) return false;
+      return this.carroDisponibleParaParte(c, fecha);
+    });
   }
 
   agregarPaciente(): void { this.pacientes.push({ nombre: '', edad: '', rut: '', triage: 'VERDE' }); }
@@ -711,7 +828,7 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
 
   get usuariosElegiblesObac(): UsuarioListaDto[] {
     return this.usuarios
-      .filter((u) => u.activo && !this.esAspirante(u) && !this.esUsuarioExcluidoAsistencia(u))
+      .filter((u) => u.activo && !this.esAspirante(u) && !this.esUsuarioExcluidoAsistencia(u) && this.voluntarioDisponibleParaParte(u))
       .sort((a, b) => {
       const da = this.debePriorizarAlFinalParaObac(a) ? 1 : 0;
       const db = this.debePriorizarAlFinalParaObac(b) ? 1 : 0;
@@ -720,7 +837,11 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
   }
 
   private esAspirante(u: UsuarioListaDto): boolean { return (u.tipoVoluntario ?? '').trim().toUpperCase() === 'ASPIRANTE'; }
-  get voluntariosConductores(): UsuarioListaDto[] { return this.usuarios.filter((u) => u.activo && u.autorizadoConducir === true).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')); }
+  get voluntariosConductores(): UsuarioListaDto[] {
+    return this.usuarios
+      .filter((u) => u.autorizadoConducir === true && this.voluntarioDisponibleParaParte(u))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  }
 
   conductoresParaFila(indiceFila: number): UsuarioListaDto[] {
     const otros = new Set(this.unidades.map((fil, idx) => (idx === indiceFila ? '' : (fil.conductor ?? '').trim())).filter(Boolean));
@@ -980,6 +1101,12 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
       this.guardadoError = 'Un conductor no puede estar en más de una unidad.';
       return;
     }
+    const disponibilidad = this.validarDisponibilidadOperativaAntesDeGuardar();
+    if (disponibilidad) {
+      this.guardadoError = disponibilidad;
+      this.toast.error(disponibilidad);
+      return;
+    }
 
     this.submitting = true;
     const payload = {
@@ -1045,6 +1172,13 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
       this.guardadoError = msg;
       this.toast.error(msg);
       this.pasoIdx = this.pasosVisibles.indexOf('basicos');
+      return;
+    }
+    const disponibilidad = this.validarDisponibilidadOperativaAntesDeGuardar();
+    if (disponibilidad) {
+      this.guardadoError = disponibilidad;
+      this.toast.error(disponibilidad);
+      this.pasoIdx = this.pasosVisibles.indexOf('emergencia');
       return;
     }
     const faltantesCierre = this.faltantesCierreParte();

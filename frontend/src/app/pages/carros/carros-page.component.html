@@ -272,15 +272,23 @@
                   title="Ver registro completo"
                   (click)="abrirVistaHistorialGeneral(row)"
                 >
-                  <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                  <lucide-icon [name]="icon.ver" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                </button>
+                <button
+                  type="button"
+                  class="sid-btn sid-btn-neutral inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-600 bg-slate-800 text-white hover:bg-slate-700"
+                  title="Editar registro"
+                  (click)="editarHistorialMantenimiento(row)"
+                >
+                  <lucide-icon [name]="icon.editar" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
                 </button>
                 <button
                   type="button"
                   class="sid-btn sid-btn-primary inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
-                  title="PDF"
+                  title="Descargar PDF"
                   (click)="pdfHistorialGeneral(row)"
                 >
-                  <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                  <lucide-icon [name]="icon.pdf" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
                 </button>
               </div>
             </div>
@@ -325,15 +333,23 @@
                         title="Ver registro completo"
                         (click)="abrirVistaHistorialGeneral(row)"
                       >
-                        <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                        <lucide-icon [name]="icon.ver" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                      </button>
+                      <button
+                        type="button"
+                        class="sid-btn sid-btn-neutral inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-600 bg-slate-800 text-white hover:bg-slate-700"
+                        title="Editar registro"
+                        (click)="editarHistorialMantenimiento(row)"
+                      >
+                        <lucide-icon [name]="icon.editar" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
                       </button>
                       <button
                         type="button"
                         class="sid-btn sid-btn-primary inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white hover:bg-red-700"
-                        title="PDF"
+                        title="Descargar PDF"
                         (click)="pdfHistorialGeneral(row)"
                       >
-                        <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                        <lucide-icon [name]="icon.pdf" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
                       </button>
                     </div>
                   </td>
@@ -402,13 +418,22 @@
                 class="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/50 px-4 py-2 text-sm font-medium shadow-lg backdrop-blur-sm"
                 [ngClass]="estadoClaseTexto(c)"
               >
-                @if (c.estadoOperativo) {
+                @if (c.estadoOperativo && !mantenimientoVencido(c)) {
                   <lucide-icon name="circle-check" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
                 } @else {
                   <lucide-icon name="triangle-alert" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
                 }
                 {{ estadoEtiqueta(c) }}
               </span>
+              @if (puedeEditarEstado) {
+                <button
+                  type="button"
+                  class="sid-btn sid-btn-neutral mt-3 w-full rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800"
+                  (click)="toggleEstado(c)"
+                >
+                  Marcar como {{ c.estadoOperativo === 1 ? 'fuera de servicio' : 'operativa' }}
+                </button>
+              }
             </div>
           </div>
         </div>
@@ -476,16 +501,17 @@
                   class="inline-flex items-center justify-center gap-1 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700"
                   (click)="descargarPdfRegistroActual(c)"
                 >
-                  <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                  <lucide-icon [name]="icon.pdf" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
                   PDF actual
                 </button>
                 @if (!editando) {
                   <button
                     type="button"
-                    class="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 sm:w-auto"
-                    (click)="iniciarEdicion(c)"
+                    class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 sm:w-auto"
+                    (click)="iniciarRegistroMantenimiento(c)"
                   >
-                    Editar registro
+                    <lucide-icon [name]="icon.registrar" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                    Registrar mantención
                   </button>
                 }
               </div>
@@ -498,7 +524,8 @@
               <p class="mb-4 text-sm text-red-300">{{ errorValidacion }}</p>
             }
 
-            @if (editando) {
+            @if (editando && !historialEdicionFila) {
+              <p class="mb-3 text-sm font-semibold text-white">{{ tituloFormularioMantenimiento() }}</p>
               <app-sid-edicion-pendiente-banner [visible]="mantenimientoTieneCambios()" />
               <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                 <label class="text-sm">
@@ -597,7 +624,7 @@
                   [disabled]="guardando"
                   (click)="guardarEdicion(c)"
                 >
-                  {{ guardando ? 'Guardando...' : 'Guardar cambios' }}
+                  {{ tituloGuardarMantenimiento() }}
                 </button>
                 <button
                   type="button"
@@ -666,6 +693,19 @@
                     {{ textoOmitida(c.ultimoInspector) }}
                   </p>
                 </div>
+                <div class="flex min-h-[7.25rem] flex-col justify-between rounded-lg border border-gray-800 bg-[#121212] p-4">
+                  <div class="mb-3 flex items-center gap-3">
+                    <lucide-icon name="user" class="h-5 w-5 text-violet-400" [size]="20" color="currentColor"></lucide-icon>
+                    <p class="font-semibold text-gray-100">Último Conductor</p>
+                  </div>
+                  <p
+                    class="text-lg font-bold"
+                    [class.text-gray-100]="!!(c.ultimoConductor?.trim() || c.conductorAsignado?.trim())"
+                    [class.text-gray-500]="!(c.ultimoConductor?.trim() || c.conductorAsignado?.trim())"
+                  >
+                    {{ textoOmitida(c.ultimoConductor ?? c.conductorAsignado) }}
+                  </p>
+                </div>
                 <div
                   class="flex min-h-[7.25rem] flex-col rounded-lg border border-gray-800 bg-[#121212] p-4 md:col-span-2 xl:col-span-3"
                 >
@@ -686,7 +726,7 @@
                       </p>
                     </div>
                   } @else {
-                    <p class="text-sm text-gray-400">Sin firma registrada (use «Editar registro» y dibuje en el recuadro).</p>
+                    <p class="text-sm text-gray-400">Sin firma registrada (use «Registrar mantención» y dibuje en el recuadro).</p>
                     <p class="mt-1 text-sm text-gray-500">
                       Fecha inspección:
                       <span [class.text-gray-300]="!!c.fechaUltimaInspeccion" [class.text-gray-500]="!c.fechaUltimaInspeccion">{{
@@ -767,10 +807,98 @@
         <button
           type="button"
           class="sid-btn sid-btn-neutral w-full rounded-xl border border-slate-600 bg-slate-900/50 py-2.5 text-sm text-slate-200 hover:bg-slate-800"
+          (click)="cerrarVistaHistorialGeneral(); editarHistorialMantenimiento(mh)"
+        >
+          <lucide-icon [name]="icon.editar" class="mr-2 inline h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+          Editar este registro
+        </button>
+        <button
+          type="button"
+          class="sid-btn sid-btn-neutral w-full rounded-xl border border-slate-600 bg-slate-900/50 py-2.5 text-sm text-slate-200 hover:bg-slate-800"
           (click)="cerrarVistaHistorialGeneral(); irADetalleCarro(mh.carro.id)"
         >
           Abrir ficha de la unidad
         </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (historialEdicionFila && editando) {
+  <div
+    class="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="carro-hist-edit-titulo"
+    (click)="cerrarEdicionHistorialModal()"
+  >
+    @let he = historialEdicionFila!;
+    <div
+      class="sid-modal-scroll max-h-[min(94vh,920px)] w-full max-w-3xl overflow-y-auto overscroll-contain rounded-2xl border border-slate-700/90 bg-[#121212] shadow-2xl ring-1 ring-inset ring-white/5"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-slate-800/90 bg-[#121212]/95 px-5 py-4 backdrop-blur-sm">
+        <div class="min-w-0">
+          <p class="mb-1 text-[11px] font-medium uppercase tracking-wide text-emerald-400/90">Editar mantención</p>
+          <h3 id="carro-hist-edit-titulo" class="truncate text-lg font-bold text-white">{{ he.carro.nomenclatura }}</h3>
+          <p class="truncate text-sm text-slate-400">{{ tituloFormularioMantenimiento() }}</p>
+        </div>
+        <button type="button" class="sid-btn sid-btn-neutral shrink-0 rounded-xl border border-slate-600 px-3 py-2 text-sm" (click)="cerrarEdicionHistorialModal()">Cerrar</button>
+      </div>
+      <div class="p-5">
+        @if (errorValidacion) {
+          <p class="mb-4 text-sm text-red-300">{{ errorValidacion }}</p>
+        }
+        <app-sid-edicion-pendiente-banner [visible]="mantenimientoTieneCambios()" />
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <label class="text-sm">
+            <span class="mb-1 block text-gray-400">Último Conductor <span class="text-red-400">*</span></span>
+            <select [(ngModel)]="editForm.ultimoConductor" class="w-full min-h-[44px] rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 text-white">
+              <option value="">Seleccione conductor</option>
+              @for (v of usuariosConductoresAutorizados; track v.id) {
+                <option [value]="nombreListaSoloPersona(v)">{{ nombreListaSoloPersona(v) }}</option>
+              }
+            </select>
+          </label>
+          <label class="text-sm">
+            <span class="mb-1 block text-gray-400">Último Inspector <span class="text-red-400">*</span></span>
+            <input type="text" [(ngModel)]="editForm.ultimoInspector" class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 text-white" />
+          </label>
+          <label class="text-sm">
+            <span class="mb-1 block text-gray-400">Último Mantenimiento <span class="text-red-400">*</span></span>
+            <app-sid-date-input preset="none" [dense]="true" inputClass="dark-date-input w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 pr-11 text-white" [(ngModel)]="editForm.ultimoMantenimiento" />
+          </label>
+          <label class="text-sm">
+            <span class="mb-1 block text-gray-400">Próximo Mantenimiento <span class="text-red-400">*</span></span>
+            <app-sid-date-input preset="none" [dense]="true" inputClass="dark-date-input w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 pr-11 text-white" [(ngModel)]="editForm.proximoMantenimiento" />
+          </label>
+          <label class="text-sm">
+            <span class="mb-1 block text-gray-400">Próxima Revisión Técnica <span class="text-red-400">*</span></span>
+            <app-sid-date-input preset="none" [dense]="true" inputClass="dark-date-input w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 pr-11 text-white" [(ngModel)]="editForm.proximaRevisionTecnica" />
+          </label>
+          <label class="text-sm">
+            <span class="mb-1 block text-gray-400">Última Revisión Bomba de Agua <span class="text-red-400">*</span></span>
+            <app-sid-date-input preset="none" [dense]="true" inputClass="dark-date-input w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 pr-11 text-white" [(ngModel)]="editForm.ultimaRevisionBombaAgua" />
+          </label>
+          <label class="text-sm">
+            <span class="mb-1 block text-gray-400">Fecha de Inspección <span class="text-red-400">*</span></span>
+            <app-sid-date-input preset="none" [dense]="true" inputClass="dark-date-input w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 pr-11 text-white" [(ngModel)]="editForm.fechaUltimaInspeccion" />
+          </label>
+          <div class="text-sm md:col-span-2">
+            <span class="mb-1 block text-gray-400">Firma del inspector <span class="text-red-400">*</span></span>
+            <app-signature-pad [dark]="true" [value]="editForm.firmaUltimoInspector" (valueChange)="editForm.firmaUltimoInspector = $event" />
+          </div>
+          <label class="text-sm md:col-span-2">
+            <span class="mb-1 block text-gray-400">Descripción Última Mantención <span class="text-red-400">*</span></span>
+            <textarea rows="4" [(ngModel)]="editForm.descripcionUltimoMantenimiento" class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 text-white"></textarea>
+          </label>
+        </div>
+        <div class="mt-5 flex flex-col gap-3 sm:flex-row">
+          <button type="button" class="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60" [disabled]="guardando" (click)="guardarEdicionHistorialModal()">
+            {{ tituloGuardarMantenimiento() }}
+          </button>
+          <button type="button" class="rounded-lg bg-gray-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-600" (click)="cerrarEdicionHistorialModal()">Cancelar</button>
+        </div>
       </div>
     </div>
   </div>

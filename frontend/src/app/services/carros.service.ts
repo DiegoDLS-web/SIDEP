@@ -250,6 +250,48 @@ export class CarrosService {
     );
   }
 
+  actualizarMantenimientoHistorial(
+    mantenimientoId: string,
+    payload: Partial<CarroDto>,
+  ): Observable<CarroHistorialGeneralFila> {
+    return this.http
+      .patch<{ success: boolean; data: CarroHistorialGeneralFila }>(
+        apiUrl('logistica', 'carros', 'mantenimientos', mantenimientoId),
+        payload,
+      )
+      .pipe(
+        map((res) => res.data),
+        catchError(() => {
+          const fila = this.demoCarros
+            .flatMap((c) =>
+              (c.historialRegistros ?? []).map(
+                (h): CarroHistorialGeneralFila => ({
+                  ...h,
+                  carro: {
+                    id: c.id,
+                    nomenclatura: c.nomenclatura,
+                    nombre: c.nombre,
+                    patente: c.patente,
+                  },
+                }),
+              ),
+            )
+            .find((r) => r.id === mantenimientoId);
+          if (fila) {
+            Object.assign(fila, payload);
+            return of(fila);
+          }
+          return of({
+            id: mantenimientoId,
+            carroId: String(payload.ultimoConductor ?? ''),
+            creadoEn: new Date().toISOString(),
+            ...payload,
+            carro: { id: '', nomenclatura: '—', nombre: null, patente: null },
+          } as CarroHistorialGeneralFila);
+        }),
+      );
+  }
+
   // --- NUEVA FUNCIÓN PARA EL BOTÓN ---
   toggleEstado(id: string, estadoOperativo: number): Observable<any> {
     return this.http.patch(apiUrl('logistica', 'carros', id, 'estado'), { estadoOperativo });

@@ -79,7 +79,7 @@
                 : 'cursor-not-allowed border border-red-900/60 bg-red-950/40 text-red-200/40'
             "
           >
-            <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            <lucide-icon name="file-down" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
             Generar PDF
           </button>
           @if (!checklistCompletoParaPdf()) {
@@ -106,7 +106,7 @@
             : 'cursor-not-allowed border border-red-900/60 bg-red-950/40 text-red-200/40'
         "
       >
-        <lucide-icon name="download" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+        <lucide-icon name="file-down" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
         Generar PDF
       </button>
       @if (!checklistCompletoParaPdf()) {
@@ -242,6 +242,9 @@
         <div>
           <h2 class="text-lg font-bold text-white md:text-xl">Inventario operativo</h2>
           <p class="text-sm text-slate-500">Modo compacto con estado automático y acciones rápidas por fila</p>
+          <p class="mt-1 text-xs" [class.text-emerald-400/90]="fuenteInventario === 'material_por_carro'" [class.text-amber-400/90]="fuenteInventario !== 'material_por_carro'">
+            {{ etiquetaFuenteInventario() }}
+          </p>
         </div>
         <div class="flex flex-col gap-3 md:w-auto md:flex-row md:flex-wrap md:items-center">
           <input

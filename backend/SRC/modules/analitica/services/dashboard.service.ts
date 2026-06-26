@@ -1,5 +1,14 @@
 import prisma from '../../../prisma';
 import { parteWhereNoAnulado } from '../../operaciones/partes-where';
+import {
+  combinarSemaforos,
+  contarItemsDesdeRespuestas,
+  esChecklistBorrador,
+  evaluarEstadoOperativoDesdeChecklist,
+  evaluarSemaforoMantenimiento,
+  resolverSemaforoDesdeChecklist,
+  resolverSemaforoUnidad,
+} from '../../../utils/checklist-estado-operativo.util';
 
 function parseMetadataParte(raw: string | null | undefined): Record<string, unknown> | null {
   if (!raw) return null;
@@ -21,64 +30,6 @@ function claveCodigoParte(p: {
   return metaClave || p.clave?.codigo || 'SIN_CLAVE';
 }
 
-function contarItemsDesdeRespuestas(raw: string | null | undefined): { totalItems: number; itemsOk: number } | null {
-  if (!raw) return null;
-  let data: unknown;
-  try {
-    data = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-
-  if (data && typeof data === 'object' && !Array.isArray(data)) {
-    const obj = data as Record<string, unknown>;
-
-    if (Array.isArray(obj['equipos']) || Array.isArray(obj['cilindrosRecambio'])) {
-      const equipos = (obj['equipos'] as unknown[]) ?? [];
-      const recambios = (obj['cilindrosRecambio'] as unknown[]) ?? [];
-      const items = [...equipos, ...recambios];
-      const totalItems = items.length;
-      const itemsOk = items.filter((it: any) =>
-        it?.arnesCondicion === 'Operativo' || it?.condicionGeneral === 'Operativo',
-      ).length;
-      return totalItems > 0 ? { totalItems, itemsOk } : null;
-    }
-
-    if (Array.isArray(obj['ubicaciones'])) {
-      const ubicaciones = obj['ubicaciones'] as Array<{
-        materiales?: Array<{ cantidadActual?: number; cantidadRequerida?: number; nombre?: string }>;
-      }>;
-      let totalItems = 0;
-      let itemsOk = 0;
-      for (const u of ubicaciones) {
-        for (const m of u.materiales ?? []) {
-          const req = Math.max(0, Number(m.cantidadRequerida ?? 0));
-          const act = Math.max(0, Number(m.cantidadActual ?? 0));
-          if (!m.nombre?.trim()) continue;
-          totalItems += 1;
-          if (req > 0 && act >= req) itemsOk += 1;
-        }
-      }
-      return totalItems > 0 ? { totalItems, itemsOk } : null;
-    }
-
-    if (typeof obj['totalItems'] === 'number') {
-      return {
-        totalItems: Number(obj['totalItems']),
-        itemsOk: Number(obj['itemsOk'] ?? 0),
-      };
-    }
-  }
-
-  if (Array.isArray(data)) {
-    const totalItems = data.length;
-    const itemsOk = data.filter((m: any) => m?.ok || m?.estado === 'OK').length;
-    return totalItems > 0 ? { totalItems, itemsOk } : null;
-  }
-
-  return null;
-}
-
 export const getDashboardResumen = async (anioParam?: number, claveFilter?: string, carroIdFilter?: string) => {
   const anio = anioParam || new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
@@ -95,7 +46,11 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
   });
 
   if (claveFilter && claveFilter !== 'todos') {
-    whereClause.clave = { codigo: claveFilter };
+    whereClause.OR = [
+      { clave: { codigo: claveFilter } },
+      { metadata: { contains: `"claveEmergencia":"${claveFilter}"` } },
+      { metadata: { contains: `"claveEmergencia": "${claveFilter}"` } },
+    ];
   }
 
   if (carroIdFilter) {
@@ -135,7 +90,11 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
   const tiempoPromedioRespuestaMin = validRespuestaCount > 0 ? Math.round(totalRespuestaMs / (validRespuestaCount * 1000 * 60)) : 0;
 
   // 4. Emergencias Este Mes
-  const whereClauseMes = { ...whereClause, fechaEmergencia: { gte: inicioMes, lte: finMes } };
+  const anioActual = new Date().getFullYear();
+  const mesReferencia = anio === anioActual ? currentMonth : 12;
+  const inicioMesFiltrado = new Date(Date.UTC(anio, mesReferencia - 1, 1, 0, 0, 0));
+  const finMesFiltrado = new Date(Date.UTC(anio, mesReferencia, 0, 23, 59, 59, 999));
+  const whereClauseMes = { ...whereClause, fechaEmergencia: { gte: inicioMesFiltrado, lte: finMesFiltrado } };
   const emergenciasEsteMes = await prisma.parteEmergencia.count({ where: whereClauseMes });
 
   // 5. porMes
@@ -189,20 +148,27 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
     unidades: p.unidades.map((u) => u.carro.nomenclatura),
   }));
 
-  // Heatmap: últimas 4 semanas (lun–dom), cada celda = emergencias ese día
+  // Heatmap: últimas 4 semanas respecto al año filtrado (fin de año si es pasado)
   const SEMANAS = 4;
-  const hoy = new Date();
-  hoy.setHours(23, 59, 59, 999);
-  const inicioHeatmap = new Date(hoy);
+  const hoyReal = new Date();
+  const finHeatmap =
+    anio === anioActual
+      ? new Date(hoyReal.getFullYear(), hoyReal.getMonth(), hoyReal.getDate(), 23, 59, 59, 999)
+      : new Date(Date.UTC(anio, 11, 31, 23, 59, 59, 999));
+  const inicioHeatmap = new Date(finHeatmap);
   inicioHeatmap.setHours(0, 0, 0, 0);
   const diaSemana = inicioHeatmap.getDay();
   const diasHastaLunes = diaSemana === 0 ? 6 : diaSemana - 1;
   inicioHeatmap.setDate(inicioHeatmap.getDate() - diasHastaLunes - (SEMANAS - 1) * 7);
 
+  const partesHeatmap = await prisma.parteEmergencia.findMany({
+    where: whereClause,
+    select: { fechaEmergencia: true },
+  });
   const conteoPorDia: Record<string, number> = {};
-  for (const p of allPartes) {
+  for (const p of partesHeatmap) {
     const fecha = p.fechaEmergencia;
-    if (fecha < inicioHeatmap || fecha > hoy) continue;
+    if (fecha < inicioHeatmap || fecha > finHeatmap) continue;
     const key = fecha.toISOString().slice(0, 10);
     conteoPorDia[key] = (conteoPorDia[key] || 0) + 1;
   }
@@ -219,65 +185,109 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
     heatmapSemanas.push(semana);
   }
 
-  // 9. Alertas
+  // 9–10. Alertas y semáforo de unidades (checklist + estado en BD)
   const alertas: any[] = [];
-  const carros = await prisma.carro.findMany();
-  for (const c of carros) {
-    if (c.estadoOperativo === 0) {
-      const cleanCarId = c.id.replace(/[^0-9]/g, '');
-      alertas.push({
-        tipo: 'carro_fuera_servicio',
-        severidad: 'critico',
-        titulo: `Unidad ${c.nomenclatura} Fuera de Servicio`,
-        detalle: `El carro ${c.nombre} está marcado como no operativo en el sistema.`,
-        carroId: parseInt(cleanCarId, 10) || 0,
-        nomenclatura: c.nomenclatura,
-      });
-    }
-  }
-
-  // 10. Unidades Semáforo
-  const ejecucionesChecklist = await prisma.checklistEjecucion.findMany({
-    where: {
-      fechaRevision: { gte: inicioAnio, lte: finAnio },
+  const carrosTodos = await prisma.carro.findMany({
+    include: {
+      mantenimientos: {
+        orderBy: { fechaRegistro: 'desc' },
+        take: 1,
+      },
     },
+  });
+  const carros = carroIdFilter ? carrosTodos.filter((c) => c.id === carroIdFilter) : carrosTodos;
+
+  const ejecucionesSemaforo = await prisma.checklistEjecucion.findMany({
     orderBy: { fechaRevision: 'desc' },
   });
 
-  const ultimaEjecucionPorCarroTipo = new Map<string, (typeof ejecucionesChecklist)[number]>();
-  for (const exec of ejecucionesChecklist) {
+  const ultimaEjecucionPorCarroTipo = new Map<string, (typeof ejecucionesSemaforo)[number]>();
+  for (const exec of ejecucionesSemaforo) {
+    if (esChecklistBorrador(exec.respuestasJson) || exec.estado === 'BORRADOR') continue;
     const key = `${exec.entidadId}::${exec.entidadTipo}`;
     if (!ultimaEjecucionPorCarroTipo.has(key)) {
       ultimaEjecucionPorCarroTipo.set(key, exec);
     }
   }
 
-  const unidadesSemaforo = carros.map((c) => {
-    const semaforo = c.estadoOperativo === 1 ? 'operativa' : 'fuera_servicio';
-
-    const mapChecklist = (exec: (typeof ejecucionesChecklist)[number] | undefined) => {
-      if (!exec) return null;
-      const conteo = contarItemsDesdeRespuestas(exec.respuestasJson);
-      return {
-        fecha: exec.fechaRevision.toISOString(),
-        totalItems: conteo?.totalItems ?? null,
-        itemsOk: conteo?.itemsOk ?? null,
-        completo: exec.estado === 'COMPLETADO' && (conteo ? conteo.itemsOk >= conteo.totalItems : false),
-      };
+  const mapChecklist = (exec: (typeof ejecucionesSemaforo)[number] | undefined) => {
+    if (!exec) return null;
+    const fuente = exec.respuestasJson;
+    const conteo = contarItemsDesdeRespuestas(fuente);
+    const evaluacion = evaluarEstadoOperativoDesdeChecklist(fuente);
+    return {
+      fecha: exec.fechaRevision.toISOString(),
+      totalItems: conteo?.totalItems ?? null,
+      itemsOk: conteo?.itemsOk ?? null,
+      itemsCriticos: evaluacion?.itemsCriticos ?? null,
+      porcentajeCompleto: evaluacion?.porcentajeCompleto ?? null,
+      completo: exec.estado === 'COMPLETADO' && (conteo ? conteo.itemsOk >= conteo.totalItems : false),
     };
+  };
 
+  const unidadesSemaforo = carros.map((c) => {
     const checkUnidad =
       ultimaEjecucionPorCarroTipo.get(`${c.id}::CARRO`) ??
       ultimaEjecucionPorCarroTipo.get(`${c.id}::UNIDAD`);
     const checkEra = ultimaEjecucionPorCarroTipo.get(`${c.id}::ERA`);
     const checkTrauma = ultimaEjecucionPorCarroTipo.get(`${c.id}::TRAUMA`);
 
+    const semaforoChecklist = combinarSemaforos(
+      resolverSemaforoUnidad(c.estadoOperativo, checkUnidad?.respuestasJson),
+      resolverSemaforoDesdeChecklist(checkEra?.respuestasJson),
+      resolverSemaforoDesdeChecklist(checkTrauma?.respuestasJson),
+    );
+    const mant = c.mantenimientos[0];
+    const semaforoMantenimiento = evaluarSemaforoMantenimiento({
+      proximoMantenimiento: mant?.fechaProximoMantenimiento ?? null,
+      proximaRevisionTecnica: mant?.fechaProximaRevTecnica ?? null,
+    });
+    const semaforo = combinarSemaforos(semaforoChecklist, semaforoMantenimiento);
+    const evaluacionUnidad = checkUnidad
+      ? evaluarEstadoOperativoDesdeChecklist(checkUnidad.respuestasJson)
+      : null;
+
+    const cleanCarId = c.id.replace(/[^0-9]/g, '');
+    const carroIdNum = parseInt(cleanCarId, 10) || 0;
+
+    if (semaforo === 'fuera_servicio') {
+      const detalleCriticos = evaluacionUnidad?.itemsCriticos
+        ? `Faltan ${evaluacionUnidad.itemsCriticos} material(es) crítico(s) según el último checklist.`
+        : `El carro ${c.nombre} está marcado como no operativo.`;
+      alertas.push({
+        tipo: 'carro_fuera_servicio',
+        severidad: 'critico',
+        titulo: `Unidad ${c.nomenclatura} Fuera de Servicio`,
+        detalle: detalleCriticos,
+        carroId: carroIdNum,
+        nomenclatura: c.nomenclatura,
+      });
+    } else if (semaforoMantenimiento === 'mantencion') {
+      alertas.push({
+        tipo: 'mantenimiento_vencido',
+        severidad: 'advertencia',
+        titulo: `Unidad ${c.nomenclatura} con mantención o revisión vencida`,
+        detalle: `Revise fechas de mantención o revisión técnica del carro ${c.nombre}.`,
+        carroId: carroIdNum,
+        nomenclatura: c.nomenclatura,
+      });
+    } else if (semaforo === 'mantencion' && evaluacionUnidad) {
+      alertas.push({
+        tipo: 'inventario_incompleto',
+        severidad: 'advertencia',
+        titulo: `Unidad ${c.nomenclatura} con inventario incompleto`,
+        detalle: `Checklist al ${evaluacionUnidad.porcentajeCompleto}% (${evaluacionUnidad.itemsOk}/${evaluacionUnidad.totalItems} ítems OK).`,
+        carroId: carroIdNum,
+        nomenclatura: c.nomenclatura,
+      });
+    }
+
     return {
       id: c.id,
       nomenclatura: c.nomenclatura,
       nombre: c.nombre,
-      estadoOperativo: c.estadoOperativo === 1,
-      semaforo: semaforo as any,
+      estadoOperativo: semaforo === 'operativa',
+      semaforo: semaforo as 'operativa' | 'mantencion' | 'fuera_servicio',
       checklistUnidad: mapChecklist(checkUnidad),
       checklistEra: mapChecklist(checkEra),
       checklistTrauma: mapChecklist(checkTrauma),

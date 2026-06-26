@@ -14,7 +14,7 @@ describe('ChecklistSelectorComponent (estado)', () => {
           provide: ChecklistsService,
           useValue: {
             resumenUnidades: () => of([]),
-            historialUnidad: () => of([]),
+            historialCompletoUnidad: () => of([]),
           } as Partial<ChecklistsService>,
         },
         { provide: PdfExportService, useValue: {} as Partial<PdfExportService> },

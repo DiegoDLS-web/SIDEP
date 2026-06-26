@@ -2,6 +2,11 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '../../../prisma';
 import { formatearRutDesdeNormalizado } from '../../../utils/rut.util';
+import { ValidationError } from '../../../utils/errors/AppError';
+import {
+  assertVoluntarioPuedeParticiparEnParte,
+  evaluarCarroDisponibleParaParte,
+} from '../../../utils/parte-disponibilidad.util';
 
 const parteInclude = {
   clave: true,
@@ -259,6 +264,7 @@ async function sincronizarAsistencias(
   tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
   parteId: string,
   data: Record<string, unknown>,
+  fechaReferencia: Date,
 ) {
   const ruts = extraerRutsAsistencia(data);
   await tx.asistenciaPersonal.deleteMany({ where: { parteId } });
@@ -286,6 +292,12 @@ async function sincronizarAsistencias(
       }
     }
     if (rutFinal) {
+      try {
+        await assertVoluntarioPuedeParticiparEnParte(tx, rutFinal, fechaReferencia, 'asistencia');
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Voluntario no disponible para asistencia.';
+        throw new ValidationError([msg]);
+      }
       filas.push({ id: uuidv4(), parteId, usuarioRut: rutFinal });
     }
   }
@@ -504,10 +516,26 @@ async function sincronizarUnidades(
     const carroId = String(u.carroId || '').trim();
     if (!carroId) continue;
 
+    const disponibilidad = await evaluarCarroDisponibleParaParte(tx, carroId, fechaBase);
+    if (!disponibilidad.disponible) {
+      const nom = disponibilidad.nomenclatura ?? carroId;
+      throw new ValidationError([
+        `La unidad ${nom} no puede despacharse en la fecha del parte: está ${disponibilidad.motivo ?? 'no operativa'}.`,
+      ]);
+    }
+
     const rawConductor = (u.conductorRut as string | undefined)
       || conductoresPorCarroId?.[carroId]
       || undefined;
     const conductorRut = await resolverConductorRutFk(tx, rawConductor);
+    if (conductorRut) {
+      try {
+        await assertVoluntarioPuedeParticiparEnParte(tx, conductorRut, fechaBase, 'conductor');
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Conductor no disponible.';
+        throw new ValidationError([msg]);
+      }
+    }
 
     data.push({
       id: uuidv4(),
@@ -594,6 +622,8 @@ export const crearParteConRelaciones = async (data: Record<string, unknown>) => 
   const parteId = uuidv4();
 
   await prisma.$transaction(async (tx) => {
+    await assertVoluntarioPuedeParticiparEnParte(tx, obacRut, fechaEmergencia, 'OBAC');
+
     await tx.parteEmergencia.create({
       data: {
         id: parteId,
@@ -610,7 +640,7 @@ export const crearParteConRelaciones = async (data: Record<string, unknown>) => 
       },
     });
 
-    await sincronizarAsistencias(tx, parteId, data);
+    await sincronizarAsistencias(tx, parteId, data, fechaEmergencia);
 
     await sincronizarUnidades(tx, parteId, data.unidades as unknown[], fechaEmergencia, conductores);
     await sincronizarVehiculos(tx, parteId, (data.vehiculosAfectados || data.vehiculosCiviles) as unknown[]);
@@ -821,6 +851,12 @@ export const actualizarParte = async (id: string, data: Record<string, unknown>)
     : existente.fechaEmergencia;
 
   await prisma.$transaction(async (tx) => {
+    const obacRutValidar =
+      data.obacId !== undefined || data.obacRut !== undefined
+        ? await resolverObacRut(data)
+        : existente.obacRut;
+    await assertVoluntarioPuedeParticiparEnParte(tx, obacRutValidar, fechaBase, 'OBAC');
+
     await tx.parteEmergencia.update({ where: { id }, data: updateData });
 
     if (data.unidades !== undefined) {
@@ -833,7 +869,7 @@ export const actualizarParte = async (id: string, data: Record<string, unknown>)
     if (data.pacientes !== undefined) {
       await sincronizarPacientes(tx, id, data.pacientes as unknown[]);
     }
-    await sincronizarAsistencias(tx, id, { ...data, metadata: metadataNuevo });
+    await sincronizarAsistencias(tx, id, { ...data, metadata: metadataNuevo }, fechaBase);
   });
 
   return obtenerPorId(id);

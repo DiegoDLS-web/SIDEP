@@ -1,6 +1,7 @@
 import prisma from '../../../prisma';
 import { parteWhereNoAnulado } from '../../operaciones/partes-where';
 import { NotFoundError, ValidationError, ConflictError } from '../../../utils/errors/AppError';
+import { evaluarDisponibilidadVoluntarioEnParte } from '../../../utils/parte-disponibilidad.util';
 import { v4 as uuidv4 } from 'uuid';
 
 export const getAsistenciasVoluntario = async (rut: string, anio?: number, mes?: number) => {
@@ -66,14 +67,29 @@ export const agregarAsistencia = async (parteId: string, usuarioRut: string) => 
   // 2. Verify usuario exists and is active
   const usuario = await prisma.usuario.findUnique({
     where: { rut: usuarioRut },
+    include: { estadoVoluntario: true, tipoVoluntario: true },
   });
 
   if (!usuario) {
     throw new NotFoundError('Usuario', usuarioRut);
   }
 
-  if (usuario.activo !== 1) {
-    throw new ValidationError(['No se puede agregar asistencia a un voluntario inactivo']);
+  const fechaParte = parte.fechaEmergencia;
+  const licencia = await prisma.licenciaMedica.findFirst({
+    where: {
+      usuarioRut,
+      fechaInicio: { lte: parte.fechaEmergencia },
+      fechaTermino: { gte: parte.fechaEmergencia },
+      estado: { nombre: { equals: 'Aprobada', mode: 'insensitive' } },
+    },
+    select: { id: true },
+  });
+
+  const evaluacion = evaluarDisponibilidadVoluntarioEnParte(usuario, fechaParte, {
+    licenciaMedicaActiva: !!licencia,
+  });
+  if (!evaluacion.disponible) {
+    throw new ValidationError([evaluacion.motivo ?? 'No se puede agregar asistencia a un voluntario no disponible']);
   }
 
   // 3. Verify unique constraint

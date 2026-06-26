@@ -19,7 +19,7 @@ import { etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
 import { etiquetaCompletandoOCompletado } from '../../utils/etiqueta-completitud';
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
-import * as XLSX from 'xlsx';
+import { exportarExcelSidep } from '../../utils/excel-export.util';
 
 @Component({
   selector: 'app-bolso-trauma',
@@ -447,11 +447,15 @@ export class BolsoTraumaComponent implements OnInit {
       String(h.grupoGuardia ?? ''),
       h.porcentaje != null ? `${h.itemsOk ?? 0}/${h.totalItems ?? 0}` : '—',
     ]);
-    const aoa = [['SIDEP · Historial bolsos de trauma'], [`Registros: ${filas.length}`], [], columnas, ...body];
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Historial');
-    XLSX.writeFile(wb, `SIDEP-historial-bolso-trauma-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    exportarExcelSidep({
+      titulo: 'SIDEP · Historial bolsos de trauma',
+      meta: [`Registros: ${filas.length}`],
+      columnas,
+      filas: body,
+      nombreHoja: 'Bolso trauma',
+      nombreArchivo: `SIDEP-historial-bolso-trauma-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      anchosCols: [18, 10, 8, 14, 20, 22, 12, 12],
+    });
   }
 
   totalPaginasHistorial(): number {

@@ -1,7 +1,51 @@
 import prisma from '../../../prisma';
 import { randomUUID } from 'crypto';
 import { AppError } from '../../../utils';
+import {
+  buildInventarioLookup,
+  cargarFilasInventarioCarro,
+  sincronizarInventarioDesdeUbicaciones,
+  ubicacionesDesdeInventario,
+} from '../../../utils/material-inventario.util';
 import { registrarEjecucion } from './checklists.service';
+
+export { sincronizarInventarioDesdeUbicaciones };
+
+export async function cargarLookupInventarioCarro(carroId: string) {
+  const filas = await cargarFilasInventarioCarro(carroId);
+  return buildInventarioLookup(filas);
+}
+
+export const obtenerInventarioChecklistCarro = async (carroId: string) => {
+  const carro = await prisma.carro.findUnique({
+    where: { id: carroId },
+    select: { id: true, nomenclatura: true, nombre: true },
+  });
+  if (!carro) throw new AppError('Carro no encontrado', 404);
+
+  const filas = await cargarFilasInventarioCarro(carroId);
+  return {
+    carro,
+    totalMateriales: filas.length,
+    fuente: filas.length > 0 ? 'material_por_carro' : 'vacio',
+    ubicaciones: ubicacionesDesdeInventario(filas),
+  };
+};
+
+type UbicacionSyncInput = import('../../../utils/material-inventario.util').UbicacionSyncInput;
+
+/** Sincroniza material_por_carro desde la plantilla / checklist (cantidad_objetivo). */
+export const sincronizarInventarioDesdeUbicacionesCarro = async (
+  carroId: string,
+  ubicaciones: UbicacionSyncInput[],
+) => {
+  const resultado = await sincronizarInventarioDesdeUbicaciones(carroId, ubicaciones);
+  return {
+    carroId,
+    ...resultado,
+    ubicaciones: (await obtenerInventarioChecklistCarro(carroId)).ubicaciones,
+  };
+};
 
 function parseRespuestasJson(raw: string | null): Record<string, unknown> {
   if (!raw) return {};

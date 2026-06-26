@@ -19,6 +19,15 @@ export const editCarro = async (req: Request, res: Response) => {
     }
 };
 
+export const editMantenimientoHistorial = async (req: Request, res: Response) => {
+    try {
+        const fila = await carrosService.actualizarMantenimientoHistorial(req.params.id as string, req.body);
+        res.status(200).json({ success: true, data: fila });
+    } catch (error: any) {
+        res.status(error.statusCode || 500).json({ success: false, message: error.message });
+    }
+};
+
 export const getHistorialGeneralCarros = async (req: Request, res: Response) => {
     try {
         const { carroId, desde, hasta } = req.query;

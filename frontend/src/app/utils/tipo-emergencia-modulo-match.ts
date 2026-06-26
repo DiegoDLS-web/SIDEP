@@ -14,7 +14,8 @@ export function historialCoincideSeleccionTipoEmergencia(
   seleccion: string[],
 ): boolean {
   if (!seleccion.length) return true;
-  const rt = (registroTipo ?? '').trim().toUpperCase();
+  const rtRaw = (registroTipo ?? '').trim().toUpperCase();
+  const rt = rtRaw === 'CARRO' ? 'UNIDAD' : rtRaw;
   const hayAlgunaClaveMapeada = seleccion.some((c) => CLAVE_A_REGISTRO_TIPO[c] != null);
   if (!hayAlgunaClaveMapeada) return false;
   return seleccion.some((c) => CLAVE_A_REGISTRO_TIPO[c] === rt);

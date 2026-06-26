@@ -1,9 +1,12 @@
 /** Reintenta operaciones Prisma ante fallos transitorios (p. ej. Neon dormido). */
 export function esErrorConexionPrisma(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
+  const code = String((error as { code?: string }).code ?? '');
+  if (code === 'P1001' || code === 'P1002' || code === 'P2024' || code === 'P1017') return true;
   const msg = String((error as { message?: string }).message ?? '').toLowerCase();
   return (
     msg.includes("can't reach database") ||
+    msg.includes('connection pool timeout') ||
     msg.includes('connection') ||
     msg.includes('timeout') ||
     msg.includes('econnrefused') ||
@@ -16,8 +19,8 @@ export async function withDbRetry<T>(
   fn: () => Promise<T>,
   opts?: { attempts?: number; delayMs?: number },
 ): Promise<T> {
-  const attempts = Math.max(1, opts?.attempts ?? 3);
-  const delayMs = opts?.delayMs ?? 800;
+  const attempts = Math.max(1, opts?.attempts ?? 5);
+  const delayMs = opts?.delayMs ?? 1200;
   let lastError: unknown;
   for (let i = 0; i < attempts; i++) {
     try {

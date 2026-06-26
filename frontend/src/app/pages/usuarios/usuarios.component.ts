@@ -30,7 +30,7 @@ import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-p
 import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import { exportarExcelSidep } from '../../utils/excel-export.util';
 import { validarRut, normalizarRut } from '../../utils/rut.util';
 
 type FormUsuario = {
@@ -1001,11 +1001,15 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
           u.autorizadoConducir ? 'SÍ' : 'NO',
           u.claveNomina || ''
         ]);
-        const aoa = [['SIDEP · Directorio de Usuarios'], [`Fecha de generación: ${new Date().toLocaleDateString('es-CL')}`], [], cols, ...body];
-        const ws = XLSX.utils.aoa_to_sheet(aoa);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
-        XLSX.writeFile(wb, `SIDEP-directorio-usuarios-${new Date().toISOString().slice(0, 10)}.xlsx`);
+        exportarExcelSidep({
+          titulo: 'SIDEP · Directorio de usuarios y voluntarios',
+          meta: [`Registros: ${items.length}`],
+          columnas: cols,
+          filas: body,
+          nombreHoja: 'Usuarios',
+          nombreArchivo: `SIDEP-directorio-usuarios-${new Date().toISOString().slice(0, 10)}.xlsx`,
+          anchosCols: [14, 28, 24, 14, 14, 18, 12, 10, 12],
+        });
         this.toast.exito('Directorio exportado a Excel.');
       },
       error: () => {

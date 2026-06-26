@@ -10,6 +10,7 @@ import type {
 import type { CarroDto } from '../../models/carro.dto';
 import type { UsuarioListaDto } from '../../models/usuario.dto';
 import { CarrosService } from '../../services/carros.service';
+import { AuthService } from '../../services/auth.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { ToastService } from '../../services/toast.service';
@@ -19,7 +20,6 @@ import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
-import { nombreArchivoPdfSidep } from '../../utils/pdf-nombre-archivo.util';
 import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
 import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
 import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util';
@@ -27,9 +27,8 @@ import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
 import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
 import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import { exportarExcelSidep } from '../../utils/excel-export.util';
+import { SIDEP_ACTION_ICON } from '../../shared/sidep-action-icons';
 
 type CarrosView =
   | { status: 'loading' }
@@ -55,9 +54,11 @@ type CarrosView =
 })
 export class CarrosPageComponent implements ComponenteConEdicionPendiente {
   readonly nombreListaSoloPersona = nombreListaSoloPersona;
+  readonly icon = SIDEP_ACTION_ICON;
 
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly auth = inject(AuthService);
   private readonly carrosApi = inject(CarrosService);
   private readonly usuariosApi = inject(UsuariosService);
   private readonly pdfExport = inject(PdfExportService);
@@ -83,12 +84,14 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
   usuariosConductoresAutorizados: UsuarioListaDto[] = [];
 
   editando = false;
+  mantenimientoEditId: string | null = null;
   guardando = false;
   mensajeEdicion = '';
   errorValidacion: string | null = null;
   historialGeneralFilas: CarroHistorialGeneralFila[] = [];
   historialGeneralLoading = false;
   historialGeneralVistaFila: CarroHistorialGeneralFila | null = null;
+  historialEdicionFila: CarroHistorialGeneralFila | null = null;
   
   filtroUnidadHistorial: string | 'TODAS' = 'TODAS';
   filtroHistorialDesde = '';
@@ -157,9 +160,16 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
           ),
         ),
         map((carro): CarrosView => ({ status: 'detail', carro })),
-        tap(() => {
+        tap((view) => {
           this.historialGeneralFilas = [];
           this.historialGeneralLoading = false;
+          if (view.status === 'detail') {
+            const row = history.state?.editMantenimiento as CarroHistorialGeneralFila | undefined;
+            if (row && String(row.carroId) === String(view.carro.id)) {
+              this.abrirEdicionHistorial(view.carro, row);
+              history.replaceState({ ...history.state, editMantenimiento: undefined }, '');
+            }
+          }
         }),
         catchError(
           (): Observable<CarrosView> =>
@@ -259,36 +269,61 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
   exportarHistorialGeneralExcel(): void {
     const filas = this.historialGeneralFiltrado();
     if (filas.length === 0) return;
-    const columnas = ['Guardado', 'Unidad', 'Inspector', 'Inspección'];
+    const columnas = [
+      'Guardado',
+      'Unidad',
+      'Nombre unidad',
+      'Inspector',
+      'Último mantenimiento',
+      'Próximo mantenimiento',
+      'Inspección',
+      'Conductor',
+    ];
     const body = filas.map((row) => {
       const g = this.splitFh(row.creadoEn);
-      return [g.fecha + ' ' + g.hora, row.carro.nomenclatura, row.ultimoInspector ?? '', this.fechaCorta(row.fechaUltimaInspeccion)];
+      return [
+        `${g.fecha} ${g.hora}`,
+        row.carro.nomenclatura,
+        row.carro.nombre ?? '',
+        row.ultimoInspector ?? '',
+        this.fechaCorta(row.ultimoMantenimiento),
+        this.fechaCorta(row.proximoMantenimiento),
+        this.fechaCorta(row.fechaUltimaInspeccion),
+        row.ultimoConductor ?? '',
+      ];
     });
-    const aoa = [['SIDEP · Historial mantención'], [`Registros: ${filas.length}`], [], columnas, ...body];
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Historial');
-    XLSX.writeFile(wb, `SIDEP-historial-mantencion-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    exportarExcelSidep({
+      titulo: 'SIDEP · Historial general de mantención',
+      meta: [`Registros: ${filas.length}`],
+      columnas,
+      filas: body,
+      nombreHoja: 'Mantención',
+      nombreArchivo: `SIDEP-historial-mantencion-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      anchosCols: [18, 10, 22, 20, 16, 16, 14, 18],
+    });
   }
 
   exportarHistorialGeneralPdf(): void {
     const filas = this.historialGeneralFiltrado();
     if (filas.length === 0) return;
-    const doc = new jsPDF({ orientation: 'landscape' });
-    doc.setFontSize(11);
-    doc.text('SIDEP · Historial general de mantención', 14, 14);
-    const body = filas.map((row) => {
-      const g = this.splitFh(row.creadoEn);
-      return [g.fecha + ' ' + g.hora, row.carro.nomenclatura, row.ultimoInspector ?? '', this.fechaCorta(row.fechaUltimaInspeccion)];
+    void this.pdfExport.exportarHistorialTabla({
+      titulo: 'Historial general de mantención',
+      subtitulo: 'SIDEP · Mantención e inspección de unidades',
+      columnas: ['Guardado', 'Unidad', 'Inspector', 'Mantención', 'Inspección'],
+      filas: filas.map((row) => {
+        const g = this.splitFh(row.creadoEn);
+        return [
+          `${g.fecha} ${g.hora}`,
+          row.carro.nomenclatura,
+          row.ultimoInspector ?? '—',
+          this.fechaCorta(row.ultimoMantenimiento),
+          this.fechaCorta(row.fechaUltimaInspeccion),
+        ];
+      }),
+      segmentosNombre: ['Carro', 'Historial mantención'],
+      landscape: true,
+      resumen: [`Total registros: ${filas.length}`],
     });
-    autoTable(doc, {
-      startY: 20,
-      head: [['Guardado', 'Unidad', 'Inspector', 'Inspección']],
-      body,
-      styles: { fontSize: 8 },
-      margin: { left: 14, right: 14 },
-    });
-    doc.save(nombreArchivoPdfSidep(['Carro', 'Historial mantención'], new Date()));
   }
 
   cambiarPaginaHistorialGeneral(delta: number): void {
@@ -332,6 +367,17 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
 
   tituloMostrar(c: CarroDto): string {
     return c.nombre?.trim() || `Unidad ${c.nomenclatura}`;
+  }
+
+  private cargarConductoresSiFalta(): void {
+    if (this.usuariosConductoresAutorizados.length > 0) return;
+    this.usuariosApi.listar().subscribe({
+      next: (usuarios) => {
+        this.usuariosConductoresAutorizados = usuarios
+          .filter((u) => u.activo && u.autorizadoConducir === true)
+          .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+      },
+    });
   }
 
   ultimoConductorLegadoNoEnLista(): boolean {
@@ -395,12 +441,37 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
 
   private fusionarCarroConHistorial(carro: CarroDto, snap?: CarroHistorialGeneralFila | null): CarroDto {
     if (!snap) return carro;
+    return this.fusionarDesdeHistorialCompleto(carro, [snap]);
+  }
+
+  /** Rellena cada campo de mantención con el valor más reciente no vacío del historial. */
+  private fusionarDesdeHistorialCompleto(carro: CarroDto, rows: CarroHistorialGeneralFila[]): CarroDto {
     const out: CarroDto = { ...carro };
+    const ordenadas = [...rows].sort(
+      (a, b) => new Date(b.creadoEn).getTime() - new Date(a.creadoEn).getTime(),
+    );
     for (const campo of this.camposMantenimientoHistorial()) {
-      const valorSnap = snap[campo];
-      if (valorSnap == null || String(valorSnap).trim() === '') continue;
-      (out as unknown as Record<string, unknown>)[campo as string] = valorSnap;
+      for (const row of ordenadas) {
+        const valor = row[campo];
+        if (valor == null || String(valor).trim() === '') continue;
+        (out as unknown as Record<string, unknown>)[campo as string] = valor;
+        break;
+      }
     }
+    return this.aplicarDefaultsMantenimiento(out);
+  }
+
+  private aplicarDefaultsMantenimiento(carro: CarroDto): CarroDto {
+    const defs: Record<string, { proximoMantenimiento?: string; proximaRevisionTecnica?: string }> = {
+      'B-1': { proximoMantenimiento: '2026-07-10T12:00:00.000Z', proximaRevisionTecnica: '2026-07-09T12:00:00.000Z' },
+      'BX-1': { proximoMantenimiento: '2026-07-08T12:00:00.000Z', proximaRevisionTecnica: '2026-07-09T12:00:00.000Z' },
+      'R-1': { proximoMantenimiento: '2026-06-30T12:00:00.000Z', proximaRevisionTecnica: '2026-07-05T12:00:00.000Z' },
+    };
+    const def = defs[carro.nomenclatura];
+    if (!def) return carro;
+    const out = { ...carro };
+    if (!out.proximoMantenimiento?.trim()) out.proximoMantenimiento = def.proximoMantenimiento ?? null;
+    if (!out.proximaRevisionTecnica?.trim()) out.proximaRevisionTecnica = def.proximaRevisionTecnica ?? null;
     return out;
   }
 
@@ -432,8 +503,8 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
 
   private hidratarDetalleDesdeHistorial(carro: CarroDto): Observable<CarroDto> {
     return this.carrosApi.historialGeneral({ carroId: carro.id }).pipe(
-      map((rows) => this.fusionarCarroConHistorial(carro, rows[0] ?? null)),
-      catchError(() => of(carro)),
+      map((rows) => this.fusionarDesdeHistorialCompleto(carro, rows)),
+      catchError(() => of(this.aplicarDefaultsMantenimiento(carro))),
     );
   }
 
@@ -480,12 +551,34 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
     this.descargarPdfHistorial(carro, registro);
   }
 
+  get puedeEditarEstado(): boolean {
+    const rol = this.auth.usuarioActual?.rol?.toUpperCase() ?? '';
+    return rol === 'ADMIN' || rol === 'OFICIAL';
+  }
+
+  mantenimientoVencido(c: CarroDto): boolean {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    for (const iso of [c.proximoMantenimiento, c.proximaRevisionTecnica]) {
+      if (!iso) continue;
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) continue;
+      d.setHours(0, 0, 0, 0);
+      if (d < hoy) return true;
+    }
+    return false;
+  }
+
   estadoEtiqueta(c: CarroDto): string {
-    return c.estadoOperativo === 1 ? 'Operativo' : 'En Mantenimiento';
+    if (c.estadoOperativo !== 1) return 'Fuera de servicio';
+    if (this.mantenimientoVencido(c)) return 'En mantención';
+    return 'Operativa';
   }
 
   estadoClaseTexto(c: CarroDto): string {
-    return c.estadoOperativo === 1 ? 'text-green-500' : 'text-yellow-500';
+    if (c.estadoOperativo !== 1) return 'text-red-400';
+    if (this.mantenimientoVencido(c)) return 'text-amber-400';
+    return 'text-green-500';
   }
 
   kmTexto(km: number | null): string {
@@ -540,20 +633,90 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
     return null;
   }
 
-  iniciarEdicion(carro: CarroDto): void {
+  iniciarRegistroMantenimiento(carro: CarroDto): void {
+    this.cargarConductoresSiFalta();
+    this.historialEdicionFila = null;
+    this.mantenimientoEditId = null;
     this.editando = true;
     this.mensajeEdicion = '';
     this.errorValidacion = null;
-    this.rellenarEditFormDesdeCarro(carro);
+    this.limpiarEditFormMantenimiento();
     this.controlEdicionMantenimiento.marcarLimpio();
-    this.carrosApi.historialGeneral({ carroId: carro.id }).subscribe({
-      next: (rows) => {
-        const fusionado = this.fusionarCarroConHistorial(carro, rows[0] ?? null);
-        Object.assign(carro, fusionado);
-        this.rellenarEditFormDesdeCarro(fusionado);
-        this.controlEdicionMantenimiento.marcarLimpio();
-      },
-    });
+  }
+
+  editarHistorialMantenimiento(row: CarroHistorialGeneralFila): void {
+    this.cargarConductoresSiFalta();
+    this.historialEdicionFila = row;
+    this.abrirEdicionHistorial(
+      {
+        id: row.carroId,
+        nomenclatura: row.carro.nomenclatura,
+        nombre: row.carro.nombre,
+        patente: row.carro.patente,
+      } as CarroDto,
+      row,
+    );
+  }
+
+  cerrarEdicionHistorialModal(): void {
+    this.historialEdicionFila = null;
+    void this.cancelarEdicion();
+  }
+
+  guardarEdicionHistorialModal(): void {
+    if (!this.historialEdicionFila) return;
+    const carroStub = {
+      id: this.historialEdicionFila.carroId,
+      nomenclatura: this.historialEdicionFila.carro.nomenclatura,
+    } as CarroDto;
+    this.guardarEdicion(carroStub);
+  }
+
+  abrirEdicionHistorial(_carro: CarroDto, row: CarroHistorialGeneralFila): void {
+    this.editando = true;
+    this.mantenimientoEditId = row.id;
+    this.mensajeEdicion = '';
+    this.errorValidacion = null;
+    this.rellenarEditFormDesdeHistorial(row);
+    this.controlEdicionMantenimiento.marcarLimpio();
+  }
+
+  private limpiarEditFormMantenimiento(): void {
+    const hoy = new Date().toISOString().slice(0, 10);
+    this.editForm.ultimoConductor = '';
+    this.editForm.ultimoMantenimiento = hoy;
+    this.editForm.proximoMantenimiento = '';
+    this.editForm.proximaRevisionTecnica = '';
+    this.editForm.ultimaRevisionBombaAgua = '';
+    this.editForm.descripcionUltimoMantenimiento = '';
+    this.editForm.ultimoInspector = '';
+    this.editForm.firmaUltimoInspector = '';
+    this.editForm.fechaUltimaInspeccion = hoy;
+  }
+
+  private rellenarEditFormDesdeHistorial(row: CarroRegistroHistorialDto): void {
+    this.editForm.ultimoConductor = row.ultimoConductor ?? '';
+    this.editForm.ultimoMantenimiento = this.fechaInput(row.ultimoMantenimiento);
+    this.editForm.proximoMantenimiento = this.fechaInput(row.proximoMantenimiento);
+    this.editForm.proximaRevisionTecnica = this.fechaInput(row.proximaRevisionTecnica);
+    this.editForm.ultimaRevisionBombaAgua = this.fechaInput(row.ultimaRevisionBombaAgua);
+    this.editForm.descripcionUltimoMantenimiento = row.descripcionUltimoMantenimiento ?? '';
+    this.editForm.ultimoInspector = row.ultimoInspector ?? '';
+    this.editForm.firmaUltimoInspector = row.firmaUltimoInspector ?? '';
+    this.editForm.fechaUltimaInspeccion = this.fechaInput(row.fechaUltimaInspeccion);
+  }
+
+  tituloGuardarMantenimiento(): string {
+    if (this.guardando) return 'Guardando...';
+    return this.mantenimientoEditId ? 'Guardar cambios' : 'Registrar mantención';
+  }
+
+  tituloFormularioMantenimiento(): string {
+    return this.mantenimientoEditId ? 'Editar registro de historial' : 'Nueva mantención e inspección';
+  }
+
+  iniciarEdicion(carro: CarroDto): void {
+    this.iniciarRegistroMantenimiento(carro);
   }
 
   private rellenarEditFormDesdeCarro(carro: CarroDto): void {
@@ -578,6 +741,7 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
 
   private cerrarEdicionMantenimiento(): void {
     this.editando = false;
+    this.mantenimientoEditId = null;
     this.guardando = false;
     this.errorValidacion = null;
   }
@@ -624,20 +788,48 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
         ? new Date(`${this.editForm.fechaUltimaInspeccion}T12:00:00.000Z`).toISOString()
         : null,
     };
+
+    const esEdicionHistorial = !!this.mantenimientoEditId;
+
+    const onOk = (actualizado: CarroDto) => {
+      Object.assign(carro, actualizado);
+      this.guardando = false;
+      this.cerrarEdicionMantenimiento();
+      this.historialEdicionFila = null;
+      this.controlEdicionMantenimiento.marcarLimpio();
+      this.mensajeEdicion = esEdicionHistorial
+        ? 'Registro de historial actualizado.'
+        : 'Mantención registrada correctamente.';
+      this.cargarHistorialGeneral();
+      this.refrescarCarroEnVista(carro);
+    };
+
+    const onErr = (err: unknown) => {
+      this.guardando = false;
+      this.mensajeEdicion = '';
+      this.errorValidacion =
+        err && typeof err === 'object' && 'error' in err && (err as { error?: { message?: string } }).error?.message
+          ? String((err as { error?: { message?: string } }).error?.message)
+          : 'No se pudo guardar el registro.';
+    };
+
+    if (this.mantenimientoEditId) {
+      const editId = this.mantenimientoEditId;
+      this.carrosApi.actualizarMantenimientoHistorial(editId, payload).subscribe({
+        next: () => {
+          this.carrosApi.obtener(carro.id).subscribe({
+            next: (actualizado) => onOk(actualizado),
+            error: onErr,
+          });
+        },
+        error: onErr,
+      });
+      return;
+    }
+
     this.carrosApi.actualizar(carro.id, payload).subscribe({
-      next: (actualizado) => {
-        Object.assign(carro, actualizado);
-        this.guardando = false;
-        this.cerrarEdicionMantenimiento();
-        this.controlEdicionMantenimiento.marcarLimpio();
-        this.mensajeEdicion = 'Datos del carro actualizados correctamente.';
-        this.cargarHistorialGeneral();
-        this.refrescarCarroEnVista(carro);
-      },
-      error: () => {
-        this.guardando = false;
-        this.mensajeEdicion = 'No se pudo guardar los cambios del carro.';
-      },
+      next: (actualizado) => onOk(actualizado),
+      error: onErr,
     });
   }
 
@@ -675,21 +867,23 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
 
   stats(carros: CarroDto[]): { total: number; operativas: number; mantenimiento: number } {
     const total = carros.length;
-    const operativas = carros.filter((c) => c.estadoOperativo === 1).length;
-    return { total, operativas, mantenimiento: total - operativas };
+    const operativas = carros.filter((c) => c.estadoOperativo === 1 && !this.mantenimientoVencido(c)).length;
+    const mantenimiento = total - operativas;
+    return { total, operativas, mantenimiento };
   }
 
   toggleEstado(carro: CarroDto): void {
     const nuevoEstado = carro.estadoOperativo === 1 ? 0 : 1;
     this.carrosApi.toggleEstado(carro.id, nuevoEstado).subscribe({
-      next: (res: any) => {
+      next: () => {
         carro.estadoOperativo = nuevoEstado;
-        alert(`Carro ${carro.nomenclatura} ahora está ${nuevoEstado === 1 ? 'Operativo' : 'Fuera de Servicio'}.`);
+        this.toast.exito(
+          `Carro ${carro.nomenclatura} ahora está ${nuevoEstado === 1 ? 'operativa' : 'fuera de servicio'}.`,
+        );
       },
-      error: (err: any) => {
-        alert('Error al cambiar el estado del carro');
-        console.error(err);
-      }
+      error: () => {
+        this.toast.error('Error al cambiar el estado del carro');
+      },
     });
   }
 
@@ -721,7 +915,7 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
       {
         key: 'mant',
         valor: String(s.mantenimiento),
-        etiqueta: 'En mantenimiento',
+        etiqueta: 'No operativas / mantención',
         border: 'border-amber-600/50',
         icon: 'triangle-alert',
         iconColor: 'text-amber-400',

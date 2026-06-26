@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import prisma from '../prisma';
 import { verifyToken } from '../utils/security/jwt';
 import { payloadAccesoDenegado, puedeAccederApp } from '../utils/usuario-acceso.util';
+import { withDbRetry } from '../utils/db-retry.util';
 
 export const protect = async (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization;
@@ -27,10 +28,12 @@ export const protect = async (req: Request, res: Response, next: NextFunction) =
     }
 
     try {
-        const dbUser = await prisma.usuario.findUnique({
-            where: { rut: (decoded as { rut: string }).rut },
-            include: { rol: true, estadoVoluntario: true },
-        });
+        const dbUser = await withDbRetry(() =>
+            prisma.usuario.findUnique({
+                where: { rut: (decoded as { rut: string }).rut },
+                include: { rol: true, estadoVoluntario: true },
+            }),
+        );
 
         if (!dbUser) {
             return res.status(401).json({ success: false, message: 'Usuario no encontrado' });

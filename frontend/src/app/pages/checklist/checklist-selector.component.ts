@@ -1,7 +1,7 @@
 import { CommonModule, formatDate } from '@angular/common';
 import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import * as XLSX from 'xlsx';
+import { exportarExcelSidep } from '../../utils/excel-export.util';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
 import type { ChecklistRegistroDto, ChecklistResumenUnidadDto, EstadoChecklist } from '../../models/checklist.dto';
@@ -13,6 +13,7 @@ import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 import { etiquetaCompletandoOCompletado } from '../../utils/etiqueta-completitud';
+import { historialCoincideSeleccionTipoEmergencia } from '../../utils/tipo-emergencia-modulo-match';
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
 import { etiquetaUnidadCarro } from '../../utils/etiqueta-unidad-carro';
 @Component({
@@ -129,7 +130,7 @@ export class ChecklistSelectorComponent implements OnInit {
     this.historialLoading = true;
     forkJoin(
       this.unidades.map((unidad) =>
-        this.checklistsApi.historialUnidad(unidad.unidad).pipe(catchError(() => of([]))),
+        this.checklistsApi.historialCompletoUnidad(unidad.unidad).pipe(catchError(() => of([]))),
       ),
     ).subscribe({
       next: (responses) => {
@@ -170,6 +171,10 @@ export class ChecklistSelectorComponent implements OnInit {
       const coincideUnidad =
         this.filtroUnidadHistorial === 'TODAS' ||
         registro.unidad === this.filtroUnidadHistorial;
+      const coincideTipoEmergencia = historialCoincideSeleccionTipoEmergencia(
+        registro.tipo,
+        this.filtroTiposEmergenciaHistorial,
+      );
       const estado = this.estadoHistorialFila(registro);
       const coincideEstado =
         this.filtroEstadoHistorial === 'TODOS' ||
@@ -195,7 +200,7 @@ export class ChecklistSelectorComponent implements OnInit {
         const d1 = new Date(`${tHasta}T23:59:59.999`).getTime();
         if (!Number.isNaN(d1)) coincideFecha = coincideFecha && fechaReg <= d1;
       }
-      return coincideUnidad && coincideEstado && coincideTexto && coincideFecha;
+      return coincideUnidad && coincideTipoEmergencia && coincideEstado && coincideTexto && coincideFecha;
     });
   }
 
@@ -376,7 +381,7 @@ export class ChecklistSelectorComponent implements OnInit {
   exportarHistorialExcel(): void {
     const filas = this.historialFiltrado();
     if (filas.length === 0) return;
-    const columnas = ['Fecha', 'Unidad', 'Estado', 'Inspector', 'OBAC', 'Guardia', 'Cumplimiento', 'Obs.'];
+    const columnas = ['Fecha', 'Unidad', 'Estado', 'Inspector', 'OBAC', 'Guardia', 'Cumplimiento', 'Observaciones'];
     const body: string[][] = filas.map((h) => [
       `${this.fechaHora(h.fecha).fecha} ${this.fechaHora(h.fecha).hora}`,
       h.unidad,
@@ -387,11 +392,15 @@ export class ChecklistSelectorComponent implements OnInit {
       `${h.itemsOk ?? 0}/${h.totalItems ?? 0}`,
       (h.observaciones ?? '').slice(0, 500),
     ]);
-    const aoa = [['SIDEP · Historial checklist unidades'], [`Registros: ${filas.length}`], [], columnas, ...body];
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Historial');
-    XLSX.writeFile(wb, `SIDEP-historial-checklist-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    exportarExcelSidep({
+      titulo: 'SIDEP · Historial checklist unidades',
+      meta: [`Registros: ${filas.length}`],
+      columnas,
+      filas: body,
+      nombreHoja: 'Checklist',
+      nombreArchivo: `SIDEP-historial-checklist-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      anchosCols: [18, 10, 14, 20, 22, 12, 12, 36],
+    });
   }
 
   exportarHistorialPdf(): void {
@@ -445,17 +454,38 @@ export class ChecklistSelectorComponent implements OnInit {
     materiales: Array<{ nombre: string; cantidadRequerida: number; cantidadActual: number }>;
   }> {
     const d = registro.detalle;
-    if (!Array.isArray(d)) return [];
-    return (d as Array<Record<string, unknown>>).map((u) => ({
-      nombre: String(u['nombre'] ?? '—'),
-      materiales: Array.isArray(u['materiales'])
-        ? (u['materiales'] as Array<Record<string, unknown>>).map((m) => ({
-            nombre: String(m['nombre'] ?? '—'),
-            cantidadRequerida: Number(m['cantidadRequerida'] ?? 0),
-            cantidadActual: Number(m['cantidadActual'] ?? 0),
-          }))
-        : [],
-    }));
+    if (!d) return [];
+    if (Array.isArray(d)) {
+      return (d as Array<Record<string, unknown>>).map((u) => ({
+        nombre: String(u['nombre'] ?? '—'),
+        materiales: Array.isArray(u['materiales'])
+          ? (u['materiales'] as Array<Record<string, unknown>>).map((m) => ({
+              nombre: String(m['nombre'] ?? '—'),
+              cantidadRequerida: Number(m['cantidadRequerida'] ?? 0),
+              cantidadActual: Number(m['cantidadActual'] ?? 0),
+            }))
+          : [],
+      }));
+    }
+    if (typeof d === 'object') {
+      const ubicaciones = (d as { ubicaciones?: unknown[] }).ubicaciones;
+      if (Array.isArray(ubicaciones)) {
+        return ubicaciones.map((u) => {
+          const row = u as Record<string, unknown>;
+          return {
+            nombre: String(row['nombre'] ?? '—'),
+            materiales: Array.isArray(row['materiales'])
+              ? (row['materiales'] as Array<Record<string, unknown>>).map((m) => ({
+                  nombre: String(m['nombre'] ?? '—'),
+                  cantidadRequerida: Number(m['cantidadRequerida'] ?? 0),
+                  cantidadActual: Number(m['cantidadActual'] ?? 0),
+                }))
+              : [],
+          };
+        });
+      }
+    }
+    return [];
   }
 
   cerrarDetalleBackdrop(ev: MouseEvent): void {

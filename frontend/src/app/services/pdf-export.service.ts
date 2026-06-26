@@ -1093,4 +1093,62 @@ export class PdfExportService {
     this.finalizarDocumentoPdf(doc);
     doc.save(nombreArchivoPdfSidep(['Licencia', String(input.id)], input.fechaInicio ?? new Date()));
   }
+
+  /** Cabecera institucional SIDEP (logos, franja roja). */
+  async encabezadoMarca(doc: jsPDF, title: string, subtitle: string): Promise<number> {
+    return this.drawHeaderMarca(doc, title, subtitle);
+  }
+
+  /** Pie de página institucional en todas las hojas. */
+  pieMarca(doc: jsPDF): void {
+    this.finalizarDocumentoPdf(doc);
+  }
+
+  readonly estilosEncabezadoTabla = {
+    fillColor: [180, 30, 30] as [number, number, number],
+    textColor: 255,
+    fontStyle: 'bold' as const,
+    halign: 'center' as const,
+  };
+
+  /**
+   * PDF tabular de historial con diseño unificado (partes, licencias, mantención, etc.).
+   */
+  async exportarHistorialTabla(input: {
+    titulo: string;
+    subtitulo: string;
+    columnas: string[];
+    filas: string[][];
+    segmentosNombre: string[];
+    landscape?: boolean;
+    resumen?: string[];
+  }): Promise<void> {
+    const doc = new jsPDF({ orientation: input.landscape ? 'landscape' : 'portrait' });
+    const margin = 14;
+    const yHead = await this.drawHeaderMarca(doc, input.titulo, input.subtitulo);
+    doc.setFontSize(9);
+    doc.text(`Generado: ${fmtFechaHoraPdf(new Date().toISOString())}`, margin, yHead);
+    doc.text(`Registros: ${input.filas.length}`, margin + 120, yHead);
+    if (input.resumen?.length) {
+      let yRes = yHead + 5;
+      for (const linea of input.resumen) {
+        doc.text(linea, margin, yRes);
+        yRes += 4.5;
+      }
+    }
+
+    const startY = yHead + (input.resumen?.length ? 8 + input.resumen.length * 4.5 : 8);
+    autoTable(doc, {
+      startY,
+      head: [input.columnas],
+      body: input.filas,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak', valign: 'middle' },
+      headStyles: this.estilosEncabezadoTabla,
+      margin: { left: margin, right: margin },
+    });
+
+    this.finalizarDocumentoPdf(doc);
+    doc.save(nombreArchivoPdfSidep(input.segmentosNombre, new Date()));
+  }
 }

@@ -27,6 +27,21 @@ function aplicarMantenimientoDefault(nomenclatura: string, ficha: Record<string,
   return out;
 }
 
+/** Combina campos no vacíos del historial (más reciente primero) para ficha completa en pantalla. */
+function fusionarFichaDesdeHistorial(mantenimientos: any[]): Record<string, unknown> {
+  const base = mapMantenimientoAFicha(null) as Record<string, unknown>;
+  for (const m of mantenimientos) {
+    const parcial = mapMantenimientoAFicha(m) as Record<string, unknown>;
+    for (const [clave, valor] of Object.entries(parcial)) {
+      if (valor == null || String(valor).trim() === '') continue;
+      if (base[clave] == null || String(base[clave]).trim() === '') {
+        base[clave] = valor;
+      }
+    }
+  }
+  return base;
+}
+
 function enriquecerCarro(carro: any) {
   const meta = METADATA[carro.nomenclatura];
   return {
@@ -152,7 +167,7 @@ export const obtenerCarroEnriquecido = async (id: string) => {
       materiales: true,
       mantenimientos: {
         orderBy: { fechaRegistro: 'desc' },
-        take: 1,
+        take: 24,
         include: mantenimientoInclude,
       },
     },
@@ -162,7 +177,7 @@ export const obtenerCarroEnriquecido = async (id: string) => {
   const base = enriquecerCarro(resto);
   const ficha = aplicarMantenimientoDefault(
     carro.nomenclatura,
-    mapMantenimientoAFicha(mantenimientos[0] ?? null) as Record<string, unknown>,
+    fusionarFichaDesdeHistorial(mantenimientos ?? []),
   );
   return { ...base, ...ficha };
 }
@@ -251,6 +266,81 @@ export const actualizarCarro = async (id: string, datos: any) => {
   return obtenerCarroEnriquecido(id);
 };
 
+export const actualizarMantenimientoHistorial = async (mantenimientoId: string, datos: any) => {
+  const reg = await prisma.mantenimientoCarro.findUnique({ where: { id: mantenimientoId } });
+  if (!reg) throw new AppError('Registro de mantenimiento no encontrado', 404);
+
+  const conductorNombre = (datos.ultimoConductor ?? datos.conductorAsignado ?? reg.conductorNombre) as string | null;
+  const inspectorNombre =
+    datos.ultimoInspector !== undefined ? (datos.ultimoInspector as string | null) : reg.inspectorNombre;
+  const [inspectorRut, conductorRut] = await Promise.all([
+    datos.ultimoInspector !== undefined
+      ? resolverRutPorNombre(datos.ultimoInspector)
+      : Promise.resolve(reg.inspectorRut),
+    datos.ultimoConductor !== undefined || datos.conductorAsignado !== undefined
+      ? resolverRutPorNombre(conductorNombre)
+      : Promise.resolve(reg.conductorRut),
+  ]);
+
+  const updateData: Record<string, unknown> = {};
+  if (datos.ultimoMantenimiento !== undefined) {
+    updateData.fechaMantenimiento = toDateOnly(datos.ultimoMantenimiento);
+  }
+  if (datos.proximoMantenimiento !== undefined) {
+    updateData.fechaProximoMantenimiento = toDateOnly(datos.proximoMantenimiento);
+  }
+  if (datos.proximaRevisionTecnica !== undefined) {
+    updateData.fechaProximaRevTecnica = toDateOnly(datos.proximaRevisionTecnica);
+  }
+  if (datos.ultimaRevisionBombaAgua !== undefined) {
+    updateData.fechaRevBomba = toDateOnly(datos.ultimaRevisionBombaAgua);
+  }
+  if (datos.fechaUltimaInspeccion !== undefined) {
+    updateData.fechaInspeccion = toDateOnly(datos.fechaUltimaInspeccion);
+  }
+  if (datos.ultimoInspector !== undefined) {
+    updateData.inspectorNombre = datos.ultimoInspector?.trim() || null;
+    updateData.inspectorRut = inspectorRut;
+  }
+  if (datos.ultimoConductor !== undefined || datos.conductorAsignado !== undefined) {
+    updateData.conductorNombre = conductorNombre?.trim() || null;
+    updateData.conductorRut = conductorRut;
+  }
+  if (datos.firmaUltimoInspector !== undefined) {
+    updateData.firmaInspector = datos.firmaUltimoInspector ?? null;
+  }
+  if (datos.descripcionUltimoMantenimiento !== undefined || datos.firmaUltimoInspector !== undefined) {
+    updateData.descripcion = empaquetarDescripcionYFirma(
+      datos.descripcionUltimoMantenimiento ?? desempaquetarDescripcionYFirma(reg.descripcion).descripcion,
+      datos.firmaUltimoInspector ?? reg.firmaInspector,
+    );
+  }
+
+  await prisma.mantenimientoCarro.update({
+    where: { id: mantenimientoId },
+    data: updateData,
+  });
+
+  const actualizado = await prisma.mantenimientoCarro.findUnique({
+    where: { id: mantenimientoId },
+    include: {
+      carro: { select: { id: true, nomenclatura: true, nombre: true, patente: true } },
+      ...mantenimientoInclude,
+    },
+  });
+  if (!actualizado) throw new AppError('Registro de mantenimiento no encontrado', 404);
+
+  return {
+    ...mapMantenimientoAHistorial(actualizado),
+    carro: {
+      id: actualizado.carro.id,
+      nomenclatura: actualizado.carro.nomenclatura,
+      nombre: actualizado.carro.nombre,
+      patente: actualizado.carro.patente,
+    },
+  };
+};
+
 export const obtenerCarros = async () => {
   const carros = await prisma.carro.findMany({
     include: {
@@ -258,7 +348,7 @@ export const obtenerCarros = async () => {
       materiales: true,
       mantenimientos: {
         orderBy: { fechaRegistro: 'desc' },
-        take: 1,
+        take: 24,
         include: mantenimientoInclude,
       },
     },
@@ -269,7 +359,7 @@ export const obtenerCarros = async () => {
     const base = enriquecerCarro(resto);
     const ficha = aplicarMantenimientoDefault(
       carro.nomenclatura,
-      mapMantenimientoAFicha(mantenimientos[0] ?? null) as Record<string, unknown>,
+      fusionarFichaDesdeHistorial(mantenimientos ?? []),
     );
     return { ...base, ...ficha };
   });

@@ -213,6 +213,11 @@
                               <option [ngValue]="c.id">{{ c.nomenclatura }}</option>
                             }
                           </select>
+                          @if (carrosDisponiblesParaUnidad(i).length === 0) {
+                            <p class="mt-1 text-[11px] text-amber-300/95">
+                              No hay unidades operativas para la fecha del parte. Solo se pueden despachar carros operativos y con mantención al día.
+                            </p>
+                          }
                         </div>
                         <div class="p-2">
                           <label class="mb-1 block text-[11px] font-medium uppercase text-gray-500">Conductor</label>
@@ -583,9 +588,9 @@
                   Ninguna fila del padrón coincide con el filtro. Prueba otra palabra o borra la búsqueda.
                 </p>
               }
-              <div class="grid gap-3 lg:grid-cols-3 lg:gap-4">
+              <div class="grid grid-cols-1 gap-4 xl:grid-cols-3 xl:gap-4">
                 @for (col of asistenciaLayoutVista; track $index) {
-                  <div class="space-y-3 lg:max-h-[min(72vh,760px)] lg:overflow-y-auto lg:pr-1 [scrollbar-color:#4b5563_#111827] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-[#111827] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-600">
+                  <div class="min-w-0 space-y-3 xl:max-h-[min(72vh,760px)] xl:overflow-y-auto xl:pr-1 [scrollbar-color:#4b5563_#111827] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-[#111827] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-600">
                     @for (sec of col.secciones; track sec.titulo) {
                       @if (itemsAsistenciaFiltrados(sec.items).length > 0) {
                         <div class="rounded-xl border border-gray-800 bg-[#0a0a0a] p-3 sm:p-4">
@@ -603,7 +608,7 @@
                           >
                             @for (it of itemsAsistenciaFiltrados(sec.items); track it.id) {
                               <label
-                                class="flex min-w-0 cursor-pointer items-start gap-2.5 rounded-lg border border-gray-800/60 bg-[#0f0f0f]/40 px-2.5 py-2 text-xs leading-relaxed text-gray-200 transition-colors hover:border-gray-700 hover:bg-gray-800/40 sm:text-[13px]"
+                                class="flex min-w-0 max-w-full cursor-pointer items-start gap-2.5 rounded-lg border border-gray-800/60 bg-[#0f0f0f]/40 px-2.5 py-2 text-xs leading-relaxed text-gray-200 transition-colors hover:border-gray-700 hover:bg-gray-800/40 sm:text-[13px]"
                                 [class.opacity-60]="
                                   asistenciaBloqueadaPorOtroContexto(it.id) || asistenciaNoSeleccionable(it.id)
                                 "
@@ -622,7 +627,7 @@
                                   (change)="onToggleAsistencia(it.id, $event)"
                                 />
                                 <span
-                                  class="min-w-0 flex-1 break-words leading-snug"
+                                  class="min-w-0 flex-1 break-words [overflow-wrap:anywhere] leading-snug"
                                   [class.text-yellow-300]="estadoDisponibilidadAsistencia(it.id) === 'licencia'"
                                   [class.text-gray-500]="estadoDisponibilidadAsistencia(it.id) === 'bloqueado'"
                                 >

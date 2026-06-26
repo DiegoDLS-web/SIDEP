@@ -8,6 +8,7 @@ import { PartesService } from '../../services/partes.service';
 import { ToastService } from '../../services/toast.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
+import { SIDEP_ACTION_ICON } from '../../shared/sidep-action-icons';
 import { ASISTENCIA_CONTEXTO_OPCIONES, resolverEtiquetaAsistenciaId } from './asistencia-roster.constants';
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
@@ -39,6 +40,7 @@ type ParteAnalitica = {
   templateUrl: './parte-detalle.component.html',
 })
 export class ParteDetalleComponent implements OnInit, ComponenteConEdicionPendiente {
+  readonly icon = SIDEP_ACTION_ICON;
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly partesApi = inject(PartesService);
@@ -226,7 +228,7 @@ export class ParteDetalleComponent implements OnInit, ComponenteConEdicionPendie
   }
 
   descargarPdf(parte: any): void {
-    this.exportador.exportarPdf(parte);
+    void this.exportador.exportarPdf(parte);
   }
 
   tieneDetalleExtendido(m: any): boolean {

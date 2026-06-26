@@ -14,6 +14,7 @@ import {
 } from '../models/checklist.dto';
 import { CarrosService } from './carros.service';
 import type { CarroDto } from '../models/carro.dto';
+import { calcularEstadoChecklist } from '../utils/checklist-estado';
 
 type PlantillaTipo = 'ERA' | 'TRAUMA' | string;
 
@@ -38,7 +39,7 @@ export class ChecklistsService {
             checklist: null,
           });
         }
-        return this.getHistorial(String(carro.id)).pipe(
+        return this.getHistorial(String(carro.id), 'UNIDAD').pipe(
           map((res) => {
             const ultimo = this.mapEjecucionToRegistro(res.data?.[0], carro);
             return {
@@ -109,17 +110,50 @@ export class ChecklistsService {
     );
   }
 
+  obtenerInventarioChecklistCarro(carroId: string): Observable<{ ubicaciones: unknown[]; fuente: string; totalMateriales: number }> {
+    return this.http
+      .get<{
+        success: boolean;
+        data: { ubicaciones: unknown[]; fuente: string; totalMateriales: number };
+      }>(apiUrl('logistica', 'equipamiento', 'carro', carroId, 'checklist-inventario'))
+      .pipe(
+        map((res) => res.data ?? { ubicaciones: [], fuente: 'vacio', totalMateriales: 0 }),
+        catchError(() => of({ ubicaciones: [], fuente: 'vacio', totalMateriales: 0 })),
+      );
+  }
+
+  sincronizarInventarioCarro(carroId: string, ubicaciones: unknown[]): Observable<boolean> {
+    return this.http
+      .post<{ success: boolean }>(apiUrl('logistica', 'equipamiento', 'carro', carroId, 'sincronizar-inventario'), {
+        ubicaciones,
+      })
+      .pipe(
+        map(() => true),
+        catchError(() => of(false)),
+      );
+  }
+
   guardarPlantillaUnidad(unidad: string, payload: { ubicaciones: unknown[] }): Observable<boolean> {
-    const nuevaPlantilla = {
-      codigo: `CHK-${unidad}`,
+    const codigo = `CHK-${unidad}`;
+    const plantillaBase = {
+      codigo,
       nombre: `Plantilla ${unidad}`,
       entidadTipo: 'CARRO',
       estructuraJson: payload.ubicaciones,
       version: 1,
       activo: 1,
     };
-    return this.createPlantilla(nuevaPlantilla).pipe(
-      map(() => true),
+    return this.getPlantillas().pipe(
+      switchMap((res) => {
+        const existente = res.data?.find((p) => p.codigo === codigo);
+        const guardarPlantilla$ = existente
+          ? this.updatePlantilla(existente.id, {
+              estructuraJson: payload.ubicaciones,
+              nombre: plantillaBase.nombre,
+            })
+          : this.createPlantilla(plantillaBase);
+        return guardarPlantilla$.pipe(map(() => true));
+      }),
       catchError(() => of(false)),
     );
   }
@@ -132,7 +166,7 @@ export class ChecklistsService {
         }
         return forkJoin(
           carros.map((carro) =>
-            this.getHistorial(String(carro.id)).pipe(
+            this.getHistorial(String(carro.id), 'UNIDAD').pipe(
               map((res) => this.mapResumenUnidad(carro, res.data ?? [])),
               catchError(() => of(this.mapResumenUnidad(carro, []))),
             ),
@@ -148,10 +182,28 @@ export class ChecklistsService {
       switchMap((carros) => {
         const carro = carros.find((c) => c.nomenclatura === unidad || String(c.id) === unidad);
         if (!carro) return of([]);
+        return this.getHistorial(String(carro.id), 'UNIDAD').pipe(
+          map((res) =>
+            (res.data ?? [])
+              .map((e) => this.mapEjecucionToRegistro(e, carro))
+              .filter(Boolean) as ChecklistRegistroDto[],
+          ),
+          catchError(() => of([])),
+        );
+      }),
+      catchError(() => of([])),
+    );
+  }
+
+  /** Historial de todos los tipos (unidad, ERA, trauma) para la vista general. */
+  historialCompletoUnidad(unidad: string): Observable<ChecklistRegistroDto[]> {
+    return this.carrosApi.listar().pipe(
+      switchMap((carros) => {
+        const carro = carros.find((c) => c.nomenclatura === unidad || String(c.id) === unidad);
+        if (!carro) return of([]);
         return this.getHistorial(String(carro.id)).pipe(
           map((res) =>
             (res.data ?? [])
-              .filter((e) => (e.entidadTipo ?? 'CARRO') === 'CARRO')
               .map((e) => this.mapEjecucionToRegistro(e, carro))
               .filter(Boolean) as ChecklistRegistroDto[],
           ),
@@ -339,13 +391,24 @@ export class ChecklistsService {
     return this.http.post<{ success: boolean; data: ChecklistPlantillaDTO }>(`${this.apiUrl}/plantillas`, data);
   }
 
+  updatePlantilla(
+    id: string,
+    data: Record<string, unknown>,
+  ): Observable<{ success: boolean; data: ChecklistPlantillaDTO }> {
+    return this.http.patch<{ success: boolean; data: ChecklistPlantillaDTO }>(`${this.apiUrl}/plantillas/${id}`, data);
+  }
+
   registrarEjecucion(data: RegistrarChecklistDTO): Observable<{ success: boolean; data: ChecklistEjecucionDTO }> {
     return this.http.post<{ success: boolean; data: ChecklistEjecucionDTO }>(`${this.apiUrl}/ejecucion`, data);
   }
 
-  getHistorial(carroId?: string): Observable<{ success: boolean; data: ChecklistEjecucionDTO[] }> {
-    let params = new HttpParams();
+  getHistorial(
+    carroId?: string,
+    entidadTipo?: 'CARRO' | 'UNIDAD' | 'ERA' | 'TRAUMA',
+  ): Observable<{ success: boolean; data: ChecklistEjecucionDTO[] }> {
+    let params = new HttpParams().set('excluirBorradores', '1');
     if (carroId) params = params.set('carroId', carroId);
+    if (entidadTipo) params = params.set('entidadTipo', entidadTipo);
     return this.http
       .get<{ success: boolean; data: ChecklistEjecucionDTO[] }>(`${this.apiUrl}/historial`, { params })
       .pipe(catchError(() => of({ success: true, data: [] })));
@@ -439,6 +502,9 @@ export class ChecklistsService {
     const observaciones = typeof detalle?.['observaciones'] === 'string'
       ? (detalle['observaciones'] as string).trim() || null
       : null;
+    const esBorrador =
+      ejecucion.estado === 'BORRADOR' ||
+      detalle?.['borrador'] === true;
     return {
       id: ejecucion.id,
       carroId: carro.id,
@@ -453,6 +519,9 @@ export class ChecklistsService {
       totalItems,
       itemsOk: totalItems ? itemsOk : null,
       detalle,
+      estadoChecklist: esBorrador
+        ? 'PENDIENTE'
+        : calcularEstadoChecklist(totalItems, itemsOk, observaciones),
       carro: { id: carro.id, nomenclatura: carro.nomenclatura, nombre: carro.nombre },
       cuartelero: revisorNombre
         ? { id: ejecucion.revisorRut, nombre: revisorNombre, rol: '' }

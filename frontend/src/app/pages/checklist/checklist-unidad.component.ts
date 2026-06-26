@@ -25,6 +25,8 @@ import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 
 type Material = {
   id: string;
+  materialId?: number;
+  inventarioId?: string;
   nombre: string;
   cantidadRequerida: number;
   cantidadActual: number;
@@ -55,6 +57,8 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
   }
 
   unidad = 'R-1';
+  carroId = '';
+  fuenteInventario: 'material_por_carro' | 'plantilla' | 'plantilla_local' = 'plantilla_local';
   nombreCarro: string | null = null;
   loading = true;
   error: string | null = null;
@@ -125,6 +129,7 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
       next: ({ unidadData, plantillaData, usuarios }: any) => {
         this.usuarios = filtrarUsuariosChecklist(usuarios?.length ? usuarios : this.usuariosDesdeSesion());
         const c = unidadData.carro;
+        this.carroId = c?.id ? String(c.id) : '';
         this.nombreCarro = c ? (c.nombre?.trim() || c.nomenclatura?.trim() || null) : null;
         const checklist = unidadData.checklist;
         if (checklist?.cuarteleroId) {
@@ -140,6 +145,8 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
                 nombre: u.nombre,
                 materiales: u.materiales.map((m: any) => ({
                   id: crypto.randomUUID(),
+                  materialId: m.materialId,
+                  inventarioId: m.inventarioId,
                   nombre: m.nombre,
                   cantidadRequerida: m.cantidadRequerida,
                   cantidadActual: 0,
@@ -148,21 +155,46 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
             )
           : [];
         const detalleNormalizado = detalle?.length ? this.normalizarDetalle(detalle) : [];
-        this.ubicaciones = this.mezclarConBase(baseTemplate, plantilla, detalleNormalizado);
-        this.ubicacionesAbiertas = Object.fromEntries(this.ubicaciones.map((u, idx) => [u.nombre, idx < 2]));
-        this.nombreInspector = checklist?.inspector ?? '';
-        this.grupoGuardia = checklist?.grupoGuardia ?? '';
-        this.observaciones = checklist?.observaciones ?? '';
-        if (checklist?.firmaOficial?.startsWith('data:image')) {
-          this.firmaObacValor = checklist.firmaOficial;
-          this.fechaCierreChecklist = checklist.fecha;
+
+        if (this.carroId) {
+          this.checklistsApi.obtenerInventarioChecklistCarro(this.carroId).subscribe({
+            next: (inventarioData) => {
+              const inventario =
+                inventarioData.ubicaciones?.length > 0
+                  ? this.normalizarDetalle(
+                      inventarioData.ubicaciones.map((u: any) => ({
+                        nombre: u.nombre,
+                        materiales: (u.materiales ?? []).map((m: any) => ({
+                          id: m.inventarioId ?? m.id ?? crypto.randomUUID(),
+                          materialId: m.materialId,
+                          inventarioId: m.inventarioId ?? m.id,
+                          nombre: m.nombre,
+                          cantidadRequerida: m.cantidadRequerida,
+                          cantidadActual: 0,
+                        })),
+                      })),
+                    )
+                  : [];
+              this.fuenteInventario =
+                inventarioData.fuente === 'material_por_carro'
+                  ? 'material_por_carro'
+                  : plantilla.length > 0
+                    ? 'plantilla'
+                    : 'plantilla_local';
+              this.ubicaciones = this.resolverUbicacionesIniciales(inventario, plantilla, baseTemplate, detalleNormalizado);
+              this.finalizarCarga(checklist);
+            },
+            error: () => {
+              this.fuenteInventario = plantilla.length > 0 ? 'plantilla' : 'plantilla_local';
+              this.ubicaciones = this.resolverUbicacionesIniciales([], plantilla, baseTemplate, detalleNormalizado);
+              this.finalizarCarga(checklist);
+            },
+          });
+        } else {
+          this.fuenteInventario = plantilla.length > 0 ? 'plantilla' : 'plantilla_local';
+          this.ubicaciones = this.resolverUbicacionesIniciales([], plantilla, baseTemplate, detalleNormalizado);
+          this.finalizarCarga(checklist);
         }
-        const fInsp = checklist?.firmaInspector?.trim();
-        if (fInsp?.startsWith('data:image')) {
-          this.firmaInspectorValor = fInsp;
-        }
-        this.controlEdicion.marcarLimpio();
-        this.loading = false;
       },
       error: () => {
         this.error = 'No se pudo cargar el checklist de la unidad.';
@@ -251,11 +283,66 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
     return `Plantilla · editado por ${u} · ${cuando}`;
   }
 
+  private finalizarCarga(checklist: {
+    inspector?: string;
+    grupoGuardia?: string;
+    observaciones?: string;
+    firmaOficial?: string;
+    firmaInspector?: string;
+    fecha?: string;
+  } | null): void {
+    this.ubicacionesAbiertas = Object.fromEntries(this.ubicaciones.map((u, idx) => [u.nombre, idx < 2]));
+    this.nombreInspector = checklist?.inspector ?? '';
+    this.grupoGuardia = checklist?.grupoGuardia ?? '';
+    this.observaciones = checklist?.observaciones ?? '';
+    if (checklist?.firmaOficial?.startsWith('data:image')) {
+      this.firmaObacValor = checklist.firmaOficial;
+      this.fechaCierreChecklist = checklist.fecha ?? null;
+    }
+    const fInsp = checklist?.firmaInspector?.trim();
+    if (fInsp?.startsWith('data:image')) {
+      this.firmaInspectorValor = fInsp;
+    }
+    this.controlEdicion.marcarLimpio();
+    this.loading = false;
+  }
+
+  private resolverUbicacionesIniciales(
+    inventario: Ubicacion[],
+    plantilla: Ubicacion[],
+    base: Ubicacion[],
+    detalle: Ubicacion[],
+  ): Ubicacion[] {
+    if (inventario.length > 0) {
+      return this.mezclarConBase(inventario, [], detalle);
+    }
+    let resultado = this.clonarUbicaciones(base);
+    if (plantilla.length > 0) {
+      resultado = this.mezclarConBase(resultado, plantilla, []);
+    }
+    if (detalle.length > 0) {
+      resultado = this.mezclarConBase(resultado, [], detalle);
+    }
+    return resultado;
+  }
+
+  etiquetaFuenteInventario(): string {
+    if (this.fuenteInventario === 'material_por_carro') {
+      return 'Cantidades objetivo desde inventario (material_por_carro)';
+    }
+    if (this.fuenteInventario === 'plantilla') {
+      return 'Cantidades desde plantilla guardada (sincroniza inventario al editar plantilla)';
+    }
+    return 'Cantidades desde plantilla local (sin inventario en BD)';
+  }
+
   private normalizarDetalle(detalle: Ubicacion[]): Ubicacion[] {
     return detalle.map((u) => ({
       nombre: u.nombre,
       materiales: (u.materiales ?? []).map((m) => ({
         id: m.id || crypto.randomUUID(),
+        materialId: m.materialId,
+        inventarioId: m.inventarioId,
         nombre: m.nombre,
         cantidadRequerida: m.cantidadRequerida,
         cantidadActual: m.cantidadActual,
@@ -306,6 +393,8 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
           if (matIdx === undefined) {
             baseUb.materiales.push({
               id: mat.id || crypto.randomUUID(),
+              materialId: mat.materialId,
+              inventarioId: mat.inventarioId,
               nombre: mat.nombre,
               cantidadRequerida: cantReq,
               cantidadActual: cantAct,
@@ -315,6 +404,8 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
             const baseMat = baseUb.materiales[matIdx];
             baseUb.materiales[matIdx] = {
               ...baseMat,
+              materialId: mat.materialId ?? baseMat.materialId,
+              inventarioId: mat.inventarioId ?? baseMat.inventarioId,
               nombre: mat.nombre || baseMat.nombre,
               cantidadRequerida: cantReq || baseMat.cantidadRequerida,
               cantidadActual: cantAct,
@@ -687,8 +778,10 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
           this.controlEdicion.marcarLimpio();
           const estado =
             this.itemsCriticos() > 0
-              ? 'Unidad marcada como NO operativa hasta corregir faltantes.'
-              : 'Unidad marcada como operativa.';
+              ? 'Unidad marcada como NO operativa (faltantes críticos).'
+              : this.itemsOk() < this.totalItems()
+                ? 'Unidad en observación por inventario incompleto.'
+                : 'Unidad marcada como operativa.';
           this.toast.exito(`Checklist de unidad guardado. ${estado}`);
           void this.router.navigate(['/checklist']);
         },
@@ -753,6 +846,7 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
           .map((m) => ({
             nombre: String(m.nombre ?? '').trim(),
             cantidadRequerida: Math.max(0, Math.round(Number(m.cantidadRequerida ?? 0))),
+            materialId: m.materialId,
           }))
           .filter((m) => m.nombre.length > 0),
       }))
@@ -769,7 +863,9 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
         this.plantillaUbicacionesBackup = null;
         const extra = this.motivoEdicionPlantilla.trim();
         this.motivoEdicionPlantilla = '';
-        this.toast.exito(extra ? `Plantilla de checklist guardada. Motivo: ${extra}` : 'Plantilla de checklist guardada.');
+        this.toast.exito(
+          extra ? `Plantilla guardada. Motivo: ${extra}` : 'Plantilla guardada correctamente.',
+        );
       },
       error: () => {
         this.guardandoPlantilla = false;
