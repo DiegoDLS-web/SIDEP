@@ -124,6 +124,8 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
 
   private readonly controlEdicionMantenimiento = crearControlEdicionPendiente(() => ({ ...this.editForm }));
 
+  private carroEnDetalle: CarroDto | null = null;
+
   readonly vm$ = this.route.paramMap.pipe(
     switchMap((pm) => {
       const id = pm.get('id');
@@ -133,6 +135,7 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
           map((carros): CarrosView => ({ status: 'list', carros })),
           tap((v) => {
             if (v.status === 'list') {
+              this.carroEnDetalle = null;
               this.cargarHistorialGeneral();
             }
           }),
@@ -161,6 +164,7 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
         ),
         map((carro): CarrosView => ({ status: 'detail', carro })),
         tap((view) => {
+          this.carroEnDetalle = view.status === 'detail' ? view.carro : null;
           this.historialGeneralFilas = [];
           this.historialGeneralLoading = false;
           if (view.status === 'detail') {
@@ -458,20 +462,6 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
         break;
       }
     }
-    return this.aplicarDefaultsMantenimiento(out);
-  }
-
-  private aplicarDefaultsMantenimiento(carro: CarroDto): CarroDto {
-    const defs: Record<string, { proximoMantenimiento?: string; proximaRevisionTecnica?: string }> = {
-      'B-1': { proximoMantenimiento: '2026-07-10T12:00:00.000Z', proximaRevisionTecnica: '2026-07-09T12:00:00.000Z' },
-      'BX-1': { proximoMantenimiento: '2026-07-08T12:00:00.000Z', proximaRevisionTecnica: '2026-07-09T12:00:00.000Z' },
-      'R-1': { proximoMantenimiento: '2026-06-30T12:00:00.000Z', proximaRevisionTecnica: '2026-07-05T12:00:00.000Z' },
-    };
-    const def = defs[carro.nomenclatura];
-    if (!def) return carro;
-    const out = { ...carro };
-    if (!out.proximoMantenimiento?.trim()) out.proximoMantenimiento = def.proximoMantenimiento ?? null;
-    if (!out.proximaRevisionTecnica?.trim()) out.proximaRevisionTecnica = def.proximaRevisionTecnica ?? null;
     return out;
   }
 
@@ -489,14 +479,14 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
     return forkJoin(
       pendientes.map((c) =>
         this.carrosApi.historialGeneral({ carroId: c.id }).pipe(
-          map((rows) => ({ id: c.id, snap: rows[0] ?? null })),
-          catchError(() => of({ id: c.id, snap: null })),
+          map((rows) => ({ id: c.id, rows: rows ?? [] })),
+          catchError(() => of({ id: c.id, rows: [] as CarroHistorialGeneralFila[] })),
         ),
       ),
     ).pipe(
       map((snaps) => {
-        const porId = new Map(snaps.map((s) => [String(s.id), s.snap]));
-        return carros.map((c) => this.fusionarCarroConHistorial(c, porId.get(String(c.id)) ?? null));
+        const porId = new Map(snaps.map((s) => [String(s.id), s.rows]));
+        return carros.map((c) => this.fusionarDesdeHistorialCompleto(c, porId.get(String(c.id)) ?? []));
       }),
     );
   }
@@ -504,17 +494,21 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
   private hidratarDetalleDesdeHistorial(carro: CarroDto): Observable<CarroDto> {
     return this.carrosApi.historialGeneral({ carroId: carro.id }).pipe(
       map((rows) => this.fusionarDesdeHistorialCompleto(carro, rows)),
-      catchError(() => of(this.aplicarDefaultsMantenimiento(carro))),
+      catchError(() => of(carro)),
     );
   }
 
   private refrescarCarroEnVista(carro: CarroDto): void {
+    const target =
+      this.carroEnDetalle && String(this.carroEnDetalle.id) === String(carro.id)
+        ? this.carroEnDetalle
+        : carro;
     forkJoin({
       refresco: this.carrosApi.obtener(carro.id),
       historial: this.carrosApi.historialGeneral({ carroId: carro.id }),
     }).subscribe({
       next: ({ refresco, historial }) => {
-        Object.assign(carro, this.fusionarCarroConHistorial(refresco, historial[0] ?? null));
+        Object.assign(target, this.fusionarDesdeHistorialCompleto(refresco, historial));
         this.cdr.markForCheck();
       },
     });
@@ -665,11 +659,15 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
 
   guardarEdicionHistorialModal(): void {
     if (!this.historialEdicionFila) return;
-    const carroStub = {
-      id: this.historialEdicionFila.carroId,
-      nomenclatura: this.historialEdicionFila.carro.nomenclatura,
-    } as CarroDto;
-    this.guardarEdicion(carroStub);
+    const id = this.historialEdicionFila.carroId;
+    const carro =
+      this.carroEnDetalle && String(this.carroEnDetalle.id) === String(id)
+        ? this.carroEnDetalle
+        : ({
+            id,
+            nomenclatura: this.historialEdicionFila.carro.nomenclatura,
+          } as CarroDto);
+    this.guardarEdicion(carro);
   }
 
   abrirEdicionHistorial(_carro: CarroDto, row: CarroHistorialGeneralFila): void {
@@ -717,18 +715,6 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
 
   iniciarEdicion(carro: CarroDto): void {
     this.iniciarRegistroMantenimiento(carro);
-  }
-
-  private rellenarEditFormDesdeCarro(carro: CarroDto): void {
-    this.editForm.ultimoConductor = carro.ultimoConductor ?? carro.conductorAsignado ?? '';
-    this.editForm.ultimoMantenimiento = this.fechaInput(carro.ultimoMantenimiento);
-    this.editForm.proximoMantenimiento = this.fechaInput(carro.proximoMantenimiento);
-    this.editForm.proximaRevisionTecnica = this.fechaInput(carro.proximaRevisionTecnica);
-    this.editForm.ultimaRevisionBombaAgua = this.fechaInput(carro.ultimaRevisionBombaAgua);
-    this.editForm.descripcionUltimoMantenimiento = carro.descripcionUltimoMantenimiento ?? '';
-    this.editForm.ultimoInspector = carro.ultimoInspector ?? '';
-    this.editForm.firmaUltimoInspector = carro.firmaUltimoInspector ?? '';
-    this.editForm.fechaUltimaInspeccion = this.fechaInput(carro.fechaUltimaInspeccion);
   }
 
   mantenimientoTieneCambios(): boolean {

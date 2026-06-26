@@ -29,6 +29,8 @@ import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-p
 import { etiquetaUnidadCarro } from '../../utils/etiqueta-unidad-carro';
 import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
+import { exportarExcelSidep } from '../../utils/excel-export.util';
+import { SIDEP_ACTION_ICON } from '../../shared/sidep-action-icons';
 
 export type EraEquipo = {
   numero: number;
@@ -172,6 +174,7 @@ const ERA_PRESETS_UNIDAD: Record<string, EraPreset> = {
 })
 export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendiente {
   readonly nombreListaSoloPersona = nombreListaSoloPersona;
+  readonly icon = SIDEP_ACTION_ICON;
 
   @ViewChild('firmaCanvas') firmaCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('firmaCanvasInspector') firmaCanvasInspector?: ElementRef<HTMLCanvasElement>;
@@ -1006,6 +1009,79 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
   aplicarFiltrosHistorialEra(): void {
     this.paginaHistorial = 1;
     this.cargarTablaHistorialEra();
+  }
+
+  exportarHistorialGeneralExcel(): void {
+    if (this.totalHistorialEra === 0 && this.historialGeneral.length === 0) {
+      this.toast.advertencia('No hay registros para exportar.');
+      return;
+    }
+    const pageSize = Math.max(this.totalHistorialEra, 1);
+    this.checklistsApi
+      .eraPagina({
+        page: 1,
+        pageSize,
+        unidades:
+          this.filtroUnidadEra !== 'TODAS' && this.filtroUnidadEra.trim()
+            ? this.filtroUnidadEra.trim()
+            : undefined,
+        desde: this.filtroDesde || undefined,
+        hasta: this.filtroHasta || undefined,
+      })
+      .subscribe({
+        next: (p) => {
+          const filas = p.items ?? [];
+          if (filas.length === 0) {
+            this.toast.advertencia('No hay registros para exportar.');
+            return;
+          }
+          const columnas = [
+            'Fecha',
+            'Hora',
+            'Unidad',
+            'Estado',
+            'Inspector',
+            'OBAC',
+            'Guardia',
+            'Cumplimiento',
+            'Equipos',
+            'Recambios',
+            'Observaciones',
+          ];
+          const body: string[][] = filas.map((h) => {
+            const fh = splitFechaHoraEsCl(h.fecha);
+            const det = (h.detalle ?? {}) as { equipos?: unknown[]; cilindrosRecambio?: unknown[] };
+            return [
+              fh.fecha,
+              fh.hora,
+              h.carro?.nomenclatura ?? h.unidad ?? '',
+              this.etiquetaEstadoEraTexto(h),
+              h.inspector ?? '',
+              h.cuartelero?.nombre ?? '',
+              String(h.grupoGuardia ?? ''),
+              this.porcentajeCumplimiento(h),
+              String(Array.isArray(det.equipos) ? det.equipos.length : (h.totalItems ?? '—')),
+              String(Array.isArray(det.cilindrosRecambio) ? det.cilindrosRecambio.length : '—'),
+              (h.observaciones ?? '').slice(0, 500),
+            ];
+          });
+          const unidadFiltro =
+            this.filtroUnidadEra !== 'TODAS' ? this.filtroUnidadEra : 'Todas las unidades';
+          exportarExcelSidep({
+            titulo: 'SIDEP · Historial checklist ERA',
+            meta: [`Registros: ${filas.length}`, `Unidad: ${unidadFiltro}`],
+            columnas,
+            filas: body,
+            nombreHoja: 'ERA',
+            nombreArchivo: `SIDEP-historial-checklist-era-${new Date().toISOString().slice(0, 10)}.xlsx`,
+            anchosCols: [12, 10, 10, 14, 20, 22, 12, 14, 10, 10, 36],
+          });
+          this.toast.exito('Historial ERA exportado a Excel.');
+        },
+        error: () => {
+          this.toast.error('No se pudo exportar el historial ERA.');
+        },
+      });
   }
 
   etiquetaUnidadCarro = etiquetaUnidadCarro;

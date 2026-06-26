@@ -215,18 +215,20 @@
           </button>
           <button
             type="button"
-            class="sid-btn sid-btn-primary rounded-lg bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-40"
+            class="sid-btn sid-btn-primary inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-40"
             [disabled]="historialGeneralFiltrado().length === 0"
             (click)="exportarHistorialGeneralPdf()"
           >
+            <lucide-icon [name]="icon.pdf" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
             Descargar PDF
           </button>
           <button
             type="button"
-            class="sid-btn sid-btn-success rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700 disabled:opacity-40"
+            class="sid-btn sid-btn-success inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700 disabled:opacity-40"
             [disabled]="historialGeneralFiltrado().length === 0"
             (click)="exportarHistorialGeneralExcel()"
           >
+            <lucide-icon [name]="icon.excel" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
             Descargar Excel
           </button>
         </div>

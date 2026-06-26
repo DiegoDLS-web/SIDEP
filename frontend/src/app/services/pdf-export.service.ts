@@ -88,6 +88,53 @@ function keyUbicacionNombre(v: string): string {
   return (v || '').trim().toLowerCase();
 }
 
+function estadoMaterialChecklistPdf(req: number, act: number): string {
+  if (req > 0 && act >= req) return 'OK';
+  if (act <= 0) return 'Crítico';
+  return 'Bajo';
+}
+
+function materialesDesdeDetalleChecklist(detalle: unknown): UnidadMaterial[] {
+  if (detalle == null) return [];
+  let data: unknown = detalle;
+  if (typeof data === 'string') {
+    try {
+      data = JSON.parse(data);
+    } catch {
+      return [];
+    }
+  }
+
+  const ubicaciones = Array.isArray(data)
+    ? data
+    : data && typeof data === 'object'
+      ? (data as { ubicaciones?: unknown[] }).ubicaciones
+      : null;
+  if (!Array.isArray(ubicaciones)) return [];
+
+  const out: UnidadMaterial[] = [];
+  for (const u of ubicaciones) {
+    if (!u || typeof u !== 'object') continue;
+    const nombreUb = String((u as { nombre?: string }).nombre ?? 'Sin ubicación').trim() || 'Sin ubicación';
+    const materiales = (u as { materiales?: unknown[] }).materiales ?? [];
+    for (const m of materiales) {
+      if (!m || typeof m !== 'object') continue;
+      const nombre = String((m as { nombre?: string }).nombre ?? '').trim();
+      if (!nombre) continue;
+      const req = Math.max(0, Number((m as { cantidadRequerida?: number }).cantidadRequerida ?? 0));
+      const act = Math.max(0, Number((m as { cantidadActual?: number }).cantidadActual ?? 0));
+      out.push({
+        ubicacion: nombreUb,
+        material: nombre,
+        requerida: req,
+        actual: act,
+        estado: estadoMaterialChecklistPdf(req, act),
+      });
+    }
+  }
+  return out;
+}
+
 function estadoChecklistDesdeRegistro(r: {
   totalItems?: number | null;
   itemsOk?: number | null;
@@ -388,6 +435,59 @@ export class PdfExportService {
     );
   }
 
+  private dibujarInventarioChecklistPorUbicacion(
+    doc: jsPDF,
+    materiales: UnidadMaterial[],
+    startY: number,
+    pageBreakY = 240,
+  ): number {
+    const grupos = new Map<string, { nombre: string; items: UnidadMaterial[] }>();
+    for (const m of materiales) {
+      const key = keyUbicacionNombre(m.ubicacion);
+      if (!grupos.has(key)) {
+        grupos.set(key, { nombre: m.ubicacion || 'Sin ubicación', items: [] });
+      }
+      grupos.get(key)!.items.push(m);
+    }
+
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    const matColW = Math.max(80, pageW - margin * 2 - 24 - 24 - 28);
+
+    let y = startY;
+    for (const [, grupo] of grupos) {
+      if (y > pageBreakY) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(82, 82, 91);
+      doc.text(`Ubicación: ${grupo.nombre}`, margin, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(20, 20, 20);
+      y += 3;
+
+      autoTable(doc, {
+        startY: y + 2,
+        head: [['Material', 'Req.', 'Actual', 'Estado']],
+        body: grupo.items.map((m) => [m.material, String(m.requerida), String(m.actual), m.estado]),
+        styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+        headStyles: this.estilosEncabezadoTabla,
+        alternateRowStyles: { fillColor: [247, 247, 247] },
+        columnStyles: {
+          0: { cellWidth: matColW },
+          1: { cellWidth: 24, halign: 'center' },
+          2: { cellWidth: 24, halign: 'center' },
+          3: { cellWidth: 28, halign: 'center' },
+        },
+        margin: { left: margin, right: margin },
+      });
+      y = ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y + 2) + 7;
+    }
+    return y;
+  }
+
   async exportarChecklistUnidad(input: {
     unidad: string;
     inspector: string;
@@ -402,7 +502,9 @@ export class PdfExportService {
     itemsOk: number;
     materiales: UnidadMaterial[];
   }): Promise<void> {
-    const doc = new jsPDF();
+    const doc = new jsPDF({
+      orientation: input.materiales.length > 25 ? 'landscape' : 'portrait',
+    });
     const yHead = await this.drawHeaderMarca(doc, `Checklist Unidad ${input.unidad}`, 'SIDEP · Control operativo de materiales');
     doc.setFontSize(10);
     doc.text(`Inspector: ${input.inspector || '—'}`, 14, yHead);
@@ -424,51 +526,20 @@ export class PdfExportService {
         etiquetaEstadoChecklist(calcularEstadoChecklist(input.totalItems, input.itemsOk, input.observaciones)),
       ]],
       styles: { halign: 'center', fontSize: 10, cellPadding: 4 },
-      headStyles: { fillColor: [24, 24, 27], textColor: [255, 255, 255] },
+      headStyles: this.estilosEncabezadoTabla,
       bodyStyles: { textColor: [20, 20, 20] },
     });
 
     let headerY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yHead + 14;
     headerY += 8;
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Inventario operativo por ubicación', 14, headerY);
+    doc.setFont('helvetica', 'normal');
+    headerY += 6;
 
-    const grupos = new Map<string, { nombre: string; items: UnidadMaterial[] }>();
-    for (const m of input.materiales) {
-      const key = keyUbicacionNombre(m.ubicacion);
-      if (!grupos.has(key)) {
-        grupos.set(key, { nombre: m.ubicacion || 'Sin ubicación', items: [] });
-      }
-      grupos.get(key)!.items.push(m);
-    }
-
-    let y = headerY;
-    for (const [, grupo] of grupos) {
-      // Salto de página preventivo si no queda espacio para título + cabecera.
-      if (y > 240) {
-        doc.addPage();
-        y = 20;
-      }
-      doc.setFontSize(10);
-      doc.setTextColor(82, 82, 91);
-      doc.text(`Ubicación: ${grupo.nombre}`, 14, y);
-      doc.setTextColor(20, 20, 20);
-      y += 3;
-
-      autoTable(doc, {
-        startY: y + 2,
-        head: [['Material', 'Cant. Req.', 'Cant. Actual', 'Estado']],
-        body: grupo.items.map((m) => [m.material, String(m.requerida), String(m.actual), m.estado]),
-        styles: { fontSize: 8.5, cellPadding: 2.5 },
-        headStyles: { fillColor: [200, 30, 30] },
-        alternateRowStyles: { fillColor: [247, 247, 247] },
-        columnStyles: {
-          0: { cellWidth: 110 },
-          1: { cellWidth: 24, halign: 'center' },
-          2: { cellWidth: 24, halign: 'center' },
-          3: { cellWidth: 28, halign: 'center' },
-        },
-      });
-      y = ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y + 2) + 7;
-    }
+    const pageBreakY = input.materiales.length > 25 ? 175 : 240;
+    let y = this.dibujarInventarioChecklistPorUbicacion(doc, input.materiales, headerY, pageBreakY);
 
     doc.setFontSize(10);
     doc.text('Observaciones:', 14, y + 10);
@@ -543,47 +614,85 @@ export class PdfExportService {
     nombreUnidad?: string;
     registro: ChecklistRegistroDto;
   }): Promise<void> {
-    const doc = new jsPDF();
-    const yHead = await this.drawHeaderMarca(doc, `Historial Checklist ${input.unidad}`, 'SIDEP · Registro individual');
     const r = input.registro;
+    const materiales = materialesDesdeDetalleChecklist(r.detalle);
+    const doc = new jsPDF({
+      orientation: materiales.length > 25 ? 'landscape' : 'portrait',
+    });
+    const yHead = await this.drawHeaderMarca(doc, `Checklist ${input.unidad}`, input.nombreUnidad || r.carro?.nombre || 'SIDEP · Registro de checklist');
     doc.setFontSize(10);
-    doc.text(`Unidad: ${input.unidad}`, 14, yHead);
-    doc.text(`Nombre: ${input.nombreUnidad || r.carro?.nombre || '—'}`, 14, yHead + 6);
-    doc.text(`Fecha: ${fmtFechaHoraPdf(r.fecha)}`, 14, yHead + 12);
+    doc.text(`Inspector: ${r.inspector?.trim() || '—'}`, 14, yHead);
+    doc.text(`Grupo de guardia: ${r.grupoGuardia?.trim() || '—'}`, 14, yHead + 6);
+    doc.text(`Responsable (OBAC): ${r.cuartelero?.nombre || '—'}`, 108, yHead);
+    doc.text(`Fecha de registro: ${fmtFechaHoraPdf(r.fecha)}`, 108, yHead + 6);
+
+    const totalItems = r.totalItems ?? materiales.length;
+    const itemsOk = r.itemsOk ?? materiales.filter((m) => m.estado === 'OK').length;
+    const faltantes = Math.max(totalItems - itemsOk, 0);
+    const criticos = materiales.filter((m) => m.estado === 'Crítico').length;
 
     autoTable(doc, {
-      startY: yHead + 18,
-      head: [['Campo', 'Valor']],
-      body: [
-        ['Tipo', r.tipo || '—'],
-        ['Estado checklist', etiquetaEstadoChecklist(estadoChecklistDesdeRegistro(r))],
-        ['Inspector', r.inspector?.trim() || '—'],
-        ['Guardia', r.grupoGuardia?.trim() || '—'],
-        ['Responsable (OBAC)', r.cuartelero?.nombre || '—'],
-        ['Ítems OK', `${r.itemsOk ?? 0}/${r.totalItems ?? 0}`],
-      ],
-      styles: { fontSize: 9, cellPadding: 2 },
-      headStyles: { fillColor: [180, 30, 30] },
-      columnStyles: { 0: { cellWidth: 58 }, 1: { cellWidth: 130 } },
+      startY: yHead + 14,
+      theme: 'grid',
+      head: [['Total ítems', 'Ítems OK', 'Faltantes', 'Críticos', 'Estado checklist']],
+      body: [[
+        String(totalItems),
+        String(itemsOk),
+        String(faltantes),
+        String(criticos),
+        etiquetaEstadoChecklist(estadoChecklistDesdeRegistro(r)),
+      ]],
+      styles: { halign: 'center', fontSize: 10, cellPadding: 4 },
+      headStyles: this.estilosEncabezadoTabla,
+      bodyStyles: { textColor: [20, 20, 20] },
     });
 
-    const y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yHead + 18;
+    let y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? yHead + 14;
+    y += 8;
+
+    if (materiales.length > 0) {
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Inventario operativo por ubicación', 14, y);
+      doc.setFont('helvetica', 'normal');
+      y += 6;
+      const pageBreakY = materiales.length > 25 ? 175 : 240;
+      y = this.dibujarInventarioChecklistPorUbicacion(doc, materiales, y, pageBreakY);
+    } else {
+      doc.setFontSize(9);
+      doc.setTextColor(120, 120, 120);
+      doc.text('Sin detalle de materiales en este registro.', 14, y + 4);
+      doc.setTextColor(20, 20, 20);
+      y += 10;
+    }
+
+    const pageH = doc.internal.pageSize.getHeight();
+    if (y > pageH - 70) {
+      doc.addPage();
+      y = 20;
+    }
+
     doc.setFontSize(10);
-    doc.text('Observaciones:', 14, y + 10);
-    doc.text((r.observaciones?.trim() || 'Sin observaciones.').slice(0, 500), 14, y + 16);
+    doc.text('Observaciones:', 14, y + 6);
+    const obsLines = doc.splitTextToSize((r.observaciones?.trim() || 'Sin observaciones.').slice(0, 800), 180);
+    doc.text(obsLines, 14, y + 12);
 
     const firma = r.firmaOficial?.trim();
     const firmaInsp = r.firmaInspector?.trim();
-    const fy = y + 28;
+    let firmaTop = y + 12 + obsLines.length * 5 + 8;
     const pw = doc.internal.pageSize.getWidth();
     const mr = 14;
-    const gap = 8;
+    const gap = 9;
     const bw = (pw - 2 * mr - gap) / 2;
-    const bh = 24;
-    doc.setFontSize(9);
-    doc.text('Inspector', mr, fy);
-    doc.text(`OBAC (${r.cuartelero?.nombre || '—'})`, mr + bw + gap, fy);
-    const yb = fy + 4;
+    const bh = 26;
+    if (firmaTop > pageH - 40) {
+      doc.addPage();
+      firmaTop = 22;
+    }
+    doc.setFontSize(10);
+    doc.text('Inspector', mr, firmaTop);
+    doc.text(`OBAC (${r.cuartelero?.nombre || '—'})`, mr + bw + gap, firmaTop);
+    const yb = firmaTop + 4;
     doc.setDrawColor(228, 228, 231);
     doc.roundedRect(mr, yb, bw, bh, 1.2, 1.2);
     doc.roundedRect(mr + bw + gap, yb, bw, bh, 1.2, 1.2);
@@ -594,14 +703,20 @@ export class PdfExportService {
       try {
         doc.addImage(firmaInsp, fmtFirmaParaJsPdf(firmaInsp), mr + 2, yb + 2, iw, ih);
       } catch {
-        /* ignore */
+        doc.setFontSize(8);
+        doc.setTextColor(82, 82, 91);
+        doc.text('(Firma inspector no incrustada.)', mr + 3, yb + bh / 2);
+        doc.setTextColor(20, 20, 20);
       }
     }
     if (firma?.startsWith('data:image')) {
       try {
         doc.addImage(firma, fmtFirmaParaJsPdf(firma), mr + bw + gap + 2, yb + 2, iw, ih);
       } catch {
-        // ignore image errors
+        doc.setFontSize(8);
+        doc.setTextColor(82, 82, 91);
+        doc.text('(Firma OBAC no incrustada.)', mr + bw + gap + 3, yb + bh / 2);
+        doc.setTextColor(20, 20, 20);
       }
     }
     this.finalizarDocumentoPdf(doc);

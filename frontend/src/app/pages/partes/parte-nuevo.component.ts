@@ -742,13 +742,16 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
 
   clasesGridAsistencia(sec: AsistenciaSeccionDef): Record<string, boolean> {
     if (!sec.columnasGrid) return {};
-    // Con varias columnas de secciones (oficiales, inspectores…), una sola columna evita texto vertical ilegible.
     if (this.asistenciaLayoutVista.length > 1) {
       return { 'grid-cols-1': true };
     }
+    const cols = sec.columnasGrid;
+    const colsXl = sec.columnasGridXl ?? cols;
     return {
       'grid-cols-1': true,
-      'md:grid-cols-2': sec.columnasGrid >= 2,
+      'md:grid-cols-2': cols >= 2,
+      'xl:grid-cols-2': colsXl === 2,
+      'xl:grid-cols-3': colsXl >= 3,
     };
   }
 
@@ -921,7 +924,9 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
 
   get asistenciaFiltroSinCoincidencias(): boolean {
     if (!this.filtroAsistencia.trim()) return false;
-    return !this.asistenciaLayout.some(col => col.secciones.some(sec => this.itemsAsistenciaFiltrados(sec.items).length > 0));
+    return !this.asistenciaLayoutVista.some((col) =>
+      col.secciones.some((sec) => this.itemsAsistenciaFiltrados(sec.items).length > 0),
+    );
   }
 
   private compactAsistencia(): ParteAsistenciaMetadata | undefined {

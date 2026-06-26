@@ -28,8 +28,7 @@ import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util'
 import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
 import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
 import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { PdfExportService } from '../../services/pdf-export.service';
 import { exportarExcelSidep } from '../../utils/excel-export.util';
 import { validarRut, normalizarRut } from '../../utils/rut.util';
 
@@ -75,6 +74,7 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly pdfExport = inject(PdfExportService);
   readonly cargosOrden = CARGOS_OFICIALIDAD_ORDEN;
   readonly etiquetasCargo = ETIQUETAS_CARGO_OFICIALIDAD;
   readonly tiposVoluntario = TIPOS_VOLUNTARIO_ORDEN;
@@ -1025,27 +1025,28 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
           this.toast.advertencia('No hay usuarios para exportar.');
           return;
         }
-        const doc = new jsPDF({ orientation: 'landscape' });
-        doc.setFontSize(11);
-        doc.text('SIDEP · Directorio general de usuarios (voluntarios)', 14, 14);
-        const head = [['RUT', 'Nombre', 'Correo', 'Teléfono', 'Tipo Voluntario', 'Cargo', 'Estado', 'Nómina']];
-        const body = items.map((u) => [
-          u.rut,
-          u.nombre,
-          u.email || '',
-          u.telefono || '',
-          u.tipoVoluntario || '',
-          u.cargoOficialidad || 'Voluntario',
-          this.formatearEstado(u.estadoVoluntario, u.activo),
-          u.claveNomina || ''
-        ]);
-        autoTable(doc, { startY: 20, head, body, styles: { fontSize: 7.5 }, margin: { left: 14, right: 14 } });
-        doc.save(`SIDEP-directorio-usuarios-${new Date().toISOString().slice(0, 10)}.pdf`);
+        void this.pdfExport.exportarHistorialTabla({
+          titulo: 'Directorio general de usuarios',
+          subtitulo: 'SIDEP · Voluntarios y personal',
+          columnas: ['RUT', 'Nombre', 'Correo', 'Teléfono', 'Tipo Voluntario', 'Cargo', 'Estado', 'Nómina'],
+          filas: items.map((u) => [
+            u.rut,
+            u.nombre,
+            u.email || '',
+            u.telefono || '',
+            u.tipoVoluntario || '',
+            u.cargoOficialidad || 'Voluntario',
+            this.formatearEstado(u.estadoVoluntario, u.activo),
+            u.claveNomina || '',
+          ]),
+          segmentosNombre: ['Directorio', 'usuarios'],
+          landscape: true,
+        });
         this.toast.exito('Directorio exportado a PDF.');
       },
       error: () => {
         this.toast.error('No se pudo obtener el directorio completo para exportar.');
-      }
+      },
     });
   }
 

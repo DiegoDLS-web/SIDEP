@@ -23,6 +23,8 @@ export interface ChecklistEjecucionDTO {
   entidadId: string; 
   revisor?: { nombres: string; apellidoPaterno: string; rut?: string; };
   plantilla?: { nombre: string; codigo?: string; };
+  firmaOficial?: string | null;
+  firmaRevisor?: string | null;
 }
 
 export interface RegistrarChecklistDTO {

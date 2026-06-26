@@ -8,25 +8,6 @@ const METADATA: Record<string, { tipo: string; capacidadAgua: string; anioFabric
   'R-1': { tipo: 'Rescate', capacidadAgua: '2000 litros', anioFabricacion: 2021 },
 };
 
-/** Fechas de alerta por defecto cuando aún no hay registro de mantención en BD. */
-const MANTENIMIENTO_DEFAULT: Record<
-  string,
-  { proximoMantenimiento: string; proximaRevisionTecnica: string }
-> = {
-  'B-1': { proximoMantenimiento: '2026-07-10T12:00:00.000Z', proximaRevisionTecnica: '2026-07-09T12:00:00.000Z' },
-  'BX-1': { proximoMantenimiento: '2026-07-08T12:00:00.000Z', proximaRevisionTecnica: '2026-07-09T12:00:00.000Z' },
-  'R-1': { proximoMantenimiento: '2026-06-30T12:00:00.000Z', proximaRevisionTecnica: '2026-07-05T12:00:00.000Z' },
-};
-
-function aplicarMantenimientoDefault(nomenclatura: string, ficha: Record<string, unknown>): Record<string, unknown> {
-  const def = MANTENIMIENTO_DEFAULT[nomenclatura];
-  if (!def) return ficha;
-  const out = { ...ficha };
-  if (!out['proximoMantenimiento']) out['proximoMantenimiento'] = def.proximoMantenimiento;
-  if (!out['proximaRevisionTecnica']) out['proximaRevisionTecnica'] = def.proximaRevisionTecnica;
-  return out;
-}
-
 /** Combina campos no vacíos del historial (más reciente primero) para ficha completa en pantalla. */
 function fusionarFichaDesdeHistorial(mantenimientos: any[]): Record<string, unknown> {
   const base = mapMantenimientoAFicha(null) as Record<string, unknown>;
@@ -175,10 +156,7 @@ export const obtenerCarroEnriquecido = async (id: string) => {
   if (!carro) throw new AppError('Carro no encontrado', 404);
   const { mantenimientos, ...resto } = carro;
   const base = enriquecerCarro(resto);
-  const ficha = aplicarMantenimientoDefault(
-    carro.nomenclatura,
-    fusionarFichaDesdeHistorial(mantenimientos ?? []),
-  );
+  const ficha = fusionarFichaDesdeHistorial(mantenimientos ?? []);
   return { ...base, ...ficha };
 }
 
@@ -357,10 +335,7 @@ export const obtenerCarros = async () => {
   return carros.map((carro) => {
     const { mantenimientos, ...resto } = carro;
     const base = enriquecerCarro(resto);
-    const ficha = aplicarMantenimientoDefault(
-      carro.nomenclatura,
-      fusionarFichaDesdeHistorial(mantenimientos ?? []),
-    );
+    const ficha = fusionarFichaDesdeHistorial(mantenimientos ?? []);
     return { ...base, ...ficha };
   });
 };

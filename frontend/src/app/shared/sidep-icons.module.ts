@@ -1,6 +1,8 @@
 import { NgModule } from '@angular/core';
 import {
   LucideAngularModule,
+  AlertCircle,
+  ArchiveX,
   ArrowLeft,
   Bell,
   Briefcase,
@@ -10,6 +12,7 @@ import {
   CalendarDays,
   Car,
   ChartColumn,
+  Check,
   CircleCheck,
   ChevronDown,
   ChevronRight,
@@ -17,16 +20,17 @@ import {
   ClipboardCheck,
   ClipboardList,
   Clock,
-  Download,
   Droplet,
   Eye,
   FileDown,
+  FilePlus2,
   FileSpreadsheet,
   FileText,
   Flame,
   HeartPulse,
   History,
   Funnel,
+  Key,
   LayoutDashboard,
   ImageDown,
   Loader2,
@@ -42,6 +46,7 @@ import {
   Plus,
   PlusCircle,
   Phone,
+  RefreshCw,
   Save,
   Search,
   Send,
@@ -61,11 +66,11 @@ import {
 
 // Extraemos la lista a una constante estática para que Angular compile sin errores
 export const icons = {
-  ArrowLeft, Bell, Briefcase, Building2, Database, Calendar, CalendarDays,
+  AlertCircle, ArchiveX, ArrowLeft, Bell, Briefcase, Building2, Check, Database, Calendar, CalendarDays,
   Car, ChartColumn, CircleCheck, ChevronDown, ChevronRight, ChevronUp,
-  ClipboardCheck, ClipboardList, Clock, Download, Droplet, Eye, FileDown, FileSpreadsheet, FileText,
-  Flame, HeartPulse, History, Funnel, ImageDown, LayoutDashboard, Loader2, Lock, LogIn,
-  LogOut, Mail, Menu, MapPin, Package, Pencil, PenTool, Phone, Plus, PlusCircle, Save, Search,
+  ClipboardCheck, ClipboardList, Clock, Droplet, Eye, FileDown, FilePlus2, FileSpreadsheet, FileText,
+  Flame, HeartPulse, History, Funnel, ImageDown, Key, LayoutDashboard, Loader2, Lock, LogIn,
+  LogOut, Mail, Menu, MapPin, Package, Pencil, PenTool, Phone, Plus, PlusCircle, RefreshCw, Save, Search,
   Send, Settings, Shield, ShieldCheck, TrendingDown, TrendingUp, TriangleAlert, Truck,
   User, Users, Wrench, X, Tags
 };

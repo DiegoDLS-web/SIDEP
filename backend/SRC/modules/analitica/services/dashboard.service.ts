@@ -37,9 +37,6 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
   const inicioAnio = new Date(Date.UTC(anio, 0, 1, 0, 0, 0));
   const finAnio = new Date(Date.UTC(anio, 11, 31, 23, 59, 59, 999));
 
-  const inicioMes = new Date(Date.UTC(anio, currentMonth - 1, 1, 0, 0, 0));
-  const finMes = new Date(Date.UTC(anio, currentMonth, 0, 23, 59, 59, 999));
-
   // Build filter criteria
   const whereClause = parteWhereNoAnulado({
     fechaEmergencia: { gte: inicioAnio, lte: finAnio },
@@ -71,8 +68,12 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
   const porcentajeResueltas = totalEmergencias > 0 ? Math.round((totalResueltas / totalEmergencias) * 100) : 0;
 
   // 3. Tiempo Promedio Respuesta
+  const unidadesWhere: { parte: typeof whereClause; carroId?: string } = { parte: whereClause };
+  if (carroIdFilter) {
+    unidadesWhere.carroId = carroIdFilter;
+  }
   const unidades = await prisma.unidadEnEmergencia.findMany({
-    where: { parte: whereClause },
+    where: unidadesWhere,
     select: { horaSalida: true, horaLlegada: true },
   });
 

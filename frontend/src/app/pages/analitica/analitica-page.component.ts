@@ -8,6 +8,7 @@ import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { DashboardService } from '../../services/dashboard.service';
 import { ReportesService } from '../../services/reportes.service';
 import type { AnaliticaOperacionalDto } from '../../models/reportes.dto';
+import { PdfExportService } from '../../services/pdf-export.service';
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
 
 @Component({
@@ -20,6 +21,7 @@ export class AnaliticaPageComponent implements OnInit {
   private readonly reportesApi = inject(ReportesService);
   private readonly dashboardApi = inject(DashboardService);
   private readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
+  private readonly pdfExport = inject(PdfExportService);
   private readonly nf = new Intl.NumberFormat('es-CL');
   @ViewChild('reporteAnalitica') reporteAnalitica?: ElementRef<HTMLElement>;
 
@@ -369,45 +371,23 @@ export class AnaliticaPageComponent implements OnInit {
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
       const maxImageWidth = pageWidth - margin * 2;
-      const fechaGeneracion = new Date();
 
-      const dibujarPie = (): void => {
-        const total = doc.getNumberOfPages();
-        const actual = doc.getCurrentPageInfo().pageNumber;
-        doc.setDrawColor(225, 228, 232);
-        doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8.5);
-        doc.setTextColor(90, 96, 104);
-        doc.text(
-          `SIDEP · Analitica operacional · ${fechaGeneracion.toLocaleDateString('es-CL')} ${fechaGeneracion.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`,
-          margin,
-          pageHeight - 7.2,
-        );
-        doc.text(`Pagina ${actual} de ${total}`, pageWidth - margin, pageHeight - 7.2, { align: 'right' });
-      };
-
-      doc.setFillColor(185, 28, 28);
-      doc.roundedRect(margin, 12, pageWidth - margin * 2, 24, 2, 2, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(18);
-      doc.text('Reporte de analitica operacional', margin + 5, 22);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10.5);
-      doc.text(`Periodo: ${this.meses[this.mes - 1]?.nombre ?? this.mes} ${this.anio}`, margin + 5, 28);
-      doc.text('Compania de Bomberos · SIDEP', margin + 5, 33);
+      const yHead = await this.pdfExport.encabezadoMarca(
+        doc,
+        'Reporte de analítica operacional',
+        `Período: ${this.meses[this.mes - 1]?.nombre ?? this.mes} ${this.anio}`,
+      );
 
       doc.setTextColor(28, 31, 35);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
       doc.text(
-        'Este documento consolida indicadores, comparativos y asistencia del periodo seleccionado.',
+        'Este documento consolida indicadores, comparativos y asistencia del período seleccionado.',
         margin,
-        45,
+        yHead + 4,
       );
 
-      let y = 50;
+      let y = yHead + 10;
 
       const sections = Array.from(host.querySelectorAll<HTMLElement>(':scope > [data-exportable="true"]'));
       for (const section of sections) {
@@ -441,12 +421,7 @@ export class AnaliticaPageComponent implements OnInit {
         y += imgHeight + 4;
       }
 
-      const totalPaginas = doc.getNumberOfPages();
-      for (let i = 1; i <= totalPaginas; i++) {
-        doc.setPage(i);
-        dibujarPie();
-      }
-
+      this.pdfExport.pieMarca(doc);
       doc.save(`SIDEP-analitica-operacional-${this.anio}-${String(this.mes).padStart(2, '0')}.pdf`);
     } catch {
       this.error = 'No se pudo exportar el reporte PDF.';
