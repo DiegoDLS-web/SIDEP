@@ -549,8 +549,8 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
     void this.intentarVolverSeleccionUnidad();
   }
 
-  async intentarVolverSeleccionUnidad(): Promise<void> {
-    if (this.mostrarRegistro && this.tieneEdicionPendiente()) {
+  async intentarVolverSeleccionUnidad(opciones?: { forzar?: boolean }): Promise<void> {
+    if (!opciones?.forzar && this.mostrarRegistro && this.tieneEdicionPendiente()) {
       const ok = await confirmarDescartarCambios(this.confirmDialog, true, {
         title: 'Salir del registro',
         message: 'Tienes un checklist ERA en curso sin guardar. ¿Deseas descartar los cambios?',
@@ -1414,14 +1414,14 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
         next: (reg : any) => {
           this.saving = false;
           this.error = null;
-          this.controlEdicion.marcarLimpio();
           if (reg?.fecha) {
             this.fechaCierreChecklist = reg.fecha;
           }
+          this.controlEdicion.marcarLimpio();
           this.refrescarHistorialEra();
           this.cargarHistorialGeneral();
           this.toast.exito('Checklist ERA guardado.');
-          this.volverSeleccionUnidad();
+          void this.intentarVolverSeleccionUnidad({ forzar: true });
         },
         error: () => {
           this.error = 'No se pudo guardar checklist ERA.';
@@ -1470,15 +1470,15 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
         next: (reg : any) => {
           this.savingBorrador = false;
           this.error = null;
-          this.controlEdicion.marcarLimpio();
           if (reg?.fecha) {
             this.fechaCierreChecklist = reg.fecha;
           }
+          this.controlEdicion.marcarLimpio();
           this.refrescarHistorialEra();
           this.cargarHistorialGeneral();
           this.flash('Borrador guardado.');
           this.toast.exito('Borrador ERA guardado.');
-          this.volverSeleccionUnidad();
+          void this.intentarVolverSeleccionUnidad({ forzar: true });
         },
         error: () => {
           this.error = 'No se pudo guardar el borrador.';

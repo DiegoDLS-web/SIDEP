@@ -332,11 +332,30 @@ export const obtenerCarros = async () => {
     },
     orderBy: { nomenclatura: 'asc' },
   });
+
+  const carroIds = carros.map((c) => c.id);
+  const ultimoKmPorCarro = new Map<string, number>();
+  if (carroIds.length > 0) {
+    const unidades = await prisma.unidadEnEmergencia.findMany({
+      where: { carroId: { in: carroIds } },
+      select: { carroId: true, kmLlegada: true, kmSalida: true, horaLlegada: true },
+      orderBy: { horaLlegada: 'desc' },
+    });
+    for (const u of unidades) {
+      if (ultimoKmPorCarro.has(u.carroId)) continue;
+      const kmLlegada = Number(u.kmLlegada);
+      const kmSalida = Number(u.kmSalida);
+      const km = kmLlegada > 0 ? kmLlegada : kmSalida > 0 ? kmSalida : 0;
+      if (km > 0) ultimoKmPorCarro.set(u.carroId, km);
+    }
+  }
+
   return carros.map((carro) => {
     const { mantenimientos, ...resto } = carro;
     const base = enriquecerCarro(resto);
     const ficha = fusionarFichaDesdeHistorial(mantenimientos ?? []);
-    return { ...base, ...ficha };
+    const ultimoKmDespacho = ultimoKmPorCarro.get(carro.id) ?? Number(carro.kilometraje ?? 0);
+    return { ...base, ...ficha, ultimoKmDespacho };
   });
 };
 

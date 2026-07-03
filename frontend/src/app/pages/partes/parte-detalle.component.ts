@@ -17,7 +17,6 @@ import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util
 import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util';
 import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
 import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
-import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 
 type DetalleVm =
   | { status: 'loading' }
@@ -36,7 +35,7 @@ type ParteAnalitica = {
 @Component({
   selector: 'app-parte-detalle',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidEdicionPendienteBannerComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule],
   templateUrl: './parte-detalle.component.html',
 })
 export class ParteDetalleComponent implements OnInit, ComponenteConEdicionPendiente {

@@ -7,6 +7,7 @@ import {
   sincronizarInventarioDesdeUbicaciones,
   ubicacionesDesdeInventario,
 } from '../../../utils/material-inventario.util';
+import { contarItemsBolsoTrauma } from '../../../utils/checklist-estado-operativo.util';
 import { registrarEjecucion } from './checklists.service';
 
 export { sincronizarInventarioDesdeUbicaciones };
@@ -55,6 +56,38 @@ function parseRespuestasJson(raw: string | null): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+function resolverBolsoNumero(detalle: Record<string, unknown>): number {
+  const raw = detalle['bolsoNumero'];
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw;
+  if (typeof raw === 'string' && raw.trim()) {
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 1;
+}
+
+function metricasBolsoDesdeDetalle(detalle: Record<string, unknown>): {
+  completitud: number;
+  itemsFaltantes: number;
+  status: string;
+  estadoChecklist: string;
+} {
+  const conteo = contarItemsBolsoTrauma(detalle);
+  const total = conteo?.totalItems ?? (Number(detalle['totalItems']) || 0);
+  const ok = conteo?.itemsOk ?? (Number(detalle['itemsOk']) || 0);
+  const completitud = total > 0 ? Math.round((ok / total) * 100) : 0;
+  const itemsFaltantes = Math.max(total - ok, 0);
+  let status = 'pending';
+  let estadoChecklist = 'PENDIENTE';
+  if (completitud >= 100) {
+    status = 'complete';
+    estadoChecklist = 'COMPLETADO';
+  } else if (ok > 0 || (typeof detalle['observaciones'] === 'string' && detalle['observaciones'].trim())) {
+    estadoChecklist = 'CON_OBSERVACION';
+  }
+  return { completitud, itemsFaltantes, status, estadoChecklist };
 }
 
 export const registrarBolsoTrauma = async (datos: any) => {
@@ -118,37 +151,68 @@ export const obtenerSelectorBolsos = async () => {
   });
 
   const ultimaPorCarro = new Map<string, (typeof ejecuciones)[number]>();
+  const ultimaPorBolso = new Map<string, (typeof ejecuciones)[number]>();
   for (const e of ejecuciones) {
-    if (ultimaPorCarro.has(e.entidadId)) continue;
     const detalle = parseRespuestasJson(e.respuestasJson);
     if (detalle['borrador'] === true) continue;
-    ultimaPorCarro.set(e.entidadId, e);
+
+    if (!ultimaPorCarro.has(e.entidadId)) {
+      ultimaPorCarro.set(e.entidadId, e);
+    }
+
+    const bolsoNum = resolverBolsoNumero(detalle);
+    const claveBolso = `${e.entidadId}:${bolsoNum}`;
+    if (!ultimaPorBolso.has(claveBolso)) {
+      ultimaPorBolso.set(claveBolso, e);
+    }
   }
 
   return carros.map((carro) => {
     const bolsosDb = carro.bolsos;
     const bolsos =
       bolsosDb.length > 0
-        ? bolsosDb.map((b, idx) => ({
-            id: b.id,
-            numero: idx + 1,
-            nombre: b.nombreIdentificador || `Bolso ${idx + 1}`,
-            tipo: b.catalogoBolso?.nombre || 'Trauma',
-            completitud: 0,
-            itemsFaltantes: 0,
-            status: 'pending',
-            estadoChecklist: 'PENDIENTE',
-          }))
-        : Array.from({ length: cantidadDefault(carro.nomenclatura) }, (_, idx) => ({
-            id: null,
-            numero: idx + 1,
-            nombre: `Bolso ${idx + 1}`,
-            tipo: 'Trauma',
-            completitud: 0,
-            itemsFaltantes: 0,
-            status: 'pending',
-            estadoChecklist: 'PENDIENTE',
-          }));
+        ? bolsosDb.map((b, idx) => {
+            const numero = idx + 1;
+            const base = {
+              id: b.id,
+              numero,
+              nombre: b.nombreIdentificador || `Bolso ${numero}`,
+              tipo: b.catalogoBolso?.nombre || 'Trauma',
+            };
+            const ej = ultimaPorBolso.get(`${carro.id}:${numero}`);
+            if (!ej) {
+              return {
+                ...base,
+                completitud: 0,
+                itemsFaltantes: 0,
+                status: 'pending',
+                estadoChecklist: 'PENDIENTE',
+              };
+            }
+            const metricas = metricasBolsoDesdeDetalle(parseRespuestasJson(ej.respuestasJson));
+            return { ...base, ...metricas };
+          })
+        : Array.from({ length: cantidadDefault(carro.nomenclatura) }, (_, idx) => {
+            const numero = idx + 1;
+            const base = {
+              id: null,
+              numero,
+              nombre: `Bolso ${numero}`,
+              tipo: 'Trauma',
+            };
+            const ej = ultimaPorBolso.get(`${carro.id}:${numero}`);
+            if (!ej) {
+              return {
+                ...base,
+                completitud: 0,
+                itemsFaltantes: 0,
+                status: 'pending',
+                estadoChecklist: 'PENDIENTE',
+              };
+            }
+            const metricas = metricasBolsoDesdeDetalle(parseRespuestasJson(ej.respuestasJson));
+            return { ...base, ...metricas };
+          });
 
     const ultima = ultimaPorCarro.get(carro.id);
     let ultimaRevision: Record<string, unknown> | null = null;
@@ -157,8 +221,12 @@ export const obtenerSelectorBolsos = async () => {
       const obacNombre = ultima.revisor
         ? `${ultima.revisor.nombres} ${ultima.revisor.apellidoPaterno}`.trim()
         : null;
-      const total = Number(detalle['totalItems']) || 0;
-      const ok = Number(detalle['itemsOk']) || 0;
+      const conteo = contarItemsBolsoTrauma(detalle) ?? {
+        totalItems: Number(detalle['totalItems']) || 0,
+        itemsOk: Number(detalle['itemsOk']) || 0,
+      };
+      const total = conteo.totalItems;
+      const ok = conteo.itemsOk;
       ultimaRevision = {
         fecha: ultima.fechaRevision.toISOString(),
         inspector: typeof detalle['inspector'] === 'string' ? detalle['inspector'] : null,
@@ -211,8 +279,12 @@ export const obtenerHistorialBolsos = async (_filtros?: {
         : typeof bolsoNumeroRaw === 'string' && bolsoNumeroRaw.trim()
           ? Number(bolsoNumeroRaw)
           : null;
-    const total = Number(detalle['totalItems']) || 0;
-    const ok = Number(detalle['itemsOk']) || 0;
+    const conteo = contarItemsBolsoTrauma(detalle) ?? {
+      totalItems: Number(detalle['totalItems']) || 0,
+      itemsOk: Number(detalle['itemsOk']) || 0,
+    };
+    const total = conteo.totalItems;
+    const ok = conteo.itemsOk;
     return {
       id: e.id,
       unidad: carro?.nomenclatura ?? e.entidadId,
@@ -303,13 +375,14 @@ export const guardarRevisionBolsoTrauma = async (
   }
 
   const detalle = (payload['detalle'] as Record<string, unknown>) ?? {};
+  const conteoBolso = contarItemsBolsoTrauma(detalle);
   const resultados = {
     ...detalle,
     inspector: payload['inspector'] ?? null,
     grupoGuardia: payload['grupoGuardia'] ?? null,
     observaciones: payload['observaciones'] ?? null,
-    totalItems: payload['totalItems'] ?? null,
-    itemsOk: payload['itemsOk'] ?? null,
+    totalItems: conteoBolso?.totalItems ?? payload['totalItems'] ?? null,
+    itemsOk: conteoBolso?.itemsOk ?? payload['itemsOk'] ?? null,
   };
 
   const ejecucion = await registrarEjecucion(

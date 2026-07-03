@@ -8,6 +8,10 @@ import {
   evaluarCarroDisponibleParaParte,
 } from '../../../utils/parte-disponibilidad.util';
 
+type DbClient = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
+
+const OPCIONES_TRANSACCION = { maxWait: 10_000, timeout: 60_000 } as const;
+
 const parteInclude = {
   clave: true,
   estado: true,
@@ -260,48 +264,35 @@ function extraerRutsAsistencia(data: Record<string, unknown>): string[] {
   return [...ruts];
 }
 
-async function sincronizarAsistencias(
-  tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+async function prepararFilasAsistencia(
   parteId: string,
   data: Record<string, unknown>,
   fechaReferencia: Date,
-) {
+): Promise<Prisma.AsistenciaPersonalCreateManyInput[]> {
   const ruts = extraerRutsAsistencia(data);
-  await tx.asistenciaPersonal.deleteMany({ where: { parteId } });
-  if (ruts.length === 0) return;
-
   const filas: Prisma.AsistenciaPersonalCreateManyInput[] = [];
+
   for (const candidato of ruts) {
-    let rutFinal: string | null = null;
-    const directo = await tx.usuario.findUnique({ where: { rut: candidato } });
-    if (directo) {
-      rutFinal = directo.rut;
-    } else {
-      const norm = normalizarRutBusqueda(candidato);
-      const formateado = formatearRutDesdeNormalizado(norm);
-      if (formateado) {
-        const porFmt = await tx.usuario.findUnique({ where: { rut: formateado }, select: { rut: true } });
-        if (porFmt) rutFinal = porFmt.rut;
-      }
-      if (!rutFinal) {
-        const porNorm = await tx.usuario.findFirst({
-          where: { activo: 1, rut: { contains: norm.slice(-4) } },
-          select: { rut: true },
-        });
-        if (porNorm && normalizarRutBusqueda(porNorm.rut) === norm) rutFinal = porNorm.rut;
-      }
+    const rutFinal = await resolverConductorRutFk(prisma, candidato);
+    if (!rutFinal) continue;
+    try {
+      await assertVoluntarioPuedeParticiparEnParte(prisma, rutFinal, fechaReferencia, 'asistencia');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Voluntario no disponible para asistencia.';
+      throw new ValidationError([msg]);
     }
-    if (rutFinal) {
-      try {
-        await assertVoluntarioPuedeParticiparEnParte(tx, rutFinal, fechaReferencia, 'asistencia');
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : 'Voluntario no disponible para asistencia.';
-        throw new ValidationError([msg]);
-      }
-      filas.push({ id: uuidv4(), parteId, usuarioRut: rutFinal });
-    }
+    filas.push({ id: uuidv4(), parteId, usuarioRut: rutFinal });
   }
 
+  return filas;
+}
+
+async function sincronizarAsistencias(
+  tx: DbClient,
+  parteId: string,
+  filas: Prisma.AsistenciaPersonalCreateManyInput[],
+) {
+  await tx.asistenciaPersonal.deleteMany({ where: { parteId } });
   if (filas.length > 0) {
     await tx.asistenciaPersonal.createMany({ data: filas });
   }
@@ -501,22 +492,20 @@ function mapParteListadoToDto(p: ParteListado) {
   };
 }
 
-async function sincronizarUnidades(
-  tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+async function prepararFilasUnidades(
   parteId: string,
   unidades: unknown[],
   fechaBase: Date,
   conductoresPorCarroId?: Record<string, string>,
-) {
-  await tx.unidadEnEmergencia.deleteMany({ where: { parteId } });
-  if (!Array.isArray(unidades) || unidades.length === 0) return;
+): Promise<Prisma.UnidadEnEmergenciaCreateManyInput[]> {
+  if (!Array.isArray(unidades) || unidades.length === 0) return [];
 
   const data: Prisma.UnidadEnEmergenciaCreateManyInput[] = [];
   for (const u of unidades as Record<string, unknown>[]) {
     const carroId = String(u.carroId || '').trim();
     if (!carroId) continue;
 
-    const disponibilidad = await evaluarCarroDisponibleParaParte(tx, carroId, fechaBase);
+    const disponibilidad = await evaluarCarroDisponibleParaParte(prisma, carroId, fechaBase);
     if (!disponibilidad.disponible) {
       const nom = disponibilidad.nomenclatura ?? carroId;
       throw new ValidationError([
@@ -527,10 +516,10 @@ async function sincronizarUnidades(
     const rawConductor = (u.conductorRut as string | undefined)
       || conductoresPorCarroId?.[carroId]
       || undefined;
-    const conductorRut = await resolverConductorRutFk(tx, rawConductor);
+    const conductorRut = await resolverConductorRutFk(prisma, rawConductor);
     if (conductorRut) {
       try {
-        await assertVoluntarioPuedeParticiparEnParte(tx, conductorRut, fechaBase, 'conductor');
+        await assertVoluntarioPuedeParticiparEnParte(prisma, conductorRut, fechaBase, 'conductor');
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'Conductor no disponible.';
         throw new ValidationError([msg]);
@@ -549,8 +538,17 @@ async function sincronizarUnidades(
     });
   }
 
-  if (data.length > 0) {
-    await tx.unidadEnEmergencia.createMany({ data });
+  return data;
+}
+
+async function sincronizarUnidades(
+  tx: DbClient,
+  parteId: string,
+  filas: Prisma.UnidadEnEmergenciaCreateManyInput[],
+) {
+  await tx.unidadEnEmergencia.deleteMany({ where: { parteId } });
+  if (filas.length > 0) {
+    await tx.unidadEnEmergencia.createMany({ data: filas });
   }
 }
 
@@ -579,27 +577,36 @@ async function sincronizarVehiculos(
   }
 }
 
-async function sincronizarPacientes(
-  tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>,
+async function prepararFilasPacientes(
   parteId: string,
   pacientes: unknown[],
-) {
-  await tx.pacienteEmergencia.deleteMany({ where: { parteId } });
-  if (!Array.isArray(pacientes) || pacientes.length === 0) return;
+): Promise<Prisma.PacienteEmergenciaCreateManyInput[]> {
+  if (!Array.isArray(pacientes) || pacientes.length === 0) return [];
 
+  const data: Prisma.PacienteEmergenciaCreateManyInput[] = [];
   for (const pac of pacientes as Record<string, unknown>[]) {
     const nombre = String(pac.nombre || '').trim();
     if (!nombre) continue;
     const triageId = await resolverTriageId(String(pac.triage || 'VERDE'));
-    await tx.pacienteEmergencia.create({
-      data: {
-        id: uuidv4(),
-        parteId,
-        nombre,
-        rutPaciente: pac.rut ? String(pac.rut) : null,
-        triageId,
-      },
+    data.push({
+      id: uuidv4(),
+      parteId,
+      nombre,
+      rutPaciente: pac.rut ? String(pac.rut) : null,
+      triageId,
     });
+  }
+  return data;
+}
+
+async function sincronizarPacientes(
+  tx: DbClient,
+  parteId: string,
+  filas: Prisma.PacienteEmergenciaCreateManyInput[],
+) {
+  await tx.pacienteEmergencia.deleteMany({ where: { parteId } });
+  if (filas.length > 0) {
+    await tx.pacienteEmergencia.createMany({ data: filas });
   }
 }
 
@@ -621,9 +628,15 @@ export const crearParteConRelaciones = async (data: Record<string, unknown>) => 
 
   const parteId = uuidv4();
 
-  await prisma.$transaction(async (tx) => {
-    await assertVoluntarioPuedeParticiparEnParte(tx, obacRut, fechaEmergencia, 'OBAC');
+  await assertVoluntarioPuedeParticiparEnParte(prisma, obacRut, fechaEmergencia, 'OBAC');
 
+  const [filasAsistencia, filasUnidades, filasPacientes] = await Promise.all([
+    prepararFilasAsistencia(parteId, data, fechaEmergencia),
+    prepararFilasUnidades(parteId, data.unidades as unknown[], fechaEmergencia, conductores),
+    prepararFilasPacientes(parteId, data.pacientes as unknown[]),
+  ]);
+
+  await prisma.$transaction(async (tx) => {
     await tx.parteEmergencia.create({
       data: {
         id: parteId,
@@ -640,12 +653,11 @@ export const crearParteConRelaciones = async (data: Record<string, unknown>) => 
       },
     });
 
-    await sincronizarAsistencias(tx, parteId, data, fechaEmergencia);
-
-    await sincronizarUnidades(tx, parteId, data.unidades as unknown[], fechaEmergencia, conductores);
+    await sincronizarAsistencias(tx, parteId, filasAsistencia);
+    await sincronizarUnidades(tx, parteId, filasUnidades);
     await sincronizarVehiculos(tx, parteId, (data.vehiculosAfectados || data.vehiculosCiviles) as unknown[]);
-    await sincronizarPacientes(tx, parteId, data.pacientes as unknown[]);
-  });
+    await sincronizarPacientes(tx, parteId, filasPacientes);
+  }, OPCIONES_TRANSACCION);
 
   return obtenerPorId(parteId);
 };
@@ -850,27 +862,39 @@ export const actualizarParte = async (id: string, data: Record<string, unknown>)
     ? new Date(String(data.fecha || data.fechaEmergencia))
     : existente.fechaEmergencia;
 
-  await prisma.$transaction(async (tx) => {
-    const obacRutValidar =
-      data.obacId !== undefined || data.obacRut !== undefined
-        ? await resolverObacRut(data)
-        : existente.obacRut;
-    await assertVoluntarioPuedeParticiparEnParte(tx, obacRutValidar, fechaBase, 'OBAC');
+  const obacRutValidar =
+    data.obacId !== undefined || data.obacRut !== undefined
+      ? await resolverObacRut(data)
+      : existente.obacRut;
+  await assertVoluntarioPuedeParticiparEnParte(prisma, obacRutValidar, fechaBase, 'OBAC');
 
+  const conductores = metadataNuevo.conductoresPorCarroId as Record<string, string> | undefined;
+  const dataSync = { ...data, metadata: metadataNuevo };
+
+  const filasAsistencia = await prepararFilasAsistencia(id, dataSync, fechaBase);
+  const filasUnidades =
+    data.unidades !== undefined
+      ? await prepararFilasUnidades(id, data.unidades as unknown[], fechaBase, conductores)
+      : null;
+  const filasPacientes =
+    data.pacientes !== undefined
+      ? await prepararFilasPacientes(id, data.pacientes as unknown[])
+      : null;
+
+  await prisma.$transaction(async (tx) => {
     await tx.parteEmergencia.update({ where: { id }, data: updateData });
 
-    if (data.unidades !== undefined) {
-      const conductores = metadataNuevo.conductoresPorCarroId as Record<string, string> | undefined;
-      await sincronizarUnidades(tx, id, data.unidades as unknown[], fechaBase, conductores);
+    if (filasUnidades !== null) {
+      await sincronizarUnidades(tx, id, filasUnidades);
     }
     if (data.vehiculosAfectados !== undefined || data.vehiculosCiviles !== undefined) {
       await sincronizarVehiculos(tx, id, (data.vehiculosAfectados || data.vehiculosCiviles) as unknown[]);
     }
-    if (data.pacientes !== undefined) {
-      await sincronizarPacientes(tx, id, data.pacientes as unknown[]);
+    if (filasPacientes !== null) {
+      await sincronizarPacientes(tx, id, filasPacientes);
     }
-    await sincronizarAsistencias(tx, id, { ...data, metadata: metadataNuevo }, fechaBase);
-  });
+    await sincronizarAsistencias(tx, id, filasAsistencia);
+  }, OPCIONES_TRANSACCION);
 
   return obtenerPorId(id);
 };

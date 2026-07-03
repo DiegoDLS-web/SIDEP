@@ -1,13 +1,37 @@
 import { Request, Response } from 'express';
 import * as partesService from '../services/partes.service';
+import { ValidationError } from '../../../utils/errors/AppError';
+
+function mensajeErrorParte(error: unknown, fallback: string): string {
+  if (error instanceof ValidationError) {
+    return error.errors?.join(' ') || error.message;
+  }
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  return fallback;
+}
+
+function cuerpoErrorParte(error: unknown, fallback: string) {
+  if (error instanceof ValidationError) {
+    return {
+      message: error.errors?.join(' ') || error.message,
+      errors: error.errors,
+    };
+  }
+  return { message: mensajeErrorParte(error, fallback) };
+}
 
 export const crearParte = async (req: Request, res: Response): Promise<Response> => {
   try {
     const nuevoParte = await partesService.crearParteConRelaciones(req.body);
     return res.status(201).json(nuevoParte);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error al crear parte:', error);
-    const msg = error.message || 'Error al crear parte';
+    const msg = mensajeErrorParte(error, 'Error al crear parte');
+    if (error instanceof ValidationError) {
+      return res.status(400).json(cuerpoErrorParte(error, msg));
+    }
     if (msg.includes('OBAC')) return res.status(400).json({ message: `${msg} Verifica que el usuario OBAC exista y esté activo.` });
     if (msg.includes('Clave')) return res.status(400).json({ message: `${msg} Revisa el tipo de emergencia seleccionado.` });
     if (msg.includes('Unique constraint') || msg.includes('correlativo')) {
@@ -84,9 +108,9 @@ export const actualizarParte = async (req: Request, res: Response): Promise<Resp
       return res.status(404).json({ message: 'Parte no encontrado' });
     }
     return res.status(200).json(actualizado);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error al actualizar parte:', error);
-    return res.status(400).json({ message: error.message || 'Error al actualizar parte' });
+    return res.status(400).json(cuerpoErrorParte(error, 'Error al actualizar parte'));
   }
 };
 

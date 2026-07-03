@@ -9,6 +9,8 @@ export interface CarroDto {
   nombre: string | null;
   marca: string | null;
   kilometraje: number;
+  /** Último km registrado en despacho (km llegada o salida del último parte). */
+  ultimoKmDespacho?: number;
 
   // --- CAMPOS VISUALES DE LA FICHA (COMPATIBILIDAD CON FRONTEND) ---
   tipo?: string | null;
