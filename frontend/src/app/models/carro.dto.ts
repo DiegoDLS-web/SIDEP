@@ -6,6 +6,8 @@ export interface CarroDto {
   nomenclatura: string;
   patente: string;
   estadoOperativo: number; // 1 o 0
+  motivoFueraServicio?: string | null;
+  fueraServicioDesde?: string | null;
   nombre: string | null;
   marca: string | null;
   kilometraje: number;

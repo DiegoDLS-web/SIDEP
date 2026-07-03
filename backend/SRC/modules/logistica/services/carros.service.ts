@@ -1,5 +1,5 @@
 import prisma from '../../../prisma';
-import { AppError } from '../../../utils';
+import { AppError, ValidationError } from '../../../utils';
 import { randomUUID } from 'crypto';
 
 const METADATA: Record<string, { tipo: string; capacidadAgua: string; anioFabricacion: number }> = {
@@ -417,12 +417,44 @@ export const historialMantenimientoGeneral = async (filtros: {
   }));
 };
 
-export const cambiarEstadoOperativo = async (id: string, estado: number) => {
+export const cambiarEstadoOperativo = async (
+  id: string,
+  estado: number,
+  motivoFueraServicio?: string | null,
+) => {
   const carro = await prisma.carro.findUnique({ where: { id } });
   if (!carro) throw new AppError('Carro no encontrado', 404);
 
-  return await prisma.carro.update({
-    where: { id },
-    data: { estadoOperativo: estado },
-  });
+  const operativo = Number(estado) === 1 ? 1 : 0;
+
+  if (operativo === 0) {
+    const motivo = (motivoFueraServicio ?? '').trim();
+    if (!motivo) {
+      throw new ValidationError(['Debes indicar el motivo por el cual la unidad queda fuera de servicio.']);
+    }
+    if (motivo.length < 10) {
+      throw new ValidationError(['El motivo debe describir la causa con al menos 10 caracteres.']);
+    }
+    return enriquecerCarro(
+      await prisma.carro.update({
+        where: { id },
+        data: {
+          estadoOperativo: 0,
+          motivoFueraServicio: motivo,
+          fueraServicioDesde: new Date(),
+        },
+      }),
+    );
+  }
+
+  return enriquecerCarro(
+    await prisma.carro.update({
+      where: { id },
+      data: {
+        estadoOperativo: 1,
+        motivoFueraServicio: null,
+        fueraServicioDesde: null,
+      },
+    }),
+  );
 };

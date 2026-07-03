@@ -8,4 +8,5 @@ export * from './checklist-estado-operativo.util';
 export * from './material-inventario.util';
 export * from './parte-disponibilidad.util';
 export * from './usuario-acceso.util';
+export * from './prisma-error.util';
 

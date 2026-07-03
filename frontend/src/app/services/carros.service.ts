@@ -293,7 +293,13 @@ export class CarrosService {
   }
 
   // --- NUEVA FUNCIÓN PARA EL BOTÓN ---
-  toggleEstado(id: string, estadoOperativo: number): Observable<any> {
-    return this.http.patch(apiUrl('logistica', 'carros', id, 'estado'), { estadoOperativo });
+  toggleEstado(id: string, estadoOperativo: number, motivoFueraServicio?: string): Observable<CarroDto> {
+    const body: { estadoOperativo: number; motivoFueraServicio?: string } = { estadoOperativo };
+    if (motivoFueraServicio?.trim()) {
+      body.motivoFueraServicio = motivoFueraServicio.trim();
+    }
+    return this.http
+      .patch<{ success: boolean; data: CarroDto }>(apiUrl('logistica', 'carros', id, 'estado'), body)
+      .pipe(map((res) => res.data));
   }
 }
