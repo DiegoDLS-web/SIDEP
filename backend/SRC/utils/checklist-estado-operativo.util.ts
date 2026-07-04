@@ -18,6 +18,7 @@ type MaterialChecklist = {
   nombre?: string;
   cantidadActual?: number;
   cantidadRequerida?: number;
+  cantidadMinima?: number;
 };
 
 function parseRespuestas(data: unknown): Record<string, unknown> | null {
@@ -44,11 +45,48 @@ export function esChecklistBorrador(data: unknown): boolean {
 }
 
 function estadoMaterial(m: MaterialChecklist): 'OK' | 'BAJO' | 'CRITICO' {
-  const req = Math.max(0, Number(m.cantidadRequerida ?? 0));
+  const req = Math.max(0, Number(m.cantidadRequerida ?? m.cantidadMinima ?? 0));
   const act = Math.max(0, Number(m.cantidadActual ?? 0));
   if (act >= req) return 'OK';
   if (act <= 0) return 'CRITICO';
   return 'BAJO';
+}
+
+/** Conteo por bolso de trauma (estructura `bolsos[]` + `bolsoNumero`). */
+export function contarItemsBolsoTrauma(data: unknown): { totalItems: number; itemsOk: number } | null {
+  const obj = parseRespuestas(data);
+  if (!obj) return null;
+
+  const bolsos = obj['bolsos'];
+  if (!Array.isArray(bolsos) || bolsos.length === 0) return null;
+
+  const bolsoNumRaw = obj['bolsoNumero'];
+  let bolsoNum = 1;
+  if (typeof bolsoNumRaw === 'number' && Number.isFinite(bolsoNumRaw) && bolsoNumRaw > 0) {
+    bolsoNum = bolsoNumRaw;
+  } else if (typeof bolsoNumRaw === 'string' && bolsoNumRaw.trim()) {
+    const n = Number(bolsoNumRaw);
+    if (Number.isFinite(n) && n > 0) bolsoNum = n;
+  }
+
+  const bolso =
+    (bolsos as Array<{ numero?: number; ubicaciones?: Array<{ materiales?: MaterialChecklist[] }> }>).find(
+      (b) => Number(b?.numero ?? 0) === bolsoNum,
+    ) ?? (bolsos[0] as { ubicaciones?: Array<{ materiales?: MaterialChecklist[] }> });
+
+  if (!bolso?.ubicaciones) return null;
+
+  let totalItems = 0;
+  let itemsOk = 0;
+  for (const u of bolso.ubicaciones) {
+    for (const m of u.materiales ?? []) {
+      if (!m?.nombre?.trim()) continue;
+      totalItems += 1;
+      if (estadoMaterial(m) === 'OK') itemsOk += 1;
+    }
+  }
+
+  return totalItems > 0 ? { totalItems, itemsOk } : null;
 }
 
 /** Analiza ubicaciones/materiales del checklist de unidad (misma lógica que el frontend). */
@@ -147,6 +185,9 @@ export function contarItemsDesdeRespuestas(raw: string | null | undefined): {
       }).length;
       return totalItems > 0 ? { totalItems, itemsOk } : null;
     }
+
+    const trauma = contarItemsBolsoTrauma(obj);
+    if (trauma) return trauma;
 
     if (typeof obj['totalItems'] === 'number') {
       return {

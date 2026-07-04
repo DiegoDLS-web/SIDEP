@@ -28,6 +28,7 @@ import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendien
 import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
 import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 import { exportarExcelSidep } from '../../utils/excel-export.util';
+import { mensajeApiError } from '../../utils/api-error.util';
 import { SIDEP_ACTION_ICON } from '../../shared/sidep-action-icons';
 
 type CarrosView =
@@ -99,6 +100,12 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
   filtroInspectorHistorial = '';
   paginaHistorialGeneral = 1;
   readonly tamanioPaginaHistorialGeneral = 10;
+
+  fueraServicioModalAbierto = false;
+  carroFueraServicioPendiente: CarroDto | null = null;
+  motivoFueraServicioInput = '';
+  errorMotivoFueraServicio = '';
+  guardandoEstado = false;
   
   readonly editForm: {
     ultimoConductor: string;
@@ -859,16 +866,81 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
   }
 
   toggleEstado(carro: CarroDto): void {
-    const nuevoEstado = carro.estadoOperativo === 1 ? 0 : 1;
-    this.carrosApi.toggleEstado(carro.id, nuevoEstado).subscribe({
-      next: () => {
-        carro.estadoOperativo = nuevoEstado;
-        this.toast.exito(
-          `Carro ${carro.nomenclatura} ahora está ${nuevoEstado === 1 ? 'operativa' : 'fuera de servicio'}.`,
-        );
+    if (carro.estadoOperativo === 1) {
+      this.abrirModalFueraServicio(carro);
+      return;
+    }
+    void this.confirmarVolverOperativa(carro);
+  }
+
+  abrirModalFueraServicio(carro: CarroDto): void {
+    this.carroFueraServicioPendiente = carro;
+    this.motivoFueraServicioInput = '';
+    this.errorMotivoFueraServicio = '';
+    this.fueraServicioModalAbierto = true;
+  }
+
+  cerrarModalFueraServicio(): void {
+    if (this.guardandoEstado) return;
+    this.fueraServicioModalAbierto = false;
+    this.carroFueraServicioPendiente = null;
+    this.motivoFueraServicioInput = '';
+    this.errorMotivoFueraServicio = '';
+  }
+
+  confirmarFueraServicio(): void {
+    const carro = this.carroFueraServicioPendiente;
+    if (!carro) return;
+    const motivo = this.motivoFueraServicioInput.trim();
+    if (!motivo) {
+      this.errorMotivoFueraServicio = 'Indica el motivo por el cual la unidad queda fuera de servicio.';
+      return;
+    }
+    if (motivo.length < 10) {
+      this.errorMotivoFueraServicio = 'El motivo debe describir la causa con al menos 10 caracteres.';
+      return;
+    }
+    this.aplicarCambioEstado(carro, 0, motivo);
+  }
+
+  private async confirmarVolverOperativa(carro: CarroDto): Promise<void> {
+    const ok = await this.confirmDialog.abrir({
+      title: 'Volver a operativa',
+      message: `¿Confirmas que ${carro.nomenclatura} vuelve a estar operativa y disponible para despacho?`,
+      confirmText: 'Marcar operativa',
+      cancelText: 'Cancelar',
+    });
+    if (ok) {
+      this.aplicarCambioEstado(carro, 1);
+    }
+  }
+
+  private aplicarCambioEstado(carro: CarroDto, nuevoEstado: number, motivo?: string): void {
+    this.guardandoEstado = true;
+    this.errorMotivoFueraServicio = '';
+    this.carrosApi.toggleEstado(carro.id, nuevoEstado, motivo).subscribe({
+      next: (actualizado) => {
+        this.guardandoEstado = false;
+        carro.estadoOperativo = actualizado.estadoOperativo;
+        carro.motivoFueraServicio = actualizado.motivoFueraServicio ?? null;
+        carro.fueraServicioDesde = actualizado.fueraServicioDesde ?? null;
+        this.cerrarModalFueraServicio();
+        if (nuevoEstado === 0) {
+          this.toast.advertencia(`${carro.nomenclatura} quedó fuera de servicio.`);
+        } else {
+          this.toast.exito(`${carro.nomenclatura} vuelve a estar operativa.`);
+        }
+        this.cdr.markForCheck();
       },
-      error: () => {
-        this.toast.error('Error al cambiar el estado del carro');
+      error: (err) => {
+        this.guardandoEstado = false;
+        const msg = mensajeApiError(err, 'Error al cambiar el estado del carro');
+        if (this.fueraServicioModalAbierto) {
+          this.errorMotivoFueraServicio = msg;
+        } else {
+          this.toast.error(msg);
+        }
+        this.cdr.markForCheck();
       },
     });
   }

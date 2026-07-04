@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostListener, OnInit, inject } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { catchError, map, of, switchMap } from 'rxjs';
+import { NavigationEnd, Router, RouterLink } from '@angular/router';
+import { catchError, filter, map, of, Subscription, switchMap } from 'rxjs';
 import type {
   BolsoTraumaHistorialDto,
   BolsoTraumaRegistroDto,
@@ -27,12 +27,13 @@ import { exportarExcelSidep } from '../../utils/excel-export.util';
   imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidEmptyStateComponent, SidDateInputComponent],
   templateUrl: './bolso-trauma.component.html',
 })
-export class BolsoTraumaComponent implements OnInit {
+export class BolsoTraumaComponent implements OnInit, OnDestroy {
   private readonly bolsosApi = inject(BolsosTraumaService);
   private readonly carrosApi = inject(CarrosService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly router = inject(Router);
   readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
+  private navSub: Subscription | null = null;
 
   private readonly imagenFallbackCarro =
     'https://images.unsplash.com/photo-1588662880295-13d2b28127c6?w=1080&q=80&fm=jpg';
@@ -73,6 +74,26 @@ export class BolsoTraumaComponent implements OnInit {
   readonly tamanioPaginaHistorial = 10;
 
   ngOnInit(): void {
+    this.cargarUnidades();
+    this.cargarHistorial();
+    this.navSub = this.router.events
+      .pipe(filter((ev): ev is NavigationEnd => ev instanceof NavigationEnd))
+      .subscribe((ev) => {
+        const path = ev.urlAfterRedirects.split('?')[0]?.replace(/\/$/, '') ?? '';
+        if (path === '/bolso-trauma') {
+          this.cargarUnidades();
+          this.cargarHistorial();
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.navSub?.unsubscribe();
+  }
+
+  private cargarUnidades(): void {
+    this.loading = true;
+    this.error = null;
     this.bolsosApi
       .selector()
       .pipe(
@@ -90,6 +111,7 @@ export class BolsoTraumaComponent implements OnInit {
       .subscribe({
         next: (data) => {
           this.unidades = data;
+          this.aplicarCompletitudDesdeHistorial();
           this.loading = false;
         },
         error: () => {
@@ -97,8 +119,6 @@ export class BolsoTraumaComponent implements OnInit {
           this.loading = false;
         },
       });
-
-    this.cargarHistorial();
   }
 
   private cantidadBolsosUnidad(nomenclatura: string): number {
@@ -155,6 +175,45 @@ export class BolsoTraumaComponent implements OnInit {
     return nom || (u.nombre ?? '').trim() || '—';
   }
 
+  private aplicarCompletitudDesdeHistorial(): void {
+    if (this.historial.length === 0) return;
+    const ultimaPorBolso = new Map<string, BolsoTraumaHistorialDto>();
+    for (const h of this.historial) {
+      if (h.borrador === true) continue;
+      const unidad = (h.unidad ?? '').trim();
+      if (!unidad) continue;
+      const num = h.bolsoNumero ?? 1;
+      const clave = `${unidad}:${num}`;
+      if (!ultimaPorBolso.has(clave)) {
+        ultimaPorBolso.set(clave, h);
+      }
+    }
+    this.unidades = this.unidades.map((u) => {
+      const nom = this.etiquetaUnidadFiltro(u);
+      const bolsos = u.bolsos.map((b: any, idx: number) => {
+        const numero = b.numero ?? idx + 1;
+        const h = ultimaPorBolso.get(`${nom}:${numero}`);
+        if (!h) return b;
+        const total = Number(h.totalItems) || 0;
+        const ok = Number(h.itemsOk) || 0;
+        const completitud =
+          h.porcentaje != null ? h.porcentaje : total > 0 ? Math.round((ok / total) * 100) : 0;
+        const itemsFaltantes = Math.max(total - ok, 0);
+        const estadoChecklist =
+          h.estadoChecklist ??
+          (completitud >= 100 ? 'COMPLETADO' : ok > 0 ? 'CON_OBSERVACION' : 'PENDIENTE');
+        return {
+          ...b,
+          completitud,
+          itemsFaltantes,
+          status: completitud >= 100 ? 'complete' : 'pending',
+          estadoChecklist,
+        };
+      });
+      return { ...u, bolsos };
+    });
+  }
+
   private refrescarUnidadesDesdeHistorial(): void {
     const porNom = new Map(this.unidades.map((u) => [this.etiquetaUnidadFiltro(u), u]));
     for (const h of this.historial) {
@@ -170,6 +229,7 @@ export class BolsoTraumaComponent implements OnInit {
       this.unidades = [...this.unidades, nueva];
       porNom.set(nom, nueva);
     }
+    this.aplicarCompletitudDesdeHistorial();
   }
 
   fechaHora(iso: string | null | undefined): { fecha: string; hora: string } {

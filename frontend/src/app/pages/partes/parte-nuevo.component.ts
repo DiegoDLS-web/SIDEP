@@ -28,7 +28,6 @@ import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendien
 import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
-import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 
 // Corrección de Import: Usamos el DTO de PostgreSQL
 import type { ParteEmergenciaDTO } from '../../models/parte.dto';
@@ -58,7 +57,7 @@ type PasoId = 'basicos' | 'emergencia' | 'trabajo' | 'asistencia' | 'apoyo' | 'o
 @Component({
   selector: 'app-parte-nuevo',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidDateInputComponent, SidEdicionPendienteBannerComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidDateInputComponent],
   templateUrl: './parte-nuevo.component.html',
 })
 export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendiente {
@@ -207,10 +206,6 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
 
   tieneEdicionPendiente(): boolean {
     if (this.loading || this.submitting) return false;
-    return this.controlEdicion.tieneCambios();
-  }
-
-  parteTieneCambios(): boolean {
     return this.controlEdicion.tieneCambios();
   }
 
@@ -803,6 +798,75 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
     if (!(this.asistencia.encargadoDatos ?? '').trim() && (this.asistencia.nombreObac ?? '').trim()) {
       this.asistencia.encargadoDatos = this.asistencia.nombreObac;
     }
+    const firmaObac = this.firmaObacEfectiva();
+    if (
+      firmaObac.startsWith('data:image') &&
+      !this.firmaEncargadoDatos.trim().startsWith('data:image') &&
+      (this.asistencia.encargadoDatos ?? '').trim() === (this.asistencia.nombreObac ?? '').trim()
+    ) {
+      this.firmaEncargadoDatos = firmaObac;
+    }
+    for (const u of this.unidades) {
+      if (!u.carroId) continue;
+      if (!u.hora6_9.trim() && u.hora6_3.trim()) u.hora6_9 = u.hora6_3;
+    }
+  }
+
+  private mostrarErrorGuardado(mensaje: string, pasoDestino?: PasoId): void {
+    this.guardadoError = mensaje;
+    this.toast.error(mensaje);
+    if (pasoDestino) {
+      const idx = this.pasosVisibles.indexOf(pasoDestino);
+      if (idx >= 0) this.pasoIdx = idx;
+    }
+    queueMicrotask(() => {
+      document.getElementById('parte-guardado-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+
+  private validarCamposObligatoriosRegistro(): { mensaje: string; paso: PasoId } | null {
+    const faltantes: { label: string; paso: PasoId }[] = [];
+    if (!this.claveEmergencia.trim()) faltantes.push({ label: 'tipo de emergencia', paso: 'basicos' });
+    if (!this.resolverObacId()) faltantes.push({ label: 'OBAC', paso: 'basicos' });
+    if (!this.horaDelLlamado.trim()) faltantes.push({ label: 'hora del llamado', paso: 'basicos' });
+    if (!this.direccion.trim()) faltantes.push({ label: 'dirección', paso: 'emergencia' });
+    if (!this.descripcionEmergencia.trim()) faltantes.push({ label: 'descripción de la emergencia', paso: 'emergencia' });
+    if (!this.trabajoRealizado.trim()) faltantes.push({ label: 'trabajo realizado', paso: 'trabajo' });
+    if (faltantes.length === 0) return null;
+    return {
+      mensaje: `Completa: ${faltantes.map((f) => f.label).join(', ')}.`,
+      paso: faltantes[0]!.paso,
+    };
+  }
+
+  private detalleUnidadesInvalidas(): { mensaje: string; paso: PasoId } | null {
+    if (this.unidades.some((u) => this.filaTieneBasuraSinCarro(u))) {
+      return {
+        mensaje: 'Hay datos de despacho sin unidad seleccionada. Elige el carro o limpia esos campos.',
+        paso: 'basicos',
+      };
+    }
+    const exige = claveEmergenciaExigeUnidadesEnDespacho(this.claveEmergencia);
+    const filas = exige ? this.unidades.filter((u) => u.carroId !== '') : this.unidades.filter((u) => u.carroId !== '');
+    if (exige && filas.length === 0) {
+      return { mensaje: 'Este tipo de emergencia exige al menos una unidad en despacho completa.', paso: 'basicos' };
+    }
+    for (const [i, u] of filas.entries()) {
+      if (!this.filaUnidadIncompleta(u)) continue;
+      const partes: string[] = [];
+      if (!u.conductor.trim()) partes.push('conductor');
+      if (!u.hora6_0.trim()) partes.push('6-0');
+      if (!u.hora6_3.trim()) partes.push('6-3');
+      if (!u.hora6_9.trim()) partes.push('6-9');
+      if (!u.hora6_10.trim()) partes.push('6-10');
+      if (!u.kmSalida.trim()) partes.push('KM salida');
+      if (!u.kmLlegada.trim()) partes.push('KM llegada');
+      return {
+        mensaje: `Unidad ${i + 1}: falta ${partes.join(', ')}.`,
+        paso: 'basicos',
+      };
+    }
+    return null;
   }
 
   carrosDisponiblesParaUnidad(index: number): CarroDto[] {
@@ -855,6 +919,17 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
     const mio = (this.unidades[indiceFila]?.conductor ?? '').trim();
     if (!mio) return;
     this.unidades.forEach((u, j) => { if (j !== indiceFila && (u.conductor ?? '').trim() === mio) u.conductor = ''; });
+  }
+
+  onCarroUnidadChange(indiceFila: number): void {
+    const fila = this.unidades[indiceFila];
+    if (!fila?.carroId) return;
+    const carro = this.carros.find((c) => String(c.id) === String(fila.carroId));
+    if (!carro) return;
+    const km = carro.ultimoKmDespacho ?? carro.kilometraje ?? 0;
+    if (km > 0) {
+      fila.kmSalida = String(Math.round(km));
+    }
   }
 
   private sanearConductoresDuplicadosUnidades(): void {
@@ -1165,43 +1240,46 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
     this.prepararCierreAntesDeGuardar();
     const obac = this.resolverObacId();
     const obacRut = this.resolverObacRut();
-    if (obac === null || !obacRut || !this.claveEmergencia.trim() || !this.direccion.trim() || !this.descripcionEmergencia.trim() || !this.trabajoRealizado.trim() || !this.horaDelLlamado.trim()) {
-      const msg = 'Por favor completa todos los campos básicos obligatorios.';
-      this.guardadoError = msg;
-      this.toast.error(msg);
-      this.pasoIdx = this.pasosVisibles.indexOf('basicos');
+    const camposObligatorios = this.validarCamposObligatoriosRegistro();
+    if (camposObligatorios) {
+      this.mostrarErrorGuardado(camposObligatorios.mensaje, camposObligatorios.paso);
+      return;
+    }
+    if (obac === null || !obacRut) {
+      this.mostrarErrorGuardado('Selecciona OBAC en datos básicos.', 'basicos');
       return;
     }
     if (this.hayConductorRepetidoEnUnidades()) {
-      const msg = 'Un conductor no puede estar en más de una unidad.';
-      this.guardadoError = msg;
-      this.toast.error(msg);
-      this.pasoIdx = this.pasosVisibles.indexOf('basicos');
+      this.mostrarErrorGuardado('Un conductor no puede estar en más de una unidad.', 'basicos');
       return;
     }
     const disponibilidad = this.validarDisponibilidadOperativaAntesDeGuardar();
     if (disponibilidad) {
-      this.guardadoError = disponibilidad;
-      this.toast.error(disponibilidad);
-      this.pasoIdx = this.pasosVisibles.indexOf('emergencia');
+      this.mostrarErrorGuardado(disponibilidad, 'emergencia');
       return;
     }
     const faltantesCierre = this.faltantesCierreParte();
     if (faltantesCierre.length > 0) {
-      const msg = `Faltan datos de cierre: ${faltantesCierre.join('; ')}.`;
-      this.guardadoError = msg;
-      this.toast.error(msg);
-      this.pasoIdx = this.pasosVisibles.indexOf('obs');
+      this.mostrarErrorGuardado(`Faltan datos de cierre: ${faltantesCierre.join('; ')}.`, 'asistencia');
       return;
     }
     const fechaIso = this.buildFechaIso();
-    if (!fechaIso || this.unidadesFormularioInvalidasParaGuardar()) {
-      const msg = this.exigeUnidadesDespacho
-        ? 'Revisa las unidades en despacho: carro, conductor, horas 6-0 a 6-10 y kilómetros.'
-        : 'Revisa los tiempos y datos de las unidades en despacho.';
-      this.guardadoError = msg;
-      this.toast.error(msg);
-      this.pasoIdx = this.pasosVisibles.indexOf('basicos');
+    if (!fechaIso) {
+      this.mostrarErrorGuardado('Indica la fecha del parte en datos básicos.', 'basicos');
+      return;
+    }
+    const unidadesInvalidas = this.detalleUnidadesInvalidas();
+    if (unidadesInvalidas) {
+      this.mostrarErrorGuardado(unidadesInvalidas.mensaje, unidadesInvalidas.paso);
+      return;
+    }
+    if (this.unidadesFormularioInvalidasParaGuardar()) {
+      this.mostrarErrorGuardado(
+        this.exigeUnidadesDespacho
+          ? 'Revisa las unidades en despacho: carro, conductor, horas 6-0 a 6-10 y kilómetros.'
+          : 'Revisa los tiempos y datos de las unidades en despacho.',
+        'basicos',
+      );
       return;
     }
 

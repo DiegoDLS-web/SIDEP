@@ -565,11 +565,8 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
     );
   }
 
-  private totalesTodosLosBolsos(): { total: number; ok: number } {
-    const flat = this.bolsos.flatMap((b) => b.ubicaciones.flatMap((u) => u.materiales));
-    const total = flat.length;
-    const ok = flat.filter((m) => m.cantidadActual >= m.cantidadMinima).length;
-    return { total, ok };
+  private totalesBolsoActual(): { total: number; ok: number } {
+    return { total: this.totalMateriales(), ok: this.materialesMinimosOk() };
   }
 
   validarBolsoCompleto(): string | null {
@@ -634,7 +631,7 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
     if (obacId === '') {
       return;
     }
-    const { total, ok } = this.totalesTodosLosBolsos();
+    const { total, ok } = this.totalesBolsoActual();
     this.error = null;
     this.saving = true;
     this.bolsosApi
@@ -657,8 +654,8 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
       .subscribe({
         next: (reg) => {
           this.saving = false;
-          this.controlEdicion.marcarLimpio();
           if (reg?.fecha) this.fechaCierreChecklist = reg.fecha;
+          this.controlEdicion.marcarLimpio();
           this.toast.exito('Checklist de bolso trauma guardado.');
           void this.router.navigate(['/bolso-trauma']);
         },
@@ -676,7 +673,7 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
       return;
     }
     const obacBorrador = this.cuarteleroId;
-    const { total, ok } = this.totalesTodosLosBolsos();
+    const { total, ok } = this.totalesBolsoActual();
     this.error = null;
     this.savingBorrador = true;
     this.bolsosApi
@@ -699,8 +696,8 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
       .subscribe({
         next: (reg) => {
           this.savingBorrador = false;
-          this.controlEdicion.marcarLimpio();
           if (reg?.fecha) this.fechaCierreChecklist = reg.fecha;
+          this.controlEdicion.marcarLimpio();
           this.flash('Borrador guardado.');
           this.toast.exito('Borrador de bolso trauma guardado.');
           void this.router.navigate(['/bolso-trauma']);

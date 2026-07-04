@@ -4,6 +4,7 @@ import { mapUsuarioToDto } from './rrhh.service';
 import { hashPassword } from '../../../utils/security/hash';
 import { validarRut, normalizarRut } from '../../../utils/rut.util';
 import { NotFoundError, ValidationError, ConflictError } from '../../../utils/errors/AppError';
+import { esErrorIntegridadReferencial } from '../../../utils/prisma-error.util';
 import {
   resolverRolId,
   resolverCargoId,
@@ -477,11 +478,43 @@ export const actualizarUsuario = async (rut: string, datos: any) => {
   return mapUsuarioToDto(usuarioActualizado);
 };
 
+async function referenciasUsuarioParaEliminar(rut: string): Promise<string[]> {
+  const [
+    partesObac,
+    asistencias,
+    checklists,
+    licenciasPropias,
+    mantInspector,
+    mantConductor,
+    unidadesConductor,
+  ] = await Promise.all([
+    prisma.parteEmergencia.count({ where: { obacRut: rut } }),
+    prisma.asistenciaPersonal.count({ where: { usuarioRut: rut } }),
+    prisma.checklistEjecucion.count({ where: { revisorRut: rut } }),
+    prisma.licenciaMedica.count({ where: { usuarioRut: rut } }),
+    prisma.mantenimientoCarro.count({ where: { inspectorRut: rut } }),
+    prisma.mantenimientoCarro.count({ where: { conductorRut: rut } }),
+    prisma.unidadEnEmergencia.count({ where: { conductorRut: rut } }),
+  ]);
+
+  const refs: string[] = [];
+  if (partesObac > 0) refs.push(`${partesObac} parte(s) como OBAC`);
+  if (asistencias > 0) refs.push(`${asistencias} asistencia(s) en partes`);
+  if (checklists > 0) refs.push(`${checklists} checklist(s)`);
+  if (licenciasPropias > 0) refs.push(`${licenciasPropias} licencia(s) médica(s)`);
+  if (mantInspector > 0) refs.push(`${mantInspector} mantención(es) como inspector`);
+  if (mantConductor > 0) refs.push(`${mantConductor} mantención(es) como conductor`);
+  if (unidadesConductor > 0) refs.push(`${unidadesConductor} unidad(es) como conductor`);
+  return refs;
+}
+
 export const eliminarUsuario = async (rut: string) => {
   const usuario = await buscarUsuarioPorRut(rut);
   if (!usuario) {
-    throw new Error('Usuario no encontrado');
+    throw new NotFoundError('Usuario', rut);
   }
+
+  const referencias = await referenciasUsuarioParaEliminar(usuario.rut);
 
   // Borrar archivos de Cloudinary si existen
   if (usuario.fotoPerfilPublicId) {
@@ -492,13 +525,14 @@ export const eliminarUsuario = async (rut: string) => {
   }
 
   try {
-    // Intentar eliminación física
     await prisma.usuario.delete({
       where: { rut: usuario.rut },
     });
     return { softDeleted: false };
   } catch (error) {
-    // Si falla por FKey, realizar soft delete (dar de baja) y limpiar referencias a archivos
+    if (!esErrorIntegridadReferencial(error)) {
+      throw error;
+    }
     await prisma.usuario.update({
       where: { rut: usuario.rut },
       data: {
@@ -509,9 +543,13 @@ export const eliminarUsuario = async (rut: string) => {
         firmaImagenPublicId: null,
       },
     });
+    const detalle =
+      referencias.length > 0
+        ? ` Registros vinculados: ${referencias.join('; ')}.`
+        : '';
     return {
       softDeleted: true,
-      message: 'No se pudo eliminar físicamente por historial relacionado; usuario dado de baja.',
+      message: `No se pudo eliminar físicamente por historial relacionado; usuario dado de baja.${detalle}`,
     };
   }
 };
