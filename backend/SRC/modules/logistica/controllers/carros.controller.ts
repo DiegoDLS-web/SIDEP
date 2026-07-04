@@ -56,6 +56,7 @@ export const getCarros = async (req: Request, res: Response) => {
         res.status(500).json({ success: false, message: 'Error al obtener los carros' });
     }
 };
+
 export const toggleEstadoCarro = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
@@ -87,10 +88,15 @@ export const toggleEstadoCarro = async (req: Request, res: Response) => {
             estadoNuevo: estado,
         });
     } catch (error: any) {
-        res.status(error.statusCode || 500).json({ success: false, message: error.message });
+        const status = error.statusCode || 500;
+        const message =
+            Array.isArray(error.errors) && error.errors.length > 0
+                ? error.errors.join(' ')
+                : error.message || 'Error al actualizar estado';
+        res.status(status).json({ success: false, message, errors: error.errors });
     }
-
 };
+
 export const obtenerCarroPorId = async (req: Request, res: Response): Promise<Response> => {
     try {
         const id = String(req.params.id);

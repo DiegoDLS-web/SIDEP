@@ -347,18 +347,90 @@ export class AnaliticaPageComponent implements OnInit {
     }
   }
 
-  private async capturarElemento(element: HTMLElement): Promise<string> {
+  private async capturarElementoCanvas(element: HTMLElement): Promise<HTMLCanvasElement> {
     const html2canvas = (await import('html2canvas')).default;
-    /* Mayor escala = PNG más nítido al abrir (solo exportación; no cambia la UI). */
-    const scale = 3;
-    const canvas = await html2canvas(element, {
+    const scale = 2;
+    return html2canvas(element, {
       scale,
       backgroundColor: '#0a0a0a',
       useCORS: true,
       logging: false,
-      onclone: (doc : any) => this.aplicarCloneParaExportacionPng(doc, element),
+      onclone: (doc: Document) => this.aplicarCloneParaExportacionPng(doc, element),
     });
+  }
+
+  private async capturarElemento(element: HTMLElement): Promise<string> {
+    const canvas = await this.capturarElementoCanvas(element);
     return canvas.toDataURL('image/png');
+  }
+
+  /** Inserta una sección capturada con paginación real (sin comprimir ni cortar el pie). */
+  private agregarSeccionPdfPaginada(
+    doc: jsPDF,
+    canvas: HTMLCanvasElement,
+    titulo: string,
+    margin: number,
+    maxImageWidth: number,
+    pageHeight: number,
+    yInicio: number,
+  ): number {
+    const zonaPieMm = 20;
+    const alturaTituloMm = 7.5;
+    const espacioEntreSeccionesMm = 6;
+    const yContinuacionMm = 16;
+    const limiteInferior = pageHeight - zonaPieMm;
+
+    let y = yInicio;
+    let srcYpx = 0;
+    let tituloDibujado = false;
+
+    while (srcYpx < canvas.height) {
+      const espacioTitulo = tituloDibujado ? 0 : alturaTituloMm;
+      let altoDisponibleMm = limiteInferior - y - espacioTitulo;
+
+      if (altoDisponibleMm < 12) {
+        doc.addPage();
+        y = yContinuacionMm;
+        altoDisponibleMm = limiteInferior - y;
+      }
+
+      if (!tituloDibujado) {
+        doc.setFillColor(244, 245, 247);
+        doc.roundedRect(margin, y, maxImageWidth, 6.5, 1.2, 1.2, 'F');
+        doc.setTextColor(31, 41, 55);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9.5);
+        doc.text(titulo, margin + 3, y + 4.4);
+        y += alturaTituloMm;
+        tituloDibujado = true;
+        altoDisponibleMm = limiteInferior - y;
+      }
+
+      const pxRestantes = canvas.height - srcYpx;
+      const mmRestantes = (pxRestantes * maxImageWidth) / canvas.width;
+      const sliceMm = Math.min(altoDisponibleMm, mmRestantes);
+      const slicePx = Math.min(pxRestantes, (sliceMm / maxImageWidth) * canvas.width);
+      const sliceMmReal = (slicePx / canvas.width) * maxImageWidth;
+
+      const trozo = document.createElement('canvas');
+      trozo.width = canvas.width;
+      trozo.height = Math.ceil(slicePx);
+      const ctx = trozo.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(canvas, 0, srcYpx, canvas.width, slicePx, 0, 0, canvas.width, slicePx);
+        doc.addImage(trozo.toDataURL('image/png'), 'PNG', margin, y, maxImageWidth, sliceMmReal);
+      }
+
+      srcYpx += slicePx;
+      y += sliceMmReal;
+
+      if (srcYpx < canvas.height) {
+        doc.addPage();
+        y = yContinuacionMm;
+      }
+    }
+
+    return y + espacioEntreSeccionesMm;
   }
 
   async exportarReportePdf(): Promise<void> {
@@ -393,32 +465,16 @@ export class AnaliticaPageComponent implements OnInit {
       for (const section of sections) {
         const seccionId = section.getAttribute('data-export-id') ?? 'seccion';
         const tituloSeccion = this.tituloSeccionPdf(seccionId);
-        const imgData = await this.capturarElemento(section);
-        const img = new Image();
-        img.src = imgData;
-        await img.decode();
-
-        const altoDisponible = pageHeight - y - 14;
-        let imgHeight = (img.height * maxImageWidth) / img.width;
-        if (imgHeight > altoDisponible) {
-          imgHeight = altoDisponible;
-        }
-
-        if (y + imgHeight > pageHeight - 14) {
-          doc.addPage();
-          y = 16;
-        }
-
-        doc.setFillColor(244, 245, 247);
-        doc.roundedRect(margin, y, maxImageWidth, 6.5, 1.2, 1.2, 'F');
-        doc.setTextColor(31, 41, 55);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9.5);
-        doc.text(tituloSeccion, margin + 3, y + 4.4);
-        y += 7.5;
-
-        doc.addImage(imgData, 'PNG', margin, y, maxImageWidth, imgHeight);
-        y += imgHeight + 4;
+        const canvas = await this.capturarElementoCanvas(section);
+        y = this.agregarSeccionPdfPaginada(
+          doc,
+          canvas,
+          tituloSeccion,
+          margin,
+          maxImageWidth,
+          pageHeight,
+          y,
+        );
       }
 
       this.pdfExport.pieMarca(doc);

@@ -1,32 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
-import { AppError } from '../utils/errors/AppError';
 import { Prisma } from '@prisma/client';
+import { resolverErrorHttp } from '../utils/prisma-error.util';
 
 export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
-  // 1. Errores controlados de la aplicación
-  if (err instanceof AppError) {
-    return res.status(err.statusCode).json({
+  const resuelto = resolverErrorHttp(err);
+  if (resuelto) {
+    return res.status(resuelto.statusCode).json({
       success: false,
-      message: err.message,
-      errors: err.errors ?? undefined,
+      message: resuelto.message,
+      errors: resuelto.errors ?? undefined,
     });
-  }
-
-  // 2. Errores de Prisma conocidos
-  if (err instanceof Prisma.PrismaClientKnownRequestError) {
-    if (err.code === 'P2002') {
-      const campo = (err.meta?.target as string[])?.join(', ') || 'campo';
-      return res.status(409).json({
-        success: false,
-        message: `Ya existe un registro con ese/a ${campo}.`,
-      });
-    }
-    if (err.code === 'P2025') {
-      return res.status(404).json({
-        success: false,
-        message: 'Registro no encontrado.',
-      });
-    }
   }
 
   if (err instanceof Prisma.PrismaClientValidationError) {
@@ -36,7 +19,7 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
     });
   }
 
-  // 3. Error genérico — no exponer detalles internos
+  // Error genérico — no exponer detalles internos
   console.error('[ERROR NO CONTROLADO]', err);
   return res.status(500).json({
     success: false,

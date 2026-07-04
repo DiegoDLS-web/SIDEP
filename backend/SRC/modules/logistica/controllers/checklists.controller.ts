@@ -1,13 +1,19 @@
 import { Request, Response } from 'express';
 import * as checklistsService from '../services/checklists.service';
 import { prisma } from '../../../prisma';
+import { respuestaErrorJson } from '../../../utils/prisma-error.util';
+
+function enviarError(res: Response, err: unknown, fallback: string): void {
+  const { statusCode, body } = respuestaErrorJson(err, fallback);
+  res.status(statusCode).json(body);
+}
 
 export const addPlantilla = async (req: Request, res: Response) => {
     try {
         const plantilla = await checklistsService.crearPlantilla(req.body);
         res.status(201).json({ success: true, data: plantilla });
-    } catch (error: any) {
-        res.status(error.statusCode || 500).json({ success: false, message: error.message });
+    } catch (error: unknown) {
+        enviarError(res, error, 'Error al crear plantilla de checklist');
     }
 };
 
@@ -37,8 +43,8 @@ export const addEjecucion = async (req: Request, res: Response) => {
             },
         );
         res.status(201).json({ success: true, data: checklist });
-    } catch (error: any) {
-        res.status(error.statusCode || 500).json({ success: false, message: error.message });
+    } catch (error: unknown) {
+        enviarError(res, error, 'Error al registrar checklist');
     }
 };
 
@@ -61,18 +67,17 @@ export const editPlantilla = async (req: Request, res: Response) => {
         // Añadimos "as string"
         const plantilla = await checklistsService.actualizarPlantilla(req.params.id as string, req.body);
         res.status(200).json({ success: true, data: plantilla });
-    } catch (error: any) {
-        res.status(error.statusCode || 500).json({ success: false, message: error.message });
+    } catch (error: unknown) {
+        enviarError(res, error, 'Error al actualizar plantilla de checklist');
     }
 };
 
 export const getDetalleEjecucion = async (req: Request, res: Response) => {
     try {
-        // Añadimos "as string"
         const detalle = await checklistsService.obtenerDetalleEjecucion(req.params.id as string);
         res.status(200).json({ success: true, data: detalle });
-    } catch (error: any) {
-        res.status(error.statusCode || 500).json({ success: false, message: error.message });
+    } catch (error: unknown) {
+        enviarError(res, error, 'Error al obtener detalle de checklist');
     }
 };
 
@@ -102,15 +107,15 @@ export const patchEstadoEjecucion = async (req: Request, res: Response) => {
         res.status(error.statusCode || 500).json({ success: false, message: error.message });
     }
 };
-export const obtenerPlantillas = async (req: Request, res: Response): Promise<Response> => {
+
+export const obtenerPlantillas = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Corregido: Prisma utiliza 'checklistPlantilla' basándose en tu schema
     const plantillas = await prisma.checklistPlantilla.findMany({
       where: { activo: 1 }
     });
-    return res.status(200).json({ success: true, data: plantillas });
-  } catch (error: any) {
+    res.status(200).json({ success: true, data: plantillas });
+  } catch (error: unknown) {
     console.error("Error al obtener plantillas:", error);
-    return res.status(500).json({ success: false, message: error.message });
+    enviarError(res, error, 'Error al obtener plantillas');
   }
 };

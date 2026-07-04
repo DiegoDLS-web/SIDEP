@@ -182,6 +182,8 @@ model Carro {
   marca              String?              @db.VarChar(100)
   kilometraje        Decimal?             @db.Decimal(10, 1)
   estadoOperativo    Int                  @map("estado_operativo") @db.SmallInt
+  motivoFueraServicio String?             @map("motivo_fuera_servicio") @db.Text
+  fueraServicioDesde  DateTime?           @map("fuera_servicio_desde") @db.Timestamptz(6)
   bolsos             BolsoTrauma[]
   mantenimientos     MantenimientoCarro[]
   materiales         MaterialPorCarro[]

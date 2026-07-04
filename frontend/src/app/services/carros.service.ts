@@ -288,7 +288,6 @@ export class CarrosService {
       );
   }
 
-  // --- NUEVA FUNCIÓN PARA EL BOTÓN ---
   toggleEstado(
     id: string,
     estadoOperativo: number,

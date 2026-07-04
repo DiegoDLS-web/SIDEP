@@ -1,5 +1,5 @@
 import prisma from '../../../prisma';
-import { AppError } from '../../../utils';
+import { AppError, ValidationError } from '../../../utils';
 import { randomUUID } from 'crypto';
 import {
   parsearUltimoCambioEstadoCarro,
@@ -463,5 +463,5 @@ export const cambiarEstadoOperativo = async (
     data: { estadoOperativo: estado },
   });
 
-  return { carro: actualizado, estadoAnterior, motivo, fechaEfectiva };
+  return { carro: enriquecerCarro(actualizado), estadoAnterior, motivo, fechaEfectiva };
 };

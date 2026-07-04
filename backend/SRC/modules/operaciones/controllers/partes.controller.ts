@@ -1,11 +1,14 @@
 import { Request, Response } from 'express';
 import * as partesService from '../services/partes.service';
 import { ValidationError } from '../../../utils/errors/AppError';
+import { mensajeErrorCliente, resolverErrorHttp, statusErrorCliente } from '../../../utils/prisma-error.util';
 
 function mensajeErrorParte(error: unknown, fallback: string): string {
   if (error instanceof ValidationError) {
     return error.errors?.join(' ') || error.message;
   }
+  const resuelto = resolverErrorHttp(error);
+  if (resuelto) return resuelto.message;
   if (error instanceof Error && error.message.trim()) {
     return error.message;
   }
@@ -19,7 +22,11 @@ function cuerpoErrorParte(error: unknown, fallback: string) {
       errors: error.errors,
     };
   }
-  return { message: mensajeErrorParte(error, fallback) };
+  const resuelto = resolverErrorHttp(error);
+  if (resuelto) {
+    return { message: resuelto.message, errors: resuelto.errors };
+  }
+  return { message: mensajeErrorCliente(error, fallback) };
 }
 
 export const crearParte = async (req: Request, res: Response): Promise<Response> => {
@@ -29,15 +36,17 @@ export const crearParte = async (req: Request, res: Response): Promise<Response>
   } catch (error: unknown) {
     console.error('Error al crear parte:', error);
     const msg = mensajeErrorParte(error, 'Error al crear parte');
+    const status = statusErrorCliente(error, 400);
     if (error instanceof ValidationError) {
       return res.status(400).json(cuerpoErrorParte(error, msg));
     }
-    if (msg.includes('OBAC')) return res.status(400).json({ message: `${msg} Verifica que el usuario OBAC exista y esté activo.` });
-    if (msg.includes('Clave')) return res.status(400).json({ message: `${msg} Revisa el tipo de emergencia seleccionado.` });
-    if (msg.includes('Unique constraint') || msg.includes('correlativo')) {
-      return res.status(409).json({ message: 'Ya existe un parte con ese correlativo. Intenta guardar de nuevo.' });
+    if (msg.includes('OBAC')) {
+      return res.status(400).json({ message: `${msg} Verifica que el usuario OBAC exista y esté activo.` });
     }
-    return res.status(400).json({ message: msg });
+    if (msg.includes('clave de emergencia') || msg.includes('Clave')) {
+      return res.status(400).json({ message: `${msg} Revisa el tipo de emergencia seleccionado.` });
+    }
+    return res.status(status).json(cuerpoErrorParte(error, msg));
   }
 };
 
@@ -111,7 +120,8 @@ export const actualizarParte = async (req: Request, res: Response): Promise<Resp
     return res.status(200).json(actualizado);
   } catch (error: unknown) {
     console.error('Error al actualizar parte:', error);
-    return res.status(400).json(cuerpoErrorParte(error, 'Error al actualizar parte'));
+    const status = statusErrorCliente(error, 400);
+    return res.status(status).json(cuerpoErrorParte(error, 'Error al actualizar parte'));
   }
 };
 
@@ -120,8 +130,9 @@ export const anularParte = async (req: Request, res: Response): Promise<Response
     const id = String(req.params.id);
     await partesService.anularParte(id);
     return res.status(200).json({ success: true, message: 'Parte anulado correctamente' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error al anular parte:', error);
-    return res.status(500).json({ message: error.message || 'Error al anular parte' });
+    const status = statusErrorCliente(error, 500);
+    return res.status(status).json(cuerpoErrorParte(error, 'Error al anular parte'));
   }
 };
