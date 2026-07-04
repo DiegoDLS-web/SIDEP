@@ -11,6 +11,16 @@ export const obtenerConfiguraciones = async (req: Request, res: Response) => {
   }
 };
 
+export const obtenerConfiguracionOperativa = async (req: Request, res: Response) => {
+  try {
+    const dto = await configuracionesService.obtenerConfiguracionOperativaService();
+    return res.status(200).json(dto);
+  } catch (error: any) {
+    console.error('🔥 ERROR EN GET CONFIGURACION OPERATIVA:', error);
+    return res.status(500).json({ success: false, error: 'Error al obtener configuración operativa' });
+  }
+};
+
 export const actualizarConfiguraciones = async (req: Request, res: Response) => {
   try {
     const dto = await configuracionesService.actualizarConfiguracionesService(req.body);

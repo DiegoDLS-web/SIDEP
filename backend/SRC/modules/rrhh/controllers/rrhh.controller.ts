@@ -125,8 +125,8 @@ export const cambiarMiPassword = async (req: Request, res: Response) => {
     if (!passwordActual || !passwordNueva) {
       return res.status(400).json({ success: false, error: 'Se requieren la contraseña actual y la nueva.' });
     }
-    if (passwordNueva.length < 6) {
-      return res.status(400).json({ success: false, error: 'La nueva contraseña debe tener al menos 6 caracteres.' });
+    if (passwordNueva.length < 8) {
+      return res.status(400).json({ success: false, error: 'La nueva contraseña debe tener al menos 8 caracteres.' });
     }
 
     await rrhhService.cambiarPassword(userRut, passwordActual, passwordNueva);

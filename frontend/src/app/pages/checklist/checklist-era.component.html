@@ -784,6 +784,23 @@
       </div>
 
       <div class="pb-20">
+        @if (puedeEditarEstadoChecklist) {
+          <label class="mb-4 block max-w-sm text-sm text-gray-300">
+            Estado del checklist
+            <select
+              class="mt-1.5 w-full min-h-[40px] rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-white"
+              [ngModel]="estadoChecklistUi"
+              (ngModelChange)="cambiarEstadoChecklistSeleccionado($event)"
+            >
+              <option value="COMPLETADO">Completado</option>
+              <option value="CON_OBSERVACION">Con observación</option>
+              <option value="PENDIENTE">Pendiente</option>
+            </select>
+            <span class="mt-1 block text-xs text-gray-500">
+              Sugerido: {{ etiquetaEstadoChecklist(estadoChecklistSugeridoEra()) }}
+            </span>
+          </label>
+        }
         <button
           type="button"
           [disabled]="saving || savingBorrador"

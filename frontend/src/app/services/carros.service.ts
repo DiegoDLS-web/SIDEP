@@ -137,11 +137,7 @@ export class CarrosService {
 
   listar(): Observable<CarroDto[]> {
     return this.http.get<{ success: boolean; data: CarroDto[] }>(apiUrl('logistica', 'carros')).pipe(
-      map((res) => {
-        const data = res.data ?? [];
-        return data.length > 0 ? data : this.demoCarrosActivos();
-      }),
-      catchError(() => of(this.demoCarrosActivos())),
+      map((res) => res.data ?? []),
     );
   }
 
@@ -293,7 +289,15 @@ export class CarrosService {
   }
 
   // --- NUEVA FUNCIÓN PARA EL BOTÓN ---
-  toggleEstado(id: string, estadoOperativo: number): Observable<any> {
-    return this.http.patch(apiUrl('logistica', 'carros', id, 'estado'), { estadoOperativo });
+  toggleEstado(
+    id: string,
+    estadoOperativo: number,
+    opts: { motivo: string; fechaEfectiva: string },
+  ): Observable<any> {
+    return this.http.patch(apiUrl('logistica', 'carros', id, 'estado'), {
+      estadoOperativo,
+      motivo: opts.motivo,
+      fechaEfectiva: opts.fechaEfectiva,
+    });
   }
 }

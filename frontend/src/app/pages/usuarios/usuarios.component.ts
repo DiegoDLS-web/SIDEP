@@ -147,6 +147,15 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
     return this.auth.usuarioActual?.rol?.trim().toUpperCase() === 'ADMIN';
   }
 
+  get rolesParaFormulario(): RolUsuarioDto[] {
+    if (this.esAdmin) return this.roles;
+    return this.roles.filter((r) => r.nombre.trim().toUpperCase() !== 'ADMIN');
+  }
+
+  private rolDefaultFormulario(): string {
+    return this.rolesParaFormulario[0]?.nombre ?? 'VOLUNTARIOS';
+  }
+
   private formVacio(): FormUsuario {
     return {
       nombres: '',
@@ -201,7 +210,7 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
               updatedAt: '',
             }));
         if (!this.form.rol?.trim() && this.roles.length > 0) {
-          this.form.rol = this.roles[0]!.nombre;
+          this.form.rol = this.rolDefaultFormulario();
         }
       },
       error: () => {
@@ -212,7 +221,7 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
           createdAt: '',
           updatedAt: '',
         }));
-        this.form.rol = this.form.rol?.trim() || this.roles[0]!.nombre;
+        this.form.rol = this.form.rol?.trim() || this.rolDefaultFormulario();
         this.toast.advertencia('No se pudieron cargar roles desde API, se usó listado base.');
       },
     });
@@ -351,7 +360,7 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
     this.exito = null;
     this.form = this.formVacio();
     if (this.roles.length > 0) {
-      this.form.rol = this.roles[0]!.nombre;
+      this.form.rol = this.rolDefaultFormulario();
     }
     this.controlEdicionForm.marcarLimpio();
   }

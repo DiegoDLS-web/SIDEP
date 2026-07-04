@@ -221,15 +221,22 @@ export function resolverSemaforoDesdeChecklist(
   return 'mantencion';
 }
 
+function semaforoDesdeEstadoOperativoDb(estadoOperativoDb: number): SemaforoUnidad | null {
+  if (estadoOperativoDb === 0) return 'fuera_servicio';
+  if (estadoOperativoDb === 2) return 'mantencion';
+  return null;
+}
+
 export function resolverSemaforoUnidad(
   estadoOperativoDb: number,
   respuestasChecklist: string | null | undefined,
 ): SemaforoUnidad {
+  const manualDb = semaforoDesdeEstadoOperativoDb(estadoOperativoDb);
   const desdeChecklist = resolverSemaforoDesdeChecklist(respuestasChecklist);
   if (desdeChecklist) {
-    return combinarSemaforos(desdeChecklist, estadoOperativoDb === 0 ? 'fuera_servicio' : null);
+    return combinarSemaforos(desdeChecklist, manualDb);
   }
-  if (estadoOperativoDb === 0) return 'fuera_servicio';
+  if (manualDb) return manualDb;
   return 'operativa';
 }
 

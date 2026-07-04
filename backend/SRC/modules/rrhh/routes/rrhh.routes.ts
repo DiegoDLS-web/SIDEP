@@ -7,6 +7,7 @@ import {
   subirArchivoLicencia,
   cambiarMiPassword,
 } from '../controllers/rrhh.controller';
+import { obtenerConfiguracionOperativa } from '../controllers/configuraciones.controller';
 import { protect } from '../../../middlewares/auth.middleware';
 import { uploadImage, uploadPdf } from '../../../shared/storage';
 import configuracionesRoutes from './configuraciones.routes';
@@ -24,6 +25,9 @@ router.post('/licencias/archivo', protect, uploadPdf.single('documento'), subirA
 
 // 3. Cambio de contraseña propia
 router.patch('/mi-perfil/password', protect, cambiarMiPassword);
+
+// 3b. Configuración operativa (sin datos sensibles de administración)
+router.get('/configuracion-operativa', protect, obtenerConfiguracionOperativa);
 
 // 4. Configuraciones Globales del Sistema
 router.use('/configuraciones', configuracionesRoutes);

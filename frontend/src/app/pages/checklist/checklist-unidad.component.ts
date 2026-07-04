@@ -9,6 +9,9 @@ import { ChecklistsService } from '../../services/checklists.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { ToastService } from '../../services/toast.service';
+import { BorradorLocalService } from '../../services/borrador-local.service';
+import { CambioEstadoDialogService } from '../../services/cambio-estado-dialog.service';
+import { solicitarMotivoCambioEstado } from '../../utils/cambio-estado.util';
 import { UsuariosService } from '../../services/usuarios.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
@@ -22,6 +25,12 @@ import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-p
 import { CHECKLIST_UNIDAD_TEMPLATES } from './checklist-unidad.templates';
 import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
+import type { EstadoChecklist } from '../../models/checklist.dto';
+import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
+import {
+  formatearFechaBorradorLocal,
+  manejarErrorGuardadoConBorradorLocal,
+} from '../../utils/borrador-local.util';
 
 type Material = {
   id: string;
@@ -41,6 +50,7 @@ type Ubicacion = { nombre: string; materiales: Material[] };
 })
 export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPendiente {
   readonly nombreListaSoloPersona = nombreListaSoloPersona;
+  readonly etiquetaEstadoChecklist = etiquetaEstadoChecklist;
 
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -50,6 +60,8 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly usuariosApi = inject(UsuariosService);
   private readonly toast = inject(ToastService);
+  private readonly borradorLocal = inject(BorradorLocalService);
+  private readonly cambioEstadoDialog = inject(CambioEstadoDialogService);
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -76,6 +88,8 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
   fechaCierreChecklist: string | null = null;
   firmaObacValor = '';
   firmaInspectorValor = '';
+  estadoChecklistSeleccionado: EstadoChecklist = 'PENDIENTE';
+  estadoChecklistUi: EstadoChecklist = 'PENDIENTE';
 
   ubicaciones: Ubicacion[] = [];
   ubicacionesAbiertas: Record<string, boolean> = {};
@@ -107,6 +121,19 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
   checklistTieneCambios(): boolean {
     if (this.editandoPlantilla) return this.plantillaTieneCambiosSinGuardar();
     return this.controlEdicion.tieneCambios();
+  }
+
+  get puedeEditarEstadoChecklist(): boolean {
+    const rol = this.auth.usuarioActual?.rol?.toUpperCase() ?? '';
+    return rol === 'ADMIN' || rol === 'CAPITAN' || rol === 'TENIENTE';
+  }
+
+  estadoChecklistSugerido(): EstadoChecklist {
+    return calcularEstadoChecklist(this.totalItems(), this.itemsOk(), this.observaciones);
+  }
+
+  etiquetaEstadoChecklistSeleccionado(): string {
+    return etiquetaEstadoChecklist(this.estadoChecklistSeleccionado);
   }
 
   ngOnInit(): void {
@@ -290,6 +317,9 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
     firmaOficial?: string;
     firmaInspector?: string;
     fecha?: string;
+    estadoChecklist?: EstadoChecklist;
+    totalItems?: number | null;
+    itemsOk?: number | null;
   } | null): void {
     this.ubicacionesAbiertas = Object.fromEntries(this.ubicaciones.map((u, idx) => [u.nombre, idx < 2]));
     this.nombreInspector = checklist?.inspector ?? '';
@@ -303,8 +333,78 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
     if (fInsp?.startsWith('data:image')) {
       this.firmaInspectorValor = fInsp;
     }
+    this.estadoChecklistSeleccionado =
+      checklist?.estadoChecklist ??
+      calcularEstadoChecklist(
+        checklist?.totalItems ?? this.totalItems(),
+        checklist?.itemsOk ?? this.itemsOk(),
+        checklist?.observaciones ?? null,
+      );
+    this.estadoChecklistUi = this.estadoChecklistSeleccionado;
     this.controlEdicion.marcarLimpio();
     this.loading = false;
+    void this.ofrecerRestaurarBorradorLocal();
+  }
+
+  private payloadBorradorLocal() {
+    return {
+      cuarteleroId: this.cuarteleroId,
+      nombreInspector: this.nombreInspector,
+      grupoGuardia: this.grupoGuardia,
+      observaciones: this.observaciones,
+      ubicaciones: this.ubicaciones,
+      firmaObacValor: this.firmaObacValor,
+      firmaInspectorValor: this.firmaInspectorValor,
+      estadoChecklistSeleccionado: this.estadoChecklistSeleccionado,
+    };
+  }
+
+  private async ofrecerRestaurarBorradorLocal(): Promise<void> {
+    const saved = this.borradorLocal.obtener<ReturnType<ChecklistUnidadComponent['payloadBorradorLocal']>>(
+      'checklist-unidad',
+      this.unidad,
+    );
+    if (!saved) return;
+    const ok = await this.confirmDialog.abrir({
+      title: 'Borrador sin conexión',
+      message: `Hay un borrador guardado en este dispositivo (${formatearFechaBorradorLocal(saved.meta.guardadoEn)}). ¿Restaurarlo?`,
+      confirmText: 'Restaurar',
+      cancelText: 'Descartar',
+    });
+    if (!ok) {
+      this.borradorLocal.eliminar('checklist-unidad', this.unidad);
+      return;
+    }
+    const p = saved.payload;
+    this.cuarteleroId = p.cuarteleroId ?? this.cuarteleroId;
+    this.nombreInspector = p.nombreInspector ?? '';
+    this.grupoGuardia = p.grupoGuardia ?? '';
+    this.observaciones = p.observaciones ?? '';
+    this.ubicaciones = p.ubicaciones ?? this.ubicaciones;
+    this.firmaObacValor = p.firmaObacValor ?? '';
+    this.firmaInspectorValor = p.firmaInspectorValor ?? '';
+    this.estadoChecklistSeleccionado = p.estadoChecklistSeleccionado ?? this.estadoChecklistSeleccionado;
+    this.toast.exito('Borrador local restaurado. Recuerda sincronizarlo con el servidor.');
+  }
+
+  async cambiarEstadoChecklistSeleccionado(nuevo: EstadoChecklist): Promise<void> {
+    const anterior = this.estadoChecklistSeleccionado;
+    if (nuevo === anterior) {
+      this.estadoChecklistUi = anterior;
+      return;
+    }
+    const confirmacion = await solicitarMotivoCambioEstado(this.cambioEstadoDialog, {
+      title: 'Cambiar estado del checklist',
+      message: `Unidad ${this.unidad}. El cambio manual queda registrado.`,
+      estadoAnterior: etiquetaEstadoChecklist(anterior),
+      estadoNuevo: etiquetaEstadoChecklist(nuevo),
+    });
+    if (!confirmacion) {
+      this.estadoChecklistUi = anterior;
+      return;
+    }
+    this.estadoChecklistSeleccionado = nuevo;
+    this.estadoChecklistUi = nuevo;
   }
 
   private resolverUbicacionesIniciales(
@@ -760,20 +860,25 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
     }
     this.error = null;
     this.saving = true;
-    this.checklistsApi
-      .guardarChecklistUnidad(this.unidad, {
-        cuarteleroId: obacId,
-        inspector: this.nombreInspector,
-        grupoGuardia: this.grupoGuardia,
-        firmaOficial: firma,
-        firmaInspector,
-        observaciones: this.observaciones,
-        totalItems: this.totalItems(),
-        itemsOk: this.itemsOk(),
-        detalle: { ubicaciones: this.ubicaciones, borrador: false },
-      })
-      .subscribe({
+    const syncBody: Record<string, unknown> = {
+      cuarteleroId: obacId,
+      inspector: this.nombreInspector,
+      grupoGuardia: this.grupoGuardia,
+      firmaOficial: firma,
+      firmaInspector,
+      observaciones: this.observaciones,
+      totalItems: this.totalItems(),
+      itemsOk: this.itemsOk(),
+      estadoChecklist: this.estadoChecklistSeleccionado,
+      detalle: {
+        ubicaciones: this.ubicaciones,
+        borrador: false,
+        estadoChecklist: this.estadoChecklistSeleccionado,
+      },
+    };
+    this.checklistsApi.guardarChecklistUnidad(this.unidad, syncBody).subscribe({
         next: () => {
+          this.borradorLocal.eliminar('checklist-unidad', this.unidad);
           this.saving = false;
           this.controlEdicion.marcarLimpio();
           const estado =
@@ -786,8 +891,27 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
           void this.router.navigate(['/checklist']);
         },
         error: (err) => {
-          this.error = mensajeApiError(err, 'No se pudo guardar checklist.');
-          this.toast.error(this.error);
+          if (
+            manejarErrorGuardadoConBorradorLocal(
+              this.borradorLocal,
+              this.toast,
+              'checklist-unidad',
+              this.unidad,
+              this.payloadBorradorLocal(),
+              err,
+              {
+                mensajeError: 'No se pudo guardar checklist.',
+                syncRequest: { kind: 'checklist-unidad', unidad: this.unidad, body: syncBody },
+                onGuardadoLocal: () => {
+                  this.controlEdicion.marcarLimpio();
+                },
+              },
+            )
+          ) {
+            this.error = null;
+          } else {
+            this.error = mensajeApiError(err, 'No se pudo guardar checklist.');
+          }
           this.saving = false;
         },
       });
@@ -803,20 +927,20 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
     this.savingBorrador = true;
     const firma = this.firmaResueltaObac();
     const firmaInspector = this.firmaResueltaInspector() || null;
-    this.checklistsApi
-      .guardarChecklistUnidad(this.unidad, {
-        cuarteleroId: obacBorrador,
-        inspector: this.nombreInspector,
-        grupoGuardia: this.grupoGuardia,
-        firmaOficial: firma || null,
-        firmaInspector,
-        observaciones: this.observaciones,
-        totalItems: this.totalItems(),
-        itemsOk: this.itemsOk(),
-        detalle: { ubicaciones: this.ubicaciones, borrador: true },
-      })
-      .subscribe({
+    const syncBody: Record<string, unknown> = {
+      cuarteleroId: obacBorrador,
+      inspector: this.nombreInspector,
+      grupoGuardia: this.grupoGuardia,
+      firmaOficial: firma || null,
+      firmaInspector,
+      observaciones: this.observaciones,
+      totalItems: this.totalItems(),
+      itemsOk: this.itemsOk(),
+      detalle: { ubicaciones: this.ubicaciones, borrador: true },
+    };
+    this.checklistsApi.guardarChecklistUnidad(this.unidad, syncBody).subscribe({
         next: (reg: any) => {
+          this.borradorLocal.eliminar('checklist-unidad', this.unidad);
           this.savingBorrador = false;
           this.controlEdicion.marcarLimpio();
           if (reg.fecha) {
@@ -826,9 +950,28 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
           this.toast.exito('Borrador del checklist guardado.');
           void this.router.navigate(['/checklist']);
         },
-        error: () => {
-          this.error = 'No se pudo guardar el borrador.';
-          this.toast.error('No se pudo guardar el borrador.');
+        error: (err) => {
+          if (
+            manejarErrorGuardadoConBorradorLocal(
+              this.borradorLocal,
+              this.toast,
+              'checklist-unidad',
+              this.unidad,
+              this.payloadBorradorLocal(),
+              err,
+              {
+                mensajeError: 'No se pudo guardar el borrador.',
+                syncRequest: { kind: 'checklist-unidad', unidad: this.unidad, body: syncBody },
+                onGuardadoLocal: () => {
+                  this.controlEdicion.marcarLimpio();
+                },
+              },
+            )
+          ) {
+            this.error = null;
+          } else {
+            this.error = 'No se pudo guardar el borrador.';
+          }
           this.savingBorrador = false;
         },
       });

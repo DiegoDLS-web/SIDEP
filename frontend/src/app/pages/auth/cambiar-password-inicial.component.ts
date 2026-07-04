@@ -30,8 +30,8 @@ export class CambiarPasswordInicialComponent {
       this.error = 'Indica la contraseña provisional.';
       return;
     }
-    if (this.passwordNueva.length < 6) {
-      this.error = 'La nueva contraseña debe tener al menos 6 caracteres.';
+    if (this.passwordNueva.length < 8) {
+      this.error = 'La nueva contraseña debe tener al menos 8 caracteres.';
       return;
     }
     if (this.passwordNueva !== this.passwordNueva2) {

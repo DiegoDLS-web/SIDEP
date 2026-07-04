@@ -1,6 +1,10 @@
 import prisma from '../../../prisma';
 import { AppError } from '../../../utils';
 import { randomUUID } from 'crypto';
+import {
+  parsearUltimoCambioEstadoCarro,
+  type UltimoCambioEstadoCarroDto,
+} from '../../../utils/carro-estado-auditoria.util';
 
 const METADATA: Record<string, { tipo: string; capacidadAgua: string; anioFabricacion: number }> = {
   'B-1': { tipo: 'Bomba', capacidadAgua: '5000 litros', anioFabricacion: 2004 },
@@ -140,6 +144,22 @@ async function resolverRutPorNombre(nombre: string | null | undefined): Promise<
   return usuario?.rut ?? null;
 }
 
+async function obtenerUltimoCambioEstadoOperativo(carroId: string): Promise<UltimoCambioEstadoCarroDto | null> {
+  const row = await prisma.auditoriaUsuario.findFirst({
+    where: {
+      accion: 'CAMBIAR_ESTADO_CARRO',
+      resultado: 'OK',
+      entidadId: carroId,
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { detalle: true, createdAt: true },
+  });
+  if (!row) return null;
+  const parsed = parsearUltimoCambioEstadoCarro(row.detalle);
+  if (!parsed) return null;
+  return { ...parsed, registradoEn: row.createdAt.toISOString() };
+}
+
 export const obtenerCarroEnriquecido = async (id: string) => {
   const carro = await prisma.carro.findUnique({
     where: { id },
@@ -157,7 +177,8 @@ export const obtenerCarroEnriquecido = async (id: string) => {
   const { mantenimientos, ...resto } = carro;
   const base = enriquecerCarro(resto);
   const ficha = fusionarFichaDesdeHistorial(mantenimientos ?? []);
-  return { ...base, ...ficha };
+  const ultimoCambioEstadoOperativo = await obtenerUltimoCambioEstadoOperativo(id);
+  return { ...base, ...ficha, ultimoCambioEstadoOperativo };
 }
 
 function tieneDatosMantenimiento(datos: Record<string, unknown>): boolean {
@@ -417,12 +438,30 @@ export const historialMantenimientoGeneral = async (filtros: {
   }));
 };
 
-export const cambiarEstadoOperativo = async (id: string, estado: number) => {
+export const cambiarEstadoOperativo = async (
+  id: string,
+  estado: number,
+  opts?: { motivo?: string; fechaEfectiva?: string },
+) => {
+  if (![0, 1, 2].includes(estado)) {
+    throw new AppError('Estado operativo inválido (0=fuera de servicio, 1=operativa, 2=mantención)', 400);
+  }
+  const motivo = String(opts?.motivo ?? '').trim();
+  if (motivo.length < 8) {
+    throw new AppError('Debe indicar el motivo del cambio (mínimo 8 caracteres).', 400);
+  }
+  const fechaEfectiva = String(opts?.fechaEfectiva ?? '').trim();
+  if (!fechaEfectiva) {
+    throw new AppError('Debe indicar la fecha del cambio.', 400);
+  }
   const carro = await prisma.carro.findUnique({ where: { id } });
   if (!carro) throw new AppError('Carro no encontrado', 404);
 
-  return await prisma.carro.update({
+  const estadoAnterior = carro.estadoOperativo;
+  const actualizado = await prisma.carro.update({
     where: { id },
     data: { estadoOperativo: estado },
   });
+
+  return { carro: actualizado, estadoAnterior, motivo, fechaEfectiva };
 };

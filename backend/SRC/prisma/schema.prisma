@@ -163,6 +163,7 @@ model Usuario {
   mantenimientosConductor MantenimientoCarro[]      @relation("conductor")
   mantenimientosInspector MantenimientoCarro[]      @relation("inspector")
   partesObac              ParteEmergencia[]
+  passwordResetTokens     PasswordResetToken[]
   unidadesConductor       UnidadEnEmergencia[]
   cargo                   CatalogoCargoOficialidad? @relation(fields: [cargoId], references: [id])
   estadoVoluntario        CatalogoEstadoVoluntario? @relation(fields: [estadoVoluntarioId], references: [id])
@@ -411,4 +412,17 @@ model ConfiguracionSistema {
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("configuracion_sistema")
+}
+
+model PasswordResetToken {
+  id         String    @id @default(uuid())
+  token      String    @unique @db.VarChar(64)
+  usuarioRut String    @map("usuario_rut") @db.VarChar(20)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt     DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  usuario    Usuario   @relation(fields: [usuarioRut], references: [rut], onDelete: Cascade)
+
+  @@index([usuarioRut])
+  @@map("password_reset_token")
 }

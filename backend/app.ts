@@ -11,6 +11,7 @@ import auditoriaRoutes from './SRC/modules/auditoria/routes/auditoria.routes';
 import reportesRoutes from './SRC/modules/analitica/routes/reportes.routes';
 import dashboardRoutes from './SRC/modules/analitica/routes/dashboard.routes';
 import { protect } from './SRC/middlewares/auth.middleware';
+import { requireRoles } from './SRC/middlewares/role.middleware';
 import prisma from './SRC/prisma';
 import { auditoriaMiddleware } from './SRC/modules/auditoria/middlewares/auditoria.middleware';
 
@@ -124,7 +125,6 @@ app.use('/api/auditoria', auditoriaRoutes);
 app.use('/api/reportes', protect, reportesRoutes);
 app.use('/api/dashboard', protect, dashboardRoutes);
 
-// Endpoint global de Roles (consumido por RolesService en el frontend)
 app.get('/api/roles', protect, async (req, res) => {
   try {
     const activos = req.query.activos === '1';
@@ -136,10 +136,92 @@ app.get('/api/roles', protect, async (req, res) => {
       where,
       orderBy: { id: 'asc' }
     });
-    return res.status(200).json(roles);
+    return res.status(200).json(
+      roles.map((r) => ({
+        id: r.id,
+        nombre: r.nombre,
+        codigo: r.codigo,
+        activo: r.activo === 1,
+      })),
+    );
   } catch (error) {
     console.error('🔥 ERROR AL LISTAR ROLES:', error);
     return res.status(500).json({ success: false, error: 'Error al obtener roles' });
+  }
+});
+
+function normalizarCodigoRol(nombre: string): string {
+  return nombre
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_|_$/g, '');
+}
+
+app.post('/api/roles', protect, requireRoles('ADMIN'), async (req, res) => {
+  try {
+    const nombre = String(req.body?.nombre ?? '').trim();
+    if (!nombre) {
+      return res.status(400).json({ success: false, error: 'El nombre del rol es requerido.' });
+    }
+
+    let codigo = normalizarCodigoRol(nombre);
+    if (!codigo) {
+      codigo = `ROL_${Date.now()}`;
+    }
+
+    const duplicado = await prisma.rolUsuario.findFirst({
+      where: { OR: [{ codigo }, { nombre }] },
+    });
+    if (duplicado) {
+      return res.status(409).json({ success: false, error: 'Ya existe un rol con ese nombre o código.' });
+    }
+
+    const activo = req.body?.activo === false ? 0 : 1;
+    const created = await prisma.rolUsuario.create({
+      data: { codigo, nombre, activo },
+    });
+
+    return res.status(201).json({
+      id: created.id,
+      nombre: created.nombre,
+      codigo: created.codigo,
+      activo: created.activo === 1,
+    });
+  } catch (error) {
+    console.error('🔥 ERROR AL CREAR ROL:', error);
+    return res.status(500).json({ success: false, error: 'Error al crear rol' });
+  }
+});
+
+app.patch('/api/roles/:id', protect, requireRoles('ADMIN'), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ success: false, error: 'ID de rol inválido.' });
+    }
+    const { activo, nombre } = req.body ?? {};
+    const data: { activo?: number; nombre?: string } = {};
+    if (activo !== undefined) {
+      data.activo = activo ? 1 : 0;
+    }
+    if (nombre !== undefined) {
+      data.nombre = String(nombre).trim();
+    }
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ success: false, error: 'Nada que actualizar.' });
+    }
+    const updated = await prisma.rolUsuario.update({ where: { id }, data });
+    return res.status(200).json({
+      id: updated.id,
+      nombre: updated.nombre,
+      codigo: updated.codigo,
+      activo: updated.activo === 1,
+    });
+  } catch (error) {
+    console.error('🔥 ERROR AL ACTUALIZAR ROL:', error);
+    return res.status(500).json({ success: false, error: 'Error al actualizar rol' });
   }
 });
 

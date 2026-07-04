@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { finalize } from 'rxjs';
 import type { UsuarioListaDto } from '../../models/usuario.dto';
 import type { ResumenOperativoDto } from '../../models/resumen-operativo.dto';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
@@ -95,6 +96,9 @@ export class MiPerfilComponent implements OnInit, ComponenteConEdicionPendiente 
   passwordActual = '';
   passwordNueva = '';
   passwordConfirmar = '';
+  verPasswordActual = false;
+  verPasswordNueva = false;
+  verPasswordConfirmar = false;
   cambiandoPassword = false;
   errorPasswordForm: string | null = null;
 
@@ -289,7 +293,7 @@ export class MiPerfilComponent implements OnInit, ComponenteConEdicionPendiente 
   }
 
   tieneEdicionPendiente(): boolean {
-    if (this.mostrarFormPassword && this.passwordTieneDatos()) return true;
+    if (this.mostrarFormPassword && this.passwordTieneDatos() && !this.cambiandoPassword) return true;
     if (!this.editandoMisDatos) return false;
     return this.controlEdicionPerfil.tieneCambios();
   }
@@ -491,21 +495,33 @@ export class MiPerfilComponent implements OnInit, ComponenteConEdicionPendiente 
     this.passwordActual = '';
     this.passwordNueva = '';
     this.passwordConfirmar = '';
+    this.verPasswordActual = false;
+    this.verPasswordNueva = false;
+    this.verPasswordConfirmar = false;
     this.errorPasswordForm = null;
+    this.cambiandoPassword = false;
+  }
+
+  private cerrarFormPasswordExito(): void {
+    this.mostrarFormPassword = false;
+    this.passwordActual = '';
+    this.passwordNueva = '';
+    this.passwordConfirmar = '';
+    this.verPasswordActual = false;
+    this.verPasswordNueva = false;
+    this.verPasswordConfirmar = false;
+    this.errorPasswordForm = null;
+    this.cambiandoPassword = false;
   }
 
   async cancelarCambioPassword(): Promise<void> {
+    if (this.cambiandoPassword) return;
     const ok = await confirmarDescartarCambios(this.confirmDialog, this.passwordTieneDatos(), {
       title: 'Cerrar cambio de contraseña',
       message: 'Tienes datos en el formulario de contraseña. ¿Deseas descartarlos?',
     });
     if (!ok) return;
-    this.mostrarFormPassword = false;
-    this.passwordActual = '';
-    this.passwordNueva = '';
-    this.passwordConfirmar = '';
-    this.errorPasswordForm = null;
-    this.cambiandoPassword = false;
+    this.cerrarFormPasswordExito();
   }
 
   guardarCambioPassword(): void {
@@ -519,8 +535,8 @@ export class MiPerfilComponent implements OnInit, ComponenteConEdicionPendiente 
       return;
     }
 
-    if (newP.length < 6) {
-      this.errorPasswordForm = 'La nueva contraseña debe tener al menos 6 caracteres.';
+    if (newP.length < 8) {
+      this.errorPasswordForm = 'La nueva contraseña debe tener al menos 8 caracteres.';
       this.toast.advertencia('Contraseña demasiado corta.');
       return;
     }
@@ -537,14 +553,17 @@ export class MiPerfilComponent implements OnInit, ComponenteConEdicionPendiente 
     this.http.patch<{ success: boolean; message: string }>('/api/rrhh/mi-perfil/password', {
       passwordActual: act,
       passwordNueva: newP
-    }).subscribe({
+    }).pipe(
+      finalize(() => {
+        this.cambiandoPassword = false;
+      }),
+    ).subscribe({
       next: (res) => {
         this.toast.exito(res.message || 'Contraseña actualizada.');
-        this.cancelarCambioPassword();
+        this.cerrarFormPasswordExito();
       },
-      error: (err: { error?: { error?: string } }) => {
-        this.cambiandoPassword = false;
-        const msg = err?.error?.error ?? 'Error al cambiar contraseña.';
+      error: (err: { error?: { error?: string; message?: string } }) => {
+        const msg = err?.error?.error ?? err?.error?.message ?? 'Error al cambiar contraseña.';
         this.errorPasswordForm = msg;
         this.toast.error(msg);
       }

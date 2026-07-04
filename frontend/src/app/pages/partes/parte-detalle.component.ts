@@ -13,6 +13,8 @@ import { ASISTENCIA_CONTEXTO_OPCIONES, resolverEtiquetaAsistenciaId } from './as
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
+import { AuthService } from '../../services/auth.service';
+import { puedeEditarParteCompletado } from '../../utils/parte-edicion-roles.util';
 import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
 import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util';
 import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
@@ -47,6 +49,7 @@ export class ParteDetalleComponent implements OnInit, ComponenteConEdicionPendie
   private readonly toast = inject(ToastService);
   private readonly usuariosApi = inject(UsuariosService);
   private readonly confirmDialog = inject(ConfirmDialogService);
+  private readonly auth = inject(AuthService);
   readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
 
   constructor() {
@@ -210,7 +213,27 @@ export class ParteDetalleComponent implements OnInit, ComponenteConEdicionPendie
   }
 
   editarParteCompleto(parte: any): void {
+    const estado = (parte?.estado ?? '').trim().toUpperCase();
+    if (estado === 'COMPLETADO' && !puedeEditarParteCompletado(this.auth.usuarioActual?.rol)) {
+      this.toast.advertencia('Solo capitán, tenientes o administrador pueden editar un parte completado.');
+      return;
+    }
     void this.router.navigate(['/partes/nuevo'], { queryParams: { editar: parte.id } });
+  }
+
+  puedeEditarParte(parte: any): boolean {
+    const estado = (parte?.estado ?? '').trim().toUpperCase();
+    if (estado !== 'COMPLETADO') return true;
+    return puedeEditarParteCompletado(this.auth.usuarioActual?.rol);
+  }
+
+  textoMotivoPendiente(parte: any): string | null {
+    if ((parte?.estado ?? '').trim().toUpperCase() !== 'PENDIENTE') return null;
+    const meta = parte?.metadata ?? {};
+    const motivo =
+      (typeof parte?.motivoPendiente === 'string' ? parte.motivoPendiente : null) ??
+      (typeof meta.motivoPendiente === 'string' ? meta.motivoPendiente : null);
+    return motivo?.trim() || 'Pendiente de cierre o datos incompletos.';
   }
 
   private isoLocal(fechaIso: string): string {

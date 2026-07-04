@@ -83,10 +83,16 @@ export const patchEstado = async (req: Request, res: Response) => {
     const id = req.params.id as string;
     if (!id) return res.status(400).json({ success: false, message: 'ID inválido' });
 
-    const { estado, observacionResolucion } = req.body;
+    const { estado, observacionResolucion, fechaResolucion } = req.body;
     if (!estado) return res.status(400).json({ success: false, message: 'Estado requerido' });
 
-    const actualizada = await licenciasService.cambiarEstado(id, rut, estado, observacionResolucion);
+    const actualizada = await licenciasService.cambiarEstado(
+      id,
+      rut,
+      estado,
+      observacionResolucion,
+      fechaResolucion,
+    );
     return res.status(200).json(actualizada);
   } catch (error: any) {
     console.error('🔥 ERROR EN CAMBIAR ESTADO LICENCIA:', error);

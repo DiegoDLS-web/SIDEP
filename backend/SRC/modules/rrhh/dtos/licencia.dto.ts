@@ -9,7 +9,8 @@ export const crearLicenciaDto = z.object({
 
 export const cambiarEstadoLicenciaDto = z.object({
   estado: z.enum(['Aprobada', 'Rechazada', 'Anulada']),
-  observacionResolucion: z.string().optional(),
+  observacionResolucion: z.string().min(8, 'El motivo debe tener al menos 8 caracteres'),
+  fechaResolucion: z.string().min(1, 'La fecha de resolución es requerida'),
 });
 
 export type CrearLicenciaDtoType = z.infer<typeof crearLicenciaDto>;

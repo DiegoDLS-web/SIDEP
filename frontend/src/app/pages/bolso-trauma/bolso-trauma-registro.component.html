@@ -426,6 +426,26 @@
       ></textarea>
     </div>
 
+    @if (puedeEditarEstadoChecklist) {
+      <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+        <label class="block max-w-sm text-sm text-slate-300">
+          Estado del checklist
+          <select
+            class="mt-1.5 w-full min-h-[40px] rounded-lg border border-slate-700 bg-[#0a0a0a] px-3 py-2 text-white"
+            [ngModel]="estadoChecklistUi"
+            (ngModelChange)="cambiarEstadoChecklistSeleccionado($event)"
+          >
+            <option value="COMPLETADO">Completado</option>
+            <option value="CON_OBSERVACION">Con observación</option>
+            <option value="PENDIENTE">Pendiente</option>
+          </select>
+          <span class="mt-1 block text-xs text-slate-500">
+            Sugerido: {{ etiquetaEstadoChecklist(estadoChecklistSugeridoBolso()) }}
+          </span>
+        </label>
+      </div>
+    }
+
     <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
       <h2 class="mb-1 text-lg font-bold text-white sm:text-xl">
         Firmas de cierre <span class="text-red-400">*</span>

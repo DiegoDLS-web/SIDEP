@@ -12,6 +12,7 @@ import { ChecklistsService } from '../../services/checklists.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { ToastService } from '../../services/toast.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
+import { BorradorLocalService } from '../../services/borrador-local.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
@@ -31,6 +32,12 @@ import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pen
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 import { exportarExcelSidep } from '../../utils/excel-export.util';
 import { SIDEP_ACTION_ICON } from '../../shared/sidep-action-icons';
+import {
+  formatearFechaBorradorLocal,
+  manejarErrorGuardadoConBorradorLocal,
+} from '../../utils/borrador-local.util';
+import { CambioEstadoDialogService } from '../../services/cambio-estado-dialog.service';
+import { solicitarMotivoCambioEstado } from '../../utils/cambio-estado.util';
 
 export type EraEquipo = {
   numero: number;
@@ -175,6 +182,7 @@ const ERA_PRESETS_UNIDAD: Record<string, EraPreset> = {
 export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendiente {
   readonly nombreListaSoloPersona = nombreListaSoloPersona;
   readonly icon = SIDEP_ACTION_ICON;
+  readonly etiquetaEstadoChecklist = etiquetaEstadoChecklist;
 
   @ViewChild('firmaCanvas') firmaCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('firmaCanvasInspector') firmaCanvasInspector?: ElementRef<HTMLCanvasElement>;
@@ -185,6 +193,9 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
   private readonly checklistsApi = inject(ChecklistsService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly toast = inject(ToastService);
+  private readonly borradorLocal = inject(BorradorLocalService);
+  private readonly cambioEstadoDialog = inject(CambioEstadoDialogService);
+  estadoChecklistUi: EstadoChecklist = 'PENDIENTE';
   private readonly confirmDialog = inject(ConfirmDialogService);
 
   constructor() {
@@ -234,6 +245,7 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
   /** Fecha planificada de inspección (YYYY-MM-DD). */
   fechaInspeccion = '';
   observaciones = '';
+  estadoChecklistSeleccionado: EstadoChecklist = 'PENDIENTE';
 
   /** ISO fecha/hora en “Fecha de cierre / firma” (al trazar la firma OBAC). */
   fechaCierreChecklist: string | null = null;
@@ -278,6 +290,19 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
     if (this.editandoPlantilla && this.plantillaEraTieneCambios()) return true;
     if (!this.mostrarRegistro) return false;
     return this.controlEdicion.tieneCambios();
+  }
+
+  get puedeEditarEstadoChecklist(): boolean {
+    const rol = this.auth.usuarioActual?.rol?.toUpperCase() ?? '';
+    return rol === 'ADMIN' || rol === 'CAPITAN' || rol === 'TENIENTE';
+  }
+
+  estadoChecklistSugeridoEra(): EstadoChecklist {
+    const total = this.equipos.length + this.recambios.length;
+    const ok =
+      this.equipos.filter((e) => e.arnesCondicion === 'Operativo').length +
+      this.recambios.filter((r) => r.condicionGeneral === 'Operativo').length;
+    return calcularEstadoChecklist(total, ok, this.observaciones);
   }
 
   checklistTieneCambios(): boolean {
@@ -536,6 +561,8 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
     this.snapshotPlantillaEra = null;
     this.limpiarCapturaRegistroEra();
     this.aplicarPlantillaDesdeServidorOPresetParaUnidad(this.unidad);
+    this.estadoChecklistSeleccionado = this.estadoChecklistSugeridoEra();
+    this.estadoChecklistUi = this.estadoChecklistSeleccionado;
     setTimeout(() => {
       this.resetEstadoCanvasFirma();
       this.inicializarCanvasFirma();
@@ -543,6 +570,74 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
       this.controlEdicion.marcarLimpio();
     }, 0);
     this.refrescarHistorialEra();
+    void this.ofrecerRestaurarBorradorLocal();
+  }
+
+  private payloadBorradorLocal() {
+    return {
+      cuarteleroId: this.cuarteleroId,
+      inspector: this.inspector,
+      grupoGuardia: this.grupoGuardia,
+      observaciones: this.observaciones,
+      fechaInspeccion: this.fechaInspeccion,
+      equipos: this.equipos,
+      recambios: this.recambios,
+      firmaOficial: this.firmaResueltaObac() || null,
+      firmaInspector: this.firmaResueltaInspector() || null,
+      estadoChecklistSeleccionado: this.estadoChecklistSeleccionado,
+    };
+  }
+
+  private async ofrecerRestaurarBorradorLocal(): Promise<void> {
+    const saved = this.borradorLocal.obtener<ReturnType<ChecklistEraComponent['payloadBorradorLocal']>>(
+      'checklist-era',
+      this.unidad,
+    );
+    if (!saved) return;
+    const ok = await this.confirmDialog.abrir({
+      title: 'Borrador sin conexión',
+      message: `Hay un borrador ERA guardado en este dispositivo (${formatearFechaBorradorLocal(saved.meta.guardadoEn)}). ¿Restaurarlo?`,
+      confirmText: 'Restaurar',
+      cancelText: 'Descartar',
+    });
+    if (!ok) {
+      this.borradorLocal.eliminar('checklist-era', this.unidad);
+      return;
+    }
+    const p = saved.payload;
+    this.cuarteleroId = p.cuarteleroId ?? this.cuarteleroId;
+    this.inspector = p.inspector ?? '';
+    this.grupoGuardia = p.grupoGuardia ?? '';
+    this.observaciones = p.observaciones ?? '';
+    this.fechaInspeccion = p.fechaInspeccion ?? '';
+    this.equipos = p.equipos ?? this.equipos;
+    this.recambios = p.recambios ?? this.recambios;
+    this.estadoChecklistSeleccionado = p.estadoChecklistSeleccionado ?? this.estadoChecklistSeleccionado;
+    setTimeout(() => {
+      this.restaurarFirmaDesdeServidor(p.firmaOficial ?? null);
+      this.restaurarFirmaInspectorDesdeServidor(p.firmaInspector ?? null);
+    }, 0);
+    this.toast.exito('Borrador ERA local restaurado. Recuerda sincronizarlo con el servidor.');
+  }
+
+  async cambiarEstadoChecklistSeleccionado(nuevo: EstadoChecklist): Promise<void> {
+    const anterior = this.estadoChecklistSeleccionado;
+    if (nuevo === anterior) {
+      this.estadoChecklistUi = anterior;
+      return;
+    }
+    const confirmacion = await solicitarMotivoCambioEstado(this.cambioEstadoDialog, {
+      title: 'Cambiar estado del checklist ERA',
+      message: `Unidad ${this.unidad}. El cambio manual queda registrado.`,
+      estadoAnterior: etiquetaEstadoChecklist(anterior),
+      estadoNuevo: etiquetaEstadoChecklist(nuevo),
+    });
+    if (!confirmacion) {
+      this.estadoChecklistUi = anterior;
+      return;
+    }
+    this.estadoChecklistSeleccionado = nuevo;
+    this.estadoChecklistUi = nuevo;
   }
 
   volverSeleccionUnidad(): void {
@@ -1390,28 +1485,29 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
       this.recambios.filter((r) => r.condicionGeneral === 'Operativo').length;
     this.error = null;
     this.saving = true;
-    this.checklistsApi
-    // @ts-ignore
-      .guardarChecklistEra({
-        unidad: this.unidad,
-        cuarteleroId: obacId,
-        obacNombre,
-        inspector: this.inspector,
-        grupoGuardia: this.grupoGuardia,
-        firmaOficial: firma,
-        firmaInspector,
-        observaciones: this.observaciones,
-        totalItems: total,
-        itemsOk: ok,
-        detalle: {
-          fechaInspeccion: this.fechaInspeccion,
-          equipos: this.equipos,
-          cilindrosRecambio: this.recambios,
-          borrador: false,
-        },
-      })
-      .subscribe({
+    const syncBody: Record<string, unknown> = {
+      unidad: this.unidad,
+      cuarteleroId: obacId,
+      obacNombre,
+      inspector: this.inspector,
+      grupoGuardia: this.grupoGuardia,
+      firmaOficial: firma,
+      firmaInspector,
+      observaciones: this.observaciones,
+      totalItems: total,
+      itemsOk: ok,
+      estadoChecklist: this.estadoChecklistSeleccionado,
+      detalle: {
+        fechaInspeccion: this.fechaInspeccion,
+        equipos: this.equipos,
+        cilindrosRecambio: this.recambios,
+        borrador: false,
+        estadoChecklist: this.estadoChecklistSeleccionado,
+      },
+    };
+    this.checklistsApi.guardarChecklistEra(syncBody).subscribe({
         next: (reg : any) => {
+          this.borradorLocal.eliminar('checklist-era', this.unidad);
           this.saving = false;
           this.error = null;
           if (reg?.fecha) {
@@ -1423,9 +1519,28 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
           this.toast.exito('Checklist ERA guardado.');
           void this.intentarVolverSeleccionUnidad({ forzar: true });
         },
-        error: () => {
-          this.error = 'No se pudo guardar checklist ERA.';
-          this.toast.error('No se pudo guardar el checklist ERA.');
+        error: (err) => {
+          if (
+            manejarErrorGuardadoConBorradorLocal(
+              this.borradorLocal,
+              this.toast,
+              'checklist-era',
+              this.unidad,
+              this.payloadBorradorLocal(),
+              err,
+              {
+                mensajeError: 'No se pudo guardar el checklist ERA.',
+                syncRequest: { kind: 'checklist-era', unidad: this.unidad, body: syncBody },
+                onGuardadoLocal: () => {
+                  this.controlEdicion.marcarLimpio();
+                },
+              },
+            )
+          ) {
+            this.error = null;
+          } else {
+            this.error = 'No se pudo guardar checklist ERA.';
+          }
           this.saving = false;
         },
       });
@@ -1446,28 +1561,27 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
       this.recambios.filter((r) => r.condicionGeneral === 'Operativo').length;
     const firma = this.firmaResueltaObac();
     const firmaInspector = this.firmaResueltaInspector() || null;
-    this.checklistsApi
-    // @ts-ignore
-      .guardarChecklistEra({
-        unidad: this.unidad,
-        cuarteleroId: obacBorrador,
-        obacNombre,
-        inspector: this.inspector,
-        grupoGuardia: this.grupoGuardia,
-        firmaOficial: firma || null,
-        firmaInspector,
-        observaciones: this.observaciones,
-        totalItems: total,
-        itemsOk: ok,
-        detalle: {
-          fechaInspeccion: this.fechaInspeccion,
-          equipos: this.equipos,
-          cilindrosRecambio: this.recambios,
-          borrador: true,
-        },
-      })
-      .subscribe({
+    const syncBody: Record<string, unknown> = {
+      unidad: this.unidad,
+      cuarteleroId: obacBorrador,
+      obacNombre,
+      inspector: this.inspector,
+      grupoGuardia: this.grupoGuardia,
+      firmaOficial: firma || null,
+      firmaInspector,
+      observaciones: this.observaciones,
+      totalItems: total,
+      itemsOk: ok,
+      detalle: {
+        fechaInspeccion: this.fechaInspeccion,
+        equipos: this.equipos,
+        cilindrosRecambio: this.recambios,
+        borrador: true,
+      },
+    };
+    this.checklistsApi.guardarChecklistEra(syncBody).subscribe({
         next: (reg : any) => {
+          this.borradorLocal.eliminar('checklist-era', this.unidad);
           this.savingBorrador = false;
           this.error = null;
           if (reg?.fecha) {
@@ -1480,9 +1594,28 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
           this.toast.exito('Borrador ERA guardado.');
           void this.intentarVolverSeleccionUnidad({ forzar: true });
         },
-        error: () => {
-          this.error = 'No se pudo guardar el borrador.';
-          this.toast.error('No se pudo guardar el borrador.');
+        error: (err) => {
+          if (
+            manejarErrorGuardadoConBorradorLocal(
+              this.borradorLocal,
+              this.toast,
+              'checklist-era',
+              this.unidad,
+              this.payloadBorradorLocal(),
+              err,
+              {
+                mensajeError: 'No se pudo guardar el borrador.',
+                syncRequest: { kind: 'checklist-era', unidad: this.unidad, body: syncBody },
+                onGuardadoLocal: () => {
+                  this.controlEdicion.marcarLimpio();
+                },
+              },
+            )
+          ) {
+            this.error = null;
+          } else {
+            this.error = 'No se pudo guardar el borrador.';
+          }
           this.savingBorrador = false;
         },
       });

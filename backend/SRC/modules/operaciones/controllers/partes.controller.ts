@@ -103,7 +103,8 @@ export const obtenerPartePorId = async (req: Request, res: Response): Promise<Re
 export const actualizarParte = async (req: Request, res: Response): Promise<Response> => {
   try {
     const id = String(req.params.id);
-    const actualizado = await partesService.actualizarParte(id, req.body);
+    const rolActor = (req as any).dbUser?.rol?.codigo as string | undefined;
+    const actualizado = await partesService.actualizarParte(id, req.body, rolActor);
     if (!actualizado) {
       return res.status(404).json({ message: 'Parte no encontrado' });
     }

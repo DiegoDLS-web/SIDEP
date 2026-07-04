@@ -516,6 +516,11 @@
               {{ parte.estado }}
             </span>
           </div>
+          @if (textoMotivoPendiente(parte); as motivo) {
+            <p class="mb-2 rounded-lg border border-amber-800/40 bg-amber-950/20 px-2.5 py-1.5 text-[11px] leading-snug text-amber-100/90">
+              <span class="font-semibold text-amber-200">Motivo:</span> {{ motivo }}
+            </p>
+          }
           <div class="mb-2">
             <p class="text-xs font-medium text-gray-300">{{ splitFechaHora(parte.fecha).fecha }}</p>
             <p class="text-xs text-gray-500">{{ splitFechaHora(parte.fecha).hora }}</p>
@@ -540,15 +545,17 @@
             >
               <lucide-icon name="eye" class="h-5 w-5" [size]="20" color="currentColor" aria-hidden="true"></lucide-icon>
             </button>
-            <a
-              [routerLink]="['/partes/nuevo']"
-              [queryParams]="{ editar: parte.id }"
-              class="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-slate-600 bg-slate-800 text-white transition-colors hover:bg-slate-700"
-              aria-label="Editar parte"
-              title="Editar"
-            >
-              <lucide-icon name="pencil" class="h-5 w-5" [size]="20" color="currentColor" aria-hidden="true"></lucide-icon>
-            </a>
+            @if (puedeEditarParte(parte)) {
+              <a
+                [routerLink]="['/partes/nuevo']"
+                [queryParams]="{ editar: parte.id }"
+                class="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-slate-600 bg-slate-800 text-white transition-colors hover:bg-slate-700"
+                aria-label="Editar parte"
+                title="Editar"
+              >
+                <lucide-icon name="pencil" class="h-5 w-5" [size]="20" color="currentColor" aria-hidden="true"></lucide-icon>
+              </a>
+            }
             <button
               type="button"
               class="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-red-600 text-white transition-colors hover:bg-red-500"
@@ -650,9 +657,16 @@
                   <span class="text-slate-200">{{ parte.obac.nombre }}</span>
                 </td>
                 <td>
-                  <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold" [ngClass]="estadoClase(parte.estado)">
-                    {{ parte.estado }}
-                  </span>
+                  <div class="space-y-1">
+                    <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold" [ngClass]="estadoClase(parte.estado)">
+                      {{ parte.estado }}
+                    </span>
+                    @if (textoMotivoPendiente(parte); as motivo) {
+                      <p class="max-w-xs text-[11px] leading-snug text-amber-200/90">
+                        <span class="font-semibold text-amber-300">Motivo:</span> {{ motivo }}
+                      </p>
+                    }
+                  </div>
                 </td>
                 <td class="text-right">
                   <div class="inline-flex flex-wrap items-center justify-end gap-1.5">
@@ -664,14 +678,16 @@
                     >
                       <lucide-icon name="eye" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
                     </button>
-                    <a
-                      [routerLink]="['/partes/nuevo']"
-                      [queryParams]="{ editar: parte.id }"
-                      class="rounded-lg border border-slate-600 bg-slate-800 p-2 text-white transition-colors hover:bg-slate-700"
-                      title="Editar este parte"
-                    >
-                      <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-                    </a>
+                    @if (puedeEditarParte(parte)) {
+                      <a
+                        [routerLink]="['/partes/nuevo']"
+                        [queryParams]="{ editar: parte.id }"
+                        class="rounded-lg border border-slate-600 bg-slate-800 p-2 text-white transition-colors hover:bg-slate-700"
+                        title="Editar este parte"
+                      >
+                        <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                      </a>
+                    }
                     <button
                       type="button"
                       class="rounded-lg bg-red-600 p-2 text-white transition-colors hover:bg-red-500"

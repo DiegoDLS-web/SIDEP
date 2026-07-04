@@ -199,7 +199,7 @@ export class PdfExportService {
 
   private async modoLogosPdf(): Promise<LogosPdfCabecera> {
     try {
-      const c = await firstValueFrom(this.configApi.obtener().pipe(catchError(() => of(null))));
+      const c = await firstValueFrom(this.configApi.obtenerOperativa().pipe(catchError(() => of(null))));
       const m = c?.reportes?.logosPdf;
       if (m === 'NINGUNO' || m === 'SIDEP' || m === 'COMPANIA' || m === 'AMBOS') {
         return m;

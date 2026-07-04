@@ -184,11 +184,15 @@ export async function evaluarCarroDisponibleParaParte(
   }
 
   const checklist = await ultimoChecklistUnidadHasta(tx, carroId, fechaReferencia);
+  const semaforoManualDb =
+    carro.estadoOperativo === 0
+      ? 'fuera_servicio'
+      : carro.estadoOperativo === 2
+        ? 'mantencion'
+        : null;
   const semaforoChecklist = checklist
     ? resolverSemaforoDesdeChecklist(checklist.respuestasJson)
-    : carro.estadoOperativo === 0
-      ? 'fuera_servicio'
-      : 'operativa';
+    : semaforoManualDb ?? 'operativa';
 
   const mant = carro.mantenimientos[0];
   const semaforoMantenimiento = evaluarSemaforoMantenimientoEnFecha(
@@ -200,8 +204,8 @@ export async function evaluarCarroDisponibleParaParte(
   );
 
   const semaforo = combinarSemaforos(
-    semaforoChecklist ?? (carro.estadoOperativo === 0 ? 'fuera_servicio' : null),
-    carro.estadoOperativo === 0 ? 'fuera_servicio' : null,
+    semaforoChecklist ?? semaforoManualDb,
+    semaforoManualDb,
     semaforoMantenimiento,
   );
 

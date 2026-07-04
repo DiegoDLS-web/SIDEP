@@ -14,6 +14,8 @@ import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 import { etiquetaOficialidadCargo } from '../usuarios/usuario-registro.constants';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
+import { CambioEstadoDialogService } from '../../services/cambio-estado-dialog.service';
+import { solicitarMotivoCambioEstado } from '../../utils/cambio-estado.util';
 import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util';
 import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
 import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
@@ -30,6 +32,7 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
   private readonly auth = inject(AuthService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly confirmDialog = inject(ConfirmDialogService);
+  private readonly cambioEstadoDialog = inject(CambioEstadoDialogService);
 
   private resolucionBaseline: Record<string, { estado: LicenciaEstado; observacion: string }> = {};
 
@@ -368,20 +371,34 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
       });
   }
 
-  guardarEstado(item: LicenciaMedicaDto): void {
+  async guardarEstado(item: LicenciaMedicaDto): Promise<void> {
     const estado = this.estadoEdicion[item.id];
     if (!estado) {
       return;
     }
+    const base = this.resolucionBaseline[item.id];
+    if (base && estado === base.estado) {
+      return;
+    }
+
+    const confirmacion = await solicitarMotivoCambioEstado(this.cambioEstadoDialog, {
+      title: 'Resolver licencia',
+      message: `Vas a marcar la licencia de ${item.usuario?.nombre ?? item.usuarioId} como ${this.etiquetaEstado(estado)}.`,
+      estadoAnterior: base ? this.etiquetaEstado(base.estado) : this.etiquetaEstado(item.estado),
+      estadoNuevo: this.etiquetaEstado(estado),
+    });
+    if (!confirmacion) return;
+
     this.api
-      .cambiarEstado(item.id, estado, this.observacionEdicion[item.id] ?? '')
+      .cambiarEstado(item.id, estado, confirmacion.motivo, confirmacion.fecha)
       .subscribe({
         next: () => {
           this.okMsg = `Estado actualizado para licencia #${item.id}.`;
+          this.observacionEdicion[item.id] = confirmacion.motivo;
           this.cargarGestion();
         },
         error: (e) => {
-          this.error = e?.error?.error ?? 'No se pudo actualizar estado.';
+          this.error = e?.error?.error ?? e?.error?.message ?? 'No se pudo actualizar estado.';
         },
       });
   }
@@ -547,6 +564,28 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
     if (estado === 'RECHAZADA') return 'Rechazada';
     if (estado === 'ANULADA') return 'Anulada';
     return 'Pendiente';
+  }
+
+  /** N° correlativo por año calendario (orden de creación), más legible que el UUID. */
+  correlativoLicencia(licencia: LicenciaMedicaDto, lista: LicenciaMedicaDto[]): string {
+    const anio = this.anioLicencia(licencia);
+    const delAnio = lista
+      .filter((l) => this.anioLicencia(l) === anio)
+      .sort((a, b) => {
+        const ta = new Date(a.createdAt || a.fechaInicio).getTime();
+        const tb = new Date(b.createdAt || b.fechaInicio).getTime();
+        if (ta !== tb) return ta - tb;
+        return a.id.localeCompare(b.id);
+      });
+    const idx = delAnio.findIndex((l) => l.id === licencia.id);
+    const numero = idx >= 0 ? idx + 1 : delAnio.length + 1;
+    return `N° ${numero}/${anio}`;
+  }
+
+  private anioLicencia(licencia: LicenciaMedicaDto): number {
+    const ref = licencia.createdAt || licencia.fechaInicio;
+    const d = new Date(ref);
+    return Number.isNaN(d.getTime()) ? new Date().getFullYear() : d.getFullYear();
   }
 
   claseEstado(estado: LicenciaEstado): string {

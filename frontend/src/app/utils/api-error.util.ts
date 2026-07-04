@@ -49,3 +49,10 @@ export function mensajeApiError(err: unknown, fallback: string): string {
 
   return fallback;
 }
+
+/** Sin respuesta del servidor (red caída, timeout, servicio no disponible). */
+export function esErrorSinConexion(err: unknown): boolean {
+  if (!err || typeof err !== 'object' || !('status' in err)) return false;
+  const status = (err as HttpErrorResponse).status;
+  return status === 0 || status === 503 || status === 504;
+}

@@ -23,6 +23,11 @@ import {
 } from './asistencia-roster.constants';
 import { etiquetaDirectorioVoluntario, etiquetaPadronAsistenciaParte, nombreListaSoloPersona, ordenPorClaveNomina, CARGOS_INSPECTORES_COMANDANCIA, CARGOS_OFICIALES_COMPANIA, CARGOS_OFICIALES_GENERALES } from '../usuarios/usuario-registro.constants';
 import { mensajeApiError } from '../../utils/api-error.util';
+import { formatearFechaBorradorLocal, manejarErrorGuardadoConBorradorLocal } from '../../utils/borrador-local.util';
+import { BorradorLocalService } from '../../services/borrador-local.service';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
+import { AuthService } from '../../services/auth.service';
+import { puedeEditarParteCompletado } from '../../utils/parte-edicion-roles.util';
 import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
 import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
 import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
@@ -74,6 +79,9 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
   private readonly licenciasApi = inject(LicenciasService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  private readonly borradorLocal = inject(BorradorLocalService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
+  private readonly auth = inject(AuthService);
   readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
 
   constructor() {
@@ -259,11 +267,20 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
           }
         }
         if (parteEdicion) {
-          // Si parteEdicion viene con .data (nuestro backend) o directo
-          this.cargarParteEnFormulario(parteEdicion.data ? parteEdicion.data : parteEdicion);
+          const parte = parteEdicion.data ? parteEdicion.data : parteEdicion;
+          const estado = (parte.estado ?? '').trim().toUpperCase();
+          if (estado === 'COMPLETADO' && !puedeEditarParteCompletado(this.auth.usuarioActual?.rol)) {
+            this.error = 'Solo capitán, tenientes o administrador pueden editar un parte completado.';
+            this.toast.advertencia(this.error);
+            void this.router.navigate(['/partes']);
+            this.loading = false;
+            return;
+          }
+          this.cargarParteEnFormulario(parte);
         }
         this.controlEdicion.marcarLimpio();
         this.loading = false;
+        void this.ofrecerRestaurarBorradorLocal();
       },
       error: () => {
         this.error = this.editandoParteId
@@ -317,7 +334,9 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
   }
 
   motivoCarroNoDisponible(c: CarroDto, fecha: Date = this.fechaBaseAsistencia()): string {
-    if (c.estadoOperativo !== 1) return 'Fuera de servicio';
+    if (c.estadoOperativo === 0) return 'Fuera de servicio';
+    if (c.estadoOperativo === 2) return 'En mantención';
+    if (c.estadoOperativo !== 1) return 'No operativa';
     if (this.mantenimientoVencidoEnFecha(c, fecha)) return 'Mantención o revisión técnica vencida en esa fecha';
     return '';
   }
@@ -1129,6 +1148,17 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
     return faltantes;
   }
 
+  private construirMotivoPendiente(): string {
+    const partes: string[] = [];
+    const basicos = this.validarCamposObligatoriosRegistro();
+    if (basicos) partes.push(basicos.mensaje);
+    const faltantes = this.faltantesCierreParte();
+    if (faltantes.length > 0) {
+      partes.push(`Faltan datos de cierre: ${faltantes.join('; ')}.`);
+    }
+    return partes.join(' ') || 'Parte guardado sin cierre completo.';
+  }
+
   private resolverObacId(): string | null {
     const raw = typeof this.obacId === 'string' ? this.obacId.trim() : '';
     if (!raw) return null;
@@ -1167,6 +1197,27 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
   // ============================================================================
   // INTERCEPCIÓN RELACIONAL: Mapeo estricto del JSON Metadata a Tablas Relacionales
   // ============================================================================
+  private claveParteLocal(): string {
+    return String(this.editandoParteId ?? 'nuevo');
+  }
+
+  private async ofrecerRestaurarBorradorLocal(): Promise<void> {
+    const saved = this.borradorLocal.obtener('parte', this.claveParteLocal());
+    if (!saved?.payload) return;
+    const ok = await this.confirmDialog.abrir({
+      title: 'Borrador sin conexión',
+      message: `Hay un borrador de parte guardado en este dispositivo (${formatearFechaBorradorLocal(saved.meta.guardadoEn)}). ¿Restaurarlo?`,
+      confirmText: 'Restaurar',
+      cancelText: 'Descartar',
+    });
+    if (!ok) {
+      this.borradorLocal.eliminar('parte', this.claveParteLocal());
+      return;
+    }
+    this.cargarParteEnFormulario(saved.payload);
+    this.toast.exito('Borrador local restaurado. Recuerda sincronizarlo con el servidor.');
+  }
+
   guardarBorrador(): void {
     if (this.loading || this.submitting) return;
     this.guardadoError = null;
@@ -1217,6 +1268,7 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
 
     request$.subscribe({
       next: (registro) => {
+        this.borradorLocal.eliminar('parte', this.claveParteLocal());
         this.submitting = false;
         const eraNuevo = this.editandoParteId == null;
         if (registro?.id) {
@@ -1227,8 +1279,124 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
         void this.router.navigate(['/partes']);
       },
       error: (err) => {
-        this.guardadoError = mensajeApiError(err, 'No se pudo guardar el borrador en el servidor.');
-        this.toast.error(this.guardadoError);
+        if (
+          manejarErrorGuardadoConBorradorLocal(
+            this.borradorLocal,
+            this.toast,
+            'parte',
+            this.claveParteLocal(),
+            payload,
+            err,
+            {
+              mensajeError: 'No se pudo guardar el borrador en el servidor.',
+              syncRequest: {
+                kind: this.editandoParteId != null ? 'parte-actualizar' : 'parte-crear',
+                parteId: this.editandoParteId,
+                body: payload as Record<string, unknown>,
+              },
+              onGuardadoLocal: () => {
+                this.guardadoError = null;
+                this.controlEdicion.marcarLimpio();
+              },
+            },
+          )
+        ) {
+          this.guardadoError = null;
+        } else {
+          this.guardadoError = mensajeApiError(err, 'No se pudo guardar el borrador en el servidor.');
+        }
+        this.submitting = false;
+      },
+    });
+  }
+
+  guardarPendiente(): void {
+    if (this.loading || this.submitting) return;
+    this.guardadoError = null;
+    this.prepararCierreAntesDeGuardar();
+    const obac = this.resolverObacId();
+    const obacRut = this.resolverObacRut();
+    if (obac === null || !obacRut) {
+      this.guardadoError = 'Selecciona OBAC en datos básicos.';
+      return;
+    }
+    if (this.hayConductorRepetidoEnUnidades()) {
+      this.guardadoError = 'Un conductor no puede estar en más de una unidad.';
+      return;
+    }
+    const disponibilidad = this.validarDisponibilidadOperativaAntesDeGuardar();
+    if (disponibilidad) {
+      this.guardadoError = disponibilidad;
+      this.toast.error(disponibilidad);
+      return;
+    }
+
+    const motivoPendiente = this.construirMotivoPendiente();
+    this.submitting = true;
+    const payload = {
+      claveEmergencia: this.claveEmergencia.trim() || CLAVE_BORRADOR_DEFAULT,
+      direccion: this.direccion.trim() || '— Pendiente (sin dirección)',
+      obacId: obac,
+      obacRut,
+      fecha: this.buildFechaIso() ?? new Date().toISOString(),
+      estado: 'PENDIENTE',
+      motivoPendiente,
+      unidades: this.parseUnidadesPayload(),
+      pacientes: this.parsePacientesPayload(),
+      asistencias: this.parseAsistenciasPayload(),
+      descripcionEmergencia: this.descripcionEmergencia.trim() || null,
+      trabajoRealizado: this.trabajoRealizado.trim() || null,
+      materialUtilizado: this.materialUtilizado.trim() || null,
+      observaciones: this.observaciones.trim() || null,
+      vehiculosAfectados: this.vehiculos.filter(v => v.tipo.trim() || v.patente.trim()),
+      apoyosExternos: this.apoyos.filter(a => a.tipo.trim() || a.nombre.trim()),
+      otrasCompanias: this.otrasCompanias.filter(o => o.compania.trim() || o.unidad.trim()),
+      metadata: { ...this.construirMetadata(), motivoPendiente },
+    } as any;
+
+    const request$ = this.editandoParteId != null
+      ? this.partesApi.actualizar(String(this.editandoParteId), payload)
+      : this.partesApi.crear(payload);
+
+    request$.subscribe({
+      next: (registro) => {
+        this.borradorLocal.eliminar('parte', this.claveParteLocal());
+        this.submitting = false;
+        const eraNuevo = this.editandoParteId == null;
+        if (registro?.id) {
+          this.editandoParteId = registro.id;
+        }
+        this.controlEdicion.marcarLimpio();
+        this.toast.exito(eraNuevo ? 'Parte guardado como pendiente.' : 'Parte actualizado como pendiente.');
+        void this.router.navigate(['/partes']);
+      },
+      error: (err) => {
+        if (
+          manejarErrorGuardadoConBorradorLocal(
+            this.borradorLocal,
+            this.toast,
+            'parte',
+            this.claveParteLocal(),
+            payload,
+            err,
+            {
+              mensajeError: 'No se pudo guardar el parte pendiente en el servidor.',
+              syncRequest: {
+                kind: this.editandoParteId != null ? 'parte-actualizar' : 'parte-crear',
+                parteId: this.editandoParteId,
+                body: payload as Record<string, unknown>,
+              },
+              onGuardadoLocal: () => {
+                this.guardadoError = null;
+                this.controlEdicion.marcarLimpio();
+              },
+            },
+          )
+        ) {
+          this.guardadoError = null;
+        } else {
+          this.guardadoError = mensajeApiError(err, 'No se pudo guardar el parte pendiente.');
+        }
         this.submitting = false;
       },
     });
@@ -1291,6 +1459,7 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
       obacRut,
       fecha: fechaIso,
       estado: 'COMPLETADO',
+      motivoPendiente: null,
       unidades: this.parseUnidadesPayload(),
       pacientes: this.parsePacientesPayload(),
       asistencias: this.parseAsistenciasPayload(),
@@ -1312,6 +1481,7 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
 
     request$.subscribe({
       next: (registro) => {
+        this.borradorLocal.eliminar('parte', this.claveParteLocal());
         this.submitting = false;
         if (registro?.id) {
           this.editandoParteId = registro.id;
@@ -1321,8 +1491,31 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
         void this.router.navigate(['/partes']);
       },
       error: (err) => {
-        this.guardadoError = mensajeApiError(err, 'No se pudo registrar el parte. Revisa los datos e intenta de nuevo.');
-        this.toast.error(this.guardadoError);
+        if (
+          manejarErrorGuardadoConBorradorLocal(
+            this.borradorLocal,
+            this.toast,
+            'parte',
+            this.claveParteLocal(),
+            payload,
+            err,
+            {
+              mensajeError: 'No se pudo registrar el parte. Revisa los datos e intenta de nuevo.',
+              syncRequest: {
+                kind: this.editandoParteId != null ? 'parte-actualizar' : 'parte-crear',
+                parteId: this.editandoParteId,
+                body: payload as Record<string, unknown>,
+              },
+              onGuardadoLocal: () => {
+                this.guardadoError = null;
+              },
+            },
+          )
+        ) {
+          this.guardadoError = null;
+        } else {
+          this.guardadoError = mensajeApiError(err, 'No se pudo registrar el parte. Revisa los datos e intenta de nuevo.');
+        }
         this.submitting = false;
       },
     });

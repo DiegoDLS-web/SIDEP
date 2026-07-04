@@ -11,6 +11,7 @@ import {
   ChecklistRegistroDto,
   ChecklistResumenUnidadDto,
   ChecklistEraPaginaDto,
+  EstadoChecklist,
 } from '../models/checklist.dto';
 import { CarrosService } from './carros.service';
 import type { CarroDto } from '../models/carro.dto';
@@ -25,7 +26,6 @@ export class ChecklistsService {
   private readonly apiUrl = apiUrl('logistica', 'checklist');
 
   private readonly storagePlantillas = 'sidep_checklist_plantillas_v1';
-  private readonly storageEraHistorial = 'sidep_checklist_era_historial_v1';
 
   obtenerChecklistUnidad(unidad: string): Observable<ChecklistUnidadResponseDto> {
     return this.carrosApi.listar().pipe(
@@ -90,6 +90,7 @@ export class ChecklistsService {
           return throwError(() => new Error(`No se encontró el carro ${unidad}.`));
         }
         const detalle = (payload['detalle'] as Record<string, unknown>) ?? {};
+        const estadoChecklist = payload['estadoChecklist'];
         const request: RegistrarChecklistDTO = {
           carroId: String(carro.id),
           revisorRut: String(payload['cuarteleroId'] ?? ''),
@@ -100,6 +101,7 @@ export class ChecklistsService {
             observaciones: payload['observaciones'] ?? null,
             totalItems: payload['totalItems'] ?? null,
             itemsOk: payload['itemsOk'] ?? null,
+            ...(estadoChecklist ? { estadoChecklist } : {}),
           },
           entidadTipo: 'CARRO',
           firmaOficial: (payload['firmaOficial'] as string | null) ?? null,
@@ -245,22 +247,35 @@ export class ChecklistsService {
   }
 
   historialEraUnidad(unidad: string): Observable<ChecklistRegistroDto[]> {
-    const rows = this.leerHistorialEraLocal().filter((r) => r.unidad === unidad || String(r.carroId) === unidad);
-    return of(rows.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()));
+    return this.cargarHistorialEraCompleto().pipe(
+      map((rows) =>
+        rows
+          .filter(
+            (r) =>
+              r.unidad === unidad ||
+              r.carro?.nomenclatura === unidad ||
+              String(r.carroId) === unidad,
+          )
+          .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()),
+      ),
+    );
   }
 
   eraUltimosPorUnidad(): Observable<ChecklistRegistroDto[]> {
-    const rows = this.leerHistorialEraLocal();
-    const mapa = new Map<string, ChecklistRegistroDto>();
-    for (const r of rows) {
-      const key = String(r.carro?.nomenclatura ?? r.unidad ?? '');
-      if (!key) continue;
-      const prev = mapa.get(key);
-      if (!prev || new Date(r.fecha).getTime() > new Date(prev.fecha).getTime()) {
-        mapa.set(key, r);
-      }
-    }
-    return of([...mapa.values()]);
+    return this.cargarHistorialEraCompleto().pipe(
+      map((rows) => {
+        const mapa = new Map<string, ChecklistRegistroDto>();
+        for (const r of rows) {
+          const key = String(r.carro?.nomenclatura ?? r.unidad ?? '');
+          if (!key) continue;
+          const prev = mapa.get(key);
+          if (!prev || new Date(r.fecha).getTime() > new Date(prev.fecha).getTime()) {
+            mapa.set(key, r);
+          }
+        }
+        return [...mapa.values()];
+      }),
+    );
   }
 
   eraPagina(params: {
@@ -272,82 +287,53 @@ export class ChecklistsService {
   }): Observable<ChecklistEraPaginaDto> {
     const page = params.page ?? 1;
     const pageSize = params.pageSize ?? 10;
-    let rows = [...this.leerHistorialEraLocal()];
 
-    if (params.unidades?.trim()) {
-      const set = new Set(params.unidades.split(',').map((u) => u.trim()).filter(Boolean));
-      rows = rows.filter((r) => set.has(String(r.carro?.nomenclatura ?? r.unidad ?? '')));
-    }
-    if (params.desde?.trim()) {
-      const desde = new Date(params.desde).getTime();
-      rows = rows.filter((r) => !Number.isNaN(desde) && new Date(r.fecha).getTime() >= desde);
-    }
-    if (params.hasta?.trim()) {
-      const hasta = new Date(params.hasta);
-      hasta.setHours(23, 59, 59, 999);
-      const ht = hasta.getTime();
-      rows = rows.filter((r) => !Number.isNaN(ht) && new Date(r.fecha).getTime() <= ht);
-    }
+    return this.cargarHistorialEraCompleto().pipe(
+      map((allRows) => {
+        let rows = [...allRows];
 
-    rows.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-    const total = rows.length;
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
-    const start = (page - 1) * pageSize;
+        if (params.unidades?.trim()) {
+          const set = new Set(params.unidades.split(',').map((u) => u.trim()).filter(Boolean));
+          rows = rows.filter((r) => set.has(String(r.carro?.nomenclatura ?? r.unidad ?? '')));
+        }
+        if (params.desde?.trim()) {
+          const desde = new Date(params.desde).getTime();
+          rows = rows.filter((r) => !Number.isNaN(desde) && new Date(r.fecha).getTime() >= desde);
+        }
+        if (params.hasta?.trim()) {
+          const hasta = new Date(params.hasta);
+          hasta.setHours(23, 59, 59, 999);
+          const ht = hasta.getTime();
+          rows = rows.filter((r) => !Number.isNaN(ht) && new Date(r.fecha).getTime() <= ht);
+        }
 
-    return of({
-      items: rows.slice(start, start + pageSize),
-      total,
-      page,
-      pageSize,
-      totalPages,
-    });
+        rows.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+        const total = rows.length;
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        const start = (page - 1) * pageSize;
+
+        return {
+          items: rows.slice(start, start + pageSize),
+          total,
+          page,
+          pageSize,
+          totalPages,
+        };
+      }),
+    );
   }
 
   guardarChecklistEra(payload: Record<string, unknown>): Observable<ChecklistRegistroDto> {
     const unidad = String(payload['unidad'] ?? '');
-    const obacId = String(payload['cuarteleroId'] ?? '');
-    const obacNombre = String(payload['obacNombre'] ?? payload['cuarteleroNombre'] ?? '').trim();
-    const registro: ChecklistRegistroDto = {
-      id: crypto.randomUUID(),
-      carroId: unidad,
-      cuarteleroId: obacId,
-      fecha: new Date().toISOString(),
-      tipo: 'ERA',
-      inspector: (payload['inspector'] as string | null) ?? null,
-      grupoGuardia: (payload['grupoGuardia'] as string | null) ?? null,
-      firmaOficial: (payload['firmaOficial'] as string | null) ?? null,
-      firmaInspector: (payload['firmaInspector'] as string | null) ?? null,
-      observaciones: (payload['observaciones'] as string | null) ?? null,
-      totalItems: Number(payload['totalItems']) || 0,
-      itemsOk: Number(payload['itemsOk']) || 0,
-      detalle: payload['detalle'] ?? null,
-      unidad,
-      carro: {
-        id: unidad,
-        nomenclatura: unidad,
-        nombre: `Unidad ${unidad}`,
-      },
-      cuartelero: obacNombre
-        ? { id: obacId, nombre: obacNombre, rol: '' }
-        : obacId
-          ? { id: obacId, nombre: obacId, rol: '' }
-          : undefined,
-    };
-
-    const guardarLocal = () => {
-      const historial = this.leerHistorialEraLocal();
-      historial.unshift(registro);
-      this.guardarHistorialEraLocal(historial.slice(0, 500));
-    };
 
     return this.carrosApi.listar().pipe(
       switchMap((carros) => {
         const carro = carros.find((c) => c.nomenclatura === unidad);
         if (!carro) {
-          guardarLocal();
-          return of(registro);
+          return throwError(() => new Error(`No se encontró el carro ${unidad}.`));
         }
         const detalle = (payload['detalle'] as Record<string, unknown>) ?? {};
+        const estadoChecklist = payload['estadoChecklist'];
         const request: RegistrarChecklistDTO = {
           carroId: String(carro.id),
           revisorRut: String(payload['cuarteleroId'] ?? ''),
@@ -358,25 +344,21 @@ export class ChecklistsService {
             inspector: payload['inspector'] ?? null,
             grupoGuardia: payload['grupoGuardia'] ?? null,
             observaciones: payload['observaciones'] ?? null,
+            ...(estadoChecklist ? { estadoChecklist } : {}),
           },
           entidadTipo: 'ERA',
           firmaOficial: (payload['firmaOficial'] as string | null) ?? null,
           firmaInspector: (payload['firmaInspector'] as string | null) ?? null,
         };
         return this.registrarEjecucion(request).pipe(
-          map(() => {
-            guardarLocal();
-            return registro;
-          }),
-          catchError(() => {
-            guardarLocal();
-            return of(registro);
+          switchMap((res) => {
+            const mapped = this.mapEjecucionToRegistro(res.data, carro);
+            if (!mapped) {
+              return throwError(() => new Error('No se pudo registrar el checklist ERA.'));
+            }
+            return of(mapped);
           }),
         );
-      }),
-      catchError(() => {
-        guardarLocal();
-        return of(registro);
       }),
     );
   }
@@ -396,6 +378,17 @@ export class ChecklistsService {
     data: Record<string, unknown>,
   ): Observable<{ success: boolean; data: ChecklistPlantillaDTO }> {
     return this.http.patch<{ success: boolean; data: ChecklistPlantillaDTO }>(`${this.apiUrl}/plantillas/${id}`, data);
+  }
+
+  actualizarEstadoEjecucion(
+    id: string,
+    estadoChecklist: EstadoChecklist,
+    opts: { motivo: string; fechaEfectiva: string },
+  ): Observable<unknown> {
+    return this.http.patch<{ success: boolean; data: unknown }>(
+      `${this.apiUrl}/ejecucion/${id}/estado`,
+      { estadoChecklist, motivo: opts.motivo, fechaEfectiva: opts.fechaEfectiva },
+    );
   }
 
   registrarEjecucion(data: RegistrarChecklistDTO): Observable<{ success: boolean; data: ChecklistEjecucionDTO }> {
@@ -505,6 +498,25 @@ export class ChecklistsService {
     const esBorrador =
       ejecucion.estado === 'BORRADOR' ||
       detalle?.['borrador'] === true;
+    const estadoManual = detalle?.['estadoChecklist'];
+    const estadoDb = String(ejecucion.estado ?? '').toUpperCase();
+    let estadoChecklist: EstadoChecklist;
+    if (esBorrador) {
+      estadoChecklist = 'PENDIENTE';
+    } else if (
+      typeof estadoManual === 'string' &&
+      (['COMPLETADO', 'PENDIENTE', 'CON_OBSERVACION'] as const).includes(estadoManual as EstadoChecklist)
+    ) {
+      estadoChecklist = estadoManual as EstadoChecklist;
+    } else if (
+      estadoDb === 'COMPLETADO' ||
+      estadoDb === 'PENDIENTE' ||
+      estadoDb === 'CON_OBSERVACION'
+    ) {
+      estadoChecklist = estadoDb as EstadoChecklist;
+    } else {
+      estadoChecklist = calcularEstadoChecklist(totalItems, itemsOk, observaciones);
+    }
     return {
       id: ejecucion.id,
       carroId: carro.id,
@@ -519,15 +531,29 @@ export class ChecklistsService {
       totalItems,
       itemsOk: totalItems ? itemsOk : null,
       detalle,
-      estadoChecklist: esBorrador
-        ? 'PENDIENTE'
-        : calcularEstadoChecklist(totalItems, itemsOk, observaciones),
+      estadoChecklist,
       carro: { id: carro.id, nomenclatura: carro.nomenclatura, nombre: carro.nombre },
       cuartelero: revisorNombre
         ? { id: ejecucion.revisorRut, nombre: revisorNombre, rol: '' }
         : undefined,
       unidad: carro.nomenclatura,
     };
+  }
+
+  private cargarHistorialEraCompleto(): Observable<ChecklistRegistroDto[]> {
+    return forkJoin([this.carrosApi.listar(), this.getHistorial(undefined, 'ERA')]).pipe(
+      map(([carros, res]) => {
+        const mapCarros = new Map(carros.map((c) => [String(c.id), c]));
+        return (res.data ?? [])
+          .map((e) => {
+            const carro = mapCarros.get(String(e.entidadId));
+            if (!carro) return null;
+            return this.mapEjecucionToRegistro(e, carro);
+          })
+          .filter(Boolean) as ChecklistRegistroDto[];
+      }),
+      catchError(() => of([])),
+    );
   }
 
   private leerPlantillaLocal(tipo: PlantillaTipo, unidad: string): unknown | null {
@@ -547,23 +573,6 @@ export class ChecklistsService {
       const map = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
       map[`${tipo}:${unidad}`] = plantilla;
       localStorage.setItem(this.storagePlantillas, JSON.stringify(map));
-    } catch {
-      /* ignore */
-    }
-  }
-
-  private leerHistorialEraLocal(): ChecklistRegistroDto[] {
-    try {
-      const raw = localStorage.getItem(this.storageEraHistorial);
-      return raw ? (JSON.parse(raw) as ChecklistRegistroDto[]) : [];
-    } catch {
-      return [];
-    }
-  }
-
-  private guardarHistorialEraLocal(rows: ChecklistRegistroDto[]): void {
-    try {
-      localStorage.setItem(this.storageEraHistorial, JSON.stringify(rows));
     } catch {
       /* ignore */
     }

@@ -164,7 +164,11 @@ export const auditoriaMiddleware = (req: Request, res: Response, next: NextFunct
       } else if (metodoHttp === 'PATCH' && ruta.endsWith('/estado')) {
         accion = resultado === 'OK' ? 'CAMBIAR_ESTADO_CARRO' : 'CAMBIAR_ESTADO_CARRO_ERROR';
         entidadId = parts[parts.length - 2] || null;
-        detalle = `Estado operativo del carro ID ${entidadId} modificado por ${actorRut}.`;
+        const ant = responseBody?.estadoAnterior ?? '?';
+        const nue = responseBody?.estadoNuevo ?? req.body?.estadoOperativo ?? '?';
+        const motivo = responseBody?.motivo ?? req.body?.motivo ?? '';
+        const fecha = responseBody?.fechaEfectiva ?? req.body?.fechaEfectiva ?? '';
+        detalle = `Carro ID ${entidadId}: estado ${ant} → ${nue} por ${actorRut}. Motivo: ${motivo}. Fecha: ${fecha}.`;
       } else if (metodoHttp === 'PATCH') {
         accion = resultado === 'OK' ? 'ACTUALIZAR_CARRO' : 'ACTUALIZAR_CARRO_ERROR';
         entidadId = lastPart || null;
@@ -173,6 +177,7 @@ export const auditoriaMiddleware = (req: Request, res: Response, next: NextFunct
     }
     else if (ruta.startsWith('/api/logistica/checklist')) {
       entidad = 'Checklist';
+      const parts = ruta.split('?')[0]?.split('/') || [];
       if (ruta.includes('/ejecucion') && metodoHttp === 'POST') {
         accion = resultado === 'OK' ? 'EJECUTAR_CHECKLIST' : 'EJECUTAR_CHECKLIST_ERROR';
         entidadId = responseBody?.id ? String(responseBody.id) : null;
@@ -183,6 +188,14 @@ export const auditoriaMiddleware = (req: Request, res: Response, next: NextFunct
       } else if (ruta.includes('/plantillas') && metodoHttp === 'PATCH') {
         accion = resultado === 'OK' ? 'ACTUALIZAR_PLANTILLA_CHECKLIST' : 'ACTUALIZAR_PLANTILLA_CHECKLIST_ERROR';
         detalle = `Plantilla de checklist actualizada por ${actorRut}.`;
+      } else if (ruta.includes('/ejecucion') && ruta.endsWith('/estado') && metodoHttp === 'PATCH') {
+        accion = resultado === 'OK' ? 'CAMBIAR_ESTADO_CHECKLIST' : 'CAMBIAR_ESTADO_CHECKLIST_ERROR';
+        entidadId = parts[parts.length - 2] || null;
+        const anterior = responseBody?.estadoAnterior ?? '?';
+        const nuevo = responseBody?.estadoNuevo ?? req.body?.estadoChecklist ?? '?';
+        const motivo = responseBody?.motivo ?? req.body?.motivo ?? '';
+        const fecha = responseBody?.fechaEfectiva ?? req.body?.fechaEfectiva ?? '';
+        detalle = `Checklist ejecución ${entidadId}: ${anterior} → ${nuevo} por ${actorRut}. Motivo: ${motivo}. Fecha: ${fecha}.`;
       }
     }
     else if (ruta.startsWith('/api/logistica/equipamiento')) {
@@ -210,6 +223,17 @@ export const auditoriaMiddleware = (req: Request, res: Response, next: NextFunct
         detalle = resultado === 'OK'
           ? `Registro de usuario ${entidadId}.`
           : `Fallo al registrar usuario: ${responseBody?.message || 'Error desconocido'}`;
+      } else if (metodoHttp === 'POST' && ruta.includes('/recuperar-password')) {
+        accion = resultado === 'OK' ? 'SOLICITAR_RECUPERAR_PASSWORD' : 'SOLICITAR_RECUPERAR_PASSWORD_ERROR';
+        entidadId = (req.body?.email || null) as string | null;
+        detalle = resultado === 'OK'
+          ? `Solicitud de recuperación de contraseña para ${entidadId || 'correo'}.`
+          : `Fallo al solicitar recuperación: ${responseBody?.message || 'Error desconocido'}`;
+      } else if (metodoHttp === 'POST' && ruta.includes('/restablecer-password')) {
+        accion = resultado === 'OK' ? 'RESTABLECER_PASSWORD_EMAIL' : 'RESTABLECER_PASSWORD_EMAIL_ERROR';
+        detalle = resultado === 'OK'
+          ? 'Contraseña restablecida mediante enlace de correo.'
+          : `Fallo al restablecer contraseña por enlace: ${responseBody?.message || 'Error desconocido'}`;
       }
     }
     else if (ruta.startsWith('/api/operaciones/partes')) {

@@ -21,6 +21,8 @@ import { CarrosService } from '../../services/carros.service';
 import type { CarroDto } from '../../models/carro.dto';
 import { mensajeErrorFechaParteSiHay, rangoIsoListadoPartes, type PartesPeriodoFilter } from './partes-filtros-fecha.util';
 import { ParteVistaSoloLecturaComponent } from './parte-vista-solo-lectura.component';
+import { AuthService } from '../../services/auth.service';
+import { puedeEditarParteCompletado } from '../../utils/parte-edicion-roles.util';
 
 function parsePeriodoQuery(v: string | null): PartesPeriodoFilter {
   if (v === 'hoy' || v === 'semana' || v === 'mes' || v === 'todos') return v;
@@ -36,6 +38,7 @@ export interface ParteListaUI {
   fecha: string;
   direccion: string;
   estado: string;
+  motivoPendiente?: string;
   unidades: any[];
   obac: { nombre: string };
   dtoOriginal: ParteEmergenciaDTO;
@@ -61,6 +64,7 @@ export class PartesListaComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
   private readonly carrosApi = inject(CarrosService);
+  private readonly auth = inject(AuthService);
 
   partes: ParteListaUI[] = [];
   metricas: PartesMetricasResp | null = null;
@@ -178,6 +182,10 @@ export class PartesListaComponent implements OnInit {
     const meta = dto.metadata ?? {};
     const claveMeta =
       typeof meta.claveEmergencia === 'string' ? meta.claveEmergencia.trim() : '';
+    const motivoRaw =
+      (typeof dto.motivoPendiente === 'string' ? dto.motivoPendiente : null) ??
+      (typeof meta.motivoPendiente === 'string' ? meta.motivoPendiente : null);
+    const motivoPendiente = motivoRaw?.trim() || undefined;
     return {
       id: String(dto.id),
       claveEmergencia:
@@ -185,10 +193,22 @@ export class PartesListaComponent implements OnInit {
       fecha: dto.fecha ?? dto.fechaEmergencia ?? new Date().toISOString(),
       direccion: dto.direccion ?? 'Sin dirección',
       estado: dto.estado ?? 'PENDIENTE',
+      motivoPendiente,
       unidades: dto.unidades ?? dto.carrosAsistentes ?? [],
       obac: dto.obac ?? { nombre: dto.revisorRut ?? dto.obacId ?? 'Sin Oficial' },
       dtoOriginal: dto,
     };
+  }
+
+  puedeEditarParte(parte: ParteListaUI): boolean {
+    const estado = (parte.estado ?? '').trim().toUpperCase();
+    if (estado !== 'COMPLETADO') return true;
+    return puedeEditarParteCompletado(this.auth.usuarioActual?.rol);
+  }
+
+  textoMotivoPendiente(parte: ParteListaUI): string | null {
+    if ((parte.estado ?? '').trim().toUpperCase() !== 'PENDIENTE') return null;
+    return parte.motivoPendiente?.trim() || 'Pendiente de cierre o datos incompletos.';
   }
 
   private aplicarRespuestaPagina(p: PartesPaginaResp): void {

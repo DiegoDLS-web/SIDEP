@@ -54,13 +54,14 @@ export const agregarAsistencia = async (parteId: string, usuarioRut: string) => 
   // 1. Verify parte exists and is not canceled
   const parte = await prisma.parteEmergencia.findUnique({
     where: { id: parteId },
+    include: { estado: { select: { codigo: true } } },
   });
 
   if (!parte) {
     throw new NotFoundError('Parte de emergencia', parteId);
   }
 
-  if (parte.estadoId === 3) {
+  if (parte.estado?.codigo === 'ANULADO') {
     throw new ValidationError(['No se puede agregar asistencia a un parte anulado']);
   }
 
@@ -133,13 +134,14 @@ export const eliminarAsistencia = async (parteId: string, asistenciaId: string) 
   // 1. Verify parte
   const parte = await prisma.parteEmergencia.findUnique({
     where: { id: parteId },
+    include: { estado: { select: { codigo: true } } },
   });
 
   if (!parte) {
     throw new NotFoundError('Parte de emergencia', parteId);
   }
 
-  if (parte.estadoId === 3) {
+  if (parte.estado?.codigo === 'ANULADO') {
     throw new ValidationError(['No se puede modificar un parte anulado']);
   }
 

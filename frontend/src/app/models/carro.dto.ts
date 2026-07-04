@@ -37,6 +37,11 @@ export interface CarroDto {
   bolsos?: any[]; 
   materiales?: any[];
   historialRegistros?: CarroRegistroHistorialDto[];
+  ultimoCambioEstadoOperativo?: {
+    motivo: string;
+    fechaEfectiva: string;
+    registradoEn?: string;
+  } | null;
 }
 
 export interface CrearCarroDto {

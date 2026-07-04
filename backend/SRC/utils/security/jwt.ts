@@ -1,6 +1,13 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default_secret_key_change_me_in_prod';
+const JWT_SECRET_ENV = process.env.JWT_SECRET?.trim();
+if (!JWT_SECRET_ENV && process.env.NODE_ENV === 'production') {
+  throw new Error('JWT_SECRET es obligatorio en producción.');
+}
+if (!JWT_SECRET_ENV) {
+  console.warn('[SIDEP] JWT_SECRET no configurado — solo válido para desarrollo local.');
+}
+const JWT_SECRET = JWT_SECRET_ENV || 'default_secret_key_change_me_in_prod';
 
 /**
  * Genera un token JWT firmado con el payload especificado.

@@ -125,7 +125,6 @@ export const obtenerInventarioCarro = async (carroId: string) => {
 
 export const obtenerSelectorBolsos = async () => {
   const carros = await prisma.carro.findMany({
-    where: { estadoOperativo: 1 },
     include: {
       bolsos: {
         where: { activo: 1 },
@@ -240,6 +239,7 @@ export const obtenerSelectorBolsos = async () => {
     return {
       unidad: carro.nomenclatura,
       nombre: carro.nombre,
+      estadoOperativo: carro.estadoOperativo,
       cantidadBolsos: bolsos.length,
       bolsos,
       ultimaRevision,
@@ -376,6 +376,8 @@ export const guardarRevisionBolsoTrauma = async (
 
   const detalle = (payload['detalle'] as Record<string, unknown>) ?? {};
   const conteoBolso = contarItemsBolsoTrauma(detalle);
+  const estadoChecklist =
+    typeof payload['estadoChecklist'] === 'string' ? String(payload['estadoChecklist']).trim().toUpperCase() : '';
   const resultados = {
     ...detalle,
     inspector: payload['inspector'] ?? null,
@@ -383,6 +385,7 @@ export const guardarRevisionBolsoTrauma = async (
     observaciones: payload['observaciones'] ?? null,
     totalItems: conteoBolso?.totalItems ?? payload['totalItems'] ?? null,
     itemsOk: conteoBolso?.itemsOk ?? payload['itemsOk'] ?? null,
+    ...(estadoChecklist ? { estadoChecklist } : {}),
   };
 
   const ejecucion = await registrarEjecucion(

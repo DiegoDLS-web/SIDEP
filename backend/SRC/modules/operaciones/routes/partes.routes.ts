@@ -8,6 +8,7 @@ import {
   actualizarParte,
   anularParte,
 } from '../controllers/partes.controller';
+import { requireRoles } from '../../../middlewares/role.middleware';
 
 const router = Router();
 
@@ -17,6 +18,6 @@ router.get('/', obtenerPartes);
 router.post('/', crearParte);
 router.get('/:id', obtenerPartePorId);
 router.patch('/:id', actualizarParte);
-router.delete('/:id', anularParte);
+router.delete('/:id', requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), anularParte);
 
 export default router;

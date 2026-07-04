@@ -62,11 +62,13 @@ export class LicenciasService {
   cambiarEstado(
     id: string,
     estado: LicenciaEstado,
-    observacionResolucion?: string,
+    observacionResolucion: string,
+    fechaResolucion: string,
   ): Observable<LicenciaMedicaDto> {
     return this.http.patch<LicenciaMedicaDto>(`/api/licencias/${id}/estado`, {
       estado,
-      observacionResolucion: observacionResolucion?.trim() || null,
+      observacionResolucion: observacionResolucion.trim(),
+      fechaResolucion: fechaResolucion.trim(),
     });
   }
 

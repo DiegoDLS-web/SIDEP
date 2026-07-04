@@ -68,30 +68,7 @@ export class AuthService {
   }
 
   loginDemo(): Observable<SesionUsuarioDto> {
-    this.invalidateSesionCache();
-    return this.http.post<any>('/api/auth/login-demo', {}).pipe(
-      tap((resp) => {
-        this.storage.setToken(resp.data.token);
-      }),
-      map((resp) => mapLoginUsuarioASesion(resp.data.usuario)),
-      tap((user) => {
-        this.userSubject.next(user);
-        this.storage.setUsuarioGuardado(user);
-      }),
-      catchError(() => {
-        const user: SesionUsuarioDto = {
-          id: '0',
-          nombre: 'Modo Demo Local',
-          rol: 'ADMIN',
-          email: 'demo@local',
-          rut: '00.000.000-0',
-          activo: true,
-          requiereCambioPassword: false,
-        };
-        this.activarSesionLocal('demo-local-token', user);
-        return of(user);
-      }),
-    );
+    return throwError(() => new Error('El modo demo está deshabilitado. Usa tu RUT y contraseña institucional.'));
   }
 
   /** Valida el token con el servidor y actualiza usuario en memoria y en disco. */

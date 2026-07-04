@@ -34,9 +34,34 @@ npm install
 
 🔐 Configurar Variables de Entorno
 
-Crea un archivo .env dentro de la carpeta backend/ y pega tu URL de conexión a la base de datos de Neon:
+Copia el archivo de ejemplo y complétalo:
 
+```bash
+cd backend
+copy .env.example .env
+```
+
+Variables mínimas para desarrollo:
+
+```env
 DATABASE_URL="postgresql://usuario:password@host/neondb?sslmode=require"
+JWT_SECRET="un-secreto-largo-aleatorio"
+FRONTEND_URL=http://localhost:4200
+APP_PUBLIC_URL=http://localhost:4200
+```
+
+Para **recuperar contraseña por correo** (obligatorio en servidor):
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=tu-correo@gmail.com
+SMTP_PASS=contraseña-de-aplicacion
+SMTP_FROM="SIDEP <tu-correo@gmail.com>"
+```
+
+Ver `backend/.env.example` para la lista completa (Cloudinary, producción, etc.).
 
 🗄 Sincronizar Base de Datos
 
@@ -105,6 +130,17 @@ Neon Database
 El archivo proxy.conf.json está configurado para evitar errores CORS, redirigiendo:
 
 /api → http://localhost:3000
+
+En **producción**, el build de Angular usa rutas relativas `/api/`; configura nginx (o similar) para proxy al backend y define en el `.env` del servidor:
+
+| Variable | Uso |
+|----------|-----|
+| `NODE_ENV=production` | Activa validaciones de arranque |
+| `FRONTEND_URL` | Origen permitido en CORS (URL del frontend) |
+| `APP_PUBLIC_URL` | URL pública del frontend en enlaces de recuperación de contraseña |
+| `SMTP_*` | Envío de correos de recuperación de contraseña |
+
+Si `APP_PUBLIC_URL` queda en `localhost` en producción, los enlaces del correo no funcionarán para los usuarios.
 
 📌 Requisitos Previos
 

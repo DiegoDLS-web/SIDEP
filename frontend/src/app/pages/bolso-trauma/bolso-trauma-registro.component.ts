@@ -9,6 +9,7 @@ import { ChecklistsService } from '../../services/checklists.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { ToastService } from '../../services/toast.service';
+import { BorradorLocalService } from '../../services/borrador-local.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { AuthService } from '../../services/auth.service';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
@@ -23,6 +24,11 @@ import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-p
 import { ubicacionesPlantillaTraumaOficial } from './trauma-plantilla-oficial';
 import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
+import type { EstadoChecklist } from '../../models/checklist.dto';
+import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
+import { manejarErrorGuardadoConBorradorLocal, formatearFechaBorradorLocal } from '../../utils/borrador-local.util';
+import { CambioEstadoDialogService } from '../../services/cambio-estado-dialog.service';
+import { solicitarMotivoCambioEstado } from '../../utils/cambio-estado.util';
 
 type MaterialItem = {
   id: string;
@@ -141,6 +147,7 @@ function fusionarBolsosConPlantillaCanon(bolsos: Bolso[], unidad: string): Bolso
 })
 export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicionPendiente {
   readonly nombreListaSoloPersona = nombreListaSoloPersona;
+  readonly etiquetaEstadoChecklist = etiquetaEstadoChecklist;
 
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -150,6 +157,9 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly pdf = inject(PdfExportService);
   private readonly toast = inject(ToastService);
+  private readonly borradorLocal = inject(BorradorLocalService);
+  private readonly cambioEstadoDialog = inject(CambioEstadoDialogService);
+  estadoChecklistUi: EstadoChecklist = 'PENDIENTE';
   private readonly auth = inject(AuthService);
 
   constructor() {
@@ -167,6 +177,7 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
   /** Fecha planificada de inspección (YYYY-MM-DD). */
   fechaInspeccion = '';
   observaciones = '';
+  estadoChecklistSeleccionado: EstadoChecklist = 'PENDIENTE';
   /** Firma OBAC (PNG data URL). */
   firmaDataUrl = '';
   /** Firma del inspector (PNG data URL). */
@@ -209,6 +220,16 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
   registroTieneCambios(): boolean {
     if (this.editandoPlantilla) return this.plantillaBolsoTieneCambios();
     return this.controlEdicion.tieneCambios();
+  }
+
+  get puedeEditarEstadoChecklist(): boolean {
+    const rol = this.auth.usuarioActual?.rol?.toUpperCase() ?? '';
+    return rol === 'ADMIN' || rol === 'CAPITAN' || rol === 'TENIENTE';
+  }
+
+  estadoChecklistSugeridoBolso(): EstadoChecklist {
+    const { total, ok } = this.totalesBolsoActual();
+    return calcularEstadoChecklist(total, ok, this.observaciones);
   }
 
   ngOnInit(): void {
@@ -288,7 +309,10 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
         }
 
         this.controlEdicion.marcarLimpio();
+        this.estadoChecklistSeleccionado = this.estadoChecklistSugeridoBolso();
+        this.estadoChecklistUi = this.estadoChecklistSeleccionado;
         this.loading = false;
+        void this.ofrecerRestaurarBorradorLocal();
       },
       error: () => {
         this.usuarios = [];
@@ -616,6 +640,74 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
     }, 3800);
   }
 
+  private payloadBorradorLocal() {
+    return {
+      cuarteleroId: this.cuarteleroId,
+      nombreInspector: this.nombreInspector,
+      grupoGuardia: this.grupoGuardia,
+      observaciones: this.observaciones,
+      fechaInspeccion: this.fechaInspeccion,
+      bolsoNumero: this.bolsoNumero,
+      bolsos: this.bolsos,
+      firmaOficial: this.firmaResueltaObac() || null,
+      firmaInspector: this.firmaResueltaInspector() || null,
+      estadoChecklistSeleccionado: this.estadoChecklistSeleccionado,
+    };
+  }
+
+  private async ofrecerRestaurarBorradorLocal(): Promise<void> {
+    const saved = this.borradorLocal.obtener<ReturnType<BolsoTraumaRegistroComponent['payloadBorradorLocal']>>(
+      'bolso-trauma',
+      this.unidad,
+    );
+    if (!saved) return;
+    const ok = await this.confirmDialog.abrir({
+      title: 'Borrador sin conexión',
+      message: `Hay un borrador del bolso trauma guardado en este dispositivo (${formatearFechaBorradorLocal(saved.meta.guardadoEn)}). ¿Restaurarlo?`,
+      confirmText: 'Restaurar',
+      cancelText: 'Descartar',
+    });
+    if (!ok) {
+      this.borradorLocal.eliminar('bolso-trauma', this.unidad);
+      return;
+    }
+    const p = saved.payload;
+    this.cuarteleroId = p.cuarteleroId ?? this.cuarteleroId;
+    this.nombreInspector = p.nombreInspector ?? this.nombreInspector;
+    this.grupoGuardia = p.grupoGuardia ?? '';
+    this.observaciones = p.observaciones ?? '';
+    this.fechaInspeccion = p.fechaInspeccion ?? this.fechaInspeccion;
+    this.bolsoNumero = p.bolsoNumero ?? this.bolsoNumero;
+    this.bolsos = p.bolsos ?? this.bolsos;
+    if (p.firmaOficial?.startsWith('data:image')) this.firmaDataUrl = p.firmaOficial;
+    if (p.firmaInspector?.startsWith('data:image')) this.firmaInspectorDataUrl = p.firmaInspector;
+    if (p.estadoChecklistSeleccionado) {
+      this.estadoChecklistSeleccionado = p.estadoChecklistSeleccionado;
+      this.estadoChecklistUi = p.estadoChecklistSeleccionado;
+    }
+    this.toast.exito('Borrador local restaurado. Recuerda sincronizarlo con el servidor.');
+  }
+
+  async cambiarEstadoChecklistSeleccionado(nuevo: EstadoChecklist): Promise<void> {
+    const anterior = this.estadoChecklistSeleccionado;
+    if (nuevo === anterior) {
+      this.estadoChecklistUi = anterior;
+      return;
+    }
+    const confirmacion = await solicitarMotivoCambioEstado(this.cambioEstadoDialog, {
+      title: 'Cambiar estado del bolso trauma',
+      message: `Unidad ${this.unidad}. El cambio manual queda registrado.`,
+      estadoAnterior: etiquetaEstadoChecklist(anterior),
+      estadoNuevo: etiquetaEstadoChecklist(nuevo),
+    });
+    if (!confirmacion) {
+      this.estadoChecklistUi = anterior;
+      return;
+    }
+    this.estadoChecklistSeleccionado = nuevo;
+    this.estadoChecklistUi = nuevo;
+  }
+
   guardarFinal(): void {
     const v = this.validarBolsoCompleto();
     if (v) {
@@ -634,34 +726,55 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
     const { total, ok } = this.totalesBolsoActual();
     this.error = null;
     this.saving = true;
-    this.bolsosApi
-      .guardar(this.unidad, {
-        cuarteleroId: obacId,
-        inspector: this.nombreInspector,
-        grupoGuardia: this.grupoGuardia,
-        firmaOficial: this.firmaResueltaObac(),
-        firmaInspector: this.firmaResueltaInspector(),
-        observaciones: this.observaciones,
-        totalItems: total,
-        itemsOk: ok,
-        detalle: {
-          bolsos: this.bolsos,
-          fechaInspeccion: this.fechaInspeccion,
-          bolsoNumero: this.bolsoNumero,
-          borrador: false,
-        },
-      })
-      .subscribe({
+    const syncBody: Record<string, unknown> = {
+      cuarteleroId: obacId,
+      inspector: this.nombreInspector,
+      grupoGuardia: this.grupoGuardia,
+      firmaOficial: this.firmaResueltaObac(),
+      firmaInspector: this.firmaResueltaInspector(),
+      observaciones: this.observaciones,
+      totalItems: total,
+      itemsOk: ok,
+      estadoChecklist: this.estadoChecklistSeleccionado,
+      detalle: {
+        bolsos: this.bolsos,
+        fechaInspeccion: this.fechaInspeccion,
+        bolsoNumero: this.bolsoNumero,
+        borrador: false,
+        estadoChecklist: this.estadoChecklistSeleccionado,
+      },
+    };
+    this.bolsosApi.guardar(this.unidad, syncBody).subscribe({
         next: (reg) => {
+          this.borradorLocal.eliminar('bolso-trauma', this.unidad);
           this.saving = false;
           if (reg?.fecha) this.fechaCierreChecklist = reg.fecha;
           this.controlEdicion.marcarLimpio();
           this.toast.exito('Checklist de bolso trauma guardado.');
           void this.router.navigate(['/bolso-trauma']);
         },
-        error: () => {
-          this.error = 'No se pudo guardar el checklist de bolso trauma.';
-          this.toast.error('No se pudo guardar el checklist de bolso trauma.');
+        error: (err) => {
+          if (
+            manejarErrorGuardadoConBorradorLocal(
+              this.borradorLocal,
+              this.toast,
+              'bolso-trauma',
+              this.unidad,
+              this.payloadBorradorLocal(),
+              err,
+              {
+                mensajeError: 'No se pudo guardar el checklist de bolso trauma.',
+                syncRequest: { kind: 'bolso-trauma', unidad: this.unidad, body: syncBody },
+                onGuardadoLocal: () => {
+                  this.controlEdicion.marcarLimpio();
+                },
+              },
+            )
+          ) {
+            this.error = null;
+          } else {
+            this.error = 'No se pudo guardar el checklist de bolso trauma.';
+          }
           this.saving = false;
         },
       });
@@ -676,25 +789,25 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
     const { total, ok } = this.totalesBolsoActual();
     this.error = null;
     this.savingBorrador = true;
-    this.bolsosApi
-      .guardar(this.unidad, {
-        cuarteleroId: obacBorrador,
-        inspector: this.nombreInspector,
-        grupoGuardia: this.grupoGuardia,
-        firmaOficial: this.firmaResueltaObac() || undefined,
-        firmaInspector: this.firmaResueltaInspector() || undefined,
-        observaciones: this.observaciones,
-        totalItems: total,
-        itemsOk: ok,
-        detalle: {
-          bolsos: this.bolsos,
-          fechaInspeccion: this.fechaInspeccion,
-          bolsoNumero: this.bolsoNumero,
-          borrador: true,
-        },
-      })
-      .subscribe({
+    const syncBody: Record<string, unknown> = {
+      cuarteleroId: obacBorrador,
+      inspector: this.nombreInspector,
+      grupoGuardia: this.grupoGuardia,
+      firmaOficial: this.firmaResueltaObac() || undefined,
+      firmaInspector: this.firmaResueltaInspector() || undefined,
+      observaciones: this.observaciones,
+      totalItems: total,
+      itemsOk: ok,
+      detalle: {
+        bolsos: this.bolsos,
+        fechaInspeccion: this.fechaInspeccion,
+        bolsoNumero: this.bolsoNumero,
+        borrador: true,
+      },
+    };
+    this.bolsosApi.guardar(this.unidad, syncBody).subscribe({
         next: (reg) => {
+          this.borradorLocal.eliminar('bolso-trauma', this.unidad);
           this.savingBorrador = false;
           if (reg?.fecha) this.fechaCierreChecklist = reg.fecha;
           this.controlEdicion.marcarLimpio();
@@ -702,9 +815,28 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
           this.toast.exito('Borrador de bolso trauma guardado.');
           void this.router.navigate(['/bolso-trauma']);
         },
-        error: () => {
-          this.error = 'No se pudo guardar el borrador.';
-          this.toast.error('No se pudo guardar el borrador.');
+        error: (err) => {
+          if (
+            manejarErrorGuardadoConBorradorLocal(
+              this.borradorLocal,
+              this.toast,
+              'bolso-trauma',
+              this.unidad,
+              this.payloadBorradorLocal(),
+              err,
+              {
+                mensajeError: 'No se pudo guardar el borrador.',
+                syncRequest: { kind: 'bolso-trauma', unidad: this.unidad, body: syncBody },
+                onGuardadoLocal: () => {
+                  this.controlEdicion.marcarLimpio();
+                },
+              },
+            )
+          ) {
+            this.error = null;
+          } else {
+            this.error = 'No se pudo guardar el borrador.';
+          }
           this.savingBorrador = false;
         },
       });

@@ -1,5 +1,9 @@
 import { Request, Response } from 'express';
 import { loginUsuario, registrarUsuario } from './autenticacion.service';
+import {
+    restablecerPasswordConToken,
+    solicitarRecuperacionPassword,
+} from './password-reset.service';
 import prisma from '../../prisma'; 
 import { validarRut } from '../../utils/rut.util';
 import { esErrorConexionPrisma } from '../../utils/db-retry.util';
@@ -135,4 +139,71 @@ export const loginDemo = async (req: Request, res: Response) => {
 // 6. CAMBIAR PASSWORD
 export const cambiarPassword = async (req: Request, res: Response) => {
     return res.status(200).json({ success: true, message: 'Funcionalidad en desarrollo' });
+};
+
+export const recuperarPassword = async (req: Request, res: Response) => {
+    try {
+        const email = String(req.body?.email ?? '').trim();
+        if (!email || !email.includes('@')) {
+            return res.status(400).json({ success: false, message: 'Ingresa un correo válido.', codigo: 'EMAIL_INVALIDO' });
+        }
+        const resultado = await solicitarRecuperacionPassword(email);
+        if (!resultado.ok) {
+            const porCodigo: Record<string, { status: number; message: string }> = {
+                EMAIL_NO_REGISTRADO: {
+                    status: 404,
+                    message: 'Este correo no está asociado a ninguna cuenta activa en SIDEP.',
+                },
+                USUARIO_SIN_ACCESO: {
+                    status: 403,
+                    message: 'Esta cuenta no tiene acceso activo al sistema. Contacte a la administración.',
+                },
+                SMTP_NO_CONFIGURADO: {
+                    status: 503,
+                    message:
+                        'El envío de correo no está disponible. Contacte al administrador del sistema.',
+                },
+                ERROR_ENVIO: {
+                    status: 502,
+                    message: 'No se pudo enviar el correo de recuperación. Intente más tarde o contacte al administrador.',
+                },
+            };
+            const det = porCodigo[resultado.codigo] ?? {
+                status: 500,
+                message: 'No se pudo procesar la solicitud.',
+            };
+            return res.status(det.status).json({
+                success: false,
+                message: det.message,
+                codigo: resultado.codigo,
+            });
+        }
+        return res.status(200).json({
+            success: true,
+            message:
+                'Correo enviado. Revisa tu bandeja de entrada y la carpeta de spam. El enlace es válido por 2 horas.',
+        });
+    } catch (error: any) {
+        console.error('Error recuperar password:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'No se pudo procesar la solicitud. Intenta más tarde.',
+        });
+    }
+};
+
+export const restablecerPassword = async (req: Request, res: Response) => {
+    try {
+        const token = String(req.body?.token ?? '').trim();
+        const password = String(req.body?.password ?? '');
+        if (!token || !password) {
+            return res.status(400).json({ success: false, message: 'Token y contraseña requeridos.' });
+        }
+        await restablecerPasswordConToken(token, password);
+        return res.status(200).json({ success: true, message: 'Contraseña actualizada correctamente.' });
+    } catch (error: any) {
+        const msg = String(error?.message ?? 'No se pudo restablecer la contraseña.');
+        const status = msg.includes('inválido') || msg.includes('expirado') || msg.includes('8 caracteres') ? 400 : 500;
+        return res.status(status).json({ success: false, message: msg });
+    }
 };

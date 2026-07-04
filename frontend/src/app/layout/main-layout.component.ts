@@ -11,7 +11,9 @@ import { MotionProfileService } from '../services/motion-profile.service';
 import { UiDensityService } from '../services/ui-density.service';
 import { SidepIconsModule } from '../shared/sidep-icons.module';
 import { ConfirmDialogComponent } from '../shared/confirm-dialog.component';
+import { CambioEstadoDialogComponent } from '../shared/cambio-estado-dialog.component';
 import { ConfiguracionesService } from '../services/configuraciones.service';
+import { BorradorSyncService } from '../services/borrador-sync.service';
 import { SidepBrandLockupComponent } from '../shared/sidep-brand-lockup.component';
 import type { SesionUsuarioDto } from '../models/auth.dto';
 import { WelcomeOverlayComponent } from '../shared/welcome-overlay.component';
@@ -41,6 +43,7 @@ type NavSection = { title: string; items: NavItem[] };
     RouterLink,
     SidepIconsModule,
     ConfirmDialogComponent,
+    CambioEstadoDialogComponent,
     SidepBrandLockupComponent,
     WelcomeOverlayComponent,
   ],
@@ -56,6 +59,7 @@ export class MainLayoutComponent implements OnDestroy {
   private readonly motionProfile = inject(MotionProfileService);
   private readonly uiDensity = inject(UiDensityService);
   private readonly configApi = inject(ConfiguracionesService);
+  private readonly borradorSync = inject(BorradorSyncService);
   /** Subtítulo del lockup desde configuración del sistema. */
   readonly nombreCompaniaTag = signal<string | null>(null);
   sidebarAbierto = false;
@@ -118,6 +122,7 @@ export class MainLayoutComponent implements OnDestroy {
     this.auth.usuario$.subscribe((u) => {
       if (u) {
         this.navUi.refrescar();
+        this.borradorSync.iniciarEscuchaAutomatica();
       } else {
         this.navUi.limpiar();
       }

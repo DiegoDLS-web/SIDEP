@@ -48,10 +48,20 @@ export const getUsuarioById = asyncHandler(async (req: Request, res: Response) =
   res.status(200).json(mapUsuarioToDto(usuario));
 });
 
+function validarAsignacionRolAdmin(req: Request, rol?: string | null): void {
+  const rolSolicitado = String(rol ?? '').trim().toUpperCase();
+  if (rolSolicitado !== 'ADMIN') return;
+  const actorRol = String((req as any).dbUser?.rol?.codigo ?? '').trim().toUpperCase();
+  if (actorRol !== 'ADMIN') {
+    throw new ValidationError(['Solo un administrador puede asignar el rol ADMIN.']);
+  }
+}
+
 export const postUsuario = asyncHandler(async (req: Request, res: Response) => {
   if (!req.body.rut || !validarRut(req.body.rut)) {
     throw new ValidationError(['El RUT no es válido.']);
   }
+  validarAsignacionRolAdmin(req, req.body.rol);
   const nuevo = await usuariosService.crearUsuario(req.body);
   res.status(201).json(nuevo);
 });
@@ -66,6 +76,10 @@ export const patchUsuario = asyncHandler(async (req: Request, res: Response) => 
     if (!req.body.rut || !validarRut(req.body.rut)) {
       throw new ValidationError(['El RUT no es válido.']);
     }
+  }
+
+  if (req.body.rol !== undefined) {
+    validarAsignacionRolAdmin(req, req.body.rol);
   }
 
   const actualizado = await usuariosService.actualizarUsuario(rut, req.body);

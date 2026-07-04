@@ -9,6 +9,10 @@ import {
   resolverSemaforoDesdeChecklist,
   resolverSemaforoUnidad,
 } from '../../../utils/checklist-estado-operativo.util';
+import {
+  detalleEstadoOficialCarro,
+  parsearUltimoCambioEstadoCarro,
+} from '../../../utils/carro-estado-auditoria.util';
 
 function parseMetadataParte(raw: string | null | undefined): Record<string, unknown> | null {
   if (!raw) return null;
@@ -61,9 +65,9 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
   // 1. Total Emergencias
   const totalEmergencias = await prisma.parteEmergencia.count({ where: whereClause });
 
-  // 2. Porcentaje Resueltas (estadoId = 2)
+  // 2. Porcentaje resueltas (COMPLETADO; no usar estadoId numérico: PENDIENTE=2, COMPLETADO=3)
   const totalResueltas = await prisma.parteEmergencia.count({
-    where: { ...whereClause, estadoId: 2 },
+    where: { ...whereClause, estado: { codigo: 'COMPLETADO' } },
   });
   const porcentajeResueltas = totalEmergencias > 0 ? Math.round((totalResueltas / totalEmergencias) * 100) : 0;
 
@@ -129,7 +133,9 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
     const code = claveCodigoParte(p);
     typeGroups[code] = (typeGroups[code] || 0) + 1;
   }
-  const porTipo = Object.entries(typeGroups).map(([claveEmergencia, cantidad]) => ({ claveEmergencia, cantidad }));
+  const porTipo = Object.entries(typeGroups)
+    .map(([claveEmergencia, cantidad]) => ({ claveEmergencia, cantidad }))
+    .sort((a, b) => b.cantidad - a.cantidad || a.claveEmergencia.localeCompare(b.claveEmergencia));
 
   // 7. Recientes
   const recientesPartes = await prisma.parteEmergencia.findMany({
@@ -198,6 +204,22 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
   });
   const carros = carroIdFilter ? carrosTodos.filter((c) => c.id === carroIdFilter) : carrosTodos;
 
+  const cambiosEstadoAuditoria = await prisma.auditoriaUsuario.findMany({
+    where: {
+      accion: 'CAMBIAR_ESTADO_CARRO',
+      resultado: 'OK',
+      entidadId: { in: carros.map((c) => c.id) },
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { entidadId: true, detalle: true },
+  });
+  const ultimoCambioEstadoPorCarro = new Map<string, { motivo: string; fechaEfectiva: string }>();
+  for (const row of cambiosEstadoAuditoria) {
+    if (!row.entidadId || ultimoCambioEstadoPorCarro.has(row.entidadId)) continue;
+    const parsed = parsearUltimoCambioEstadoCarro(row.detalle);
+    if (parsed) ultimoCambioEstadoPorCarro.set(row.entidadId, parsed);
+  }
+
   const ejecucionesSemaforo = await prisma.checklistEjecucion.findMany({
     orderBy: { fechaRevision: 'desc' },
   });
@@ -251,15 +273,37 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
     const cleanCarId = c.id.replace(/[^0-9]/g, '');
     const carroIdNum = parseInt(cleanCarId, 10) || 0;
 
+    const ultimoCambioEstado = ultimoCambioEstadoPorCarro.get(c.id);
+
     if (semaforo === 'fuera_servicio') {
-      const detalleCriticos = evaluacionUnidad?.itemsCriticos
-        ? `Faltan ${evaluacionUnidad.itemsCriticos} material(es) crítico(s) según el último checklist.`
-        : `El carro ${c.nombre} está marcado como no operativo.`;
+      let detalleCriticos: string;
+      if (c.estadoOperativo === 0) {
+        detalleCriticos = detalleEstadoOficialCarro(
+          ultimoCambioEstado,
+          `${c.nomenclatura} fuera de servicio por decisión oficial.`,
+        );
+      } else if (evaluacionUnidad?.itemsCriticos) {
+        detalleCriticos = `Faltan ${evaluacionUnidad.itemsCriticos} material(es) crítico(s) según el último checklist.`;
+      } else {
+        detalleCriticos = `El carro ${c.nombre} está marcado como no operativo.`;
+      }
       alertas.push({
         tipo: 'carro_fuera_servicio',
         severidad: 'critico',
         titulo: `Unidad ${c.nomenclatura} Fuera de Servicio`,
         detalle: detalleCriticos,
+        carroId: carroIdNum,
+        nomenclatura: c.nomenclatura,
+      });
+    } else if (c.estadoOperativo === 2) {
+      alertas.push({
+        tipo: 'mantencion_manual',
+        severidad: 'advertencia',
+        titulo: `Unidad ${c.nomenclatura} en mantención`,
+        detalle: detalleEstadoOficialCarro(
+          ultimoCambioEstado,
+          `${c.nomenclatura} en mantención (decisión oficial).`,
+        ),
         carroId: carroIdNum,
         nomenclatura: c.nomenclatura,
       });

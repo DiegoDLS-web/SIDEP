@@ -58,7 +58,7 @@ export class CatalogoTiposEmergenciaComponent implements OnInit, ComponenteConEd
   }
 
   ngOnInit(): void {
-    this.configApi.obtener().subscribe({
+    this.configApi.obtenerOperativa().subscribe({
       next: (cfg) => {
         if (cfg.tiposEmergencia && cfg.tiposEmergencia.length > 0) {
           this.filas = cfg.tiposEmergencia.map((t) => ({

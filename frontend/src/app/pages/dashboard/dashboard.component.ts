@@ -89,10 +89,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   maxMes = 1;
   /** Tooltip en barras del gráfico mensual. */
   chartBarHover: { im: number; serie: 'a' | 'p' } | null = null;
-  /** Tooltip en celdas del heatmap semanal. */
-  chartHeatHover: { iw: number; id: number } | null = null;
-  /** Tooltip en barras de tipos de emergencia. */
-  chartTipoHover: number | null = null;
   private static readonly HEATMAP_SEMANAS = 4;
   cuadroHonor: CuadroHonorDto | null = null;
   mostrarCuadroHonor = true;
@@ -211,32 +207,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   onMesChartBarEnter(ix: number, serie: 'a' | 'p'): void {
     this.chartBarHover = { im: ix, serie };
-    this.chartHeatHover = null;
-    this.chartTipoHover = null;
   }
 
   clearChartBarHover(): void {
     this.chartBarHover = null;
   }
 
-  onHeatCellEnter(iw: number, id: number): void {
-    this.chartHeatHover = { iw, id };
-    this.chartBarHover = null;
-    this.chartTipoHover = null;
-  }
-
-  clearHeatHover(): void {
-    this.chartHeatHover = null;
-  }
-
-  onTipoBarEnter(ix: number): void {
-    this.chartTipoHover = ix;
-    this.chartBarHover = null;
-    this.chartHeatHover = null;
-  }
-
-  clearTipoHover(): void {
-    this.chartTipoHover = null;
+  cantidadBarraMesHover(m: { cantidadActual: number; cantidadPrev: number }): number {
+    const h = this.chartBarHover;
+    if (!h) return 0;
+    return h.serie === 'a' ? m.cantidadActual : m.cantidadPrev;
   }
 
   alturaBarraMes(cantidad: number, max: number): number {
@@ -253,14 +233,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const n = m.cantidadPrev;
     const y = this.anio - 1;
     return `${m.mes} ${y}: ${n} ${n === 1 ? 'emergencia' : 'emergencias'}`;
-  }
-
-  tooltipBarraMesActiva(): string | null {
-    const h = this.chartBarHover;
-    if (!h) return null;
-    const m = this.mesesChart[h.im];
-    if (!m) return null;
-    return h.serie === 'a' ? this.tooltipBarraMesActual(m) : this.tooltipBarraMesPrev(m);
   }
 
   private inicioHeatmap(): Date {
@@ -281,24 +253,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return `${fecha}: ${val} ${val === 1 ? 'emergencia' : 'emergencias'}`;
   }
 
-  heatmapTooltipActivo(): string | null {
-    const h = this.chartHeatHover;
-    if (!h || !this.datos) return null;
-    const val = this.datos.heatmapSemanas[h.iw]?.[h.id] ?? 0;
-    return this.heatmapEtiqueta(h.iw, h.id, val);
-  }
-
-  tooltipTipoEmergencia(t: { claveEmergencia: string; cantidad: number }): string {
-    return `${this.etiquetaClave(t.claveEmergencia)}: ${t.cantidad} ${t.cantidad === 1 ? 'emergencia' : 'emergencias'}`;
-  }
-
-  tooltipTipoActivo(): string | null {
-    const ix = this.chartTipoHover;
-    if (ix == null) return null;
-    const t = this.tiposEmergenciaTop()[ix];
-    return t ? this.tooltipTipoEmergencia(t) : null;
-  }
-
   maxPorTipo(): number {
     const t = this.tiposEmergenciaTop();
     return Math.max(...t.map((x) => x.cantidad), 1);
@@ -316,7 +270,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   tiposEmergenciaTop(): Array<{ claveEmergencia: string; cantidad: number }> {
-    return (this.datos?.porTipo ?? []).slice(0, 8);
+    return [...(this.datos?.porTipo ?? [])]
+      .sort((a, b) => b.cantidad - a.cantidad || a.claveEmergencia.localeCompare(b.claveEmergencia, 'es'))
+      .slice(0, 8);
   }
 
   chartSinDatosAnio(): boolean {
@@ -340,11 +296,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   heatClass(val: number): string {
-    if (val === 0) return 'bg-gray-800';
-    const ratio = val / this.maxHeat();
-    if (ratio < 0.25) return 'bg-red-900';
-    if (ratio < 0.5) return 'bg-red-700';
-    if (ratio < 0.75) return 'bg-red-600';
+    if (val <= 0) return 'bg-gray-800';
+    if (val === 1) return 'bg-red-950';
+    if (val === 2) return 'bg-red-900';
+    if (val <= 4) return 'bg-red-700';
+    if (val <= 6) return 'bg-red-600';
     return 'bg-red-500';
   }
 

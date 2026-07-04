@@ -261,7 +261,7 @@
           <article class="rounded-xl border border-slate-800 bg-[#0a0a0a] p-3">
             <div class="mb-2 flex items-start justify-between gap-2">
               <div class="min-w-0">
-                <p class="truncate text-sm font-semibold text-gray-100">#{{ l.id }} · {{ l.usuario?.nombre || ('Usuario #' + l.usuarioId) }}</p>
+                <p class="truncate text-sm font-semibold text-gray-100">{{ correlativoLicencia(l, gestionLicencias) }} · {{ l.usuario?.nombre || ('Usuario #' + l.usuarioId) }}</p>
                 <p class="text-xs text-gray-500">{{ l.usuario?.rol || '—' }} · {{ fecha(l.fechaInicio) }} – {{ fecha(l.fechaTermino) }}</p>
               </div>
               <span class="sid-status-chip shrink-0" [ngClass]="l.estado === 'APROBADA' ? 'sid-status-chip-ok' : l.estado === 'RECHAZADA' ? 'sid-status-chip-danger' : l.estado === 'ANULADA' ? 'sid-status-chip-neutral' : 'sid-status-chip-warn'">
@@ -324,7 +324,7 @@
             @for (l of gestionLicenciasPaginadas; track l.id) {
               <tr>
                 <td class="align-top text-gray-200">
-                  <span class="font-mono text-[11px] text-slate-500">#{{ l.id }}</span>
+                  <span class="font-mono text-[11px] text-slate-500">{{ correlativoLicencia(l, gestionLicencias) }}</span>
                   <p class="font-medium text-gray-100">{{ l.usuario?.nombre || ('Usuario #' + l.usuarioId) }}</p>
                   <p class="text-slate-500">{{ l.usuario?.rol || '—' }}</p>
                 </td>

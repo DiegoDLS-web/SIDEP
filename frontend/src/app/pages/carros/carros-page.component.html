@@ -88,8 +88,11 @@
             </div>
           </div>
           <div class="flex flex-1 flex-col p-4 sm:p-5">
-            @if (alertaMantenimiento(carro) || alertaRevisionTecnica(carro) || alertaPermisoCirculacion(carro)) {
+            @if (hayAlertasCarro(carro)) {
               <div class="mb-4 space-y-2 rounded-lg border border-yellow-600/40 bg-yellow-950/20 p-3">
+                @if (alertaDatosMantenimientoFaltantes(carro); as faltante) {
+                  <p class="text-xs text-cyan-200">ℹ {{ faltante }}</p>
+                }
                 @if (alertaMantenimiento(carro); as alertaMant) {
                   <p class="text-xs text-yellow-300">⚠ {{ alertaMant }}</p>
                 }
@@ -420,7 +423,7 @@
                 class="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/50 px-4 py-2 text-sm font-medium shadow-lg backdrop-blur-sm"
                 [ngClass]="estadoClaseTexto(c)"
               >
-                @if (c.estadoOperativo && !mantenimientoVencido(c)) {
+                @if (c.estadoOperativo === 1 && !mantenimientoVencido(c)) {
                   <lucide-icon name="circle-check" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
                 } @else {
                   <lucide-icon name="triangle-alert" class="h-5 w-5" [size]="20" color="currentColor"></lucide-icon>
@@ -428,17 +431,46 @@
                 {{ estadoEtiqueta(c) }}
               </span>
               @if (puedeEditarEstado) {
-                <button
-                  type="button"
-                  class="sid-btn sid-btn-neutral mt-3 w-full rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800"
-                  (click)="toggleEstado(c)"
-                >
-                  Marcar como {{ c.estadoOperativo === 1 ? 'fuera de servicio' : 'operativa' }}
-                </button>
+                <label class="mt-3 block w-full max-w-xs text-left text-xs text-slate-400">
+                  Estado operativo
+                  <select
+                    class="mt-1 w-full min-h-[40px] rounded-lg border border-slate-600 bg-black/60 px-3 py-2 text-sm text-white"
+                    [ngModel]="estadoOperativoUi"
+                    (ngModelChange)="cambiarEstado(c, $event)"
+                  >
+                    <option [ngValue]="1">Operativa</option>
+                    <option [ngValue]="0">Fuera de servicio</option>
+                    <option [ngValue]="2">En mantención</option>
+                  </select>
+                </label>
               }
             </div>
           </div>
         </div>
+
+        @if (c.estadoOperativo !== 1 && c.ultimoCambioEstadoOperativo; as cambio) {
+          <div class="mx-4 mb-0 rounded-xl border border-amber-800/50 bg-amber-950/25 px-4 py-3 text-sm md:mx-6">
+            <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-300/90">
+              @if (c.estadoOperativo === 2) {
+                Decisión oficial — en mantención
+              } @else {
+                Decisión oficial — fuera de servicio
+              }
+            </p>
+            @if (cambio.motivo) {
+              <p class="text-slate-200">
+                <span class="text-slate-400">Motivo:</span>
+                {{ cambio.motivo }}
+              </p>
+            }
+            @if (cambio.fechaEfectiva) {
+              <p class="mt-1 text-slate-300">
+                <span class="text-slate-400">Fecha efectiva:</span>
+                {{ fechaCorta(cambio.fechaEfectiva) }}
+              </p>
+            }
+          </div>
+        }
 
         <div class="rounded-b-2xl p-4 md:p-6">
           <h2 class="mb-4 text-lg font-bold text-white md:text-xl">Información general</h2>
@@ -478,8 +510,11 @@
           <h2 id="seccion-mantenimiento-carro" class="scroll-mt-28 mb-4 text-lg font-bold text-white md:text-xl">
             Mantenimiento
           </h2>
-          @if (alertaMantenimiento(c) || alertaRevisionTecnica(c) || alertaPermisoCirculacion(c)) {
+          @if (hayAlertasCarro(c)) {
             <div class="mb-4 rounded-lg border border-yellow-600/40 bg-yellow-950/20 p-3 md:p-4">
+              @if (alertaDatosMantenimientoFaltantes(c); as faltante) {
+                <p class="text-sm text-cyan-200">ℹ {{ faltante }}</p>
+              }
               @if (alertaMantenimiento(c); as alertaMant) {
                 <p class="text-sm text-yellow-200">⚠ {{ alertaMant }}</p>
               }

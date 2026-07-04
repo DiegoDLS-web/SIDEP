@@ -22,6 +22,7 @@ import {
   Clock,
   Droplet,
   Eye,
+  EyeOff,
   FileDown,
   FilePlus2,
   FileSpreadsheet,
@@ -68,7 +69,7 @@ import {
 export const icons = {
   AlertCircle, ArchiveX, ArrowLeft, Bell, Briefcase, Building2, Check, Database, Calendar, CalendarDays,
   Car, ChartColumn, CircleCheck, ChevronDown, ChevronRight, ChevronUp,
-  ClipboardCheck, ClipboardList, Clock, Droplet, Eye, FileDown, FilePlus2, FileSpreadsheet, FileText,
+  ClipboardCheck, ClipboardList, Clock, Droplet, Eye, EyeOff, FileDown, FilePlus2, FileSpreadsheet, FileText,
   Flame, HeartPulse, History, Funnel, ImageDown, Key, LayoutDashboard, Loader2, Lock, LogIn,
   LogOut, Mail, Menu, MapPin, Package, Pencil, PenTool, Phone, Plus, PlusCircle, RefreshCw, Save, Search,
   Send, Settings, Shield, ShieldCheck, TrendingDown, TrendingUp, TriangleAlert, Truck,

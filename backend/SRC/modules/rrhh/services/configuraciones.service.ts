@@ -41,6 +41,33 @@ export function mapConfiguracionToDto(config: any) {
   };
 }
 
+/** Datos operativos sin navegación por rol ni preferencias de notificación (lectura para cualquier autenticado). */
+export function mapConfiguracionOperativaToDto(config: any) {
+  let tipos = undefined;
+  if (config.tiposEmergencia) {
+    try {
+      tipos = JSON.parse(config.tiposEmergencia);
+    } catch (e) { }
+  }
+
+  return {
+    compania: {
+      nombreCompania: config.nombreCompania || '',
+      nombreBomba: config.nombreBomba || '',
+      direccion: config.direccion || '',
+      telefono: config.telefono || '',
+      emailInstitucional: config.emailInstitucional || '',
+      fechaFundacion: config.fechaFundacion ? config.fechaFundacion.toISOString().split('T')[0] : '',
+    },
+    reportes: {
+      formatoPredeterminado: config.formatoPredeterminado || 'PDF',
+      logosPdf: config.logosPdf || 'AMBOS',
+      orientacionPdf: config.orientacionPdf || 'VERTICAL',
+    },
+    tiposEmergencia: tipos,
+  };
+}
+
 export const getDbConfiguracion = async () => {
   let config = await prisma.configuracionSistema.findUnique({ where: { id: 1 } });
   if (!config) {
@@ -57,6 +84,11 @@ export const getDbConfiguracion = async () => {
 export const obtenerConfiguracionesService = async () => {
   const config = await getDbConfiguracion();
   return mapConfiguracionToDto(config);
+};
+
+export const obtenerConfiguracionOperativaService = async () => {
+  const config = await getDbConfiguracion();
+  return mapConfiguracionOperativaToDto(config);
 };
 
 export const actualizarConfiguracionesService = async (data: any) => {

@@ -24,11 +24,15 @@ import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
 import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
 import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
+import { CambioEstadoDialogService } from '../../services/cambio-estado-dialog.service';
+import { solicitarMotivoCambioEstado } from '../../utils/cambio-estado.util';
 import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
 import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
 import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
 import { exportarExcelSidep } from '../../utils/excel-export.util';
 import { SIDEP_ACTION_ICON } from '../../shared/sidep-action-icons';
+import { BorradorLocalService } from '../../services/borrador-local.service';
+import { formatearFechaBorradorLocal, manejarErrorGuardadoConBorradorLocal } from '../../utils/borrador-local.util';
 
 type CarrosView =
   | { status: 'loading' }
@@ -63,6 +67,9 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
   private readonly usuariosApi = inject(UsuariosService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly toast = inject(ToastService);
+  private readonly borradorLocal = inject(BorradorLocalService);
+  private readonly cambioEstadoDialog = inject(CambioEstadoDialogService);
+  estadoOperativoUi = 1;
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly cdr = inject(ChangeDetectorRef);
 
@@ -168,6 +175,7 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
           this.historialGeneralFilas = [];
           this.historialGeneralLoading = false;
           if (view.status === 'detail') {
+            this.estadoOperativoUi = view.carro.estadoOperativo;
             const row = history.state?.editMantenimiento as CarroHistorialGeneralFila | undefined;
             if (row && String(row.carroId) === String(view.carro.id)) {
               this.abrirEdicionHistorial(view.carro, row);
@@ -547,7 +555,13 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
 
   get puedeEditarEstado(): boolean {
     const rol = this.auth.usuarioActual?.rol?.toUpperCase() ?? '';
-    return rol === 'ADMIN' || rol === 'OFICIAL';
+    return rol === 'ADMIN' || rol === 'CAPITAN' || rol === 'TENIENTE';
+  }
+
+  etiquetaEstadoOperativo(valor: number): string {
+    if (valor === 0) return 'Fuera de servicio';
+    if (valor === 2) return 'En mantención';
+    return 'Operativa';
   }
 
   mantenimientoVencido(c: CarroDto): boolean {
@@ -564,14 +578,15 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
   }
 
   estadoEtiqueta(c: CarroDto): string {
-    if (c.estadoOperativo !== 1) return 'Fuera de servicio';
+    if (c.estadoOperativo === 0) return 'Fuera de servicio';
+    if (c.estadoOperativo === 2) return 'En mantención';
     if (this.mantenimientoVencido(c)) return 'En mantención';
     return 'Operativa';
   }
 
   estadoClaseTexto(c: CarroDto): string {
-    if (c.estadoOperativo !== 1) return 'text-red-400';
-    if (this.mantenimientoVencido(c)) return 'text-amber-400';
+    if (c.estadoOperativo === 0) return 'text-red-400';
+    if (c.estadoOperativo === 2 || this.mantenimientoVencido(c)) return 'text-amber-400';
     return 'text-green-500';
   }
 
@@ -636,6 +651,39 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
     this.errorValidacion = null;
     this.limpiarEditFormMantenimiento();
     this.controlEdicionMantenimiento.marcarLimpio();
+    void this.ofrecerRestaurarBorradorMantenimiento(carro);
+  }
+
+  private async ofrecerRestaurarBorradorMantenimiento(carro: CarroDto): Promise<void> {
+    type EditFormSnapshot = {
+      ultimoConductor: string;
+      ultimoMantenimiento: string;
+      proximoMantenimiento: string;
+      proximaRevisionTecnica: string;
+      ultimaRevisionBombaAgua: string;
+      descripcionUltimoMantenimiento: string;
+      ultimoInspector: string;
+      firmaUltimoInspector: string;
+      fechaUltimaInspeccion: string;
+    };
+    const saved = this.borradorLocal.obtener<{
+      editForm: EditFormSnapshot;
+      mantenimientoEditId: string | null;
+    }>('carro-mantenimiento', String(carro.id));
+    if (!saved) return;
+    const ok = await this.confirmDialog.abrir({
+      title: 'Mantención sin conexión',
+      message: `Hay un registro de mantención guardado localmente (${formatearFechaBorradorLocal(saved.meta.guardadoEn)}). ¿Restaurarlo?`,
+      confirmText: 'Restaurar',
+      cancelText: 'Descartar',
+    });
+    if (!ok) {
+      this.borradorLocal.eliminar('carro-mantenimiento', String(carro.id));
+      return;
+    }
+    Object.assign(this.editForm, saved.payload.editForm);
+    this.mantenimientoEditId = saved.payload.mantenimientoEditId;
+    this.toast.exito('Registro de mantención restaurado desde este dispositivo.');
   }
 
   editarHistorialMantenimiento(row: CarroHistorialGeneralFila): void {
@@ -778,6 +826,7 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
     const esEdicionHistorial = !!this.mantenimientoEditId;
 
     const onOk = (actualizado: CarroDto) => {
+      this.borradorLocal.eliminar('carro-mantenimiento', String(carro.id));
       Object.assign(carro, actualizado);
       this.guardando = false;
       this.cerrarEdicionMantenimiento();
@@ -791,6 +840,44 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
     };
 
     const onErr = (err: unknown) => {
+      const payloadLocal = {
+        editForm: { ...this.editForm },
+        mantenimientoEditId: this.mantenimientoEditId,
+      };
+      if (
+        manejarErrorGuardadoConBorradorLocal(
+          this.borradorLocal,
+          this.toast,
+          'carro-mantenimiento',
+          String(carro.id),
+          payloadLocal,
+          err,
+          {
+            mensajeError: 'No se pudo guardar el registro.',
+            syncRequest: this.mantenimientoEditId
+              ? {
+                  kind: 'carro-mantenimiento-editar',
+                  carroId: carro.id,
+                  mantenimientoEditId: this.mantenimientoEditId,
+                  body: payload as Record<string, unknown>,
+                }
+              : {
+                  kind: 'carro-mantenimiento-crear',
+                  carroId: carro.id,
+                  body: payload as Record<string, unknown>,
+                },
+            onGuardadoLocal: () => {
+              this.guardando = false;
+              this.cerrarEdicionMantenimiento();
+              this.controlEdicionMantenimiento.marcarLimpio();
+              this.mensajeEdicion = 'Registro guardado en este dispositivo. Se sincronizará al volver internet.';
+            },
+          },
+        )
+      ) {
+        this.errorValidacion = null;
+        return;
+      }
       this.guardando = false;
       this.mensajeEdicion = '';
       this.errorValidacion =
@@ -847,30 +934,86 @@ export class CarrosPageComponent implements ComponenteConEdicionPendiente {
     return this.textoAlerta(c.proximaRevisionTecnica, 'Revisión técnica');
   }
 
+  private fechaProximoPermisoCirculacion(c: CarroDto): string | null {
+    if (!c.fechaUltimaInspeccion) return null;
+    const d = new Date(c.fechaUltimaInspeccion);
+    if (Number.isNaN(d.getTime())) return null;
+    d.setFullYear(d.getFullYear() + 1);
+    return d.toISOString();
+  }
+
   alertaPermisoCirculacion(c: CarroDto): string | null {
-    return this.textoAlerta(c.proximaRevisionTecnica, 'Permiso de circulación');
+    return this.textoAlerta(this.fechaProximoPermisoCirculacion(c), 'Permiso de circulación');
+  }
+
+  alertaDatosMantenimientoFaltantes(c: CarroDto): string | null {
+    const faltan: string[] = [];
+    if (!c.proximoMantenimiento) faltan.push('próximo mantenimiento');
+    if (!c.proximaRevisionTecnica) faltan.push('revisión técnica');
+    if (!c.fechaUltimaInspeccion) faltan.push('inspección');
+    if (faltan.length === 0) return null;
+    return `Sin fechas registradas (${faltan.join(', ')}). Registre un mantenimiento en la ficha.`;
+  }
+
+  hayAlertasCarro(c: CarroDto): boolean {
+    return !!(
+      this.alertaDatosMantenimientoFaltantes(c) ||
+      this.alertaMantenimiento(c) ||
+      this.alertaRevisionTecnica(c) ||
+      this.alertaPermisoCirculacion(c)
+    );
   }
 
   stats(carros: CarroDto[]): { total: number; operativas: number; mantenimiento: number } {
     const total = carros.length;
-    const operativas = carros.filter((c) => c.estadoOperativo === 1 && !this.mantenimientoVencido(c)).length;
+    const operativas = carros.filter(
+      (c) => c.estadoOperativo === 1 && !this.mantenimientoVencido(c),
+    ).length;
     const mantenimiento = total - operativas;
     return { total, operativas, mantenimiento };
   }
 
-  toggleEstado(carro: CarroDto): void {
-    const nuevoEstado = carro.estadoOperativo === 1 ? 0 : 1;
-    this.carrosApi.toggleEstado(carro.id, nuevoEstado).subscribe({
-      next: () => {
-        carro.estadoOperativo = nuevoEstado;
-        this.toast.exito(
-          `Carro ${carro.nomenclatura} ahora está ${nuevoEstado === 1 ? 'operativa' : 'fuera de servicio'}.`,
-        );
-      },
-      error: () => {
-        this.toast.error('Error al cambiar el estado del carro');
-      },
+  async cambiarEstado(carro: CarroDto, nuevoEstado: number): Promise<void> {
+    const anterior = carro.estadoOperativo;
+    if (nuevoEstado === anterior) {
+      this.estadoOperativoUi = anterior;
+      return;
+    }
+
+    const confirmacion = await solicitarMotivoCambioEstado(this.cambioEstadoDialog, {
+      title: 'Cambiar estado operativo',
+      message: `Vas a cambiar el estado de ${carro.nomenclatura}. Esta decisión queda registrada en auditoría.`,
+      estadoAnterior: this.etiquetaEstadoOperativo(anterior),
+      estadoNuevo: this.etiquetaEstadoOperativo(nuevoEstado),
     });
+    if (!confirmacion) {
+      this.estadoOperativoUi = anterior;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    this.carrosApi
+      .toggleEstado(carro.id, nuevoEstado, {
+        motivo: confirmacion.motivo,
+        fechaEfectiva: confirmacion.fecha,
+      })
+      .subscribe({
+        next: () => {
+          carro.estadoOperativo = nuevoEstado;
+          this.estadoOperativoUi = nuevoEstado;
+          this.toast.exito(
+            `Carro ${carro.nomenclatura} ahora está ${this.etiquetaEstadoOperativo(nuevoEstado).toLowerCase()}.`,
+          );
+        },
+        error: (err) => {
+          this.estadoOperativoUi = anterior;
+          this.toast.error(
+            typeof err?.error?.message === 'string'
+              ? err.error.message
+              : 'Error al cambiar el estado del carro',
+          );
+        },
+      });
   }
 
   tarjetasResumenFleet(s: { total: number; operativas: number; mantenimiento: number }): Array<{

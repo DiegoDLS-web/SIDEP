@@ -414,7 +414,7 @@
             [disabled]="!!editandoId && !puedeEditarRol"
             class="sid-input w-full disabled:cursor-not-allowed disabled:opacity-50"
           >
-            @for (rol of roles; track rol.id) {
+            @for (rol of rolesParaFormulario; track rol.id) {
               <option [ngValue]="rol.nombre">{{ rol.nombre }}</option>
             }
           </select>

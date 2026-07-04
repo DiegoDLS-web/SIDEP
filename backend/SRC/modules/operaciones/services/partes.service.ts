@@ -7,6 +7,7 @@ import {
   assertVoluntarioPuedeParticiparEnParte,
   evaluarCarroDisponibleParaParte,
 } from '../../../utils/parte-disponibilidad.util';
+import { puedeEditarParteCompletado } from '../../../utils/parte-edicion-roles.util';
 
 type DbClient = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
@@ -369,6 +370,7 @@ function construirMetadataPersistencia(data: Record<string, unknown>): string | 
     'otrasCompanias',
     'asistencia',
     'conductoresPorCarroId',
+    'motivoPendiente',
   ] as const;
 
   if (data.claveEmergencia !== undefined && data.claveEmergencia !== null) {
@@ -415,6 +417,10 @@ export function mapParteToDto(p: ParteConRelaciones | null) {
     metadata,
     descripcionEmergencia: metadata?.descripcionEmergencia,
     observaciones: metadata?.observaciones,
+    motivoPendiente:
+      typeof metadata?.motivoPendiente === 'string' && metadata.motivoPendiente.trim()
+        ? metadata.motivoPendiente.trim()
+        : undefined,
     claveEmergencia:
       (typeof metadata?.claveEmergencia === 'string' && metadata.claveEmergencia.trim()
         ? metadata.claveEmergencia.trim()
@@ -468,6 +474,11 @@ function mapParteListadoToDto(p: ParteListado) {
       ? metadata.claveEmergencia.trim()
       : undefined;
 
+  const motivoPendiente =
+    typeof metadata?.motivoPendiente === 'string' && metadata.motivoPendiente.trim()
+      ? metadata.motivoPendiente.trim()
+      : undefined;
+
   return {
     id: p.id,
     correlativo: p.correlativo,
@@ -478,7 +489,8 @@ function mapParteListadoToDto(p: ParteListado) {
     obacId: p.obacRut,
     fechaEmergencia: p.fechaEmergencia,
     fecha: p.fechaEmergencia,
-    metadata: claveMeta ? { claveEmergencia: claveMeta } : null,
+    metadata: claveMeta || motivoPendiente ? { ...(claveMeta ? { claveEmergencia: claveMeta } : {}), ...(motivoPendiente ? { motivoPendiente } : {}) } : null,
+    motivoPendiente,
     claveEmergencia: claveMeta ?? p.clave?.codigo,
     codigoEmergencia: claveMeta ?? p.clave?.codigo,
     estado: estadoCodigo,
@@ -778,9 +790,23 @@ export const obtenerMetricas = async () => {
   return { totalSistema, enAnioActual, enMesActual };
 };
 
-export const actualizarParte = async (id: string, data: Record<string, unknown>) => {
-  const existente = await prisma.parteEmergencia.findUnique({ where: { id } });
+export const actualizarParte = async (
+  id: string,
+  data: Record<string, unknown>,
+  rolActor?: string,
+) => {
+  const existente = await prisma.parteEmergencia.findUnique({
+    where: { id },
+    include: { estado: { select: { codigo: true, nombre: true } } },
+  });
   if (!existente) return null;
+
+  const estadoActual = (existente.estado?.codigo || existente.estado?.nombre || '').toUpperCase();
+  if (estadoActual === 'COMPLETADO' && !puedeEditarParteCompletado(rolActor)) {
+    throw new ValidationError([
+      'Solo capitán, tenientes o administrador pueden editar un parte completado.',
+    ]);
+  }
 
   const metadataActual = parseMetadata(existente.metadata) || {};
   const metadataNuevo = data.metadata && typeof data.metadata === 'object'
@@ -807,9 +833,17 @@ export const actualizarParte = async (id: string, data: Record<string, unknown>)
     'horaDelLlamado',
     'asistencia',
     'conductoresPorCarroId',
+    'motivoPendiente',
   ] as const;
   for (const campo of camposMeta) {
     if (data[campo] !== undefined) metadataNuevo[campo] = data[campo];
+  }
+
+  const estadoEntrante = data.estado !== undefined ? String(data.estado).trim().toUpperCase() : undefined;
+  if (estadoEntrante === 'COMPLETADO') {
+    metadataNuevo.motivoPendiente = null;
+  } else if (estadoEntrante === 'PENDIENTE' && data.motivoPendiente !== undefined) {
+    metadataNuevo.motivoPendiente = data.motivoPendiente ? String(data.motivoPendiente).trim() : null;
   }
   if (data.claveEmergencia !== undefined && data.claveEmergencia !== null) {
     metadataNuevo.claveEmergencia = String(data.claveEmergencia).trim() || null;

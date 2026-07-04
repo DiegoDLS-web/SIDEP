@@ -203,9 +203,23 @@ export const cambiarEstado = async (
   resolutorRut: string,
   estado: string,
   observacionResolucion?: string,
+  fechaResolucion?: string,
 ) => {
   const lic = await buscarLicenciaPorId(id);
   if (!lic) throw new Error('Licencia no encontrada.');
+
+  const observacion = String(observacionResolucion ?? '').trim();
+  if (observacion.length < 8) {
+    throw new Error('Debe indicar el motivo de la resolución (mínimo 8 caracteres).');
+  }
+  const fechaRaw = String(fechaResolucion ?? '').trim();
+  if (!fechaRaw) {
+    throw new Error('Debe indicar la fecha de la resolución.');
+  }
+  const resueltoEn = new Date(fechaRaw);
+  if (Number.isNaN(resueltoEn.getTime())) {
+    throw new Error('La fecha de resolución no es válida.');
+  }
 
   const estadoId = await buscarEstadoPorNombre(estado);
 
@@ -214,8 +228,8 @@ export const cambiarEstado = async (
     data: {
       estadoLicenciaId: estadoId,
       resolutorRut,
-      observacionResolucion: observacionResolucion?.trim() || null,
-      resueltoEn: new Date(),
+      observacionResolucion: observacion,
+      resueltoEn,
     },
     include: INCLUDE_LICENCIA,
   });

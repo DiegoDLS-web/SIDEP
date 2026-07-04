@@ -440,18 +440,6 @@
           >
         </div>
       </div>
-      <div
-        class="sid-chart-tip-strip mb-3 flex min-h-[2rem] items-center justify-center rounded-lg px-2 text-center transition-colors"
-        [class.sid-chart-tip-strip--active]="chartBarHover"
-        role="status"
-        aria-live="polite"
-      >
-        @if (tooltipBarraMesActiva(); as tip) {
-          <span class="text-xs font-semibold tabular-nums text-white">{{ tip }}</span>
-        } @else {
-          <span class="text-[11px] text-gray-500">Pasa el cursor sobre una barra para ver la cantidad</span>
-        }
-      </div>
       <div class="pb-1">
         <div
           class="flex h-56 w-full min-w-0 items-end justify-between gap-0.5 sm:gap-2"
@@ -461,21 +449,39 @@
             <div class="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1 sm:gap-2">
               <div class="flex h-full min-h-0 w-full items-end justify-center gap-1">
                 <div
-                  class="sid-chart-col-pop w-full min-h-[6px] cursor-default rounded-t bg-red-500/95 hover:brightness-110"
+                  class="sid-chart-col-pop relative w-full min-h-[6px] cursor-default rounded-t bg-red-500/95 hover:brightness-110"
                   [style.height.%]="alturaBarraMes(m.cantidadActual, maxMes)"
                   [style.--sid-chart-stagger.ms]="im * 42"
                   [attr.title]="tooltipBarraMesActual(m)"
                   [attr.aria-label]="tooltipBarraMesActual(m)"
                   (pointerenter)="onMesChartBarEnter(im, 'a')"
-                ></div>
+                  (pointerleave)="clearChartBarHover()"
+                >
+                  @if (chartBarHover?.im === im && chartBarHover?.serie === 'a') {
+                    <span
+                      class="pointer-events-none absolute inset-0 flex items-center justify-center text-[10px] font-bold tabular-nums leading-none text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] sm:text-[11px]"
+                    >
+                      {{ m.cantidadActual }}
+                    </span>
+                  }
+                </div>
                 <div
-                  class="sid-chart-col-pop w-full min-h-[6px] cursor-default rounded-t bg-slate-600/90 hover:brightness-110"
+                  class="sid-chart-col-pop relative w-full min-h-[6px] cursor-default rounded-t bg-slate-600/90 hover:brightness-110"
                   [style.height.%]="alturaBarraMes(m.cantidadPrev, maxMes)"
                   [style.--sid-chart-stagger.ms]="im * 42 + 26"
                   [attr.title]="tooltipBarraMesPrev(m)"
                   [attr.aria-label]="tooltipBarraMesPrev(m)"
                   (pointerenter)="onMesChartBarEnter(im, 'p')"
-                ></div>
+                  (pointerleave)="clearChartBarHover()"
+                >
+                  @if (chartBarHover?.im === im && chartBarHover?.serie === 'p') {
+                    <span
+                      class="pointer-events-none absolute inset-0 flex items-center justify-center text-[10px] font-bold tabular-nums leading-none text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] sm:text-[11px]"
+                    >
+                      {{ m.cantidadPrev }}
+                    </span>
+                  }
+                </div>
               </div>
               <span class="max-w-full truncate text-center text-[9px] leading-tight text-gray-400 sm:text-xs">{{ m.mes }}</span>
             </div>
@@ -496,19 +502,7 @@
           <h2 class="text-lg font-bold leading-tight">Tipos de emergencia</h2>
         </div>
         <p class="mb-4 text-xs sid-muted">{{ datos.anio }} · según filtros</p>
-        <div
-          class="sid-chart-tip-strip mb-3 flex min-h-[1.75rem] items-center justify-center rounded-lg px-2 text-center transition-colors"
-          [class.sid-chart-tip-strip--active]="chartTipoHover !== null"
-          role="status"
-          aria-live="polite"
-        >
-          @if (tooltipTipoActivo(); as tip) {
-            <span class="text-[11px] font-semibold tabular-nums text-white">{{ tip }}</span>
-          } @else {
-            <span class="text-[10px] text-gray-500">Pasa el cursor sobre una barra</span>
-          }
-        </div>
-        <div class="space-y-3" (mouseleave)="clearTipoHover()">
+        <div class="space-y-3">
           @for (t of tiposEmergenciaTop(); track t.claveEmergencia; let it = $index) {
             <div>
               <div class="mb-1 flex items-start justify-between gap-2">
@@ -519,12 +513,10 @@
               </div>
               <div class="h-1.5 w-full overflow-hidden rounded-full bg-[var(--sid-surface-inset)] ring-1 ring-white/[0.04]">
                 <div
-                  class="sid-chart-bar-fill h-1.5 cursor-default rounded-full transition-[width] duration-500 ease-out hover:brightness-110"
+                  class="sid-chart-bar-fill h-1.5 rounded-full transition-[width] duration-500 ease-out"
                   [ngClass]="clasesBarraPorLlamados(t.cantidad)"
                   [style.width.%]="(t.cantidad / maxPorTipo()) * 100"
                   [style.--sid-chart-stagger.ms]="it * 38"
-                  [attr.title]="tooltipTipoEmergencia(t)"
-                  (pointerenter)="onTipoBarEnter(it)"
                 ></div>
               </div>
             </div>
@@ -541,18 +533,6 @@
           <h2 class="text-lg font-bold">Emergencias por día</h2>
           <span class="text-xs text-gray-500">Últimas 4 semanas (lun–dom)</span>
         </div>
-        <div
-          class="sid-chart-tip-strip mb-3 flex min-h-[1.75rem] items-center justify-center rounded-lg px-2 text-center transition-colors"
-          [class.sid-chart-tip-strip--active]="chartHeatHover"
-          role="status"
-          aria-live="polite"
-        >
-          @if (heatmapTooltipActivo(); as tip) {
-            <span class="text-[11px] font-semibold tabular-nums text-white">{{ tip }}</span>
-          } @else {
-            <span class="text-[10px] text-gray-500">Pasa el cursor sobre un día</span>
-          }
-        </div>
         <div class="mb-1 flex justify-between text-[10px] text-gray-500 sm:text-xs">
           <span>L</span>
           <span>M</span>
@@ -562,19 +542,16 @@
           <span>S</span>
           <span>D</span>
         </div>
-        <div class="flex flex-1 flex-col justify-center gap-1.5" (mouseleave)="clearHeatHover()">
+        <div class="flex flex-1 flex-col justify-center gap-1.5">
           @for (semana of datos.heatmapSemanas; track $index; let iw = $index) {
             <div class="grid grid-cols-7 gap-1 sm:gap-1.5">
               @for (dia of semana; track $index; let id = $index) {
                 <div
-                  class="sid-chart-heat-cell aspect-square min-h-[28px] w-full max-h-[36px] cursor-default rounded sm:min-h-[32px]"
+                  class="sid-chart-heat-cell relative aspect-square min-h-[28px] w-full max-h-[36px] rounded sm:min-h-[32px]"
                   [ngClass]="heatClass(dia)"
-                  [class.ring-2]="chartHeatHover?.iw === iw && chartHeatHover?.id === id"
-                  [class.ring-white/40]="chartHeatHover?.iw === iw && chartHeatHover?.id === id"
                   [attr.title]="heatmapEtiqueta(iw, id, dia)"
                   [attr.aria-label]="heatmapEtiqueta(iw, id, dia)"
                   [style.--sid-chart-stagger.ms]="iw * 7 * 22 + id * 22"
-                  (pointerenter)="onHeatCellEnter(iw, id)"
                 ></div>
               }
             </div>

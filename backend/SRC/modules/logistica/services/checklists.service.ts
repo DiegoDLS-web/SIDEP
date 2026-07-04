@@ -71,9 +71,24 @@ export const registrarEjecucion = async (
     const esChecklistUnidad = TIPOS_CHECKLIST_UNIDAD.has(entidadTipo.toUpperCase());
     const esBorrador = esChecklistBorrador(payload);
 
+    const estadoChecklistManual =
+        typeof payload['estadoChecklist'] === 'string' ? String(payload['estadoChecklist']).trim().toUpperCase() : '';
+    if (estadoChecklistManual && !esBorrador) {
+        payload['estadoChecklist'] = estadoChecklistManual;
+    }
+
     const evaluacion = esChecklistUnidad && !esBorrador
         ? evaluarEstadoOperativoDesdeChecklist(payload)
         : null;
+
+    let estadoRegistro = 'COMPLETADO';
+    if (esBorrador) {
+        estadoRegistro = 'BORRADOR';
+    } else if (estadoChecklistManual === 'PENDIENTE') {
+        estadoRegistro = 'PENDIENTE';
+    } else if (estadoChecklistManual === 'CON_OBSERVACION') {
+        estadoRegistro = 'CON_OBSERVACION';
+    }
 
     const ejecucion = await prisma.$transaction(async (tx) => {
         const creada = await tx.checklistEjecucion.create({
@@ -82,7 +97,7 @@ export const registrarEjecucion = async (
                 plantillaId: plantillaResuelta,
                 revisorRut: String(revisorRut),
                 fechaRevision: new Date(),
-                estado: esBorrador ? 'BORRADOR' : 'COMPLETADO',
+                estado: estadoRegistro,
                 respuestasJson: JSON.stringify(payload),
                 entidadTipo,
                 entidadId: String(carroId),
@@ -169,4 +184,77 @@ export const obtenerDetalleEjecucion = async (id: string) => {
     });
     if (!ejecucion) throw new AppError('Ejecución de checklist no encontrada', 404);
     return ejecucion;
+};
+
+const ESTADOS_CHECKLIST_PERMITIDOS = new Set(['COMPLETADO', 'PENDIENTE', 'CON_OBSERVACION']);
+
+function parseRespuestasEjecucion(raw: string | null | undefined): Record<string, unknown> {
+    if (!raw) return {};
+    try {
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+            ? (parsed as Record<string, unknown>)
+            : {};
+    } catch {
+        return {};
+    }
+}
+
+export const actualizarEstadoEjecucion = async (
+    id: string,
+    estadoChecklist: string,
+    opts?: { motivo?: string; fechaEfectiva?: string; actorRut?: string },
+) => {
+    const estado = String(estadoChecklist ?? '').trim().toUpperCase();
+    if (!ESTADOS_CHECKLIST_PERMITIDOS.has(estado)) {
+        throw new AppError('Estado de checklist inválido', 400);
+    }
+
+    const motivo = String(opts?.motivo ?? '').trim();
+    if (motivo.length < 8) {
+        throw new AppError('Debe indicar el motivo del cambio (mínimo 8 caracteres).', 400);
+    }
+    const fechaEfectiva = String(opts?.fechaEfectiva ?? '').trim();
+    if (!fechaEfectiva) {
+        throw new AppError('Debe indicar la fecha del cambio.', 400);
+    }
+
+    const ejecucion = await prisma.checklistEjecucion.findUnique({ where: { id } });
+    if (!ejecucion) throw new AppError('Ejecución de checklist no encontrada', 404);
+
+    const detalle = parseRespuestasEjecucion(ejecucion.respuestasJson);
+    const estadoAnterior = String(
+        (typeof detalle['estadoChecklist'] === 'string' ? detalle['estadoChecklist'] : null) ??
+            ejecucion.estado ??
+            '',
+    ).toUpperCase();
+    detalle['estadoChecklist'] = estado;
+    if (detalle['borrador'] === true) {
+        detalle['borrador'] = false;
+    }
+
+    const registroCambio = {
+        estadoAnterior,
+        estadoNuevo: estado,
+        motivo,
+        fechaEfectiva,
+        actorRut: opts?.actorRut ?? null,
+        registradoEn: new Date().toISOString(),
+    };
+    const historial = Array.isArray(detalle['historialCambiosEstado'])
+        ? (detalle['historialCambiosEstado'] as unknown[])
+        : [];
+    historial.unshift(registroCambio);
+    detalle['historialCambiosEstado'] = historial.slice(0, 30);
+    detalle['ultimoCambioEstado'] = registroCambio;
+
+    const actualizado = await prisma.checklistEjecucion.update({
+        where: { id },
+        data: {
+            estado,
+            respuestasJson: JSON.stringify(detalle),
+        },
+    });
+
+    return { ejecucion: actualizado, estadoAnterior, estadoNuevo: estado, motivo, fechaEfectiva };
 };

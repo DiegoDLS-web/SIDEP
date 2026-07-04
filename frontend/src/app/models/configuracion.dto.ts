@@ -38,3 +38,10 @@ export interface ConfiguracionSistemaDto {
   /** Catálogo de tipos (persistido); si falta, el cliente usa `partes.constants`. */
   tiposEmergencia?: TipoEmergenciaItemDto[];
 }
+
+/** Lectura operativa (sin navegación por rol ni notificaciones). */
+export interface ConfiguracionOperativaDto {
+  compania: ConfiguracionCompaniaDto;
+  reportes: ConfiguracionReportesDto;
+  tiposEmergencia?: TipoEmergenciaItemDto[];
+}

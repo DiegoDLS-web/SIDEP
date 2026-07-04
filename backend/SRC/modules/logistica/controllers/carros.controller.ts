@@ -59,15 +59,33 @@ export const getCarros = async (req: Request, res: Response) => {
 export const toggleEstadoCarro = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { estadoOperativo } = req.body;
+        const { estadoOperativo, motivo, fechaEfectiva } = req.body;
 
         if (estadoOperativo === undefined) {
             return res.status(400).json({ success: false, message: 'Falta el estado operativo' });
         }
 
-        // Añadimos "as string"
-        const carro = await carrosService.cambiarEstadoOperativo(id as string, Number(estadoOperativo));
-        res.status(200).json({ success: true, message: 'Estado del carro actualizado', data: carro });
+        const estado = Number(estadoOperativo);
+        if (![0, 1, 2].includes(estado)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Estado operativo inválido (0=fuera de servicio, 1=operativa, 2=mantención)',
+            });
+        }
+
+        const resultado = await carrosService.cambiarEstadoOperativo(id as string, estado, {
+            motivo: String(motivo ?? ''),
+            fechaEfectiva: String(fechaEfectiva ?? ''),
+        });
+        res.status(200).json({
+            success: true,
+            message: 'Estado del carro actualizado',
+            data: resultado.carro,
+            motivo: resultado.motivo,
+            fechaEfectiva: resultado.fechaEfectiva,
+            estadoAnterior: resultado.estadoAnterior,
+            estadoNuevo: estado,
+        });
     } catch (error: any) {
         res.status(error.statusCode || 500).json({ success: false, message: error.message });
     }

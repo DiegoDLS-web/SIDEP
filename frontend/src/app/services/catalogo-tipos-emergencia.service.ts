@@ -28,7 +28,7 @@ export class CatalogoTiposEmergenciaService {
   }
 
   reload(): void {
-    this.configApi.obtener().subscribe({
+    this.configApi.obtenerOperativa().subscribe({
       next: (cfg) => {
         if (cfg.tiposEmergencia && cfg.tiposEmergencia.length > 0) {
           const conTodos: ClaveEmergenciaOpcion[] = [

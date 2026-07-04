@@ -31,6 +31,11 @@
           <p class="mt-3">
             <span class="rounded-full px-3 py-1.5 text-xs font-semibold" [ngClass]="estadoClase(p.estado)">{{ p.estado }}</span>
           </p>
+          @if (textoMotivoPendiente(p); as motivo) {
+            <p class="mt-3 rounded-xl border border-amber-800/45 bg-amber-950/25 px-3 py-2 text-sm text-amber-100/95">
+              <span class="font-semibold text-amber-200">Motivo pendiente:</span> {{ motivo }}
+            </p>
+          }
         </div>
         <div class="flex flex-col gap-2 sm:items-end">
           <div class="flex flex-wrap gap-2 sm:justify-end">
@@ -41,14 +46,16 @@
               <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
               Nuevo parte
             </a>
-            <button
-              type="button"
-              class="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-sky-600"
-              (click)="editarParteCompleto(p)"
-            >
-              <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-              Editar
-            </button>
+            @if (puedeEditarParte(p)) {
+              <button
+                type="button"
+                class="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-sky-600"
+                (click)="editarParteCompleto(p)"
+              >
+                <lucide-icon name="pencil" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                Editar
+              </button>
+            }
             <button
               type="button"
               class="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-900/20 transition-colors hover:bg-red-700"

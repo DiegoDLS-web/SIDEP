@@ -571,7 +571,6 @@
 
       @if (mostrarFormPassword) {
         <div class="mt-5 space-y-4 rounded-xl border border-slate-800 bg-black/25 p-4 ring-1 ring-inset ring-white/5 max-w-lg">
-          <app-sid-edicion-pendiente-banner [visible]="passwordTieneDatos()" />
           @if (errorPasswordForm) {
             <div class="rounded-xl border border-amber-800/55 bg-amber-950/25 px-4 py-3 text-xs text-amber-100">
               {{ errorPasswordForm }}
@@ -581,33 +580,69 @@
           <div class="space-y-3">
             <div>
               <label class="mb-1.5 block text-xs font-medium text-slate-400">Contraseña actual</label>
-              <input
-                [(ngModel)]="passwordActual"
-                type="password"
-                placeholder="••••••••"
-                class="sid-input w-full"
-                [disabled]="cambiandoPassword"
-              />
+              <div class="relative">
+                <input
+                  [(ngModel)]="passwordActual"
+                  [type]="verPasswordActual ? 'text' : 'password'"
+                  placeholder="••••••••"
+                  class="sid-input w-full pr-11"
+                  [disabled]="cambiandoPassword"
+                  autocomplete="current-password"
+                />
+                <button
+                  type="button"
+                  class="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-slate-400 hover:text-slate-200 disabled:opacity-40"
+                  [disabled]="cambiandoPassword"
+                  [attr.aria-label]="verPasswordActual ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                  (click)="verPasswordActual = !verPasswordActual"
+                >
+                  <lucide-icon [name]="verPasswordActual ? 'eye-off' : 'eye'" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                </button>
+              </div>
             </div>
             <div>
-              <label class="mb-1.5 block text-xs font-medium text-slate-400">Nueva contraseña (mínimo 6 caracteres)</label>
-              <input
-                [(ngModel)]="passwordNueva"
-                type="password"
-                placeholder="••••••••"
-                class="sid-input w-full"
-                [disabled]="cambiandoPassword"
-              />
+              <label class="mb-1.5 block text-xs font-medium text-slate-400">Nueva contraseña (mínimo 8 caracteres)</label>
+              <div class="relative">
+                <input
+                  [(ngModel)]="passwordNueva"
+                  [type]="verPasswordNueva ? 'text' : 'password'"
+                  placeholder="••••••••"
+                  class="sid-input w-full pr-11"
+                  [disabled]="cambiandoPassword"
+                  autocomplete="new-password"
+                />
+                <button
+                  type="button"
+                  class="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-slate-400 hover:text-slate-200 disabled:opacity-40"
+                  [disabled]="cambiandoPassword"
+                  [attr.aria-label]="verPasswordNueva ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                  (click)="verPasswordNueva = !verPasswordNueva"
+                >
+                  <lucide-icon [name]="verPasswordNueva ? 'eye-off' : 'eye'" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                </button>
+              </div>
             </div>
             <div>
               <label class="mb-1.5 block text-xs font-medium text-slate-400">Confirmar nueva contraseña</label>
-              <input
-                [(ngModel)]="passwordConfirmar"
-                type="password"
-                placeholder="••••••••"
-                class="sid-input w-full"
-                [disabled]="cambiandoPassword"
-              />
+              <div class="relative">
+                <input
+                  [(ngModel)]="passwordConfirmar"
+                  [type]="verPasswordConfirmar ? 'text' : 'password'"
+                  placeholder="••••••••"
+                  class="sid-input w-full pr-11"
+                  [disabled]="cambiandoPassword"
+                  autocomplete="new-password"
+                />
+                <button
+                  type="button"
+                  class="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-slate-400 hover:text-slate-200 disabled:opacity-40"
+                  [disabled]="cambiandoPassword"
+                  [attr.aria-label]="verPasswordConfirmar ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                  (click)="verPasswordConfirmar = !verPasswordConfirmar"
+                >
+                  <lucide-icon [name]="verPasswordConfirmar ? 'eye-off' : 'eye'" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+                </button>
+              </div>
             </div>
           </div>
 

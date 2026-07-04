@@ -75,6 +75,33 @@ export const getDetalleEjecucion = async (req: Request, res: Response) => {
         res.status(error.statusCode || 500).json({ success: false, message: error.message });
     }
 };
+
+export const patchEstadoEjecucion = async (req: Request, res: Response) => {
+    try {
+        const { estadoChecklist, motivo, fechaEfectiva } = req.body ?? {};
+        if (!estadoChecklist) {
+            return res.status(400).json({ success: false, message: 'Falta estadoChecklist' });
+        }
+        const actorRut = (req as any).user?.rut as string | undefined;
+        const opts: { motivo: string; fechaEfectiva: string; actorRut?: string } = {
+            motivo: String(motivo ?? ''),
+            fechaEfectiva: String(fechaEfectiva ?? ''),
+        };
+        if (actorRut) opts.actorRut = actorRut;
+        const { ejecucion, estadoAnterior, estadoNuevo, motivo: motivoOk, fechaEfectiva: fechaOk } =
+            await checklistsService.actualizarEstadoEjecucion(String(req.params.id), String(estadoChecklist), opts);
+        res.status(200).json({
+            success: true,
+            data: ejecucion,
+            estadoAnterior,
+            estadoNuevo,
+            motivo: motivoOk,
+            fechaEfectiva: fechaOk,
+        });
+    } catch (error: any) {
+        res.status(error.statusCode || 500).json({ success: false, message: error.message });
+    }
+};
 export const obtenerPlantillas = async (req: Request, res: Response): Promise<Response> => {
   try {
     // Corregido: Prisma utiliza 'checklistPlantilla' basándose en tu schema

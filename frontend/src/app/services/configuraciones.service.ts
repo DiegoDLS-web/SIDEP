@@ -1,14 +1,20 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import type { ConfiguracionSistemaDto, TipoEmergenciaItemDto } from '../models/configuracion.dto';
+import type { ConfiguracionOperativaDto, ConfiguracionSistemaDto, TipoEmergenciaItemDto } from '../models/configuracion.dto';
 
 @Injectable({ providedIn: 'root' })
 export class ConfiguracionesService {
   private readonly http = inject(HttpClient);
 
+  /** Configuración completa — solo ADMIN (pantalla Administración · Configuraciones). */
   obtener(): Observable<ConfiguracionSistemaDto> {
     return this.http.get<ConfiguracionSistemaDto>('/api/rrhh/configuraciones');
+  }
+
+  /** Datos operativos para catálogo, PDF y UI general (cualquier usuario autenticado). */
+  obtenerOperativa(): Observable<ConfiguracionOperativaDto> {
+    return this.http.get<ConfiguracionOperativaDto>('/api/rrhh/configuracion-operativa');
   }
 
   /** Sin autenticación: nombre de compañía para login y lockup. */

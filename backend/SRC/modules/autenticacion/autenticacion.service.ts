@@ -1,7 +1,7 @@
 import prisma from '../../prisma'; // Asegúrate que esta ruta importe tu cliente de prisma
 import { hashPassword, comparePassword } from '../../utils/security/hash';
-import jwt from 'jsonwebtoken';
 import { validarRut, normalizarRut, formatearRutDesdeNormalizado } from '../../utils/rut.util';
+import { generateToken } from '../../utils/security/jwt';
 import { withDbRetry } from '../../utils/db-retry.util';
 import {
     CODIGO_ACCESO_USUARIO_INACTIVO,
@@ -11,27 +11,32 @@ import {
 
 // 1. Registro
 export const registrarUsuario = async (datos: any) => {
-    const { rut, nombres, apellidoPaterno, apellidoMaterno, email, password, rolId } = datos;
+    const { rut, nombres, apellidoPaterno, apellidoMaterno, email, password } = datos;
     if (!rut || !validarRut(rut)) {
         throw new Error('El RUT no es válido.');
     }
     const normalizedRut = normalizarRut(rut);
 
-    // Hasheamos la password
+    const rolVoluntario = await prisma.rolUsuario.findFirst({
+        where: { codigo: 'VOLUNTARIOS', activo: 1 },
+    });
+    if (!rolVoluntario) {
+        throw new Error('No hay rol VOLUNTARIOS activo en catálogo.');
+    }
+
     const hashedPassword = await hashPassword(password);
 
-    // Creamos el usuario siguiendo la estructura normalizada del MER
     return await prisma.usuario.create({
         data: {
-            rut: normalizedRut, // Clave primaria ahora
+            rut: normalizedRut,
             nombres,
-            apellidoPaterno, // Mapeado a apellido_paterno
-            apellidoMaterno, // Mapeado a apellido_materno
+            apellidoPaterno,
+            apellidoMaterno,
             email,
             passwordHash: hashedPassword,
-            rolId,
-            activo: 1 // Representando 'true' en tu modelo SmallInt
-        }
+            rolId: rolVoluntario.id,
+            activo: 1,
+        },
     });
 };
 
@@ -69,12 +74,7 @@ export const loginUsuario = async (rut: string, password: string) => {
         throw err;
     }
 
-    // Firmamos el JWT usando el RUT
-    const token = jwt.sign(
-        { rut: usuario.rut },
-        process.env.JWT_SECRET as string,
-        { expiresIn: '24h' }
-    );
+    const token = generateToken({ rut: usuario.rut });
 
     return { token, usuario };
 };

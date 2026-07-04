@@ -1,25 +1,23 @@
 import prisma from '../../../prisma';
+import { parteWhereNoAnulado } from '../../operaciones/partes-where';
 
 export const getEmergenciasReporte = async (desde?: string, hasta?: string) => {
-  const dateFilter: any = {};
+  const dateFilter: Record<string, Date> = {};
   if (desde) dateFilter.gte = new Date(desde);
   if (hasta) dateFilter.lte = new Date(hasta);
 
-  const whereClause: any = {};
-  if (desde || hasta) {
-    whereClause.fechaEmergencia = dateFilter;
-  }
+  const whereClause = parteWhereNoAnulado(
+    desde || hasta ? { fechaEmergencia: dateFilter } : undefined,
+  );
 
-  // Count total
   const totalEmergencias = await prisma.parteEmergencia.count({
     where: whereClause,
   });
 
-  // Count resolved (estadoId = 2)
   const totalResueltas = await prisma.parteEmergencia.count({
     where: {
       ...whereClause,
-      estadoId: 2,
+      estado: { codigo: 'COMPLETADO' },
     },
   });
 

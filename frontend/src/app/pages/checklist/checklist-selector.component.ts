@@ -7,6 +7,10 @@ import { catchError, forkJoin, of } from 'rxjs';
 import type { ChecklistRegistroDto, ChecklistResumenUnidadDto, EstadoChecklist } from '../../models/checklist.dto';
 import { ChecklistsService } from '../../services/checklists.service';
 import { PdfExportService } from '../../services/pdf-export.service';
+import { AuthService } from '../../services/auth.service';
+import { ToastService } from '../../services/toast.service';
+import { CambioEstadoDialogService } from '../../services/cambio-estado-dialog.service';
+import { solicitarMotivoCambioEstado } from '../../utils/cambio-estado.util';
 import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
@@ -34,6 +38,9 @@ export class ChecklistSelectorComponent implements OnInit {
   private readonly checklistsApi = inject(ChecklistsService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly router = inject(Router);
+  private readonly auth = inject(AuthService);
+  private readonly toast = inject(ToastService);
+  private readonly cambioEstadoDialog = inject(CambioEstadoDialogService);
   readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
 
   unidades: ChecklistResumenUnidadDto[] = [];
@@ -52,6 +59,8 @@ export class ChecklistSelectorComponent implements OnInit {
   filtroHistorialDesde = '';
   filtroHistorialHasta = '';
   historialDetalle: (ChecklistRegistroDto & { unidad: string; nombreUnidad: string }) | null = null;
+  estadoHistorialEdit: EstadoChecklist = 'PENDIENTE';
+  guardandoEstadoHistorial = false;
   paginaHistorial = 1;
   readonly tamanioPaginaHistorial = 10;
 
@@ -425,6 +434,53 @@ export class ChecklistSelectorComponent implements OnInit {
 
   verRegistroHistorial(h: ChecklistRegistroDto & { unidad: string; nombreUnidad: string }): void {
     this.historialDetalle = h;
+    this.estadoHistorialEdit = this.estadoHistorialFila(h);
+  }
+
+  get puedeEditarEstadoChecklist(): boolean {
+    const rol = this.auth.usuarioActual?.rol?.toUpperCase() ?? '';
+    return rol === 'ADMIN' || rol === 'CAPITAN' || rol === 'TENIENTE';
+  }
+
+  async guardarEstadoHistorial(): Promise<void> {
+    const h = this.historialDetalle;
+    if (!h || !this.puedeEditarEstadoChecklist) return;
+    const estadoAnterior = this.estadoHistorialFila(h);
+    if (this.estadoHistorialEdit === estadoAnterior) {
+      this.toast.error('Selecciona un estado distinto al actual.');
+      return;
+    }
+
+    const confirmacion = await solicitarMotivoCambioEstado(this.cambioEstadoDialog, {
+      title: 'Cambiar estado del checklist',
+      message: `Registro ${h.unidad} · ${h.tipo ?? 'CHECKLIST'}. El cambio queda auditado.`,
+      estadoAnterior: etiquetaEstadoChecklist(estadoAnterior),
+      estadoNuevo: etiquetaEstadoChecklist(this.estadoHistorialEdit),
+    });
+    if (!confirmacion) return;
+
+    this.guardandoEstadoHistorial = true;
+    this.checklistsApi
+      .actualizarEstadoEjecucion(String(h.id), this.estadoHistorialEdit, {
+        motivo: confirmacion.motivo,
+        fechaEfectiva: confirmacion.fecha,
+      })
+      .subscribe({
+        next: () => {
+          h.estadoChecklist = this.estadoHistorialEdit;
+          this.guardandoEstadoHistorial = false;
+          this.toast.exito('Estado del checklist actualizado.');
+          this.cargarHistorialGeneral();
+        },
+        error: (err) => {
+          this.guardandoEstadoHistorial = false;
+          this.toast.error(
+            typeof err?.error?.message === 'string'
+              ? err.error.message
+              : 'No se pudo actualizar el estado.',
+          );
+        },
+      });
   }
 
   cerrarDetalleHistorial(): void {
