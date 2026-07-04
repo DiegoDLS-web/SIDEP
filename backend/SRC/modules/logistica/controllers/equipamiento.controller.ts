@@ -104,3 +104,12 @@ export const postRevisionBolsoTrauma = async (req: Request, res: Response) => {
         return res.status(status).json({ message: error.message || 'Error al guardar revisión de bolso trauma' });
     }
 };
+
+export const getHistorialBolsoPorId = async (req: Request, res: Response) => {
+    try {
+        const data = await equipamientoService.obtenerHistorialBolsoPorId(String(req.params.id));
+        res.status(200).json(data);
+    } catch (error: any) {
+        res.status(error.statusCode || 500).json({ success: false, message: error.message || 'Error al obtener detalle del bolso' });
+    }
+};

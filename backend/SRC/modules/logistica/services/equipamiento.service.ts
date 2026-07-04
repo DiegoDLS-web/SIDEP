@@ -184,8 +184,31 @@ export const obtenerHistorialBolsos = async (_filtros?: {
   desde?: string;
   hasta?: string;
 }) => {
+  const whereClause: any = { entidadTipo: 'TRAUMA' };
+
+  if (_filtros?.unidades) {
+    const noms = _filtros.unidades.split(',').map((n) => n.trim().toUpperCase());
+    const filterCarros = await prisma.carro.findMany({
+      where: { nomenclatura: { in: noms } },
+      select: { id: true },
+    });
+    whereClause.entidadId = { in: filterCarros.map((c) => c.id) };
+  }
+
+  if (_filtros?.desde || _filtros?.hasta) {
+    whereClause.fechaRevision = {};
+    if (_filtros.desde) {
+      whereClause.fechaRevision.gte = new Date(_filtros.desde);
+    }
+    if (_filtros.hasta) {
+      const hastaDate = new Date(_filtros.hasta);
+      hastaDate.setHours(23, 59, 59, 999);
+      whereClause.fechaRevision.lte = hastaDate;
+    }
+  }
+
   const ejecuciones = await prisma.checklistEjecucion.findMany({
-    where: { entidadTipo: 'TRAUMA' },
+    where: whereClause,
     include: {
       revisor: { select: { nombres: true, apellidoPaterno: true, rut: true } },
     },
@@ -228,7 +251,8 @@ export const obtenerHistorialBolsos = async (_filtros?: {
       itemsOk: ok,
       porcentaje: total > 0 ? Math.round((ok / total) * 100) : null,
       detalle,
-      borrador: detalle['borrador'] === true,
+      borrador: e.estado === 'BORRADOR',
+      estadoChecklist: e.estado,
     };
   });
 };
@@ -338,5 +362,57 @@ export const guardarRevisionBolsoTrauma = async (
     detalle: resultados,
     firmaOficial: ejecucion.firmaOficial,
     firmaInspector: ejecucion.firmaRevisor,
+  };
+};
+
+export const obtenerHistorialBolsoPorId = async (id: string) => {
+  const e = await prisma.checklistEjecucion.findFirst({
+    where: { id, entidadTipo: 'TRAUMA' },
+    include: {
+      revisor: { select: { nombres: true, apellidoPaterno: true, rut: true, rol: { select: { nombre: true } } } },
+    },
+  });
+  if (!e) {
+    throw new AppError('Registro de bolso de trauma no encontrado', 404);
+  }
+
+  const carro = await prisma.carro.findUnique({
+    where: { id: e.entidadId },
+    select: { id: true, nomenclatura: true, nombre: true },
+  });
+
+  const detalle = parseRespuestasJson(e.respuestasJson);
+  const obacNombre = e.revisor
+    ? `${e.revisor.nombres} ${e.revisor.apellidoPaterno}`.trim()
+    : '—';
+  const total = Number(detalle['totalItems']) || 0;
+  const ok = Number(detalle['itemsOk']) || 0;
+
+  return {
+    id: e.id,
+    fecha: e.fechaRevision.toISOString(),
+    inspector: typeof detalle['inspector'] === 'string' ? detalle['inspector'] : null,
+    grupoGuardia: typeof detalle['grupoGuardia'] === 'string' ? detalle['grupoGuardia'] : null,
+    cuartelero: {
+      id: e.revisorRut,
+      nombre: obacNombre,
+      rol: e.revisor?.rol?.nombre || 'OBAC',
+    },
+    observaciones: typeof detalle['observaciones'] === 'string' ? detalle['observaciones'] : null,
+    firmaOficial: e.firmaOficial,
+    firmaInspector: e.firmaRevisor,
+    totalItems: total,
+    itemsOk: ok,
+    porcentaje: total > 0 ? Math.round((ok / total) * 100) : null,
+    detalle,
+    carro: carro ? {
+      id: carro.id,
+      nomenclatura: carro.nomenclatura,
+      nombre: carro.nombre,
+    } : {
+      id: e.entidadId,
+      nomenclatura: e.entidadId,
+      nombre: 'Unidad Desconocida',
+    },
   };
 };
