@@ -17,6 +17,10 @@
   }
 
   <app-sid-edicion-pendiente-banner [visible]="checklistTieneCambios()" />
+  <app-sid-plantilla-edicion-banner
+    [visible]="editandoPlantilla"
+    mensaje="Estás editando la plantilla del checklist de unidad. Ajusta materiales y cantidades requeridas; las cantidades actuales se cargan en cada inspección."
+  />
 
   <a
     routerLink="/checklist"
@@ -293,7 +297,7 @@
                 <span class="text-[10px] font-bold leading-none">✓</span>
               }
             </span>
-            Solo pendientes (oculta OK)
+            Solo pendientes (oculta óptimo)
           </label>
         </div>
       </div>
@@ -351,8 +355,8 @@
             <div class="rounded-xl border border-gray-800 bg-[#0a0a0a] p-3">
               <div class="mb-2 flex items-center justify-between gap-2">
                 <label class="block text-xs font-medium text-gray-500">Nombre material</label>
-                <span class="inline-flex items-center justify-center rounded-lg border px-3 py-1 text-sm font-bold" [ngClass]="claseBadgeEstadoMaterial(material)">
-                  {{ estadoMaterial(material) === 'CRITICO' ? 'Crítico' : estadoMaterial(material) === 'BAJO' ? 'Bajo' : 'OK' }}
+                <span class="inline-flex items-center justify-center rounded-lg border px-3 py-1 text-sm font-bold uppercase tracking-wide" [ngClass]="claseBadgeEstadoMaterial(material)">
+                  {{ etiquetaEstadoMaterial(material) }}
                 </span>
               </div>
               <input
@@ -368,7 +372,10 @@
                   <label class="mb-1 block text-xs text-gray-500">Requerido</label>
                   <input
                     type="number"
-                    [(ngModel)]="material.cantidadRequerida"
+                    min="0"
+                    [max]="50"
+                    [ngModel]="material.cantidadRequerida"
+                    (ngModelChange)="onCantidadRequeridaChange(material, $event)"
                     [disabled]="!editandoPlantilla"
                     class="w-full rounded-lg border border-gray-700 bg-[#121212] px-2 py-2 text-center text-sm text-white disabled:cursor-not-allowed disabled:opacity-50"
                   />
@@ -377,7 +384,10 @@
                   <label class="mb-1 block text-xs text-gray-500">Actual</label>
                   <input
                     type="number"
-                    [(ngModel)]="material.cantidadActual"
+                    min="0"
+                    [max]="50"
+                    [ngModel]="material.cantidadActual"
+                    (ngModelChange)="onCantidadActualChange(material, $event)"
                     class="w-full rounded-lg border border-gray-700 bg-[#121212] px-2 py-2 text-center text-sm text-white"
                   />
                 </div>
@@ -428,7 +438,10 @@
                     <div class="flex justify-center">
                       <input
                         type="number"
-                        [(ngModel)]="material.cantidadRequerida"
+                        min="0"
+                        [max]="50"
+                        [ngModel]="material.cantidadRequerida"
+                        (ngModelChange)="onCantidadRequeridaChange(material, $event)"
                         [disabled]="!editandoPlantilla"
                         class="w-16 rounded-xl border border-gray-800 bg-[#0a0a0a] px-2 py-2 text-center text-sm text-white disabled:cursor-not-allowed disabled:opacity-50"
                       />
@@ -438,14 +451,17 @@
                     <div class="flex justify-center">
                       <input
                         type="number"
-                        [(ngModel)]="material.cantidadActual"
+                        min="0"
+                        [max]="50"
+                        [ngModel]="material.cantidadActual"
+                        (ngModelChange)="onCantidadActualChange(material, $event)"
                         class="w-16 rounded-xl border border-gray-800 bg-[#0a0a0a] px-2 py-2 text-center text-sm text-white"
                       />
                     </div>
                   </td>
                   <td class="px-3 py-3 align-middle text-center">
-                    <span class="inline-flex min-w-[110px] items-center justify-center rounded-lg border px-3 py-2 text-sm font-bold" [ngClass]="claseBadgeEstadoMaterial(material)">
-                      {{ estadoMaterial(material) === 'CRITICO' ? 'Crítico' : estadoMaterial(material) === 'BAJO' ? 'Bajo' : 'OK' }}
+                    <span class="inline-flex min-w-[110px] items-center justify-center rounded-lg border px-3 py-2 text-sm font-bold uppercase tracking-wide" [ngClass]="claseBadgeEstadoMaterial(material)">
+                      {{ etiquetaEstadoMaterial(material) }}
                     </span>
                   </td>
                   <td class="px-4 py-3 pr-5 align-middle text-right">

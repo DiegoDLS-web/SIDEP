@@ -15,7 +15,8 @@ import { PdfExportService } from '../../services/pdf-export.service';
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
-import { etiquetaEstadoChecklist } from '../../utils/checklist-estado';
+import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
+import type { EstadoChecklist } from '../../models/checklist.dto';
 import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
 import { etiquetaCompletandoOCompletado } from '../../utils/etiqueta-completitud';
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
@@ -175,24 +176,98 @@ export class BolsoTraumaComponent implements OnInit, OnDestroy {
     return nom || (u.nombre ?? '').trim() || '—';
   }
 
+  /** Normaliza nomenclatura para cruzar selector e historial (p. ej. R-1, R 1, r1). */
+  private claveUnidad(nomenclatura: string): string {
+    return String(nomenclatura ?? '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, '')
+      .replace(/_/g, '-');
+  }
+
+  private historialOrdenado(): BolsoTraumaHistorialDto[] {
+    return [...this.historial]
+      .filter((h) => h.borrador !== true)
+      .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+  }
+
+  /** Resumen por unidad al estilo checklist / ERA (última revisión agregada). */
+  resumenUnidadBolso(u: BolsoTraumaSelectorUnidadDto): {
+    completitud: number;
+    itemsOk: number;
+    totalItems: number;
+    ultimaFecha: string | null;
+    inspector: string;
+    obac: string;
+    estado: EstadoChecklist;
+  } {
+    const clave = this.claveUnidad(this.etiquetaUnidadFiltro(u));
+    const rows = this.historialOrdenado().filter((h) => this.claveUnidad(h.unidad) === clave);
+    const porBolso = new Map<number, BolsoTraumaHistorialDto>();
+    for (const h of rows) {
+      const num = h.bolsoNumero ?? 1;
+      if (!porBolso.has(num)) porBolso.set(num, h);
+    }
+
+    let totalItems = 0;
+    let itemsOk = 0;
+    let ultimaFecha: string | null = u.ultimaRevision?.fecha ?? null;
+    for (const h of porBolso.values()) {
+      totalItems += Number(h.totalItems) || 0;
+      itemsOk += Number(h.itemsOk) || 0;
+      if (!ultimaFecha || new Date(h.fecha).getTime() > new Date(ultimaFecha).getTime()) {
+        ultimaFecha = h.fecha;
+      }
+    }
+
+    const ultimo = rows[0];
+    const completitud = totalItems > 0 ? Math.round((itemsOk / totalItems) * 100) : 0;
+    const estado =
+      (ultimo?.estadoChecklist as EstadoChecklist | undefined) ??
+      calcularEstadoChecklist(totalItems, itemsOk, ultimo?.observaciones ?? null);
+
+    return {
+      completitud,
+      itemsOk,
+      totalItems,
+      ultimaFecha,
+      inspector: ultimo?.inspector ?? u.ultimaRevision?.inspector ?? '—',
+      obac: ultimo?.responsable ?? u.ultimaRevision?.obac ?? u.ultimaRevision?.responsable ?? '—',
+      estado,
+    };
+  }
+
+  itemsVerificadosTextoUnidad(u: BolsoTraumaSelectorUnidadDto): string {
+    const r = this.resumenUnidadBolso(u);
+    return `${r.itemsOk}/${r.totalItems}`;
+  }
+
+  estadoItemsEtiquetaUnidad(u: BolsoTraumaSelectorUnidadDto): EstadoChecklist {
+    return this.resumenUnidadBolso(u).estado;
+  }
+
+  etiquetaEstadoItemsUnidad(u: BolsoTraumaSelectorUnidadDto): string {
+    return etiquetaEstadoChecklist(this.estadoItemsEtiquetaUnidad(u));
+  }
+
   private aplicarCompletitudDesdeHistorial(): void {
     if (this.historial.length === 0) return;
     const ultimaPorBolso = new Map<string, BolsoTraumaHistorialDto>();
-    for (const h of this.historial) {
-      if (h.borrador === true) continue;
+    for (const h of this.historialOrdenado()) {
       const unidad = (h.unidad ?? '').trim();
       if (!unidad) continue;
       const num = h.bolsoNumero ?? 1;
-      const clave = `${unidad}:${num}`;
+      const clave = `${this.claveUnidad(unidad)}:${num}`;
       if (!ultimaPorBolso.has(clave)) {
         ultimaPorBolso.set(clave, h);
       }
     }
     this.unidades = this.unidades.map((u) => {
-      const nom = this.etiquetaUnidadFiltro(u);
+      const nomClave = this.claveUnidad(this.etiquetaUnidadFiltro(u));
+      const resumen = this.resumenUnidadBolso(u);
       const bolsos = u.bolsos.map((b: any, idx: number) => {
         const numero = b.numero ?? idx + 1;
-        const h = ultimaPorBolso.get(`${nom}:${numero}`);
+        const h = ultimaPorBolso.get(`${nomClave}:${numero}`);
         if (!h) return b;
         const total = Number(h.totalItems) || 0;
         const ok = Number(h.itemsOk) || 0;
@@ -206,11 +281,22 @@ export class BolsoTraumaComponent implements OnInit, OnDestroy {
           ...b,
           completitud,
           itemsFaltantes,
+          itemsOk: ok,
+          totalItems: total,
           status: completitud >= 100 ? 'complete' : 'pending',
           estadoChecklist,
         };
       });
-      return { ...u, bolsos };
+      const ultimaRevision =
+        resumen.ultimaFecha != null
+          ? {
+              fecha: resumen.ultimaFecha,
+              inspector: resumen.inspector,
+              obac: resumen.obac,
+              responsable: resumen.obac,
+            }
+          : u.ultimaRevision;
+      return { ...u, bolsos, ultimaRevision };
     });
   }
 
@@ -237,8 +323,10 @@ export class BolsoTraumaComponent implements OnInit, OnDestroy {
   }
 
   promedioCompletitud(unidad: BolsoTraumaSelectorUnidadDto): number {
+    const resumen = this.resumenUnidadBolso(unidad);
+    if (resumen.totalItems > 0) return resumen.completitud;
     if (unidad.bolsos.length === 0) return 0;
-    const sum = unidad.bolsos.reduce((acc, b : any) => acc + b.completitud, 0);
+    const sum = unidad.bolsos.reduce((acc, b: any) => acc + (b.completitud ?? 0), 0);
     return Math.round(sum / unidad.bolsos.length);
   }
 
@@ -306,7 +394,10 @@ export class BolsoTraumaComponent implements OnInit, OnDestroy {
 
   editarRegistro(h: BolsoTraumaHistorialDto): void {
     void this.router.navigate(['/bolso-trauma', h.unidad], {
-      queryParams: h.bolsoNumero ? { bolso: h.bolsoNumero } : {},
+      queryParams: {
+        ...(h.bolsoNumero ? { bolso: h.bolsoNumero } : {}),
+        registro: h.id,
+      },
     });
   }
 

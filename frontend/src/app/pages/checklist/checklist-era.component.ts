@@ -24,11 +24,16 @@ import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/ch
 import { etiquetaCompletandoOCompletado } from '../../utils/etiqueta-completitud';
 import { filtrarUsuariosChecklist } from '../../utils/usuarios-checklist.util';
 import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
+import {
+  mensajePresionAireInvalida,
+  normalizarPresionAireEra,
+} from '../../utils/checklist-cantidad.util';
 import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util';
 import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
 import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
 import { etiquetaUnidadCarro } from '../../utils/etiqueta-unidad-carro';
 import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
+import { SidPlantillaEdicionBannerComponent } from '../../shared/sid-plantilla-edicion-banner.component';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 import { exportarExcelSidep } from '../../utils/excel-export.util';
 import { SIDEP_ACTION_ICON } from '../../shared/sidep-action-icons';
@@ -176,7 +181,7 @@ const ERA_PRESETS_UNIDAD: Record<string, EraPreset> = {
 @Component({
   selector: 'app-checklist-era',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidEmptyStateComponent, SidDateInputComponent, SidEdicionPendienteBannerComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidEmptyStateComponent, SidDateInputComponent, SidEdicionPendienteBannerComponent, SidPlantillaEdicionBannerComponent],
   templateUrl: './checklist-era.component.html',
 })
 export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendiente {
@@ -282,7 +287,6 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
     observaciones: this.observaciones,
     equipos: this.equipos,
     recambios: this.recambios,
-    fechaCierreChecklist: this.fechaCierreChecklist,
   }));
 
   tieneEdicionPendiente(): boolean {
@@ -385,12 +389,14 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
 
   activarEdicionPlantilla(): void {
     if (!this.puedeEditarPlantilla) return;
+    this.error = null;
     this.motivoEdicionPlantilla = '';
     this.snapshotPlantillaEra = {
       equipos: this.clonarListaEquipos(),
       recambios: this.clonarListaRecambios(),
     };
     this.editandoPlantilla = true;
+    this.toast.info('Modo edición de plantilla ERA activado. Guarda los cambios con «Guardar plantilla».');
   }
 
   cancelarEdicionPlantilla(): void {
@@ -429,6 +435,7 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
 
   guardarPlantillaEra(): void {
     if (!this.puedeEditarPlantilla || this.guardandoPlantilla) return;
+    this.error = null;
     const plantilla = {
       equipos: this.equipos.map((e) => ({ ...e })),
       recambios: this.recambios.map((r) => ({ ...r })),
@@ -446,7 +453,8 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
         this.snapshotPlantillaEra = null;
         const extra = this.motivoEdicionPlantilla.trim();
         this.motivoEdicionPlantilla = '';
-        this.toast.exito(extra ? `Plantilla ERA guardada. Motivo: ${extra}` : 'Plantilla ERA guardada.');
+        this.controlEdicion.marcarLimpio();
+        this.toast.exito(extra ? `Plantilla ERA guardada. Motivo: ${extra}` : 'Plantilla ERA guardada correctamente.');
       },
       error: () => {
         this.guardandoPlantilla = false;
@@ -618,6 +626,7 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
       this.restaurarFirmaInspectorDesdeServidor(p.firmaInspector ?? null);
     }, 0);
     this.toast.exito('Borrador ERA local restaurado. Recuerda sincronizarlo con el servidor.');
+    setTimeout(() => this.controlEdicion.marcarLimpio(), 0);
   }
 
   async cambiarEstadoChecklistSeleccionado(nuevo: EstadoChecklist): Promise<void> {
@@ -849,7 +858,7 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
   private pintarFondoFirma(): void {
     const canvas = this.firmaCanvas?.nativeElement;
     if (!canvas || !this.ctx) return;
-    this.ctx.fillStyle = '#0a0a0a';
+    this.ctx.fillStyle = '#000000';
     this.ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
@@ -862,7 +871,7 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
 
   private moverTrazo(x: number, y: number): void {
     if (!this.dibujandoFirma || !this.ctx) return;
-    this.ctx.strokeStyle = '#ffffff';
+    this.ctx.strokeStyle = '#f5f5f5';
     this.ctx.lineWidth = 2;
     this.ctx.lineCap = 'round';
     this.ctx.lineJoin = 'round';
@@ -887,7 +896,7 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
   private pintarFondoFirmaInspector(): void {
     const canvas = this.firmaCanvasInspector?.nativeElement;
     if (!canvas || !this.ctxInspector) return;
-    this.ctxInspector.fillStyle = '#0a0a0a';
+    this.ctxInspector.fillStyle = '#000000';
     this.ctxInspector.fillRect(0, 0, canvas.width, canvas.height);
   }
 
@@ -900,7 +909,7 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
 
   private moverTrazoInspector(x: number, y: number): void {
     if (!this.dibujandoFirmaInspector || !this.ctxInspector) return;
-    this.ctxInspector.strokeStyle = '#ffffff';
+    this.ctxInspector.strokeStyle = '#f5f5f5';
     this.ctxInspector.lineWidth = 2;
     this.ctxInspector.lineCap = 'round';
     this.ctxInspector.lineJoin = 'round';
@@ -1335,11 +1344,22 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
     const index = this.equipos.length;
     this.equipos.push(eraEquipoVacio(index + 1));
     this.abrirSeccionesEquipo(index);
+    this.toast.info(`Equipo ERA ${index + 1} agregado a la plantilla.`);
   }
 
   agregarRecambio(): void {
     if (!this.editandoPlantilla) return;
-    this.recambios.push(cilindroRecambioVacio(this.recambios.length + 1, 'G1'));
+    const numero = this.recambios.length + 1;
+    this.recambios.push(cilindroRecambioVacio(numero, 'G1'));
+    this.toast.info(`Cilindro de recambio ${numero} agregado a la plantilla.`);
+  }
+
+  onPresionEquipoChange(equipo: EraEquipo, valor: string): void {
+    equipo.presion = normalizarPresionAireEra(valor);
+  }
+
+  onPresionRecambioChange(recambio: CilindroRecambio, valor: string): void {
+    recambio.presionAire = normalizarPresionAireEra(valor);
   }
 
   private claveSeccion(index: number, seccion: string): string {
@@ -1401,6 +1421,8 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
       return 'Debe existir al menos un equipo ERA.';
     }
     for (const e of this.equipos) {
+      const presionInvalida = mensajePresionAireInvalida(e.presion);
+      if (presionInvalida) return presionInvalida;
       if (
         !e.marca.trim() ||
         !e.tipo.trim() ||
@@ -1428,6 +1450,8 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
       return 'Debe existir al menos un cilindro de recambio.';
     }
     for (const c of this.recambios) {
+      const presionInvalida = mensajePresionAireInvalida(c.presionAire);
+      if (presionInvalida) return presionInvalida;
       if (
         !c.presionAire.trim() ||
         !c.codigoCilindro.trim() ||

@@ -363,7 +363,7 @@ export class ChecklistSelectorComponent implements OnInit {
     if (!codigo) {
       return;
     }
-    void this.router.navigate(['/checklist', codigo]);
+    void this.router.navigate(['/checklist', codigo], { queryParams: { nuevo: '1' } });
   }
 
   trackHistorialFila(
@@ -488,7 +488,7 @@ export class ChecklistSelectorComponent implements OnInit {
   }
 
   editarRegistroHistorial(h: ChecklistRegistroDto & { unidad: string; nombreUnidad: string }): void {
-    void this.router.navigate(['/checklist', h.unidad]);
+    void this.router.navigate(['/checklist', h.unidad], { queryParams: { registro: h.id } });
   }
 
   descargarRegistroHistorialPdf(h: ChecklistRegistroDto & { unidad: string; nombreUnidad: string }): void {

@@ -5,10 +5,17 @@
       <p class="text-sm">Cargando checklist ERA…</p>
     </div>
   } @else {
-    <a routerLink="/" class="sid-back-link mb-3">
-      <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-      Volver al inicio
-    </a>
+    @if (mostrarRegistro) {
+      <button type="button" (click)="volverSeleccionUnidad()" class="sid-back-link mb-3">
+        <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+        Volver a checklist ERA
+      </button>
+    } @else {
+      <a routerLink="/" class="sid-back-link mb-3">
+        <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+        Volver al inicio
+      </a>
+    }
     <section class="sid-hero-panel sid-hero-panel--violet">
       <div class="sid-hero-panel__row sid-hero-panel__row--split">
         <div>
@@ -37,6 +44,10 @@
     }
 
     <app-sid-edicion-pendiente-banner [visible]="checklistTieneCambios()" />
+    <app-sid-plantilla-edicion-banner
+      [visible]="editandoPlantilla && mostrarRegistro"
+      mensaje="Estás editando la plantilla ERA. Puedes agregar o quitar equipos y cilindros de recambio; inspector, OBAC y firmas no aplican en este modo."
+    />
 
     @if (!mostrarRegistro) {
       @if (carrosOrdenados().length === 0) {
@@ -484,8 +495,12 @@
                 <div>
                   <label class="mb-1 block text-xs text-gray-500">Presión de aire (cantidad / rango)</label>
                   <input
-                    [(ngModel)]="e.presion"
+                    [ngModel]="e.presion"
+                    (ngModelChange)="onPresionEquipoChange(e, $event)"
                     [name]="'pres' + i"
+                    type="number"
+                    min="0"
+                    max="5000"
                     placeholder="0 - 5000"
                     class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
                   />
@@ -659,8 +674,12 @@
                 <div>
                   <label class="mb-1 block text-xs text-gray-500">Presión de aire (cantidad)</label>
                   <input
-                    [(ngModel)]="c.presionAire"
+                    [ngModel]="c.presionAire"
+                    (ngModelChange)="onPresionRecambioChange(c, $event)"
                     [name]="'cpa' + ri"
+                    type="number"
+                    min="0"
+                    max="5000"
                     placeholder="0 - 5000"
                     class="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white"
                   />
@@ -726,6 +745,7 @@
         ></textarea>
       </div>
 
+      @if (!editandoPlantilla) {
       <div class="rounded-xl border border-gray-700 bg-[#121212] p-5 md:p-6">
         <h2 class="mb-1 text-lg font-bold tracking-tight text-white">
           Firmas de cierre <span class="text-red-400">*</span>
@@ -739,7 +759,7 @@
               Inspector <span class="text-red-400">*</span>
             </h3>
             <p class="mb-3 text-xs text-gray-500">Ejecuta la inspección en campo.</p>
-            <div class="overflow-hidden rounded-xl border border-gray-700 bg-[#0a0a0a]">
+            <div class="overflow-hidden rounded-xl border border-neutral-700 bg-black">
               <canvas
                 #firmaCanvasInspector
                 width="560"
@@ -762,7 +782,7 @@
               OBAC a cargo <span class="text-red-400">*</span>
             </h3>
             <p class="mb-3 text-xs text-gray-500">Firma oficial de la guardia respecto al checklist cerrado.</p>
-            <div class="overflow-hidden rounded-xl border border-gray-700 bg-[#0a0a0a]">
+            <div class="overflow-hidden rounded-xl border border-neutral-700 bg-black">
               <canvas
                 #firmaCanvas
                 width="560"
@@ -823,6 +843,7 @@
           {{ saving ? 'Guardando…' : 'Guardar checklist ERA' }}
         </button>
       </div>
+      }
 
     </div>
     }

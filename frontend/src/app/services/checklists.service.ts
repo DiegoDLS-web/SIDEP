@@ -475,12 +475,27 @@ export class ChecklistsService {
       detalle = rawDetalle as Record<string, unknown>;
     }
     const materiales = this.extraerMaterialesDesdeDetalle(detalle);
-    const totalItems = Number(detalle?.['totalItems']) || materiales.length || null;
-    const itemsOk = Number(detalle?.['itemsOk']) || materiales.filter((m) => {
+    const totalFromMateriales = materiales.length;
+    const okFromMateriales = materiales.filter((m) => {
       const req = Math.max(0, Number(m.cantidadRequerida ?? 0));
       const act = Math.max(0, Number(m.cantidadActual ?? 0));
-      return req > 0 && act >= req;
+      return String(m.nombre ?? '').trim().length > 0 && act >= req;
     }).length;
+    const totalItemsStored = Number(detalle?.['totalItems']);
+    const itemsOkStored = Number(detalle?.['itemsOk']);
+    /** Prioriza conteo desde ubicaciones guardadas (evita totales obsoletos como 8/8). */
+    const totalItems =
+      totalFromMateriales > 0
+        ? totalFromMateriales
+        : Number.isFinite(totalItemsStored) && totalItemsStored > 0
+          ? totalItemsStored
+          : null;
+    const itemsOk =
+      totalFromMateriales > 0
+        ? okFromMateriales
+        : Number.isFinite(itemsOkStored) && itemsOkStored >= 0
+          ? itemsOkStored
+          : okFromMateriales;
     const revisorNombre = ejecucion.revisor
       ? `${ejecucion.revisor.nombres} ${ejecucion.revisor.apellidoPaterno}`.trim()
       : null;

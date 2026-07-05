@@ -11,7 +11,7 @@ import {
   ViewChild,
 } from '@angular/core';
 
-/** Firma manuscrita (PNG base64 data URL). */
+/** Firma manuscrita (PNG base64 data URL). Fondo negro y trazo claro. */
 @Component({
   selector: 'app-signature-pad',
   standalone: true,
@@ -22,12 +22,7 @@ import {
         #cv
         [attr.width]="canvasWidth"
         [attr.height]="canvasHeight"
-        class="block w-full max-w-3xl touch-none rounded-lg border"
-        [ngClass]="
-          dark
-            ? 'border-gray-600 bg-[#1a1a1a]'
-            : 'border-gray-500 bg-[#f3f4f6]'
-        "
+        class="block w-full max-w-3xl touch-none rounded-lg border border-neutral-700 bg-black"
         (pointerdown)="onDown($event)"
         (pointermove)="onMove($event)"
         (pointerup)="onUp($event)"
@@ -52,7 +47,7 @@ export class SignaturePadComponent implements AfterViewInit, OnChanges {
   /** Alto interno del canvas (px). */
   @Input() canvasHeight = 120;
 
-  /** Fondo oscuro y trazo claro (útil en pantallas dark mode). */
+  /** Conservado por compatibilidad; el estilo es siempre fondo negro. */
   @Input() dark = false;
 
   @Output() valueChange = new EventEmitter<string>();
@@ -64,19 +59,33 @@ export class SignaturePadComponent implements AfterViewInit, OnChanges {
   private lastY = 0;
 
   ngAfterViewInit(): void {
+    this.pintarFondoNegro();
     if (this.value.startsWith('data:image')) {
       queueMicrotask(() => this.pintarDesdeDataUrl(this.value));
     }
   }
 
   ngOnChanges(ch: SimpleChanges): void {
-    if (ch['value'] && this.value.startsWith('data:image') && this.canvasRef) {
-      queueMicrotask(() => this.pintarDesdeDataUrl(this.value));
-    }
+    if (!ch['value'] || !this.canvasRef) return;
+    queueMicrotask(() => {
+      if (this.value.startsWith('data:image')) {
+        this.pintarDesdeDataUrl(this.value);
+      } else {
+        this.pintarFondoNegro();
+      }
+    });
   }
 
   private ctx(): CanvasRenderingContext2D | null {
     return this.canvasRef?.nativeElement?.getContext('2d') ?? null;
+  }
+
+  private pintarFondoNegro(): void {
+    const canvas = this.canvasRef?.nativeElement;
+    const ctx = this.ctx();
+    if (!canvas || !ctx) return;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
   private pintarDesdeDataUrl(url: string): void {
@@ -87,7 +96,7 @@ export class SignaturePadComponent implements AfterViewInit, OnChanges {
     }
     const img = new Image();
     img.onload = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      this.pintarFondoNegro();
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     };
     img.src = url;
@@ -104,7 +113,7 @@ export class SignaturePadComponent implements AfterViewInit, OnChanges {
     if (!ctx) {
       return;
     }
-    ctx.strokeStyle = this.dark ? '#f5f5f5' : '#111';
+    ctx.strokeStyle = '#f5f5f5';
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -157,11 +166,7 @@ export class SignaturePadComponent implements AfterViewInit, OnChanges {
   }
 
   limpiar(): void {
-    const canvas = this.canvasRef?.nativeElement;
-    const ctx = this.ctx();
-    if (canvas && ctx) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
+    this.pintarFondoNegro();
     this.valueChange.emit('');
   }
 }

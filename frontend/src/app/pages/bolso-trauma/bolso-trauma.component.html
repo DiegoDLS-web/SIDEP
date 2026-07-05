@@ -76,29 +76,46 @@
           </div>
 
           <div class="border-b border-slate-800/80 p-4 sm:p-5">
+            @let r = resumenUnidadBolso(unidad);
             <h4 class="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">Última revisión</h4>
-            @if (unidad.ultimaRevision) {
+            @if (r.ultimaFecha) {
               <div class="grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
                 <div class="min-w-0">
                   <p class="text-xs text-gray-400">Fecha</p>
-                  <p class="font-medium text-gray-100">{{ fechaHora(unidad.ultimaRevision.fecha).fecha }}</p>
+                  <p class="font-medium text-gray-100">{{ fechaHora(r.ultimaFecha).fecha }}</p>
                 </div>
                 <div class="min-w-0">
                   <p class="text-xs text-gray-400">Hora</p>
-                  <p class="font-medium text-gray-100">{{ fechaHora(unidad.ultimaRevision.fecha).hora }}</p>
+                  <p class="font-medium text-gray-100">{{ fechaHora(r.ultimaFecha).hora }}</p>
                 </div>
                 <div class="min-w-0">
                   <p class="text-xs text-gray-400">Inspector</p>
-                  <p class="break-words font-medium text-gray-100">{{ unidad.ultimaRevision.inspector || '—' }}</p>
+                  <p class="break-words font-medium text-gray-100">{{ r.inspector || '—' }}</p>
                 </div>
                 <div class="min-w-0">
                   <p class="text-xs text-gray-400">OBAC</p>
-                  <p class="break-words font-medium text-gray-100">{{ unidad.ultimaRevision.obac || unidad.ultimaRevision.responsable }}</p>
+                  <p class="break-words font-medium text-gray-100">{{ r.obac || '—' }}</p>
                 </div>
               </div>
             } @else {
               <p class="text-sm text-slate-500">Sin revisión registrada.</p>
             }
+          </div>
+
+          <div class="border-b border-slate-800/80 px-4 py-4 sm:px-5">
+            <div class="flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <p class="mb-1 text-xs text-gray-400">Ítems verificados</p>
+                <p class="text-2xl font-bold text-white">{{ itemsVerificadosTextoUnidad(unidad) }}</p>
+              </div>
+              @if (estadoItemsEtiquetaUnidad(unidad) === 'COMPLETADO') {
+                <span class="shrink-0 text-sm font-medium text-green-500">Completado</span>
+              } @else if (estadoItemsEtiquetaUnidad(unidad) === 'CON_OBSERVACION') {
+                <span class="shrink-0 text-sm font-medium text-amber-400">Con observación</span>
+              } @else {
+                <span class="shrink-0 text-sm font-medium text-yellow-500">Pendiente</span>
+              }
+            </div>
           </div>
 
           <div class="p-4 sm:p-5">
@@ -108,7 +125,7 @@
                 <button
                   type="button"
                   [routerLink]="['/bolso-trauma', unidad.unidad]"
-                  [queryParams]="{ bolso: bolso.numero }"
+                  [queryParams]="{ bolso: bolso.numero, nuevo: '1' }"
                   class="group/bolso flex w-full cursor-pointer items-center justify-between rounded-xl border border-slate-800 bg-[#0a0a0a] p-3 text-left text-white shadow-sm ring-1 ring-inset ring-white/5 transition-all hover:border-rose-600/80 hover:bg-[#0d0d0d] focus:outline-none focus:ring-2 focus:ring-rose-500/40"
                 >
                   <div class="flex min-w-0 flex-1 items-center gap-3">
@@ -132,7 +149,13 @@
                             [style.--sid-chart-stagger.ms]="iu * 56 + ib * 36"
                           ></div>
                         </div>
-                        <span class="shrink-0 text-xs font-medium text-gray-300">{{ bolso.completitud }}%</span>
+                        <span class="shrink-0 text-xs font-medium text-gray-300">
+                          @if (bolso.totalItems) {
+                            {{ bolso.itemsOk ?? 0 }}/{{ bolso.totalItems }}
+                          } @else {
+                            {{ bolso.completitud }}%
+                          }
+                        </span>
                       </div>
                     </div>
                     <div class="shrink-0 text-xs font-medium text-amber-400">

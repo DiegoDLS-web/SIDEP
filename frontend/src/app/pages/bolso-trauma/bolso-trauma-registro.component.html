@@ -13,7 +13,7 @@
       Volver a bolsos de trauma
     </a>
 
-    @if (error) {
+    @if (error && !editandoPlantilla) {
       <p class="sid-feedback rounded-xl border border-red-800/60 bg-red-950/30 px-4 py-3 text-sm text-red-300">{{ error }}</p>
     }
     @if (mensajeFlash) {
@@ -26,6 +26,10 @@
     }
 
     <app-sid-edicion-pendiente-banner [visible]="registroTieneCambios()" />
+    <app-sid-plantilla-edicion-banner
+      [visible]="editandoPlantilla"
+      mensaje="Estás editando la plantilla del bolso de trauma. Ajusta materiales y mínimos/óptimos; las cantidades actuales se registran en cada revisión."
+    />
 
     <section
       class="relative overflow-hidden rounded-2xl border border-cyan-900/30 bg-[radial-gradient(circle_at_0%_0%,rgba(6,182,212,0.12),transparent_48%),radial-gradient(circle_at_100%_0%,rgba(225,29,72,0.1),transparent_40%),#0a0a0a] p-1"
@@ -264,12 +268,15 @@
                 [readonly]="!editandoPlantilla"
                 class="mb-3 w-full rounded-lg border border-slate-600/80 bg-[#0f0f0f] px-3 py-2 text-sm text-white placeholder:text-gray-600"
               />
-              <div class="grid grid-cols-3 gap-2">
+              <div class="grid gap-2" [ngClass]="editandoPlantilla ? 'grid-cols-2' : 'grid-cols-3'">
                 <div>
                   <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Mínimo</label>
                   <input
                     type="number"
-                    [(ngModel)]="material.cantidadMinima"
+                    min="0"
+                    [max]="50"
+                    [ngModel]="material.cantidadMinima"
+                    (ngModelChange)="onCantidadMinimaChange(material, $event)"
                     [name]="'mm_mob_' + ui + '_' + mi"
                     [disabled]="!editandoPlantilla"
                     class="w-full rounded-lg border border-slate-600/80 bg-[#0f0f0f] px-3 py-2 text-center text-sm tabular-nums text-white"
@@ -279,21 +286,29 @@
                   <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Óptimo</label>
                   <input
                     type="number"
-                    [(ngModel)]="material.cantidadOptima"
+                    min="0"
+                    [max]="50"
+                    [ngModel]="material.cantidadOptima"
+                    (ngModelChange)="onCantidadOptimaChange(material, $event)"
                     [name]="'mo_mob_' + ui + '_' + mi"
                     [disabled]="!editandoPlantilla"
                     class="w-full rounded-lg border border-slate-600/80 bg-[#0f0f0f]/80 px-3 py-2 text-center text-sm tabular-nums text-slate-200"
                   />
                 </div>
+                @if (!editandoPlantilla) {
                 <div>
                   <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Actual</label>
                   <input
                     type="number"
-                    [(ngModel)]="material.cantidadActual"
+                    min="0"
+                    [max]="50"
+                    [ngModel]="material.cantidadActual"
+                    (ngModelChange)="onCantidadActualChange(material, $event)"
                     [name]="'ma_mob_' + ui + '_' + mi"
                     class="w-full rounded-lg border border-slate-600/80 bg-[#0f0f0f] px-3 py-2 text-center text-sm font-semibold tabular-nums text-white"
                   />
                 </div>
+                }
               </div>
               <div class="mt-3 flex items-center justify-between gap-2">
                 <div>
@@ -334,12 +349,14 @@
                 <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
                   Óptimo
                 </th>
+                @if (!editandoPlantilla) {
                 <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
                   Actual
                 </th>
                 <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
                   Estado (mín./ópt.)
                 </th>
+                }
                 <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">Acción</th>
               </tr>
             </thead>
@@ -357,7 +374,10 @@
                   <td class="px-4 py-3 text-center">
                     <input
                       type="number"
-                      [(ngModel)]="material.cantidadMinima"
+                      min="0"
+                      [max]="50"
+                      [ngModel]="material.cantidadMinima"
+                      (ngModelChange)="onCantidadMinimaChange(material, $event)"
                       [name]="'mm_' + ui + '_' + mi"
                       [disabled]="!editandoPlantilla"
                       class="w-[4.75rem] rounded-lg border border-slate-600/80 bg-[#0f0f0f] px-3 py-2 text-center text-sm tabular-nums text-white"
@@ -366,16 +386,23 @@
                   <td class="px-4 py-3 text-center">
                     <input
                       type="number"
-                      [(ngModel)]="material.cantidadOptima"
+                      min="0"
+                      [max]="50"
+                      [ngModel]="material.cantidadOptima"
+                      (ngModelChange)="onCantidadOptimaChange(material, $event)"
                       [name]="'mo_' + ui + '_' + mi"
                       [disabled]="!editandoPlantilla"
                       class="w-[4.75rem] rounded-lg border border-slate-600/80 bg-[#0f0f0f]/80 px-3 py-2 text-center text-sm tabular-nums text-slate-200"
                     />
                   </td>
+                  @if (!editandoPlantilla) {
                   <td class="px-4 py-3 text-center">
                     <input
                       type="number"
-                      [(ngModel)]="material.cantidadActual"
+                      min="0"
+                      [max]="50"
+                      [ngModel]="material.cantidadActual"
+                      (ngModelChange)="onCantidadActualChange(material, $event)"
                       [name]="'ma_' + ui + '_' + mi"
                       class="w-[4.75rem] rounded-lg border border-slate-600/80 bg-[#0f0f0f] px-3 py-2 text-center text-sm font-semibold tabular-nums text-white"
                     />
@@ -395,6 +422,7 @@
                         >Crítico</span>
                     }
                   </td>
+                  }
                   <td class="px-4 py-3 text-center">
                     <button
                       type="button"
@@ -415,6 +443,7 @@
       </div>
     }
 
+    @if (!editandoPlantilla) {
     <div class="rounded-2xl border border-slate-800/90 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
       <h2 class="mb-4 text-lg font-bold text-white sm:text-xl">Observaciones (opcional)</h2>
       <textarea
@@ -499,5 +528,6 @@
         Guardar checklist bolso trauma
       </button>
     </div>
+    }
   }
 </div>

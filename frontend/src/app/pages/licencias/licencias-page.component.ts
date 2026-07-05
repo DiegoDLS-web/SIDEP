@@ -17,6 +17,7 @@ import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { CambioEstadoDialogService } from '../../services/cambio-estado-dialog.service';
 import { solicitarMotivoCambioEstado } from '../../utils/cambio-estado.util';
 import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util';
+import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
 import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
 import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
 
@@ -42,7 +43,7 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
   }
 
   tieneEdicionPendiente(): boolean {
-    if (this.modalNuevaSolicitudAbierta && this.solicitudTieneDatosSinGuardar()) return true;
+    if (this.modalNuevaSolicitudAbierta && this.solicitudTieneCambios()) return true;
     return this.puedeGestionar && this.tieneResolucionPendiente();
   }
 
@@ -70,6 +71,13 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
     motivo: '',
     archivoUrl: '',
   };
+
+  private readonly controlSolicitud = crearControlEdicionPendiente(() => ({
+    fechaInicio: this.form.fechaInicio,
+    fechaTermino: this.form.fechaTermino,
+    motivo: this.form.motivo,
+    adjunto: this.adjuntoNombre,
+  }));
   adjuntoNombre = '';
   adjuntoTipo = '';
   adjuntoError: string | null = null;
@@ -445,6 +453,7 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
   }
 
   abrirModalNuevaSolicitud(): void {
+    this.limpiarFormulario();
     this.modalNuevaSolicitudAbierta = true;
     this.error = null;
   }
@@ -463,7 +472,7 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
   }
 
   solicitudTieneCambios(): boolean {
-    return this.solicitudTieneDatosSinGuardar();
+    return this.controlSolicitud.tieneCambios();
   }
 
   async intentarCerrarModalNuevaSolicitud(): Promise<void> {
@@ -557,6 +566,7 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
     this.adjuntoError = null;
     this.progresoCarga = 0;
     this.liberarPreviewAdjunto();
+    this.controlSolicitud.marcarLimpio();
   }
 
   etiquetaEstado(estado: LicenciaEstado): string {

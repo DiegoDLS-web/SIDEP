@@ -19,10 +19,15 @@ import { firmaEfectiva } from '../../utils/firma-resolver';
 import { filtrarUsuariosChecklist } from '../../utils/usuarios-checklist.util';
 import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util';
 import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
+import {
+  mensajeCantidadChecklistInvalida,
+  normalizarCantidadChecklist,
+} from '../../utils/checklist-cantidad.util';
 import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
 import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
 import { ubicacionesPlantillaTraumaOficial } from './trauma-plantilla-oficial';
 import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
+import { SidPlantillaEdicionBannerComponent } from '../../shared/sid-plantilla-edicion-banner.component';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 import type { EstadoChecklist } from '../../models/checklist.dto';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
@@ -142,7 +147,7 @@ function fusionarBolsosConPlantillaCanon(bolsos: Bolso[], unidad: string): Bolso
 @Component({
   selector: 'app-bolso-trauma-registro',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidDateInputComponent, SidEdicionPendienteBannerComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidDateInputComponent, SidEdicionPendienteBannerComponent, SidPlantillaEdicionBannerComponent],
   templateUrl: './bolso-trauma-registro.component.html',
 })
 export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicionPendiente {
@@ -197,8 +202,11 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
   guardandoPlantilla = false;
   motivoEdicionPlantilla = '';
   private snapshotPlantillaBolso: Bolso[] | null = null;
+  private snapshotPlantillaBolsoJson = '';
   /** Acordeón por compartimiento (índice); true = expandido. */
   private ubicacionesExpandidas: Record<number, boolean> = {};
+  private registroHistorialId: string | null = null;
+  private esRegistroNuevo = true;
 
   private readonly controlEdicion = crearControlEdicionPendiente(() => ({
     cuarteleroId: this.cuarteleroId,
@@ -236,8 +244,12 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
     this.unidad = this.route.snapshot.paramMap.get('unidad') ?? 'R-1';
     const q = Number(this.route.snapshot.queryParamMap.get('bolso') ?? '1');
     this.bolsoNumero = Number.isFinite(q) && q > 0 ? q : 1;
-    const hoy = new Date().toISOString().slice(0, 10);
-    this.fechaInspeccion = hoy;
+    this.registroHistorialId = this.route.snapshot.queryParamMap.get('registro');
+    this.esRegistroNuevo = !this.registroHistorialId;
+
+    const registroHistorial$ = this.registroHistorialId
+      ? this.bolsosApi.obtenerHistorialPorId(this.registroHistorialId).pipe(catchError(() => of(null)))
+      : of(null);
 
     forkJoin({
       data: this.bolsosApi.obtenerUnidad(this.unidad).pipe(
@@ -247,12 +259,13 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
         catchError(() => of(this.usuariosDesdeSesion())),
       ),
       plantilla: (this.checklistsApi as any).obtenerPlantilla('TRAUMA', this.unidad).pipe(catchError(() => of(null))),
+      registroHistorial: registroHistorial$,
     }).subscribe({
-      next: ({ data, usuarios, plantilla }) => {
+      next: ({ data, usuarios, plantilla, registroHistorial }) => {
         this.usuarios = filtrarUsuariosChecklist(usuarios?.length ? usuarios : this.usuariosDesdeSesion());
         this.nombreCarro = (data?.carro?.nombre ?? '').trim() || `Unidad ${this.unidad}`;
 
-        const checklist = data?.checklist;
+        const checklist = registroHistorial ?? (this.esRegistroNuevo ? null : data?.checklist);
         const detalle = checklist?.detalle as {
           bolsos?: Bolso[];
           fecha?: string;
@@ -272,40 +285,14 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
         if (unidadConCatalogoTraumaCompleto(this.unidad)) {
           this.bolsos = fusionarBolsosConPlantillaCanon(this.bolsos, this.unidad);
         }
-
-        if (checklist?.inspector) this.nombreInspector = checklist.inspector;
-        if (checklist?.grupoGuardia) this.grupoGuardia = checklist.grupoGuardia;
-        if (checklist?.observaciones) this.observaciones = checklist.observaciones;
-        if (checklist?.cuarteleroId) {
-          const id = String(checklist.cuarteleroId);
-          const match = this.usuarios.find((u) => u.id === id || u.rut === id);
-          this.cuarteleroId = match?.id ?? id;
-        } else if (this.usuarios.length > 0) {
-          const id = this.usuarios[0].id;
-          const match = this.usuarios.find((u) => u.id === id || u.rut === id);
-          this.cuarteleroId = match?.id ?? id;
+        if (this.esRegistroNuevo) {
+          this.bolsos = this.reiniciarCantidadesActualesBolsos(this.bolsos);
         }
 
-        if (!this.nombreInspector.trim()) {
-          const perfil = this.auth.usuarioActual;
-          const nom = perfil?.nombre?.trim() ?? '';
-          const clave = (perfil as { claveNomina?: string })?.claveNomina?.trim() ?? '';
-          this.nombreInspector = nom && clave ? `${nom} / ${clave}` : nom;
-        }
-
-        const fi = detalle?.fechaInspeccion ?? detalle?.fecha;
-        if (fi && /^\d{4}-\d{2}-\d{2}/.test(fi)) {
-          this.fechaInspeccion = fi.slice(0, 10);
-        }
-
-        const fFirma = checklist?.firmaOficial?.trim();
-        if (fFirma?.startsWith('data:image')) {
-          this.firmaDataUrl = fFirma;
-          this.fechaCierreChecklist = checklist?.fecha ?? null;
-        }
-        const fInsp = checklist?.firmaInspector?.trim();
-        if (fInsp?.startsWith('data:image')) {
-          this.firmaInspectorDataUrl = fInsp;
+        if (this.esRegistroNuevo) {
+          this.limpiarCamposRegistroBolso();
+        } else {
+          this.aplicarCamposRegistroBolso(checklist, detalle);
         }
 
         this.controlEdicion.marcarLimpio();
@@ -321,6 +308,57 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
         this.loading = false;
       },
     });
+  }
+
+  private limpiarCamposRegistroBolso(): void {
+    this.nombreInspector = '';
+    this.grupoGuardia = '';
+    this.observaciones = '';
+    this.cuarteleroId = '';
+    this.fechaInspeccion = '';
+    this.firmaDataUrl = '';
+    this.firmaInspectorDataUrl = '';
+    this.fechaCierreChecklist = null;
+  }
+
+  private aplicarCamposRegistroBolso(
+    checklist: {
+      inspector?: string | null;
+      grupoGuardia?: string | null;
+      observaciones?: string | null;
+      cuarteleroId?: string | null;
+      cuartelero?: { id?: string | null; rut?: string | null } | null;
+      firmaOficial?: string | null;
+      firmaInspector?: string | null;
+      fecha?: string | null;
+    } | null,
+    detalle: { fecha?: string; fechaInspeccion?: string } | null,
+  ): void {
+    if (checklist?.inspector) this.nombreInspector = checklist.inspector;
+    if (checklist?.grupoGuardia) this.grupoGuardia = checklist.grupoGuardia;
+    if (checklist?.observaciones) this.observaciones = checklist.observaciones;
+
+    const cuarteleroRef = checklist?.cuarteleroId ?? checklist?.cuartelero?.id ?? checklist?.cuartelero?.rut;
+    if (cuarteleroRef) {
+      const id = String(cuarteleroRef);
+      const match = this.usuarios.find((u) => u.id === id || u.rut === id);
+      this.cuarteleroId = match?.id ?? id;
+    }
+
+    const fi = detalle?.fechaInspeccion ?? detalle?.fecha;
+    if (fi && /^\d{4}-\d{2}-\d{2}/.test(fi)) {
+      this.fechaInspeccion = fi.slice(0, 10);
+    }
+
+    const fFirma = checklist?.firmaOficial?.trim();
+    if (fFirma?.startsWith('data:image')) {
+      this.firmaDataUrl = fFirma;
+      this.fechaCierreChecklist = checklist?.fecha ?? null;
+    }
+    const fInsp = checklist?.firmaInspector?.trim();
+    if (fInsp?.startsWith('data:image')) {
+      this.firmaInspectorDataUrl = fInsp;
+    }
   }
 
   /** Si la API de usuarios falla, permite al menos seleccionar al usuario de la sesión. */
@@ -411,6 +449,7 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
   }
 
   agregarMaterial(ubicacionIndex: number): void {
+    if (!this.editandoPlantilla) return;
     this.bolsoActual.ubicaciones[ubicacionIndex]?.materiales.push({
       id: crypto.randomUUID(),
       nombre: '',
@@ -418,6 +457,35 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
       cantidadOptima: 1,
       cantidadActual: 0,
     });
+    this.toast.info('Material agregado a la plantilla. Completa nombre y cantidades mín./ópt.');
+  }
+
+  onCantidadActualChange(material: MaterialItem, valor: unknown): void {
+    material.cantidadActual = normalizarCantidadChecklist(valor);
+  }
+
+  onCantidadMinimaChange(material: MaterialItem, valor: unknown): void {
+    material.cantidadMinima = normalizarCantidadChecklist(valor);
+  }
+
+  onCantidadOptimaChange(material: MaterialItem, valor: unknown): void {
+    material.cantidadOptima = normalizarCantidadChecklist(valor);
+  }
+
+  private serializarPlantillaBolso(bolsos: Bolso[]): string {
+    return JSON.stringify(
+      bolsos.map((b) => ({
+        numero: b.numero,
+        ubicaciones: b.ubicaciones.map((u) => ({
+          nombre: u.nombre,
+          materiales: u.materiales.map((m) => ({
+            nombre: m.nombre,
+            cantidadMinima: normalizarCantidadChecklist(m.cantidadMinima),
+            cantidadOptima: normalizarCantidadChecklist(m.cantidadOptima),
+          })),
+        })),
+      })),
+    );
   }
 
   get puedeEditarPlantilla(): boolean {
@@ -426,9 +494,23 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
   }
 
   activarEdicionPlantilla(): void {
+    this.error = null;
+    this.mensajeFlash = null;
     this.motivoEdicionPlantilla = '';
     this.snapshotPlantillaBolso = JSON.parse(JSON.stringify(this.bolsos)) as Bolso[];
+    this.snapshotPlantillaBolsoJson = this.serializarPlantillaBolso(this.bolsos);
     this.editandoPlantilla = true;
+    this.toast.info('Modo edición de plantilla activado. Guarda los cambios con «Guardar plantilla».');
+  }
+
+  private reiniciarCantidadesActualesBolsos(bolsos: Bolso[]): Bolso[] {
+    return bolsos.map((b) => ({
+      ...b,
+      ubicaciones: b.ubicaciones.map((u) => ({
+        ...u,
+        materiales: u.materiales.map((m) => ({ ...m, cantidadActual: 0 })),
+      })),
+    }));
   }
 
   cancelarEdicionPlantilla(): void {
@@ -436,8 +518,8 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
   }
 
   private plantillaBolsoTieneCambios(): boolean {
-    if (!this.snapshotPlantillaBolso) return false;
-    return JSON.stringify(this.bolsos) !== JSON.stringify(this.snapshotPlantillaBolso);
+    if (!this.snapshotPlantillaBolsoJson) return false;
+    return this.serializarPlantillaBolso(this.bolsos) !== this.snapshotPlantillaBolsoJson;
   }
 
   async intentarCancelarEdicionPlantilla(): Promise<void> {
@@ -450,6 +532,7 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
       this.bolsos = JSON.parse(JSON.stringify(this.snapshotPlantillaBolso)) as Bolso[];
     }
     this.snapshotPlantillaBolso = null;
+    this.snapshotPlantillaBolsoJson = '';
     this.motivoEdicionPlantilla = '';
     this.editandoPlantilla = false;
   }
@@ -462,6 +545,13 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
 
   guardarPlantillaTrauma(): void {
     if (!this.puedeEditarPlantilla || this.guardandoPlantilla) return;
+    const v = this.validarPlantillaBolso();
+    if (v) {
+      this.error = v;
+      this.toast.error(v);
+      return;
+    }
+    this.error = null;
     this.guardandoPlantilla = true;
     const ref = this.bolsos.find((b) => b.numero === this.bolsoNumero) ?? this.bolsos[0] ?? bolsoPlantillaOficial(1);
     const ubicTpl = ref.ubicaciones.map((u) => ({
@@ -490,9 +580,12 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
           return;
         }
         this.editandoPlantilla = false;
+        this.snapshotPlantillaBolso = null;
+        this.snapshotPlantillaBolsoJson = '';
         const extra = this.motivoEdicionPlantilla.trim();
         this.motivoEdicionPlantilla = '';
-        this.toast.exito(extra ? `Plantilla de trauma guardada. Motivo: ${extra}` : 'Plantilla de trauma guardada.');
+        this.controlEdicion.marcarLimpio();
+        this.toast.exito(extra ? `Plantilla de trauma guardada. Motivo: ${extra}` : 'Plantilla de trauma guardada correctamente.');
       },
       error: () => {
         this.guardandoPlantilla = false;
@@ -593,7 +686,25 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
     return { total: this.totalMateriales(), ok: this.materialesMinimosOk() };
   }
 
+  validarPlantillaBolso(): string | null {
+    const flat = this.bolsos.flatMap((b) => b.ubicaciones.flatMap((u) => u.materiales));
+    if (flat.length === 0) {
+      return 'La plantilla debe incluir al menos un material.';
+    }
+    for (const m of flat) {
+      if (!m.nombre.trim()) {
+        return 'Todo material de la plantilla debe tener nombre.';
+      }
+      const min = mensajeCantidadChecklistInvalida(m.cantidadMinima);
+      if (min) return min;
+      const opt = mensajeCantidadChecklistInvalida(m.cantidadOptima);
+      if (opt) return opt;
+    }
+    return null;
+  }
+
   validarBolsoCompleto(): string | null {
+    if (this.editandoPlantilla) return null;
     if (this.cuarteleroId === '') {
       return 'Selecciona un voluntario responsable (OBAC).';
     }
@@ -620,9 +731,8 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
       if (!m.nombre.trim()) {
         return 'Todo material debe tener nombre indicado.';
       }
-      if (m.cantidadActual < m.cantidadMinima) {
-        return `Completa todos los materiales del bolso ${this.bolsoNumero}: la cantidad actual debe ser al menos el mínimo.`;
-      }
+      const actual = mensajeCantidadChecklistInvalida(m.cantidadActual);
+      if (actual) return actual;
     }
     return null;
   }
@@ -686,6 +796,7 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
       this.estadoChecklistUi = p.estadoChecklistSeleccionado;
     }
     this.toast.exito('Borrador local restaurado. Recuerda sincronizarlo con el servidor.');
+    this.controlEdicion.marcarLimpio();
   }
 
   async cambiarEstadoChecklistSeleccionado(nuevo: EstadoChecklist): Promise<void> {

@@ -3,6 +3,7 @@ import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, catchError, of } from 'rxjs';
+import { map } from 'rxjs/operators';
 import type { UsuarioListaDto } from '../../models/usuario.dto';
 import { AuthService } from '../../services/auth.service';
 import { ChecklistsService } from '../../services/checklists.service';
@@ -20,10 +21,17 @@ import { filtrarUsuariosChecklist } from '../../utils/usuarios-checklist.util';
 import { mensajeApiError } from '../../utils/api-error.util';
 import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util';
 import { crearControlEdicionPendiente } from '../../utils/edicion-pendiente.util';
+import {
+  MAX_CANTIDAD_CHECKLIST,
+  mensajeCantidadChecklistInvalida,
+  normalizarCantidadChecklist,
+  reiniciarCantidadesActualesUbicaciones,
+} from '../../utils/checklist-cantidad.util';
 import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
 import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
 import { CHECKLIST_UNIDAD_TEMPLATES } from './checklist-unidad.templates';
 import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
+import { SidPlantillaEdicionBannerComponent } from '../../shared/sid-plantilla-edicion-banner.component';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 import type { EstadoChecklist } from '../../models/checklist.dto';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
@@ -45,7 +53,7 @@ type Ubicacion = { nombre: string; materiales: Material[] };
 @Component({
   selector: 'app-checklist-unidad',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidEdicionPendienteBannerComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidEdicionPendienteBannerComponent, SidPlantillaEdicionBannerComponent],
   templateUrl: './checklist-unidad.component.html',
 })
 export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPendiente {
@@ -101,6 +109,8 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
   mensajeFlash: string | null = null;
   private flashTimer: ReturnType<typeof setTimeout> | null = null;
   private nombreOriginalMaterial = new Map<string, string>();
+  private registroHistorialId: string | null = null;
+  private esRegistroNuevo = true;
 
   private readonly controlEdicion = crearControlEdicionPendiente(() => ({
     cuarteleroId: this.cuarteleroId,
@@ -138,6 +148,16 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
 
   ngOnInit(): void {
     this.unidad = this.route.snapshot.paramMap.get('unidad') ?? 'R-1';
+    this.registroHistorialId = this.route.snapshot.queryParamMap.get('registro');
+    this.esRegistroNuevo = !this.registroHistorialId;
+
+    const registroHistorial$ = this.registroHistorialId
+      ? this.checklistsApi.historialUnidad(this.unidad).pipe(
+          map((list) => list.find((r) => String(r.id) === this.registroHistorialId) ?? null),
+          catchError(() => of(null)),
+        )
+      : of(null);
+
     forkJoin({
       unidadData: this.checklistsApi.obtenerChecklistUnidad(this.unidad).pipe(
         catchError(() =>
@@ -152,20 +172,26 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
         catchError(() => of({ ubicaciones: [] })),
       ),
       usuarios: this.usuariosApi.voluntariosParaSelect().pipe(catchError(() => of([] as UsuarioListaDto[]))),
+      registroHistorial: registroHistorial$,
     }).subscribe({
-      next: ({ unidadData, plantillaData, usuarios }: any) => {
+      next: ({ unidadData, plantillaData, usuarios, registroHistorial }: any) => {
         this.usuarios = filtrarUsuariosChecklist(usuarios?.length ? usuarios : this.usuariosDesdeSesion());
         const c = unidadData.carro;
         this.carroId = c?.id ? String(c.id) : '';
         this.nombreCarro = c ? (c.nombre?.trim() || c.nomenclatura?.trim() || null) : null;
-        const checklist = unidadData.checklist;
+        const checklist = registroHistorial ?? (this.esRegistroNuevo ? null : unidadData.checklist);
         if (checklist?.cuarteleroId) {
           this.cuarteleroId = String(checklist.cuarteleroId);
-        } else if (this.usuarios.length > 0) {
+        } else if (!this.esRegistroNuevo && this.usuarios.length > 0) {
           this.cuarteleroId = this.usuarios[0].id;
+        } else {
+          this.cuarteleroId = '';
         }
         const baseTemplate = this.defaultUbicaciones(this.unidad);
-        const detalle = (checklist?.detalle as { ubicaciones?: Ubicacion[] } | null)?.ubicaciones;
+        const detalleRaw = (checklist?.detalle as { ubicaciones?: Ubicacion[] } | null)?.ubicaciones;
+        const detalleNormalizado =
+          this.esRegistroNuevo || !detalleRaw?.length ? [] : this.normalizarDetalle(detalleRaw);
+
         const plantilla = plantillaData?.ubicaciones?.length
           ? this.normalizarDetalle(
               plantillaData.ubicaciones.map((u: any) => ({
@@ -181,7 +207,11 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
               })),
             )
           : [];
-        const detalleNormalizado = detalle?.length ? this.normalizarDetalle(detalle) : [];
+
+        const resolverUbicaciones = (inventario: Ubicacion[], detalle: Ubicacion[]) => {
+          const base = this.resolverUbicacionesIniciales(inventario, plantilla, baseTemplate, detalle);
+          return this.esRegistroNuevo ? reiniciarCantidadesActualesUbicaciones(base) : base;
+        };
 
         if (this.carroId) {
           this.checklistsApi.obtenerInventarioChecklistCarro(this.carroId).subscribe({
@@ -208,18 +238,18 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
                   : plantilla.length > 0
                     ? 'plantilla'
                     : 'plantilla_local';
-              this.ubicaciones = this.resolverUbicacionesIniciales(inventario, plantilla, baseTemplate, detalleNormalizado);
+              this.ubicaciones = resolverUbicaciones(inventario, detalleNormalizado);
               this.finalizarCarga(checklist);
             },
             error: () => {
               this.fuenteInventario = plantilla.length > 0 ? 'plantilla' : 'plantilla_local';
-              this.ubicaciones = this.resolverUbicacionesIniciales([], plantilla, baseTemplate, detalleNormalizado);
+              this.ubicaciones = resolverUbicaciones([], detalleNormalizado);
               this.finalizarCarga(checklist);
             },
           });
         } else {
           this.fuenteInventario = plantilla.length > 0 ? 'plantilla' : 'plantilla_local';
-          this.ubicaciones = this.resolverUbicacionesIniciales([], plantilla, baseTemplate, detalleNormalizado);
+          this.ubicaciones = resolverUbicaciones([], detalleNormalizado);
           this.finalizarCarga(checklist);
         }
       },
@@ -276,18 +306,36 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
 
   activarEdicionPlantilla(): void {
     if (!this.puedeEditarPlantilla) return;
+    this.error = null;
     this.motivoEdicionPlantilla = '';
     this.plantillaUbicacionesBackup = this.clonarUbicaciones(this.ubicaciones);
     this.editandoPlantilla = true;
+    this.toast.info('Modo edición de plantilla activado. Guarda los cambios con «Guardar plantilla».');
   }
 
   cancelarEdicionPlantilla(): void {
     void this.intentarCancelarEdicionPlantilla();
   }
 
+  private serializarPlantillaUbicaciones(ubicaciones: Ubicacion[]): string {
+    return JSON.stringify(
+      ubicaciones.map((u) => ({
+        nombre: u.nombre,
+        materiales: u.materiales.map((m) => ({
+          nombre: m.nombre,
+          cantidadRequerida: normalizarCantidadChecklist(m.cantidadRequerida),
+          materialId: m.materialId,
+        })),
+      })),
+    );
+  }
+
   private plantillaTieneCambiosSinGuardar(): boolean {
     if (this.plantillaUbicacionesBackup == null) return false;
-    return JSON.stringify(this.ubicaciones) !== JSON.stringify(this.plantillaUbicacionesBackup);
+    return (
+      this.serializarPlantillaUbicaciones(this.ubicaciones) !==
+      this.serializarPlantillaUbicaciones(this.plantillaUbicacionesBackup)
+    );
   }
 
   async intentarCancelarEdicionPlantilla(): Promise<void> {
@@ -322,28 +370,44 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
     itemsOk?: number | null;
   } | null): void {
     this.ubicacionesAbiertas = Object.fromEntries(this.ubicaciones.map((u, idx) => [u.nombre, idx < 2]));
-    this.nombreInspector = checklist?.inspector ?? '';
-    this.grupoGuardia = checklist?.grupoGuardia ?? '';
-    this.observaciones = checklist?.observaciones ?? '';
-    if (checklist?.firmaOficial?.startsWith('data:image')) {
-      this.firmaObacValor = checklist.firmaOficial;
-      this.fechaCierreChecklist = checklist.fecha ?? null;
+    if (this.esRegistroNuevo) {
+      this.limpiarCamposRegistroCaptura();
+    } else {
+      this.nombreInspector = checklist?.inspector ?? '';
+      this.grupoGuardia = checklist?.grupoGuardia ?? '';
+      this.observaciones = checklist?.observaciones ?? '';
+      if (checklist?.firmaOficial?.startsWith('data:image')) {
+        this.firmaObacValor = checklist.firmaOficial;
+        this.fechaCierreChecklist = checklist.fecha ?? null;
+      }
+      const fInsp = checklist?.firmaInspector?.trim();
+      if (fInsp?.startsWith('data:image')) {
+        this.firmaInspectorValor = fInsp;
+      }
+      this.estadoChecklistSeleccionado =
+        checklist?.estadoChecklist ??
+        calcularEstadoChecklist(
+          checklist?.totalItems ?? this.totalItems(),
+          checklist?.itemsOk ?? this.itemsOk(),
+          checklist?.observaciones ?? null,
+        );
+      this.estadoChecklistUi = this.estadoChecklistSeleccionado;
     }
-    const fInsp = checklist?.firmaInspector?.trim();
-    if (fInsp?.startsWith('data:image')) {
-      this.firmaInspectorValor = fInsp;
-    }
-    this.estadoChecklistSeleccionado =
-      checklist?.estadoChecklist ??
-      calcularEstadoChecklist(
-        checklist?.totalItems ?? this.totalItems(),
-        checklist?.itemsOk ?? this.itemsOk(),
-        checklist?.observaciones ?? null,
-      );
-    this.estadoChecklistUi = this.estadoChecklistSeleccionado;
     this.controlEdicion.marcarLimpio();
     this.loading = false;
     void this.ofrecerRestaurarBorradorLocal();
+  }
+
+  private limpiarCamposRegistroCaptura(): void {
+    this.nombreInspector = '';
+    this.grupoGuardia = '';
+    this.observaciones = '';
+    this.cuarteleroId = '';
+    this.firmaObacValor = '';
+    this.firmaInspectorValor = '';
+    this.fechaCierreChecklist = null;
+    this.estadoChecklistSeleccionado = calcularEstadoChecklist(this.totalItems(), this.itemsOk(), '');
+    this.estadoChecklistUi = this.estadoChecklistSeleccionado;
   }
 
   private payloadBorradorLocal() {
@@ -385,6 +449,7 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
     this.firmaInspectorValor = p.firmaInspectorValor ?? '';
     this.estadoChecklistSeleccionado = p.estadoChecklistSeleccionado ?? this.estadoChecklistSeleccionado;
     this.toast.exito('Borrador local restaurado. Recuerda sincronizarlo con el servidor.');
+    this.controlEdicion.marcarLimpio();
   }
 
   async cambiarEstadoChecklistSeleccionado(nuevo: EstadoChecklist): Promise<void> {
@@ -539,14 +604,21 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
     return m.nombre.trim().length > 0 && m.cantidadActual >= m.cantidadRequerida;
   }
 
-  estadoMaterial(m: Material): 'OK' | 'BAJO' | 'CRITICO' {
-    if (m.cantidadActual >= m.cantidadRequerida) return 'OK';
+  estadoMaterial(m: Material): 'CRITICO' | 'MINIMO' | 'OPTIMO' {
     if (m.cantidadActual <= 0) return 'CRITICO';
-    return 'BAJO';
+    if (m.cantidadActual >= m.cantidadRequerida) return 'OPTIMO';
+    return 'MINIMO';
+  }
+
+  etiquetaEstadoMaterial(m: Material): string {
+    const e = this.estadoMaterial(m);
+    if (e === 'OPTIMO') return 'Óptimo';
+    if (e === 'MINIMO') return 'Mínimo';
+    return 'Crítico';
   }
 
   esPendiente(m: Material): boolean {
-    return this.estadoMaterial(m) !== 'OK';
+    return this.estadoMaterial(m) !== 'OPTIMO';
   }
 
   toggleUbicacion(nombre: string): void {
@@ -624,6 +696,27 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
     return this.firmaInspectorValor.trim();
   }
 
+  onCantidadActualChange(material: Material, valor: unknown): void {
+    material.cantidadActual = normalizarCantidadChecklist(valor);
+  }
+
+  onCantidadRequeridaChange(material: Material, valor: unknown): void {
+    material.cantidadRequerida = normalizarCantidadChecklist(valor);
+  }
+
+  private validarCantidadesMateriales(materiales: Material[]): string | null {
+    for (const m of materiales) {
+      if (!m.nombre.trim()) {
+        return 'Todo material debe tener nombre indicado.';
+      }
+      const actual = mensajeCantidadChecklistInvalida(m.cantidadActual);
+      if (actual) return actual;
+      const req = mensajeCantidadChecklistInvalida(m.cantidadRequerida);
+      if (req) return req;
+    }
+    return null;
+  }
+
   validarChecklistCompleto(): string | null {
     if (this.cuarteleroId === '') {
       return 'Selecciona un oficial responsable (OBAC).';
@@ -638,9 +731,8 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
     if (materiales.length === 0) {
       return 'No hay materiales en el checklist.';
     }
-    if (!materiales.every((m) => this.materialOk(m))) {
-      return 'Completa todos los materiales (nombre y cantidad actual mayor o igual a la requerida).';
-    }
+    const cantidades = this.validarCantidadesMateriales(materiales);
+    if (cantidades) return cantidades;
     if (!this.firmaResueltaObac()) {
       return 'La firma del OBAC es obligatoria (dibújala o usa la firma del perfil del responsable).';
     }
@@ -727,7 +819,7 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
 
   itemsBajo(): number {
     return this.ubicaciones.reduce(
-      (acc, u) => acc + u.materiales.filter((m) => this.estadoMaterial(m) === 'BAJO').length,
+      (acc, u) => acc + u.materiales.filter((m) => this.estadoMaterial(m) === 'MINIMO').length,
       0,
     );
   }
@@ -781,9 +873,9 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
 
   claseBadgeEstadoMaterial(m: Material): string {
     const estado = this.estadoMaterial(m);
-    if (estado === 'OK') return 'border-emerald-500/50 bg-emerald-500/20 text-emerald-200';
-    if (estado === 'BAJO') return 'border-amber-500/50 bg-amber-500/20 text-amber-200';
-    return 'border-red-500/50 bg-red-500/20 text-red-200';
+    if (estado === 'OPTIMO') return 'border-sky-500/50 bg-sky-500/20 text-sky-100';
+    if (estado === 'MINIMO') return 'border-emerald-500/50 bg-emerald-500/20 text-emerald-100';
+    return 'border-red-500/50 bg-red-500/20 text-red-100';
   }
 
   marcarOk(m: Material): void {
@@ -1006,6 +1098,7 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
         this.plantillaUbicacionesBackup = null;
         const extra = this.motivoEdicionPlantilla.trim();
         this.motivoEdicionPlantilla = '';
+        this.controlEdicion.marcarLimpio();
         this.toast.exito(
           extra ? `Plantilla guardada. Motivo: ${extra}` : 'Plantilla guardada correctamente.',
         );
