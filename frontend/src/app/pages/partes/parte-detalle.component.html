@@ -343,8 +343,10 @@
           @for (u of p.unidades; track u.id) {
             <div class="rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-4 ring-1 ring-inset ring-white/5">
               <div class="mb-3 flex flex-wrap items-baseline gap-2 border-b border-gray-800 pb-2">
-                <span class="font-mono font-semibold text-red-400">{{ u.carro.nomenclatura }}</span>
-                <span class="text-sm text-gray-400">Patente {{ u.carro.patente }}</span>
+                <span class="font-mono font-semibold text-red-400">{{ u.carro?.nomenclatura ?? u.carroId ?? '—' }}</span>
+                @if (u.carro?.patente) {
+                  <span class="text-sm text-gray-400">Patente {{ u.carro.patente }}</span>
+                }
                 <span class="text-sm text-gray-300">Conductor {{ conductorUnidad(p.metadata, u.carroId) }}</span>
               </div>
               <div class="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">

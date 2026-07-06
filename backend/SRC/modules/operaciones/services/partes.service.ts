@@ -13,6 +13,20 @@ type DbClient = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transa
 
 const OPCIONES_TRANSACCION = { maxWait: 10_000, timeout: 60_000 } as const;
 
+function esEstadoParteFlexible(estado: unknown): boolean {
+  const codigo = String(estado || '').trim().toUpperCase();
+  return codigo === 'BORRADOR' || codigo === 'PENDIENTE';
+}
+
+function codigoTriagePaciente(triage: unknown): string {
+  if (typeof triage === 'string' && triage.trim()) return triage.trim().toUpperCase();
+  if (triage && typeof triage === 'object') {
+    const t = triage as { codigo?: string; nombre?: string };
+    return String(t.codigo || t.nombre || 'VERDE').trim().toUpperCase();
+  }
+  return 'VERDE';
+}
+
 const parteInclude = {
   clave: true,
   estado: true,
@@ -65,6 +79,51 @@ const estadoIdCache = new Map<string, number>();
 const claveIdCache = new Map<string, number>();
 
 type ParteConRelaciones = Prisma.ParteEmergenciaGetPayload<{ include: typeof parteInclude }>;
+
+function mapearPacientesDto(
+  pacientes: ParteConRelaciones['pacientes'] | undefined,
+  metadata: Record<string, unknown> | null,
+) {
+  const metaPacientes = Array.isArray(metadata?.pacientes)
+    ? (metadata.pacientes as Record<string, unknown>[])
+    : [];
+  return (pacientes ?? []).map((pac, idx) => {
+    const metaPac =
+      metaPacientes[idx] ?? metaPacientes.find((m) => String(m.nombre ?? '') === pac.nombre);
+    const edadRaw = metaPac?.edad;
+    return {
+      id: pac.id,
+      nombre: pac.nombre,
+      rut: pac.rutPaciente,
+      rutPaciente: pac.rutPaciente,
+      triage: codigoTriagePaciente(pac.triage),
+      triageId: pac.triageId,
+      edad: edadRaw != null && edadRaw !== '' ? Number(edadRaw) : null,
+    };
+  });
+}
+
+function mapearVehiculosDto(
+  vehiculos: ParteConRelaciones['vehiculosCiviles'] | undefined,
+  metadata: Record<string, unknown> | null,
+) {
+  const metaVeh = Array.isArray(metadata?.vehiculos)
+    ? (metadata.vehiculos as Record<string, unknown>[])
+    : [];
+  return (vehiculos ?? []).map((v, idx) => {
+    const metaRow =
+      metaVeh[idx] ?? metaVeh.find((m) => String(m.patente ?? '') === (v.patente ?? '')) ?? {};
+    return {
+      id: v.id,
+      patente: v.patente,
+      marca: v.marca,
+      tipo: typeof metaRow.tipo === 'string' ? metaRow.tipo : '',
+      conductor: v.conductor,
+      rut: v.rutConductor,
+      rutConductor: v.rutConductor,
+    };
+  });
+}
 
 export interface PartesPaginaFiltros {
   page?: number | undefined;
@@ -228,10 +287,6 @@ async function resolverConductorRutFk(
     if (porNombre?.rut && porNombre.rut.length <= 20) return porNombre.rut;
   }
 
-  if (t.length <= 20 && /^[\d.\-kK]+$/i.test(t.replace(/\s/g, ''))) {
-    return t;
-  }
-
   return null;
 }
 
@@ -269,18 +324,22 @@ async function prepararFilasAsistencia(
   parteId: string,
   data: Record<string, unknown>,
   fechaReferencia: Date,
+  opciones?: { validarDisponibilidad?: boolean },
 ): Promise<Prisma.AsistenciaPersonalCreateManyInput[]> {
+  const validar = opciones?.validarDisponibilidad !== false;
   const ruts = extraerRutsAsistencia(data);
   const filas: Prisma.AsistenciaPersonalCreateManyInput[] = [];
 
   for (const candidato of ruts) {
     const rutFinal = await resolverConductorRutFk(prisma, candidato);
     if (!rutFinal) continue;
-    try {
-      await assertVoluntarioPuedeParticiparEnParte(prisma, rutFinal, fechaReferencia, 'asistencia');
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Voluntario no disponible para asistencia.';
-      throw new ValidationError([msg]);
+    if (validar) {
+      try {
+        await assertVoluntarioPuedeParticiparEnParte(prisma, rutFinal, fechaReferencia, 'asistencia');
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Voluntario no disponible para asistencia.';
+        throw new ValidationError([msg]);
+      }
     }
     filas.push({ id: uuidv4(), parteId, usuarioRut: rutFinal });
   }
@@ -385,6 +444,7 @@ function construirMetadataPersistencia(data: Record<string, unknown>): string | 
 
   if (data.vehiculosAfectados) base.vehiculos = data.vehiculosAfectados;
   if (data.apoyosExternos) base.apoyoExterno = data.apoyosExternos;
+  if (data.pacientes) base.pacientes = data.pacientes;
 
   const horarios = construirUnidadesHorariosMetadata(data.unidades);
   if (horarios) base.unidadesHorarios = horarios;
@@ -456,8 +516,10 @@ export function mapParteToDto(p: ParteConRelaciones | null) {
     }),
     carrosAsistentes: p.unidades,
     asistencias: p.asistencias,
-    vehiculosAfectados: p.vehiculosCiviles,
-    pacientes: p.pacientes,
+    vehiculosAfectados: mapearVehiculosDto(p.vehiculosCiviles, metadata),
+    pacientes: mapearPacientesDto(p.pacientes, metadata),
+    apoyosExternos: (metadata?.apoyoExterno as unknown[]) ?? [],
+    otrasCompanias: (metadata?.otrasCompanias as unknown[]) ?? [],
     _count: p._count,
     createdAt: p.createdAt,
   };
@@ -509,27 +571,31 @@ async function prepararFilasUnidades(
   unidades: unknown[],
   fechaBase: Date,
   conductoresPorCarroId?: Record<string, string>,
+  opciones?: { validarDisponibilidad?: boolean },
 ): Promise<Prisma.UnidadEnEmergenciaCreateManyInput[]> {
   if (!Array.isArray(unidades) || unidades.length === 0) return [];
 
+  const validar = opciones?.validarDisponibilidad !== false;
   const data: Prisma.UnidadEnEmergenciaCreateManyInput[] = [];
   for (const u of unidades as Record<string, unknown>[]) {
     const carroId = String(u.carroId || '').trim();
     if (!carroId) continue;
 
-    const disponibilidad = await evaluarCarroDisponibleParaParte(prisma, carroId, fechaBase);
-    if (!disponibilidad.disponible) {
-      const nom = disponibilidad.nomenclatura ?? carroId;
-      throw new ValidationError([
-        `La unidad ${nom} no puede despacharse en la fecha del parte: está ${disponibilidad.motivo ?? 'no operativa'}.`,
-      ]);
+    if (validar) {
+      const disponibilidad = await evaluarCarroDisponibleParaParte(prisma, carroId, fechaBase);
+      if (!disponibilidad.disponible) {
+        const nom = disponibilidad.nomenclatura ?? carroId;
+        throw new ValidationError([
+          `La unidad ${nom} no puede despacharse en la fecha del parte: está ${disponibilidad.motivo ?? 'no operativa'}.`,
+        ]);
+      }
     }
 
     const rawConductor = (u.conductorRut as string | undefined)
       || conductoresPorCarroId?.[carroId]
       || undefined;
     const conductorRut = await resolverConductorRutFk(prisma, rawConductor);
-    if (conductorRut) {
+    if (conductorRut && validar) {
       try {
         await assertVoluntarioPuedeParticiparEnParte(prisma, conductorRut, fechaBase, 'conductor');
       } catch (error) {
@@ -639,12 +705,16 @@ export const crearParteConRelaciones = async (data: Record<string, unknown>) => 
     | undefined;
 
   const parteId = uuidv4();
+  const flexible = esEstadoParteFlexible(data.estado);
+  const opcionesDisponibilidad = { validarDisponibilidad: !flexible };
 
-  await assertVoluntarioPuedeParticiparEnParte(prisma, obacRut, fechaEmergencia, 'OBAC');
+  if (!flexible) {
+    await assertVoluntarioPuedeParticiparEnParte(prisma, obacRut, fechaEmergencia, 'OBAC');
+  }
 
   const [filasAsistencia, filasUnidades, filasPacientes] = await Promise.all([
-    prepararFilasAsistencia(parteId, data, fechaEmergencia),
-    prepararFilasUnidades(parteId, data.unidades as unknown[], fechaEmergencia, conductores),
+    prepararFilasAsistencia(parteId, data, fechaEmergencia, opcionesDisponibilidad),
+    prepararFilasUnidades(parteId, data.unidades as unknown[], fechaEmergencia, conductores, opcionesDisponibilidad),
     prepararFilasPacientes(parteId, data.pacientes as unknown[]),
   ]);
 
@@ -850,6 +920,8 @@ export const actualizarParte = async (
   }
   if (data.vehiculosAfectados) metadataNuevo.vehiculos = data.vehiculosAfectados;
   if (data.apoyosExternos) metadataNuevo.apoyoExterno = data.apoyosExternos;
+  if (data.otrasCompanias !== undefined) metadataNuevo.otrasCompanias = data.otrasCompanias;
+  if (data.pacientes !== undefined) metadataNuevo.pacientes = data.pacientes;
 
   const horariosUnidades = construirUnidadesHorariosMetadata(data.unidades);
   if (horariosUnidades) {
@@ -900,15 +972,21 @@ export const actualizarParte = async (
     data.obacId !== undefined || data.obacRut !== undefined
       ? await resolverObacRut(data)
       : existente.obacRut;
-  await assertVoluntarioPuedeParticiparEnParte(prisma, obacRutValidar, fechaBase, 'OBAC');
+  const estadoParaReglas = estadoEntrante ?? estadoActual;
+  const flexible = esEstadoParteFlexible(estadoParaReglas);
+  const opcionesDisponibilidad = { validarDisponibilidad: !flexible };
+
+  if (!flexible) {
+    await assertVoluntarioPuedeParticiparEnParte(prisma, obacRutValidar, fechaBase, 'OBAC');
+  }
 
   const conductores = metadataNuevo.conductoresPorCarroId as Record<string, string> | undefined;
   const dataSync = { ...data, metadata: metadataNuevo };
 
-  const filasAsistencia = await prepararFilasAsistencia(id, dataSync, fechaBase);
+  const filasAsistencia = await prepararFilasAsistencia(id, dataSync, fechaBase, opcionesDisponibilidad);
   const filasUnidades =
     data.unidades !== undefined
-      ? await prepararFilasUnidades(id, data.unidades as unknown[], fechaBase, conductores)
+      ? await prepararFilasUnidades(id, data.unidades as unknown[], fechaBase, conductores, opcionesDisponibilidad)
       : null;
   const filasPacientes =
     data.pacientes !== undefined

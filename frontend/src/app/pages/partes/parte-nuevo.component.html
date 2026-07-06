@@ -916,6 +916,20 @@
               </div>
 
               <div>
+                <label class="mb-1.5 block text-sm font-medium text-gray-400">
+                  Motivo del pendiente
+                  <span class="ml-1 text-xs font-normal text-gray-500">(opcional; se suma a lo que falte por cerrar)</span>
+                </label>
+                <textarea
+                  [(ngModel)]="motivoPendienteManual"
+                  name="motivoPendienteManual"
+                  rows="3"
+                  placeholder="Ej.: Falta firma del OBAC, pendiente revisión de KM, esperando datos de paciente…"
+                  class="w-full rounded-xl border border-amber-900/40 bg-amber-950/15 px-4 py-3 text-base leading-relaxed text-amber-50/95 placeholder:text-amber-200/35 focus:border-amber-600 focus:outline-none focus:ring-1 focus:ring-amber-600"
+                ></textarea>
+              </div>
+
+              <div>
                 <label class="mb-1.5 block text-sm font-medium text-gray-400">Observaciones (opcional)</label>
                 <textarea
                   [(ngModel)]="observaciones"

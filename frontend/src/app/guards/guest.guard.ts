@@ -1,13 +1,16 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
+import { map } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 
-/** Login / recuperar password: si ya hay sesión, manda al inicio. */
+/** Login / recuperar password: si hay sesión válida, manda al inicio. */
 export const guestGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   if (!auth.isAutenticado()) {
     return true;
   }
-  return router.createUrlTree(['/']);
+  return auth.cargarSesion().pipe(
+    map((usuario) => (usuario ? router.createUrlTree(['/']) : true)),
+  );
 };

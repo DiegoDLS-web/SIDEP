@@ -529,7 +529,7 @@
           <p class="mb-3 text-xs text-gray-500">
             Unidades:
             @for (nom of parte.unidades; track nom.id) {
-              <span class="mr-1 font-mono text-amber-100/90">{{ nom.carro.nomenclatura }}</span>
+              <span class="mr-1 font-mono text-amber-100/90">{{ nom.carro?.nomenclatura ?? nom.carroId ?? '—' }}</span>
             } @empty {
               —
             }
@@ -647,7 +647,7 @@
                     class="inline-flex flex-wrap gap-1 font-mono text-xs font-semibold text-amber-200/90"
                   >
                     @for (nom of parte.unidades; track nom.id) {
-                      <span class="rounded-md bg-zinc-800/90 px-2 py-0.5 ring-1 ring-zinc-600/80">{{ nom.carro.nomenclatura }}</span>
+                      <span class="rounded-md bg-zinc-800/90 px-2 py-0.5 ring-1 ring-zinc-600/80">{{ nom.carro?.nomenclatura ?? nom.carroId ?? '—' }}</span>
                     } @empty {
                       <span class="text-slate-500">—</span>
                     }
@@ -763,6 +763,11 @@
                   {{ vistaModalParte.estado }}
                 </span>
               </p>
+              @if (textoMotivoPendiente(vistaModalParte); as motivo) {
+                <p class="mt-2 rounded-lg border border-amber-800/40 bg-amber-950/20 px-2.5 py-1.5 text-[11px] leading-snug text-amber-100/90">
+                  <span class="font-semibold text-amber-200">Motivo:</span> {{ motivo }}
+                </p>
+              }
             }
           </div>
           <button

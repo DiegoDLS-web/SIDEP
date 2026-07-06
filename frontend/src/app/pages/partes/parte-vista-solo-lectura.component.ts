@@ -35,6 +35,19 @@ export class ParteVistaSoloLecturaComponent implements OnInit {
   etiquetaClave(clave: string): string {
     return this.catalogoEmergencias.etiqueta(clave);
   }
+
+  textoMotivoPendiente(parte: any): string | null {
+    if ((parte?.estado ?? '').trim().toUpperCase() !== 'PENDIENTE') return null;
+    const meta = parte?.metadata ?? {};
+    const motivo =
+      (typeof parte?.motivoPendiente === 'string' ? parte.motivoPendiente : null) ??
+      (typeof meta.motivoPendiente === 'string' ? meta.motivoPendiente : null);
+    return motivo?.trim() || 'Pendiente de cierre o datos incompletos.';
+  }
+
+  etiquetaCarroUnidad(u: { carro?: { nomenclatura?: string; patente?: string } | null; carroId?: string }): string {
+    return u.carro?.nomenclatura ?? u.carroId ?? '—';
+  }
   readonly asistenciaContextos = ASISTENCIA_CONTEXTO_OPCIONES;
 
   readonly etiquetasAsistencia: Array<{ k: string; label: string; }> = [

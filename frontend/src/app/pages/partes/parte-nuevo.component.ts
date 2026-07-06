@@ -128,6 +128,7 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
   materialUtilizado = '';
   horaDelLlamado = '';
   observaciones = '';
+  motivoPendienteManual = '';
 
   asistenciaPorContexto: Record<AsistenciaContextoKey, Record<string, boolean>> = {
     emergencia: {},
@@ -205,6 +206,7 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
     trabajoRealizado: this.trabajoRealizado,
     materialUtilizado: this.materialUtilizado,
     observaciones: this.observaciones,
+    motivoPendienteManual: this.motivoPendienteManual,
     unidades: this.unidades,
     pacientes: this.pacientes,
     asistencia: this.asistencia,
@@ -269,7 +271,11 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
         }
         if (parteEdicion) {
           const parte = parteEdicion.data ? parteEdicion.data : parteEdicion;
-          const estado = (parte.estado ?? '').trim().toUpperCase();
+          const estadoRaw =
+            typeof parte.estado === 'string'
+              ? parte.estado
+              : (parte.estado?.codigo ?? parte.estado?.nombre ?? '');
+          const estado = String(estadoRaw).trim().toUpperCase();
           if (estado === 'COMPLETADO' && !puedeEditarParteCompletado(this.auth.usuarioActual?.rol)) {
             this.error = 'Solo capitán, tenientes o administrador pueden editar un parte completado.';
             this.toast.advertencia(this.error);
@@ -278,6 +284,7 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
             return;
           }
           this.cargarParteEnFormulario(parte);
+          this.recargarLicenciasParaFechaParte();
         }
         this.controlEdicion.marcarLimpio();
         this.loading = false;
@@ -297,6 +304,10 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
   }
 
   onFechaAsistenciaChange(): void {
+    this.recargarLicenciasParaFechaParte();
+  }
+
+  private recargarLicenciasParaFechaParte(): void {
     if (!this.fechaDia?.trim()) return;
     this.licenciasApi.listarActivas(this.fechaDia).subscribe({
       next: (rows) => {
@@ -350,9 +361,10 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
       if (!carro || !this.carroDisponibleParaParte(carro, fecha)) {
         u.carroId = '';
         u.conductor = '';
-      } else if (u.conductor.trim()) {
+      } else if (this.textoCampoSeguro(u.conductor)) {
+        const conductorNombre = this.textoCampoSeguro(u.conductor);
         const conductor = this.voluntariosConductores.find(
-          (v) => nombreListaSoloPersona(v) === u.conductor.trim(),
+          (v) => nombreListaSoloPersona(v) === conductorNombre,
         );
         if (!conductor) u.conductor = '';
       }
@@ -1186,13 +1198,41 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
       .filter((p) => this.textoCampoSeguro(p.nombre).length > 0)
       .map((p) => {
         const edadTxt = this.textoCampoSeguro(p.edad);
+        const edadNum = edadTxt ? Number.parseInt(edadTxt, 10) : Number.NaN;
         return {
           nombre: this.textoCampoSeguro(p.nombre),
           triage: p.triage,
-          edad: edadTxt ? Number.parseInt(edadTxt, 10) : undefined,
+          edad: Number.isFinite(edadNum) ? edadNum : undefined,
           rut: this.textoCampoSeguro(p.rut) || undefined,
         };
       });
+  }
+
+  private filtrarVehiculosPayload() {
+    return this.vehiculos.filter(
+      (v) => this.textoCampoSeguro(v.tipo) || this.textoCampoSeguro(v.patente),
+    );
+  }
+
+  private filtrarApoyosPayload() {
+    return this.apoyos.filter(
+      (a) => this.textoCampoSeguro(a.tipo) || this.textoCampoSeguro(a.nombre),
+    );
+  }
+
+  private filtrarOtrasCompaniasPayload() {
+    return this.otrasCompanias.filter(
+      (o) => this.textoCampoSeguro(o.compania) || this.textoCampoSeguro(o.unidad),
+    );
+  }
+
+  private normalizarTriagePaciente(triage: unknown): string {
+    if (typeof triage === 'string' && triage.trim()) return triage.trim().toUpperCase();
+    if (triage && typeof triage === 'object') {
+      const t = triage as { codigo?: string; nombre?: string };
+      return String(t.codigo || t.nombre || 'VERDE').trim().toUpperCase();
+    }
+    return 'VERDE';
   }
 
   private firmaObacEfectiva(): string {
@@ -1222,14 +1262,18 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
   }
 
   private construirMotivoPendiente(): string {
-    const partes: string[] = [];
+    const manual = this.motivoPendienteManual.trim();
+    const partesAuto: string[] = [];
     const basicos = this.validarCamposObligatoriosRegistro();
-    if (basicos) partes.push(basicos.mensaje);
+    if (basicos) partesAuto.push(basicos.mensaje);
     const faltantes = this.faltantesCierreParte();
     if (faltantes.length > 0) {
-      partes.push(`Faltan datos de cierre: ${faltantes.join('; ')}.`);
+      partesAuto.push(`Faltan datos de cierre: ${faltantes.join('; ')}.`);
     }
-    return partes.join(' ') || 'Parte guardado sin cierre completo.';
+    const auto = partesAuto.join(' ').trim();
+    if (manual && auto) return `${manual} — ${auto}`;
+    if (manual) return manual;
+    return auto || 'Parte guardado sin cierre completo.';
   }
 
   private resolverObacId(): string | null {
@@ -1383,9 +1427,9 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
         materialUtilizado: this.materialUtilizado.trim() || null,
         observaciones: this.observaciones.trim() || null,
 
-        vehiculosAfectados: this.vehiculos.filter(v => v.tipo.trim() || v.patente.trim()),
-        apoyosExternos: this.apoyos.filter(a => a.tipo.trim() || a.nombre.trim()),
-        otrasCompanias: this.otrasCompanias.filter(o => o.compania.trim() || o.unidad.trim()),
+        vehiculosAfectados: this.filtrarVehiculosPayload(),
+        apoyosExternos: this.filtrarApoyosPayload(),
+        otrasCompanias: this.filtrarOtrasCompaniasPayload(),
 
         metadata: this.construirMetadata(),
       } as any;
@@ -1482,9 +1526,9 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
         trabajoRealizado: this.trabajoRealizado.trim() || null,
         materialUtilizado: this.materialUtilizado.trim() || null,
         observaciones: this.observaciones.trim() || null,
-        vehiculosAfectados: this.vehiculos.filter(v => v.tipo.trim() || v.patente.trim()),
-        apoyosExternos: this.apoyos.filter(a => a.tipo.trim() || a.nombre.trim()),
-        otrasCompanias: this.otrasCompanias.filter(o => o.compania.trim() || o.unidad.trim()),
+        vehiculosAfectados: this.filtrarVehiculosPayload(),
+        apoyosExternos: this.filtrarApoyosPayload(),
+        otrasCompanias: this.filtrarOtrasCompaniasPayload(),
         metadata: { ...(this.construirMetadata() ?? {}), motivoPendiente },
       } as any;
 
@@ -1611,9 +1655,9 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
         materialUtilizado: this.materialUtilizado.trim() || null,
         observaciones: this.observaciones.trim() || null,
 
-        vehiculosAfectados: this.vehiculos.filter(v => v.tipo.trim() || v.patente.trim()),
-        apoyosExternos: this.apoyos.filter(a => a.tipo.trim() || a.nombre.trim()),
-        otrasCompanias: this.otrasCompanias.filter(o => o.compania.trim() || o.unidad.trim()),
+        vehiculosAfectados: this.filtrarVehiculosPayload(),
+        apoyosExternos: this.filtrarApoyosPayload(),
+        otrasCompanias: this.filtrarOtrasCompaniasPayload(),
 
         metadata: this.construirMetadata(),
       } as any;
@@ -1652,6 +1696,7 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
                 },
                 onGuardadoLocal: () => {
                   this.guardadoError = null;
+                  this.controlEdicion.marcarLimpio();
                 },
               },
             )
@@ -1731,6 +1776,10 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
     this.trabajoRealizado = parte.trabajoRealizado ?? meta.trabajoRealizado ?? '';
     this.materialUtilizado = parte.materialUtilizado ?? meta.materialUtilizado ?? '';
     this.observaciones = parte.observaciones ?? meta.observaciones ?? '';
+    const motivoGuardado =
+      (typeof parte.motivoPendiente === 'string' ? parte.motivoPendiente : null) ??
+      (typeof meta.motivoPendiente === 'string' ? meta.motivoPendiente : null);
+    this.motivoPendienteManual = motivoGuardado?.trim() ?? '';
     this.horaDelLlamado = meta.horaDelLlamado ?? this.horaDelLlamado;
     if (!this.horaDelLlamado?.trim() && parte.fecha) {
       this.horaDelLlamado = this.toTimeInput(new Date(parte.fecha));
@@ -1801,19 +1850,38 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
     if (this.unidades.length === 0) this.agregarUnidad();
     this.sanearConductoresDuplicadosUnidades();
 
-    this.pacientes = (parte.pacientes || []).map((p: any) => ({
-      nombre: p.nombre ?? '', edad: p.edad ? String(p.edad) : '', rut: p.rut ?? '', triage: p.triage ?? 'VERDE'
-    }));
+    this.pacientes = (parte.pacientes || []).map((p: any, idx: number) => {
+      const metaPacientes = Array.isArray(meta.pacientes) ? meta.pacientes : [];
+      const metaPac =
+        metaPacientes[idx] ?? metaPacientes.find((m: any) => String(m?.nombre ?? '') === String(p?.nombre ?? ''));
+      const edadRaw = p.edad ?? metaPac?.edad;
+      return {
+        nombre: p.nombre ?? '',
+        edad: edadRaw != null && edadRaw !== '' ? String(edadRaw) : '',
+        rut: p.rut ?? p.rutPaciente ?? metaPac?.rut ?? '',
+        triage: this.normalizarTriagePaciente(p.triage ?? metaPac?.triage),
+      };
+    });
 
-    this.vehiculos = (parte.vehiculosAfectados || meta.vehiculos || []).map((v: any) => ({
-      tipo: v.tipo ?? '', patente: v.patente ?? '', marca: v.marca ?? '', conductor: v.conductor ?? '', rut: v.rut ?? ''
-    }));
+    const vehiculosMeta = Array.isArray(meta.vehiculos) ? meta.vehiculos : [];
+    const vehiculosRel = Array.isArray(parte.vehiculosAfectados) ? parte.vehiculosAfectados : [];
+    const vehiculosFuente = vehiculosMeta.length > 0 ? vehiculosMeta : vehiculosRel;
+    this.vehiculos = vehiculosFuente.map((v: any, idx: number) => {
+      const rel = vehiculosRel[idx];
+      return {
+        tipo: v.tipo ?? '',
+        patente: v.patente ?? rel?.patente ?? '',
+        marca: v.marca ?? rel?.marca ?? '',
+        conductor: v.conductor ?? rel?.conductor ?? '',
+        rut: v.rut ?? v.rutConductor ?? rel?.rutConductor ?? rel?.rut ?? '',
+      };
+    });
 
     this.apoyos = (parte.apoyosExternos || meta.apoyoExterno || []).map((a: any) => ({
       tipo: a.tipo ?? 'SAMU', nombre: a.nombre ?? '', cargo: a.cargo ?? '', patente: a.patente ?? '', conductor: a.conductor ?? ''
     }));
 
-    this.otrasCompanias = (parte.otrasCompanias || asis.otrasCompanias || []).map((o: any) => ({
+    this.otrasCompanias = (parte.otrasCompanias || meta.otrasCompanias || asis.otrasCompanias || []).map((o: any) => ({
       obac: o.obac ?? '', compania: o.compania ?? '', unidad: o.unidad ?? ''
     }));
 

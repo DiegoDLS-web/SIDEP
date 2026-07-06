@@ -22,6 +22,11 @@
       <span class="text-slate-600">·</span>
       <span>Registro: {{ fechaHora(p.fecha) }}</span>
     </div>
+    @if (textoMotivoPendiente(p); as motivo) {
+      <p class="mt-4 rounded-xl border border-amber-800/45 bg-amber-950/25 px-3 py-2 text-sm text-amber-100/95">
+        <span class="font-semibold text-amber-200">Motivo pendiente:</span> {{ motivo }}
+      </p>
+    }
   </div>
 
   @if (p.metadata && tieneDetalleExtendido(p.metadata)) {
@@ -200,8 +205,10 @@
       @for (u of p.unidades; track u.id) {
         <div class="rounded-xl border border-slate-800/80 bg-[#0a0a0a] p-4 ring-1 ring-inset ring-white/5">
           <div class="mb-3 flex flex-wrap items-baseline gap-2 border-b border-gray-800 pb-2">
-            <span class="font-mono font-semibold text-red-400">{{ u.carro.nomenclatura }}</span>
-            <span class="text-sm text-gray-400">Patente {{ u.carro.patente }}</span>
+            <span class="font-mono font-semibold text-red-400">{{ etiquetaCarroUnidad(u) }}</span>
+            @if (u.carro?.patente) {
+              <span class="text-sm text-gray-400">Patente {{ u.carro.patente }}</span>
+            }
             <span class="text-sm text-gray-300">Conductor {{ conductorUnidad(p.metadata, u.carroId) }}</span>
           </div>
           <div class="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
