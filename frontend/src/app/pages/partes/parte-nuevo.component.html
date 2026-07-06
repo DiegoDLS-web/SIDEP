@@ -937,7 +937,7 @@
 
     <!-- Pie fijo: navegación + acciones -->
     <footer
-      class="border-t border-slate-800/90 bg-[#0a0a0a]/95 shadow-[0_-8px_32px_rgba(0,0,0,0.35)] backdrop-blur lg:fixed lg:bottom-0 lg:left-64 lg:right-0 lg:z-30"
+      class="border-t border-slate-800/90 bg-[#0a0a0a]/95 shadow-[0_-8px_32px_rgba(0,0,0,0.35)] backdrop-blur lg:fixed lg:bottom-0 lg:left-64 lg:right-0 lg:z-50"
     >
       <div class="mx-auto grid w-full min-w-0 max-w-none gap-2 px-4 py-3 sm:px-6 md:px-8 lg:grid-cols-2 lg:px-10 xl:px-12">
         @if (guardadoError) {
@@ -980,7 +980,11 @@
             [disabled]="submitting"
             (click)="guardarBorrador()"
           >
-            <lucide-icon name="save" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            @if (submitting) {
+              <lucide-icon name="refresh-cw" class="h-4 w-4 animate-spin" [size]="16" color="currentColor"></lucide-icon>
+            } @else {
+              <lucide-icon name="save" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            }
             {{ esEdicion ? 'Actualizar borrador' : 'Guardar borrador' }}
           </button>
           <button
@@ -989,7 +993,11 @@
             [disabled]="submitting"
             (click)="guardarPendiente()"
           >
-            <lucide-icon name="clock" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            @if (submitting) {
+              <lucide-icon name="refresh-cw" class="h-4 w-4 animate-spin" [size]="16" color="currentColor"></lucide-icon>
+            } @else {
+              <lucide-icon name="clock" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            }
             {{ esEdicion ? 'Guardar pendiente' : 'Dejar pendiente' }}
           </button>
           <button
@@ -998,7 +1006,11 @@
             [disabled]="submitting"
             (click)="guardarParte()"
           >
-            <lucide-icon name="send" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            @if (submitting) {
+              <lucide-icon name="refresh-cw" class="h-4 w-4 animate-spin" [size]="16" color="currentColor"></lucide-icon>
+            } @else {
+              <lucide-icon name="send" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+            }
             {{ esEdicion ? 'Actualizar parte' : 'Registrar parte' }}
           </button>
         </div>
