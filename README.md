@@ -157,3 +157,20 @@ Git
 Instalar Angular CLI:
 
 npm install -g @angular/cli
+
+---
+
+## 🌐 Publicar en internet (producción)
+
+Para que **cualquier persona** acceda sin `localhost`, sigue la guía detallada:
+
+**[DEPLOY.md](./DEPLOY.md)**
+
+Resumen:
+
+1. Base de datos en **Neon** (PostgreSQL gratis).
+2. Código en **GitHub**.
+3. Despliegue en **Render** (plan gratis) usando el archivo `render.yaml` del repo.
+4. Configurar `DATABASE_URL`, `JWT_SECRET`, `FRONTEND_URL` y `APP_PUBLIC_URL` con la URL pública.
+
+La app quedará en una URL del tipo `https://sidep-xxxx.onrender.com`.

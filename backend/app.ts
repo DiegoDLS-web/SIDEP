@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import fs from 'fs';
+import path from 'path';
 import authRoutes from './SRC/modules/autenticacion/autenticacion.routes';
 import logisticaRoutes from './SRC/modules/logistica/logistica.routes';
 import operacionesRoutes from './SRC/modules/operaciones/operaciones.routes';
@@ -17,12 +19,36 @@ import { auditoriaMiddleware } from './SRC/modules/auditoria/middlewares/auditor
 
 const app = express();
 
+function origenesCorsPermitidos(): string[] {
+  const raw = [
+    process.env.FRONTEND_URL,
+    process.env.APP_PUBLIC_URL,
+    process.env.RENDER_EXTERNAL_URL,
+  ]
+    .filter(Boolean)
+    .map((v) => String(v).trim().replace(/\/$/, ''));
+  return [...new Set(raw.length > 0 ? raw : ['http://localhost:4200'])];
+}
+
 // Middlewares obligatorios
-app.use(helmet());
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:4200',
-  credentials: true,
-}));
+if (process.env.NODE_ENV === 'production') {
+  app.use(helmet());
+} else {
+  app.use(helmet({ contentSecurityPolicy: false }));
+}
+app.use(
+  cors({
+    origin(origin, callback) {
+      const permitidos = origenesCorsPermitidos();
+      if (!origin || permitidos.includes(origin.replace(/\/$/, ''))) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error('Origen no permitido por CORS'));
+    },
+    credentials: true,
+  }),
+);
 app.use(express.json({ limit: '20mb' })); // Permite recibir información en JSON
 app.use(express.urlencoded({ limit: '20mb', extended: true }));
 
@@ -74,6 +100,7 @@ app.get('/api/auth/mi-navegacion', protect, async (req, res) => {
       '/partes',
       '/catalogo-emergencias',
       '/carros',
+      '/inventarios',
       '/checklist',
       '/checklist-era',
       '/bolso-trauma',
@@ -81,6 +108,7 @@ app.get('/api/auth/mi-navegacion', protect, async (req, res) => {
       '/analitica-operacional',
       '/usuarios',
       '/configuraciones',
+      '/auditoria',
       '/perfil'
     ];
 
@@ -88,11 +116,12 @@ app.get('/api/auth/mi-navegacion', protect, async (req, res) => {
       (path) =>
         path !== '/usuarios' &&
         path !== '/configuraciones' &&
-        path !== '/catalogo-emergencias'
+        path !== '/catalogo-emergencias' &&
+        path !== '/auditoria'
     );
 
     const operativesAdminCapitan = OPCIONES_MENU_SIDEP.filter(
-      (path) => path !== '/usuarios' && path !== '/configuraciones'
+      (path) => path !== '/usuarios' && path !== '/configuraciones' && path !== '/auditoria'
     );
 
     let paths: string[] = [];
@@ -226,6 +255,44 @@ app.patch('/api/roles/:id', protect, requireRoles('ADMIN'), async (req, res) => 
 });
 
 import { errorHandler } from './SRC/middlewares/error-handler';
+
+function resolverCarpetaFrontend(): string | null {
+  const candidatos = [
+    process.env.STATIC_DIR?.trim(),
+    path.join(process.cwd(), 'frontend/dist/frontend/browser'),
+    path.join(process.cwd(), 'frontend/dist/frontend'),
+    path.join(__dirname, '../frontend/dist/frontend/browser'),
+    path.join(__dirname, '../../frontend/dist/frontend/browser'),
+    path.join(__dirname, '../frontend/dist/frontend'),
+    path.join(__dirname, '../../frontend/dist/frontend'),
+  ].filter((p): p is string => Boolean(p));
+
+  for (const dir of candidatos) {
+    if (fs.existsSync(path.join(dir, 'index.html'))) {
+      return dir;
+    }
+  }
+  return null;
+}
+
+/** En producción sirve el build de Angular (misma URL que la API). */
+function configurarFrontendEstatico(): void {
+  if (process.env.NODE_ENV !== 'production') return;
+
+  const staticRoot = resolverCarpetaFrontend();
+  if (!staticRoot) {
+    console.warn('[SIDEP] No se encontró el build del frontend; solo API disponible.');
+    return;
+  }
+
+  app.use(express.static(staticRoot, { index: false, maxAge: '1h' }));
+  app.get(/^(?!\/api(\/|$)).*/, (_req, res) => {
+    res.sendFile(path.join(staticRoot, 'index.html'));
+  });
+  console.log(`[SIDEP] Frontend público servido desde ${staticRoot}`);
+}
+
+configurarFrontendEstatico();
 
 // Exportamos 'app' pero NO lo encendemos aquí
 app.use(errorHandler);

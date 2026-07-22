@@ -66,8 +66,112 @@ model CatalogoMaterial {
   unidad             String?            @db.VarChar(50)
   activo             Int                @db.SmallInt
   materialesPorCarro MaterialPorCarro[]
+  stockBodega        StockBodega?
+  movimientosBodega  MovimientoBodega[]
 
   @@map("catalogo_material")
+}
+
+model StockBodega {
+  id          Int              @id @default(autoincrement())
+  materialId  Int              @unique @map("material_id")
+  cantidad    Int              @default(0)
+  stockMinimo Int              @default(0) @map("stock_minimo")
+  updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  material    CatalogoMaterial @relation(fields: [materialId], references: [id])
+
+  @@map("stock_bodega")
+}
+
+model MovimientoBodega {
+  id              String           @id @db.VarChar(36)
+  materialId      Int              @map("material_id")
+  tipo            String           @db.VarChar(20)
+  cantidad        Int
+  cantidadAntes   Int              @map("cantidad_antes")
+  cantidadDespues Int              @map("cantidad_despues")
+  motivo          String?          @db.VarChar(255)
+  usuarioRut      String?          @map("usuario_rut") @db.VarChar(20)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  material        CatalogoMaterial @relation(fields: [materialId], references: [id])
+  usuario         Usuario?         @relation(fields: [usuarioRut], references: [rut])
+
+  @@index([materialId])
+  @@index([createdAt])
+  @@map("movimiento_bodega")
+}
+
+model CatalogoBodega {
+  id     Int             @id @default(autoincrement())
+  codigo String          @unique @db.VarChar(50)
+  nombre String          @db.VarChar(100)
+  activo Int             @db.SmallInt
+  items  InventarioItem[]
+
+  @@map("catalogo_bodega")
+}
+
+model InventarioItem {
+  id             Int                        @id @default(autoincrement())
+  codigo         String                     @unique @db.VarChar(50)
+  nombre         String                     @db.VarChar(200)
+  categoria      String?                    @db.VarChar(100)
+  tipoInventario String?                    @map("tipo_inventario") @db.VarChar(80)
+  bodegaId       Int                        @map("bodega_id")
+  marca          String?                    @db.VarChar(100)
+  modelo         String?                    @db.VarChar(100)
+  estadoFisico   String?                    @map("estado_fisico") @db.VarChar(50)
+  valor          Decimal?                   @db.Decimal(14, 2)
+  observaciones  String?                    @db.Text
+  unidad         String                     @default("unidades") @db.VarChar(50)
+  cantidad       Int                        @default(0)
+  stockMinimo    Int                        @default(0) @map("stock_minimo")
+  stockCritico   Int                        @default(0) @map("stock_critico")
+  esEppAsignable Int                        @default(0) @map("es_epp_asignable") @db.SmallInt
+  activo         Int                        @db.SmallInt
+  createdAt      DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  bodega         CatalogoBodega             @relation(fields: [bodegaId], references: [id])
+  asignaciones   AsignacionInventarioEpp[]
+  movimientos    InventarioMovimiento[]
+
+  @@index([bodegaId])
+  @@index([categoria])
+  @@index([tipoInventario])
+  @@map("inventario_item")
+}
+
+model AsignacionInventarioEpp {
+  id               String         @id @db.VarChar(36)
+  inventarioItemId Int            @map("inventario_item_id")
+  usuarioRut       String         @map("usuario_rut") @db.VarChar(20)
+  cantidad         Int            @default(1)
+  observaciones    String?        @db.VarChar(255)
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  inventarioItem   InventarioItem @relation(fields: [inventarioItemId], references: [id], onDelete: Cascade)
+  usuario          Usuario        @relation(fields: [usuarioRut], references: [rut])
+
+  @@index([usuarioRut])
+  @@index([inventarioItemId])
+  @@map("asignacion_inventario_epp")
+}
+
+model InventarioMovimiento {
+  id               String         @id @db.VarChar(36)
+  inventarioItemId Int            @map("inventario_item_id")
+  tipo             String         @db.VarChar(20)
+  cantidad         Int
+  cantidadAntes    Int            @map("cantidad_antes")
+  cantidadDespues  Int            @map("cantidad_despues")
+  motivo           String?        @db.VarChar(255)
+  usuarioRut       String?        @map("usuario_rut") @db.VarChar(20)
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  inventarioItem   InventarioItem @relation(fields: [inventarioItemId], references: [id], onDelete: Cascade)
+  usuario          Usuario?       @relation("InventarioMovimientoUsuario", fields: [usuarioRut], references: [rut])
+
+  @@index([inventarioItemId])
+  @@index([createdAt])
+  @@map("inventario_movimiento")
 }
 
 model CatalogoBolso {
@@ -158,6 +262,9 @@ model Usuario {
   asistencias             AsistenciaPersonal[]
   auditorias              AuditoriaUsuario[]
   checklists              ChecklistEjecucion[]
+  movimientosBodega       MovimientoBodega[]
+  asignacionesInventarioEpp AsignacionInventarioEpp[]
+  inventarioMovimientos   InventarioMovimiento[]    @relation("InventarioMovimientoUsuario")
   licenciasResueltas      LicenciaMedica[]          @relation("LicenciaMedica_resuelto")
   licenciasPropias        LicenciaMedica[]          @relation("LicenciaMedica_usuario")
   mantenimientosConductor MantenimientoCarro[]      @relation("conductor")

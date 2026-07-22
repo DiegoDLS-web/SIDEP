@@ -2,6 +2,9 @@ import { Router } from 'express';
 import * as carrosController from './controllers/carros.controller';
 import * as checklistsController from './controllers/checklists.controller';
 import * as equipamientoController from './controllers/equipamiento.controller';
+import * as catalogoMaterialesController from './controllers/catalogo-materiales.controller';
+import * as inventariosController from './controllers/inventarios.controller';
+import * as inventarioItemsController from './controllers/inventario-items.controller';
 import { protect } from '../../middlewares/auth.middleware';
 import { requireRoles } from '../../middlewares/role.middleware';
 
@@ -32,6 +35,28 @@ router.post('/equipamiento/materiales', protect, requireRoles('ADMIN', 'CAPITAN'
 router.get('/equipamiento/carro/:carroId', protect, equipamientoController.getInventarioCarro);
 router.get('/equipamiento/carro/:carroId/checklist-inventario', protect, equipamientoController.getInventarioChecklistCarro);
 router.post('/equipamiento/carro/:carroId/sincronizar-inventario', protect, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), equipamientoController.postSincronizarInventarioCarro);
+
+// --- CATÁLOGO DE MATERIALES ---
+router.get('/catalogo-materiales', protect, catalogoMaterialesController.getMateriales);
+router.post('/catalogo-materiales', protect, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), catalogoMaterialesController.postMaterial);
+router.patch('/catalogo-materiales/:id', protect, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), catalogoMaterialesController.patchMaterial);
+router.patch('/catalogo-materiales/:id/activo', protect, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), catalogoMaterialesController.patchMaterialActivo);
+
+// --- INVENTARIOS / BODEGA ---
+router.get('/inventarios/resumen', protect, inventariosController.getResumen);
+router.get('/inventarios/bodega', protect, inventariosController.getStockBodega);
+router.get('/inventarios/carros', protect, inventariosController.getInventarioCarros);
+router.get('/inventarios/bodega/movimientos', protect, inventariosController.getMovimientosBodega);
+router.post('/inventarios/bodega/movimientos', protect, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), inventariosController.postMovimientoBodega);
+
+// --- INVENTARIO INSTITUCIONAL (planilla / EPP) ---
+router.get('/inventarios/items', protect, inventarioItemsController.getItems);
+router.get('/inventarios/items/export', protect, inventarioItemsController.getExportData);
+router.get('/inventarios/bodegas', protect, inventarioItemsController.getBodegas);
+router.get('/inventarios/importacion/estado', protect, inventarioItemsController.getEstadoImportacion);
+router.patch('/inventarios/items/:id/cantidad', protect, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), inventarioItemsController.patchAjustarCantidad);
+router.post('/inventarios/items/:id/asignar-epp', protect, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), inventarioItemsController.postAsignarEpp);
+router.delete('/inventarios/items/asignaciones/:asignacionId', protect, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), inventarioItemsController.deleteAsignacionEpp);
 
 // --- CHECKLISTS ---
 router.get('/checklist/plantillas', protect, checklistsController.obtenerPlantillas);

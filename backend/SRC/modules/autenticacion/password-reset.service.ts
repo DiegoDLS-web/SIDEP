@@ -57,7 +57,11 @@ export async function solicitarRecuperacionPassword(
     },
   });
 
-  const baseUrl = (process.env.APP_PUBLIC_URL || 'http://localhost:4200').replace(/\/$/, '');
+  const baseUrl = (
+    process.env.APP_PUBLIC_URL ||
+    process.env.RENDER_EXTERNAL_URL ||
+    'http://localhost:4200'
+  ).replace(/\/$/, '');
   if (process.env.NODE_ENV === 'production' && /localhost|127\.0\.0\.1/i.test(baseUrl)) {
     console.error(
       '[SIDEP] APP_PUBLIC_URL apunta a localhost en producción; los enlaces de recuperación de contraseña serán incorrectos.',

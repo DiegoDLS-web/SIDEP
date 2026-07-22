@@ -8,6 +8,7 @@ import {
   evaluarCarroDisponibleParaParte,
 } from '../../../utils/parte-disponibilidad.util';
 import { puedeEditarParteCompletado } from '../../../utils/parte-edicion-roles.util';
+import { notificarNuevaEmergencia } from '../../notificaciones/notificaciones-scheduler.service';
 
 type DbClient = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
@@ -741,7 +742,17 @@ export const crearParteConRelaciones = async (data: Record<string, unknown>) => 
     await sincronizarPacientes(tx, parteId, filasPacientes);
   }, OPCIONES_TRANSACCION);
 
-  return obtenerPorId(parteId);
+  const creado = await obtenerPorId(parteId);
+  const estadoCodigo = String(data.estado || creado?.estado || '').trim().toUpperCase();
+  if (estadoCodigo && estadoCodigo !== 'PENDIENTE' && estadoCodigo !== 'BORRADOR') {
+    void notificarNuevaEmergencia({
+      correlativo: creado?.correlativo ?? correlativo,
+      direccion: creado?.direccion ?? String(data.direccion || ''),
+      claveEmergencia: creado?.claveEmergencia ?? String(data.claveEmergencia || ''),
+    }).catch(() => undefined);
+  }
+
+  return creado;
 };
 
 export const obtenerTodos = async () => {

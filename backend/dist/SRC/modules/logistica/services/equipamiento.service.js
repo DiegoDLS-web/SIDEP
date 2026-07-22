@@ -1,0 +1,449 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.obtenerHistorialBolsoPorId = exports.guardarRevisionBolsoTrauma = exports.obtenerUnidadBolsoTrauma = exports.obtenerHistorialBolsos = exports.obtenerSelectorBolsos = exports.obtenerInventarioCarro = exports.asignarMaterialCarro = exports.registrarBolsoTrauma = exports.sincronizarInventarioDesdeUbicacionesCarro = exports.obtenerInventarioChecklistCarro = exports.sincronizarInventarioDesdeUbicaciones = void 0;
+exports.cargarLookupInventarioCarro = cargarLookupInventarioCarro;
+const prisma_1 = __importDefault(require("../../../prisma"));
+const crypto_1 = require("crypto");
+const utils_1 = require("../../../utils");
+const material_inventario_util_1 = require("../../../utils/material-inventario.util");
+Object.defineProperty(exports, "sincronizarInventarioDesdeUbicaciones", { enumerable: true, get: function () { return material_inventario_util_1.sincronizarInventarioDesdeUbicaciones; } });
+const checklist_estado_operativo_util_1 = require("../../../utils/checklist-estado-operativo.util");
+const checklists_service_1 = require("./checklists.service");
+async function cargarLookupInventarioCarro(carroId) {
+    const filas = await (0, material_inventario_util_1.cargarFilasInventarioCarro)(carroId);
+    return (0, material_inventario_util_1.buildInventarioLookup)(filas);
+}
+const obtenerInventarioChecklistCarro = async (carroId) => {
+    const carro = await prisma_1.default.carro.findUnique({
+        where: { id: carroId },
+        select: { id: true, nomenclatura: true, nombre: true },
+    });
+    if (!carro)
+        throw new utils_1.AppError('Carro no encontrado', 404);
+    const filas = await (0, material_inventario_util_1.cargarFilasInventarioCarro)(carroId);
+    return {
+        carro,
+        totalMateriales: filas.length,
+        fuente: filas.length > 0 ? 'material_por_carro' : 'vacio',
+        ubicaciones: (0, material_inventario_util_1.ubicacionesDesdeInventario)(filas),
+    };
+};
+exports.obtenerInventarioChecklistCarro = obtenerInventarioChecklistCarro;
+/** Sincroniza material_por_carro desde la plantilla / checklist (cantidad_objetivo). */
+const sincronizarInventarioDesdeUbicacionesCarro = async (carroId, ubicaciones) => {
+    const resultado = await (0, material_inventario_util_1.sincronizarInventarioDesdeUbicaciones)(carroId, ubicaciones);
+    return {
+        carroId,
+        ...resultado,
+        ubicaciones: (await (0, exports.obtenerInventarioChecklistCarro)(carroId)).ubicaciones,
+    };
+};
+exports.sincronizarInventarioDesdeUbicacionesCarro = sincronizarInventarioDesdeUbicacionesCarro;
+function parseRespuestasJson(raw) {
+    if (!raw)
+        return {};
+    try {
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    }
+    catch {
+        return {};
+    }
+}
+function resolverBolsoNumero(detalle) {
+    const raw = detalle['bolsoNumero'];
+    if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0)
+        return raw;
+    if (typeof raw === 'string' && raw.trim()) {
+        const n = Number(raw);
+        if (Number.isFinite(n) && n > 0)
+            return n;
+    }
+    return 1;
+}
+function metricasBolsoDesdeDetalle(detalle) {
+    const conteo = (0, checklist_estado_operativo_util_1.contarItemsBolsoTrauma)(detalle);
+    const total = conteo?.totalItems ?? (Number(detalle['totalItems']) || 0);
+    const ok = conteo?.itemsOk ?? (Number(detalle['itemsOk']) || 0);
+    const completitud = total > 0 ? Math.round((ok / total) * 100) : 0;
+    const itemsFaltantes = Math.max(total - ok, 0);
+    let status = 'pending';
+    let estadoChecklist = 'PENDIENTE';
+    if (completitud >= 100) {
+        status = 'complete';
+        estadoChecklist = 'COMPLETADO';
+    }
+    else if (ok > 0 || (typeof detalle['observaciones'] === 'string' && detalle['observaciones'].trim())) {
+        estadoChecklist = 'CON_OBSERVACION';
+    }
+    return { completitud, itemsFaltantes, status, estadoChecklist };
+}
+const registrarBolsoTrauma = async (datos) => {
+    return await prisma_1.default.bolsoTrauma.create({
+        data: {
+            id: (0, crypto_1.randomUUID)(),
+            tipoId: Number(datos.tipoId),
+            carroId: String(datos.carroId),
+            nombreIdentificador: String(datos.nombreIdentificador),
+            activo: 1
+        }
+    });
+};
+exports.registrarBolsoTrauma = registrarBolsoTrauma;
+const asignarMaterialCarro = async (datos) => {
+    return await prisma_1.default.materialPorCarro.create({
+        data: {
+            id: (0, crypto_1.randomUUID)(),
+            carroId: String(datos.carroId),
+            materialId: Number(datos.materialId),
+            cantidadObjetivo: Number(datos.cantidadObjetivo),
+            ubicacion: datos.ubicacion ? String(datos.ubicacion) : null,
+            activo: 1
+        }
+    });
+};
+exports.asignarMaterialCarro = asignarMaterialCarro;
+const obtenerInventarioCarro = async (carroId) => {
+    return await prisma_1.default.materialPorCarro.findMany({
+        where: { carroId, activo: 1 },
+        include: {
+            material: { select: { codigo: true, nombre: true, categoria: true } }
+        }
+    });
+};
+exports.obtenerInventarioCarro = obtenerInventarioCarro;
+const obtenerSelectorBolsos = async () => {
+    const carros = await prisma_1.default.carro.findMany({
+        include: {
+            bolsos: {
+                where: { activo: 1 },
+                include: { catalogoBolso: true },
+                orderBy: { nombreIdentificador: 'asc' },
+            },
+        },
+        orderBy: { nomenclatura: 'asc' },
+    });
+    const cantidadDefault = (nom) => {
+        const n = nom.trim().toUpperCase();
+        return ['R-1', 'B-1', 'BX-1'].includes(n) ? 3 : 1;
+    };
+    const ejecuciones = await prisma_1.default.checklistEjecucion.findMany({
+        where: { entidadTipo: 'TRAUMA' },
+        include: {
+            revisor: { select: { nombres: true, apellidoPaterno: true, rut: true } },
+        },
+        orderBy: { fechaRevision: 'desc' },
+        take: 500,
+    });
+    const ultimaPorCarro = new Map();
+    const ultimaPorBolso = new Map();
+    for (const e of ejecuciones) {
+        const detalle = parseRespuestasJson(e.respuestasJson);
+        if (detalle['borrador'] === true)
+            continue;
+        if (!ultimaPorCarro.has(e.entidadId)) {
+            ultimaPorCarro.set(e.entidadId, e);
+        }
+        const bolsoNum = resolverBolsoNumero(detalle);
+        const claveBolso = `${e.entidadId}:${bolsoNum}`;
+        if (!ultimaPorBolso.has(claveBolso)) {
+            ultimaPorBolso.set(claveBolso, e);
+        }
+    }
+    return carros.map((carro) => {
+        const bolsosDb = carro.bolsos;
+        const bolsos = bolsosDb.length > 0
+            ? bolsosDb.map((b, idx) => {
+                const numero = idx + 1;
+                const base = {
+                    id: b.id,
+                    numero,
+                    nombre: b.nombreIdentificador || `Bolso ${numero}`,
+                    tipo: b.catalogoBolso?.nombre || 'Trauma',
+                };
+                const ej = ultimaPorBolso.get(`${carro.id}:${numero}`);
+                if (!ej) {
+                    return {
+                        ...base,
+                        completitud: 0,
+                        itemsFaltantes: 0,
+                        status: 'pending',
+                        estadoChecklist: 'PENDIENTE',
+                    };
+                }
+                const metricas = metricasBolsoDesdeDetalle(parseRespuestasJson(ej.respuestasJson));
+                return { ...base, ...metricas };
+            })
+            : Array.from({ length: cantidadDefault(carro.nomenclatura) }, (_, idx) => {
+                const numero = idx + 1;
+                const base = {
+                    id: null,
+                    numero,
+                    nombre: `Bolso ${numero}`,
+                    tipo: 'Trauma',
+                };
+                const ej = ultimaPorBolso.get(`${carro.id}:${numero}`);
+                if (!ej) {
+                    return {
+                        ...base,
+                        completitud: 0,
+                        itemsFaltantes: 0,
+                        status: 'pending',
+                        estadoChecklist: 'PENDIENTE',
+                    };
+                }
+                const metricas = metricasBolsoDesdeDetalle(parseRespuestasJson(ej.respuestasJson));
+                return { ...base, ...metricas };
+            });
+        const ultima = ultimaPorCarro.get(carro.id);
+        let ultimaRevision = null;
+        if (ultima) {
+            const detalle = parseRespuestasJson(ultima.respuestasJson);
+            const obacNombre = ultima.revisor
+                ? `${ultima.revisor.nombres} ${ultima.revisor.apellidoPaterno}`.trim()
+                : null;
+            const conteo = (0, checklist_estado_operativo_util_1.contarItemsBolsoTrauma)(detalle) ?? {
+                totalItems: Number(detalle['totalItems']) || 0,
+                itemsOk: Number(detalle['itemsOk']) || 0,
+            };
+            const total = conteo.totalItems;
+            const ok = conteo.itemsOk;
+            ultimaRevision = {
+                fecha: ultima.fechaRevision.toISOString(),
+                inspector: typeof detalle['inspector'] === 'string' ? detalle['inspector'] : null,
+                obac: obacNombre,
+                responsable: obacNombre,
+                bolsoNumero: detalle['bolsoNumero'] ?? null,
+                porcentaje: total > 0 ? Math.round((ok / total) * 100) : 0,
+            };
+        }
+        return {
+            unidad: carro.nomenclatura,
+            nombre: carro.nombre,
+            estadoOperativo: carro.estadoOperativo,
+            cantidadBolsos: bolsos.length,
+            bolsos,
+            ultimaRevision,
+        };
+    });
+};
+exports.obtenerSelectorBolsos = obtenerSelectorBolsos;
+const obtenerHistorialBolsos = async (_filtros) => {
+    const whereClause = { entidadTipo: 'TRAUMA' };
+    if (_filtros?.unidades) {
+        const noms = _filtros.unidades.split(',').map((n) => n.trim().toUpperCase());
+        const filterCarros = await prisma_1.default.carro.findMany({
+            where: { nomenclatura: { in: noms } },
+            select: { id: true },
+        });
+        whereClause.entidadId = { in: filterCarros.map((c) => c.id) };
+    }
+    if (_filtros?.desde || _filtros?.hasta) {
+        whereClause.fechaRevision = {};
+        if (_filtros.desde) {
+            whereClause.fechaRevision.gte = new Date(_filtros.desde);
+        }
+        if (_filtros.hasta) {
+            const hastaDate = new Date(_filtros.hasta);
+            hastaDate.setHours(23, 59, 59, 999);
+            whereClause.fechaRevision.lte = hastaDate;
+        }
+    }
+    const ejecuciones = await prisma_1.default.checklistEjecucion.findMany({
+        where: whereClause,
+        include: {
+            revisor: { select: { nombres: true, apellidoPaterno: true, rut: true } },
+        },
+        orderBy: { fechaRevision: 'desc' },
+        take: 500,
+    });
+    const carros = await prisma_1.default.carro.findMany({
+        select: { id: true, nomenclatura: true, nombre: true },
+    });
+    const carroPorId = new Map(carros.map((c) => [c.id, c]));
+    return ejecuciones.map((e) => {
+        const detalle = parseRespuestasJson(e.respuestasJson);
+        const carro = carroPorId.get(e.entidadId);
+        const obacNombre = e.revisor
+            ? `${e.revisor.nombres} ${e.revisor.apellidoPaterno}`.trim()
+            : null;
+        const bolsoNumeroRaw = detalle['bolsoNumero'];
+        const bolsoNumero = typeof bolsoNumeroRaw === 'number'
+            ? bolsoNumeroRaw
+            : typeof bolsoNumeroRaw === 'string' && bolsoNumeroRaw.trim()
+                ? Number(bolsoNumeroRaw)
+                : null;
+        const conteo = (0, checklist_estado_operativo_util_1.contarItemsBolsoTrauma)(detalle) ?? {
+            totalItems: Number(detalle['totalItems']) || 0,
+            itemsOk: Number(detalle['itemsOk']) || 0,
+        };
+        const total = conteo.totalItems;
+        const ok = conteo.itemsOk;
+        return {
+            id: e.id,
+            unidad: carro?.nomenclatura ?? e.entidadId,
+            fecha: e.fechaRevision.toISOString(),
+            bolsoNumero: Number.isFinite(bolsoNumero) ? bolsoNumero : null,
+            inspector: typeof detalle['inspector'] === 'string' ? detalle['inspector'] : null,
+            grupoGuardia: detalle['grupoGuardia'] ?? null,
+            cuarteleroId: e.revisorRut,
+            cuartelero: obacNombre ? { id: e.revisorRut, nombre: obacNombre } : null,
+            responsable: obacNombre,
+            observaciones: typeof detalle['observaciones'] === 'string' ? detalle['observaciones'] : null,
+            totalItems: total,
+            itemsOk: ok,
+            porcentaje: total > 0 ? Math.round((ok / total) * 100) : null,
+            detalle,
+            borrador: e.estado === 'BORRADOR',
+            estadoChecklist: e.estado,
+        };
+    });
+};
+exports.obtenerHistorialBolsos = obtenerHistorialBolsos;
+const obtenerUnidadBolsoTrauma = async (nomenclatura) => {
+    const unidad = nomenclatura.trim().toUpperCase();
+    const carro = await prisma_1.default.carro.findFirst({
+        where: { nomenclatura: unidad },
+        include: {
+            bolsos: { where: { activo: 1 }, orderBy: { nombreIdentificador: 'asc' } },
+        },
+    });
+    if (!carro) {
+        throw new utils_1.AppError(`No se encontró la unidad ${unidad}.`, 404);
+    }
+    const ultima = await prisma_1.default.checklistEjecucion.findFirst({
+        where: { entidadId: carro.id, entidadTipo: 'TRAUMA' },
+        orderBy: { fechaRevision: 'desc' },
+        include: {
+            revisor: { select: { nombres: true, apellidoPaterno: true, rut: true } },
+        },
+    });
+    let checklist = null;
+    if (ultima) {
+        const detalle = parseRespuestasJson(ultima.respuestasJson);
+        const obacNombre = ultima.revisor
+            ? `${ultima.revisor.nombres} ${ultima.revisor.apellidoPaterno}`.trim()
+            : null;
+        checklist = {
+            id: ultima.id,
+            cuarteleroId: ultima.revisorRut,
+            fecha: ultima.fechaRevision.toISOString(),
+            inspector: typeof detalle['inspector'] === 'string' ? detalle['inspector'] : null,
+            grupoGuardia: detalle['grupoGuardia'] ?? null,
+            observaciones: typeof detalle['observaciones'] === 'string' ? detalle['observaciones'] : null,
+            firmaOficial: ultima.firmaOficial,
+            firmaInspector: ultima.firmaRevisor,
+            totalItems: Number(detalle['totalItems']) || 0,
+            itemsOk: Number(detalle['itemsOk']) || 0,
+            detalle,
+        };
+        if (obacNombre) {
+            checklist['cuartelero'] = { id: ultima.revisorRut, nombre: obacNombre, rol: '' };
+        }
+    }
+    return {
+        carro: {
+            id: carro.id,
+            nomenclatura: carro.nomenclatura,
+            nombre: carro.nombre,
+        },
+        checklist,
+    };
+};
+exports.obtenerUnidadBolsoTrauma = obtenerUnidadBolsoTrauma;
+const guardarRevisionBolsoTrauma = async (nomenclatura, payload) => {
+    const unidad = nomenclatura.trim().toUpperCase();
+    const carro = await prisma_1.default.carro.findFirst({ where: { nomenclatura: unidad } });
+    if (!carro) {
+        throw new utils_1.AppError(`No se encontró la unidad ${unidad}.`, 404);
+    }
+    const cuarteleroId = String(payload['cuarteleroId'] ?? '').trim();
+    if (!cuarteleroId) {
+        throw new utils_1.AppError('Selecciona un voluntario responsable (OBAC).', 400);
+    }
+    const detalle = payload['detalle'] ?? {};
+    const conteoBolso = (0, checklist_estado_operativo_util_1.contarItemsBolsoTrauma)(detalle);
+    const estadoChecklist = typeof payload['estadoChecklist'] === 'string' ? String(payload['estadoChecklist']).trim().toUpperCase() : '';
+    const resultados = {
+        ...detalle,
+        inspector: payload['inspector'] ?? null,
+        grupoGuardia: payload['grupoGuardia'] ?? null,
+        observaciones: payload['observaciones'] ?? null,
+        totalItems: conteoBolso?.totalItems ?? payload['totalItems'] ?? null,
+        itemsOk: conteoBolso?.itemsOk ?? payload['itemsOk'] ?? null,
+        ...(estadoChecklist ? { estadoChecklist } : {}),
+    };
+    const ejecucion = await (0, checklists_service_1.registrarEjecucion)(carro.id, cuarteleroId, undefined, resultados, {
+        entidadTipo: 'TRAUMA',
+        firmaOficial: payload['firmaOficial'] ?? null,
+        firmaInspector: payload['firmaInspector'] ?? null,
+    });
+    return {
+        id: ejecucion.id,
+        fecha: ejecucion.fechaRevision.toISOString(),
+        unidad: carro.nomenclatura,
+        carroId: carro.id,
+        cuarteleroId,
+        inspector: payload['inspector'] ?? null,
+        grupoGuardia: payload['grupoGuardia'] ?? null,
+        observaciones: payload['observaciones'] ?? null,
+        totalItems: payload['totalItems'] ?? null,
+        itemsOk: payload['itemsOk'] ?? null,
+        detalle: resultados,
+        firmaOficial: ejecucion.firmaOficial,
+        firmaInspector: ejecucion.firmaRevisor,
+    };
+};
+exports.guardarRevisionBolsoTrauma = guardarRevisionBolsoTrauma;
+const obtenerHistorialBolsoPorId = async (id) => {
+    const e = await prisma_1.default.checklistEjecucion.findFirst({
+        where: { id, entidadTipo: 'TRAUMA' },
+        include: {
+            revisor: { select: { nombres: true, apellidoPaterno: true, rut: true, rol: { select: { nombre: true } } } },
+        },
+    });
+    if (!e) {
+        throw new utils_1.AppError('Registro de bolso de trauma no encontrado', 404);
+    }
+    const carro = await prisma_1.default.carro.findUnique({
+        where: { id: e.entidadId },
+        select: { id: true, nomenclatura: true, nombre: true },
+    });
+    const detalle = parseRespuestasJson(e.respuestasJson);
+    const obacNombre = e.revisor
+        ? `${e.revisor.nombres} ${e.revisor.apellidoPaterno}`.trim()
+        : '—';
+    const total = Number(detalle['totalItems']) || 0;
+    const ok = Number(detalle['itemsOk']) || 0;
+    return {
+        id: e.id,
+        fecha: e.fechaRevision.toISOString(),
+        inspector: typeof detalle['inspector'] === 'string' ? detalle['inspector'] : null,
+        grupoGuardia: typeof detalle['grupoGuardia'] === 'string' ? detalle['grupoGuardia'] : null,
+        cuartelero: {
+            id: e.revisorRut,
+            nombre: obacNombre,
+            rol: e.revisor?.rol?.nombre || 'OBAC',
+        },
+        observaciones: typeof detalle['observaciones'] === 'string' ? detalle['observaciones'] : null,
+        firmaOficial: e.firmaOficial,
+        firmaInspector: e.firmaRevisor,
+        totalItems: total,
+        itemsOk: ok,
+        porcentaje: total > 0 ? Math.round((ok / total) * 100) : null,
+        detalle,
+        carro: carro ? {
+            id: carro.id,
+            nomenclatura: carro.nomenclatura,
+            nombre: carro.nombre,
+        } : {
+            id: e.entidadId,
+            nomenclatura: e.entidadId,
+            nombre: 'Unidad Desconocida',
+        },
+    };
+};
+exports.obtenerHistorialBolsoPorId = obtenerHistorialBolsoPorId;

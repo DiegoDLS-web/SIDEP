@@ -92,6 +92,15 @@ export const loadAuditoriaUsuariosComponent = () =>
 export const loadAuditoriaLogComponent = () =>
   import('../pages/auditoria/auditoria-log.component').then((m) => m.AuditoriaLogComponent);
 
+export const loadInventariosShellComponent = () =>
+  import('../pages/inventarios/inventarios-shell.component').then((m) => m.InventariosShellComponent);
+
+export const loadInventariosResumenComponent = () =>
+  import('../pages/inventarios/inventarios-resumen.component').then((m) => m.InventariosResumenComponent);
+
+export const loadInventariosBodegaComponent = () =>
+  import('../pages/inventarios/inventarios-bodega.component').then((m) => m.InventariosBodegaComponent);
+
 /** Pantallas “próximamente” reutilizables. */
 export function rutaPlaceholder(title: string) {
   return {

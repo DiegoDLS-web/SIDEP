@@ -33,7 +33,9 @@ import {
   loadAuditoriaChecklistsComponent,
   loadAuditoriaUsuariosComponent,
   loadAuditoriaLogComponent,
-  rutaPlaceholder,
+  loadInventariosShellComponent,
+  loadInventariosResumenComponent,
+  loadInventariosBodegaComponent,
 } from './routing/lazy-routes';
 
 /**
@@ -99,8 +101,14 @@ export const routes: Routes = [
         title: 'Carros · SIDEP',
         loadComponent: loadCarrosPageComponent,
       },
-      { path: 'inventarios/bodega', ...rutaPlaceholder('Inventarios — Bodega') },
-      { path: 'inventarios', ...rutaPlaceholder('Inventarios') },
+      {
+        path: 'inventarios',
+        loadComponent: loadInventariosShellComponent,
+        children: [
+          { path: '', title: 'Inventarios · SIDEP', loadComponent: loadInventariosResumenComponent },
+          { path: 'bodega', title: 'Inventarios · Bodega · SIDEP', loadComponent: loadInventariosBodegaComponent },
+        ],
+      },
       {
         path: 'checklist-era',
         title: 'Checklist ERA · SIDEP',

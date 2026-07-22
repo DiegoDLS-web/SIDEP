@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const configuraciones_controller_1 = require("../controllers/configuraciones.controller");
+const auth_middleware_1 = require("../../../middlewares/auth.middleware");
+const role_middleware_1 = require("../../../middlewares/role.middleware");
+const storage_1 = require("../../../shared/storage");
+const router = (0, express_1.Router)();
+router.get('/', auth_middleware_1.protect, (0, role_middleware_1.requireRoles)('ADMIN'), configuraciones_controller_1.obtenerConfiguraciones);
+router.put('/', auth_middleware_1.protect, (0, role_middleware_1.requireRoles)('ADMIN'), configuraciones_controller_1.actualizarConfiguraciones);
+router.post('/logo-compania', auth_middleware_1.protect, (0, role_middleware_1.requireRoles)('ADMIN'), storage_1.uploadImage.single('file'), configuraciones_controller_1.subirLogoCompania);
+router.put('/tipos-emergencia', auth_middleware_1.protect, (0, role_middleware_1.requireRoles)('ADMIN'), configuraciones_controller_1.actualizarTiposEmergencia);
+exports.default = router;

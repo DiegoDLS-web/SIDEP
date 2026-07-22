@@ -1,0 +1,229 @@
+<div class="mt-4 space-y-6">
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div>
+      <p class="text-sm text-slate-500">Control de materiales y equipos</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <a
+        routerLink="/inventarios/bodega"
+        class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
+      >
+        <lucide-icon name="package" class="h-4 w-4" [size]="16" color="currentColor" />
+        Gestión de Bodega
+      </a>
+      <button
+        type="button"
+        class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600"
+        (click)="exportarExcel()"
+      >
+        <lucide-icon name="file-spreadsheet" class="h-4 w-4" [size]="16" color="currentColor" />
+        Exportar Excel
+      </button>
+    </div>
+  </div>
+
+  @if (metricas) {
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div class="rounded-2xl border border-slate-800 bg-[#121212] p-5">
+        <div class="flex items-center justify-between">
+          <p class="text-xs uppercase tracking-wide text-slate-500">Total ítems</p>
+          <lucide-icon name="package" class="h-5 w-5 text-blue-400" [size]="20" color="currentColor" />
+        </div>
+        <p class="mt-2 text-3xl font-bold tabular-nums text-white">{{ metricas.totalItems }}</p>
+      </div>
+      <div class="rounded-2xl border border-emerald-900/40 bg-[#121212] p-5">
+        <div class="flex items-center justify-between">
+          <p class="text-xs uppercase tracking-wide text-slate-500">Stock normal</p>
+          <lucide-icon name="circle-check" class="h-5 w-5 text-emerald-400" [size]="20" color="currentColor" />
+        </div>
+        <p class="mt-2 text-3xl font-bold tabular-nums text-emerald-300">{{ metricas.stockNormal }}</p>
+      </div>
+      <div class="rounded-2xl border border-amber-700/40 bg-[#121212] p-5 ring-1 ring-amber-500/20">
+        <div class="flex items-center justify-between">
+          <p class="text-xs uppercase tracking-wide text-slate-500">Stock bajo</p>
+          <lucide-icon name="triangle-alert" class="h-5 w-5 text-amber-400" [size]="20" color="currentColor" />
+        </div>
+        <p class="mt-2 text-3xl font-bold tabular-nums text-amber-300">{{ metricas.stockBajo }}</p>
+      </div>
+      <div class="rounded-2xl border border-red-800/50 bg-[#121212] p-5 ring-1 ring-red-500/25">
+        <div class="flex items-center justify-between">
+          <p class="text-xs uppercase tracking-wide text-slate-500">Stock crítico</p>
+          <lucide-icon name="triangle-alert" class="h-5 w-5 text-red-400" [size]="20" color="currentColor" />
+        </div>
+        <p class="mt-2 text-3xl font-bold tabular-nums text-red-300">{{ metricas.stockCritico }}</p>
+      </div>
+    </div>
+  }
+
+  <section class="rounded-2xl border border-slate-800 bg-[#121212] p-4 sm:p-5">
+    <div class="grid gap-3 lg:grid-cols-2">
+      <div class="relative">
+        <lucide-icon name="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" [size]="16" color="currentColor" />
+        <input
+          [(ngModel)]="busqueda"
+          (ngModelChange)="onBuscarChange()"
+          class="sid-input w-full pl-10"
+          placeholder="Buscar equipo…"
+        />
+      </div>
+      <div class="relative">
+        <lucide-icon name="user" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" [size]="16" color="currentColor" />
+        <input
+          [(ngModel)]="filtroVoluntario"
+          (ngModelChange)="onBuscarChange()"
+          class="sid-input w-full pl-10"
+          placeholder="Filtrar por voluntario (solo uniformes / EPP)…"
+        />
+      </div>
+    </div>
+
+    <div class="mt-4 space-y-3">
+      <div>
+        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Bodega</p>
+        <div class="flex flex-wrap gap-2">
+          @for (b of bodegas; track b.codigo) {
+            <button
+              type="button"
+              class="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
+              [class]="bodegaActiva === b.codigo ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
+              (click)="setBodega(b.codigo)"
+            >
+              {{ b.nombre }}
+            </button>
+          }
+        </div>
+      </div>
+      <div>
+        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Categoría</p>
+        <div class="flex flex-wrap gap-2">
+          @for (c of categorias; track c) {
+            <button
+              type="button"
+              class="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
+              [class]="categoriaActiva === c ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
+              (click)="setCategoria(c)"
+            >
+              {{ c === 'TODAS' ? 'Todas' : c }}
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  @if (loading) {
+    <div class="flex min-h-[16rem] items-center justify-center rounded-2xl border border-slate-800 bg-[#121212] text-slate-400">
+      Cargando inventario…
+    </div>
+  } @else if (error && !items.length) {
+    <div class="rounded-xl border border-red-800/60 bg-red-950/30 px-4 py-3 text-sm text-red-200">{{ error }}</div>
+  } @else {
+    <div class="overflow-hidden rounded-2xl border border-slate-800 bg-[#121212]">
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[980px] text-left text-sm">
+          <thead class="bg-[#1a1a1a] text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th class="px-4 py-3">Código</th>
+              <th class="px-4 py-3">Artículo</th>
+              <th class="px-4 py-3">Categoría</th>
+              <th class="px-4 py-3">Bodega</th>
+              <th class="px-4 py-3 text-center">Cantidad</th>
+              <th class="px-4 py-3 text-center">Stock mín.</th>
+              <th class="px-4 py-3">Asignado a</th>
+              <th class="px-4 py-3">Estado</th>
+              @if (puedeGestionar) {
+                <th class="px-4 py-3 text-center">Acciones</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of items; track item.id) {
+              <tr class="border-t border-slate-800/80 hover:bg-white/[0.02]">
+                <td class="px-4 py-3 font-mono text-xs text-slate-400">{{ item.codigo }}</td>
+                <td class="px-4 py-3">
+                  <p class="font-semibold text-slate-100">{{ item.nombre }}</p>
+                  <p class="text-xs text-slate-500">{{ item.unidad }}</p>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-medium text-blue-300">{{ item.categoria ?? '—' }}</span>
+                </td>
+                <td class="px-4 py-3 text-slate-300">{{ item.bodegaNombre }}</td>
+                <td class="px-4 py-3 text-center text-lg font-bold tabular-nums text-white">{{ item.cantidad }}</td>
+                <td class="px-4 py-3 text-center tabular-nums text-slate-400">{{ item.stockMinimo }}</td>
+                <td class="px-4 py-3">
+                  @if (asignandoItemId === item.id) {
+                    <div class="flex min-w-[200px] flex-col gap-2">
+                      <select [(ngModel)]="rutAsignacion" class="sid-input text-xs">
+                        <option value="">Seleccionar voluntario…</option>
+                        @for (v of voluntarios; track v.rut) {
+                          <option [value]="v.rut">{{ v.nombre }}</option>
+                        }
+                      </select>
+                      <div class="flex gap-2">
+                        <button type="button" class="text-xs text-emerald-400" (click)="confirmarAsignacion(item)">Guardar</button>
+                        <button type="button" class="text-xs text-slate-400" (click)="cancelarAsignacion()">Cancelar</button>
+                      </div>
+                    </div>
+                  } @else if (item.asignaciones.length) {
+                    <div class="flex flex-wrap gap-1">
+                      @for (a of item.asignaciones; track a.id) {
+                        <span class="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2.5 py-1 text-xs font-medium text-blue-200 ring-1 ring-blue-500/25">
+                          <lucide-icon name="user" class="h-3 w-3" [size]="12" color="currentColor" />
+                          {{ a.usuarioNombre }}
+                          @if (puedeGestionar) {
+                            <button type="button" class="ml-1 text-blue-300/70 hover:text-red-300" (click)="quitarAsignacion(item, a.id)">×</button>
+                          }
+                        </span>
+                      }
+                    </div>
+                  } @else if (item.esEppAsignable && puedeGestionar) {
+                    <button type="button" class="text-xs font-medium text-blue-400 hover:text-blue-300" (click)="abrirAsignacion(item)">
+                      Asignar voluntario
+                    </button>
+                  } @else {
+                    <span class="text-slate-600">—</span>
+                  }
+                </td>
+                <td class="px-4 py-3">
+                  <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold" [ngClass]="clasesEstado(item.estadoStock)">
+                    {{ item.estadoStock === 'NORMAL' ? 'Normal' : item.estadoStock === 'BAJO' ? 'Bajo' : 'Crítico' }}
+                  </span>
+                </td>
+                @if (puedeGestionar) {
+                  <td class="px-4 py-3">
+                    <div class="flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        class="flex h-8 w-8 items-center justify-center rounded-full bg-red-600/20 text-red-300 ring-1 ring-red-500/30 hover:bg-red-600/30"
+                        (click)="ajustar(item, -1)"
+                      >
+                        −
+                      </button>
+                      <button
+                        type="button"
+                        class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600/20 text-emerald-300 ring-1 ring-emerald-500/30 hover:bg-emerald-600/30"
+                        (click)="ajustar(item, 1)"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (totalPaginas > 1) {
+        <div class="flex items-center justify-between border-t border-slate-800 px-4 py-3 text-sm text-slate-400">
+          <span>{{ total }} ítems · Página {{ page }} / {{ totalPaginas }}</span>
+          <div class="flex gap-2">
+            <button type="button" class="rounded-lg bg-slate-800 px-3 py-1 disabled:opacity-40" [disabled]="page <= 1" (click)="irPagina(page - 1)">Anterior</button>
+            <button type="button" class="rounded-lg bg-slate-800 px-3 py-1 disabled:opacity-40" [disabled]="page >= totalPaginas" (click)="irPagina(page + 1)">Siguiente</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

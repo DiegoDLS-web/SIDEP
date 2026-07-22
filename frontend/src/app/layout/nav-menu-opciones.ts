@@ -4,6 +4,7 @@ export const OPCIONES_MENU_SIDEP: ReadonlyArray<{ path: string; label: string }>
   { path: '/partes', label: 'Partes' },
   { path: '/catalogo-emergencias', label: 'Tipos de emergencia' },
   { path: '/carros', label: 'Carros' },
+  { path: '/inventarios', label: 'Inventarios' },
   { path: '/checklist', label: 'Checklist' },
   { path: '/checklist-era', label: 'Checklist ERA' },
   { path: '/bolso-trauma', label: 'Bolso de trauma' },
@@ -11,6 +12,7 @@ export const OPCIONES_MENU_SIDEP: ReadonlyArray<{ path: string; label: string }>
   { path: '/analitica-operacional', label: 'Analítica operacional' },
   { path: '/usuarios', label: 'Usuarios' },
   { path: '/configuraciones', label: 'Configuraciones' },
+  { path: '/auditoria', label: 'Auditoría' },
   { path: '/perfil', label: 'Mi perfil' },
 ];
 
@@ -20,10 +22,11 @@ export function rutasMenuFallbackPorRol(rolRaw: string | undefined): string[] {
     (x) =>
       x.path !== '/usuarios' &&
       x.path !== '/configuraciones' &&
-      x.path !== '/catalogo-emergencias',
+      x.path !== '/catalogo-emergencias' &&
+      x.path !== '/auditoria',
   ).map((x) => x.path);
   const operativosAdminCapitan = OPCIONES_MENU_SIDEP.filter(
-    (x) => x.path !== '/usuarios' && x.path !== '/configuraciones',
+    (x) => x.path !== '/usuarios' && x.path !== '/configuraciones' && x.path !== '/auditoria',
   ).map((x) => x.path);
   const r = rolRaw?.trim().toUpperCase() ?? '';
   if (r === 'ADMIN') {

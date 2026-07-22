@@ -85,6 +85,12 @@ export class MainLayoutComponent implements OnDestroy {
       title: 'OPERACIONES',
       items: [
         { routerLink: '/carros', label: 'Carros', icon: 'truck' },
+        {
+          routerLink: '/inventarios',
+          label: 'Inventarios',
+          icon: 'package',
+          activePrefix: '/inventarios',
+        },
         { routerLink: '/checklist', label: 'Checklist', icon: 'clipboard-list' },
         { routerLink: '/checklist-era', label: 'Checklist ERA', icon: 'shield' },
         {
@@ -101,6 +107,7 @@ export class MainLayoutComponent implements OnDestroy {
       title: 'SISTEMA',
       items: [
         { routerLink: '/usuarios', label: 'Usuarios', icon: 'users' },
+        { routerLink: '/auditoria', label: 'Auditoría', icon: 'shield-check', activePrefix: '/auditoria' },
         { routerLink: '/configuraciones', label: 'Configuraciones', icon: 'settings' },
       ],
     },
@@ -216,20 +223,28 @@ export class MainLayoutComponent implements OnDestroy {
     if (rol === 'ADMIN') {
       return this.baseSections;
     }
+    const sinAuditoria = (sections: NavSection[]): NavSection[] =>
+      sections.map((section) =>
+        section.title !== 'SISTEMA'
+          ? section
+          : { ...section, items: section.items.filter((item) => item.routerLink !== '/auditoria') },
+      );
     if (rol === 'CAPITAN' || rol === 'TENIENTE') {
-      return sinCatalogoSiAplica(
-        this.baseSections.map((section) => {
-          if (section.title !== 'SISTEMA') {
-            return section;
-          }
-          return {
-            ...section,
-            items: section.items.filter((item) => item.routerLink !== '/configuraciones'),
-          };
-        }),
+      return sinAuditoria(
+        sinCatalogoSiAplica(
+          this.baseSections.map((section) => {
+            if (section.title !== 'SISTEMA') {
+              return section;
+            }
+            return {
+              ...section,
+              items: section.items.filter((item) => item.routerLink !== '/configuraciones'),
+            };
+          }),
+        ),
       );
     }
-    return sinCatalogoSiAplica(this.baseSections.filter((section) => section.title !== 'SISTEMA'));
+    return sinAuditoria(sinCatalogoSiAplica(this.baseSections.filter((section) => section.title !== 'SISTEMA')));
   }
 
   private filtrarSeccionesPorRutas(allowed: ReadonlySet<string>): NavSection[] {
