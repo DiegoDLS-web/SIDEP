@@ -5,8 +5,13 @@
 import 'dotenv/config';
 import ExcelJS from 'exceljs';
 import prisma from '../SRC/prisma';
+import {
+  extraerTallaDeNombre,
+  inferirSistemaTalla,
+  inferirTipoEpp,
+} from '../SRC/utils/epp-tallas.util';
 
-const UNIFORMES_RE = /UNIFORM|CHAQUET|PANTALON|BOTA|COTONA|JARDINERA|CHAQUETON/i;
+const UNIFORMES_RE = /UNIFORM|CHAQUET|PANTALON|BOTA|COTONA|JARDINERA|CHAQUETON|GORRA/i;
 
 function inferCategoria(nombre: string, tipo: string): string {
   const n = nombre.toUpperCase();
@@ -95,12 +100,20 @@ async function main() {
     const codigo = `INV-${String(seq).padStart(4, '0')}`;
     seq += 1;
 
+    const epp = esEppAsignable(nombre, categoria, tipo);
+    const tipoEpp = epp ? inferirTipoEpp(nombre, categoria) : null;
+    const sistemaTalla = inferirSistemaTalla(tipoEpp);
+    const talla = extraerTallaDeNombre(nombre, sistemaTalla);
+
     await prisma.inventarioItem.create({
       data: {
         codigo,
         nombre: nombre.slice(0, 200),
         categoria,
         tipoInventario: tipo.slice(0, 80),
+        tipoEpp,
+        talla,
+        sistemaTalla,
         bodegaId,
         marca: marca?.slice(0, 100) ?? null,
         modelo: modelo?.slice(0, 100) ?? null,
@@ -111,7 +124,7 @@ async function main() {
         cantidad,
         stockMinimo: min,
         stockCritico: crit,
-        esEppAsignable: esEppAsignable(nombre, categoria, tipo),
+        esEppAsignable: epp,
         activo: 1,
       },
     });

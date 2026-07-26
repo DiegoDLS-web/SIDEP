@@ -53,6 +53,19 @@ export const patchAjustarCantidad = async (req: Request, res: Response) => {
   }
 };
 
+export const patchMetaItem = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ success: false, message: 'ID obligatorio' });
+    const data = await inventarioItemsService.actualizarMetaItem(id, {
+      talla: req.body?.talla !== undefined ? req.body.talla : undefined,
+    });
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    enviarError(res, error, 'Error al actualizar ítem');
+  }
+};
+
 export const postAsignarEpp = async (req: Request, res: Response) => {
   try {
     const inventarioItemId = Number(req.params.id);

@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { debounceTime, Subject } from 'rxjs';
 import type { InventarioItemDto, InventarioMetricasDto } from '../../models/inventarios.dto';
-import { CATEGORIAS_INVENTARIO } from '../../models/inventarios.dto';
+import { CATEGORIAS_INVENTARIO, TALLAS_BOTA, TALLAS_ROPA } from '../../models/inventarios.dto';
 import { InventariosService } from '../../services/inventarios.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
+import { PdfExportService } from '../../services/pdf-export.service';
 import { mensajeApiError } from '../../utils/api-error.util';
 import { exportarExcelSidep } from '../../utils/excel-export.util';
 import type { UsuarioListaDto } from '../../models/usuario.dto';
@@ -25,9 +26,11 @@ export class InventariosResumenComponent implements OnInit {
   private readonly usuarios = inject(UsuariosService);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly pdf = inject(PdfExportService);
   private readonly buscar$ = new Subject<void>();
 
   loading = true;
+  exportandoPdf = false;
   error: string | null = null;
   items: InventarioItemDto[] = [];
   metricas: InventarioMetricasDto | null = null;
@@ -48,6 +51,8 @@ export class InventariosResumenComponent implements OnInit {
     { codigo: 'UNIFORMES', nombre: 'Bodega Uniformes' },
   ];
   readonly categorias = ['TODAS', ...CATEGORIAS_INVENTARIO];
+  readonly tallasBota = TALLAS_BOTA;
+  readonly tallasRopa = TALLAS_ROPA;
 
   voluntarios: UsuarioListaDto[] = [];
   asignandoItemId: number | null = null;
@@ -121,6 +126,17 @@ export class InventariosResumenComponent implements OnInit {
     });
   }
 
+  guardarTalla(item: InventarioItemDto, talla: string): void {
+    if (!this.puedeGestionar) return;
+    this.api.actualizarMetaItem(item.id, { talla: talla || null }).subscribe({
+      next: (actualizado) => {
+        Object.assign(item, actualizado);
+        this.toast.exito(`Talla ${actualizado.talla ?? '—'} guardada.`);
+      },
+      error: (err) => this.toast.error(mensajeApiError(err, 'No se pudo guardar la talla.')),
+    });
+  }
+
   private recargarMetricas(): void {
     this.api.listarItems({ page: 1, pageSize: 1 }).subscribe({
       next: (d) => (this.metricas = d.metricas),
@@ -129,8 +145,18 @@ export class InventariosResumenComponent implements OnInit {
 
   abrirAsignacion(item: InventarioItemDto): void {
     if (!this.puedeGestionar || !item.esEppAsignable) return;
+    if (item.cantidadDisponible < 1) {
+      this.toast.error(
+        `No se puede asignar: no hay unidades disponibles (total ${item.cantidad}, asignadas ${item.cantidadAsignada}).`,
+      );
+      return;
+    }
+    if (item.sistemaTalla && !item.talla) {
+      this.toast.error('Indica la talla del ítem antes de asignar (botas 35–46; ropa/gorras XS–XXL).');
+      return;
+    }
     this.asignandoItemId = item.id;
-    this.rutAsignacion = item.asignaciones[0]?.usuarioRut ?? '';
+    this.rutAsignacion = '';
   }
 
   cancelarAsignacion(): void {
@@ -158,7 +184,7 @@ export class InventariosResumenComponent implements OnInit {
     this.api.quitarAsignacionEpp(asignacionId).subscribe({
       next: (actualizado) => {
         Object.assign(item, actualizado);
-        this.toast.exito('Asignación eliminada.');
+        this.toast.exito('Asignación eliminada. La unidad vuelve a disponibles en bodega.');
       },
       error: (err) => this.toast.error(mensajeApiError(err, 'No se pudo quitar la asignación.')),
     });
@@ -180,37 +206,134 @@ export class InventariosResumenComponent implements OnInit {
             columnas: [
               'Código',
               'Artículo',
+              'Talla',
+              'Tipo EPP',
               'Categoría',
               'Bodega',
-              'Cantidad',
+              'Total',
+              'Asignados',
+              'Disponibles',
               'Stock mín.',
               'Estado stock',
               'Asignado a',
               'Marca',
               'Modelo',
-              'Estado físico',
-              'Tipo',
             ],
             filas: filas.map((f) => [
               f.codigo,
               f.nombre,
+              f.talla ?? '',
+              f.tipoEppEtiqueta ?? '',
               f.categoria ?? '',
               f.bodegaNombre,
               f.cantidad,
+              f.cantidadAsignada,
+              f.cantidadDisponible,
               f.stockMinimo,
               f.estadoStock,
               f.asignaciones.map((a) => a.usuarioNombre).join('; ') || '—',
               f.marca ?? '',
               f.modelo ?? '',
-              f.estadoFisico ?? '',
-              f.tipoInventario ?? '',
             ]),
             nombreArchivo: `inventario_sidep_${new Date().toISOString().slice(0, 10)}.xlsx`,
-            anchosCols: [12, 36, 14, 18, 10, 10, 12, 28, 14, 14, 12, 16],
+            anchosCols: [12, 32, 8, 16, 12, 16, 8, 10, 10, 10, 12, 28, 12, 12],
           });
         },
         error: (err) => this.toast.error(mensajeApiError(err, 'No se pudo exportar.')),
       });
+  }
+
+  exportarPdfBodegas(): void {
+    if (this.exportandoPdf) return;
+    this.exportandoPdf = true;
+    this.api
+      .exportarItems({
+        q: this.busqueda,
+        bodega: this.bodegaActiva,
+        categoria: this.categoriaActiva,
+        voluntario: this.filtroVoluntario,
+      })
+      .subscribe({
+        next: async (filas) => {
+          try {
+            const porBodega = new Map<string, InventarioItemDto[]>();
+            for (const f of filas) {
+              const key = f.bodegaCodigo || 'SIN_BODEGA';
+              const list = porBodega.get(key) ?? [];
+              list.push(f);
+              porBodega.set(key, list);
+            }
+
+            if (!porBodega.size) {
+              this.toast.error('No hay ítems para exportar.');
+              return;
+            }
+
+            for (const [, items] of porBodega) {
+              const bodegaNombre = items[0]?.bodegaNombre ?? 'Bodega';
+              const totalUnidades = items.reduce((a, i) => a + i.cantidad, 0);
+              const asignadas = items.reduce((a, i) => a + i.cantidadAsignada, 0);
+              const disponibles = items.reduce((a, i) => a + i.cantidadDisponible, 0);
+
+              await this.pdf.exportarHistorialTabla({
+                titulo: `Inventario — ${bodegaNombre}`,
+                subtitulo: 'Inventario completo de bodega · 1ª Compañía Santa Juana',
+                landscape: true,
+                segmentosNombre: ['Inventario', bodegaNombre],
+                resumen: [
+                  `Ítems: ${items.length} · Total unidades: ${totalUnidades} · Asignadas: ${asignadas} · Disponibles en bodega: ${disponibles}`,
+                ],
+                columnas: [
+                  'Código',
+                  'Artículo',
+                  'Talla',
+                  'Categoría',
+                  'Total',
+                  'Asign.',
+                  'Disp.',
+                  'Estado',
+                  'Asignado a',
+                ],
+                filas: items.map((f) => [
+                  f.codigo,
+                  f.nombre,
+                  f.talla ?? '—',
+                  f.categoria ?? '—',
+                  String(f.cantidad),
+                  String(f.cantidadAsignada),
+                  String(f.cantidadDisponible),
+                  f.estadoStock,
+                  f.asignaciones.map((a) => a.usuarioNombre).join('; ') || '—',
+                ]),
+              });
+            }
+
+            this.toast.exito(
+              porBodega.size === 1
+                ? 'PDF de inventario generado.'
+                : `Se generaron ${porBodega.size} PDFs (uno por bodega).`,
+            );
+          } catch {
+            this.toast.error('No se pudo generar el PDF.');
+          } finally {
+            this.exportandoPdf = false;
+          }
+        },
+        error: (err) => {
+          this.exportandoPdf = false;
+          this.toast.error(mensajeApiError(err, 'No se pudo exportar PDF.'));
+        },
+      });
+  }
+
+  tallasPara(item: InventarioItemDto): string[] {
+    if (item.sistemaTalla === 'BOTA') return this.tallasBota;
+    if (item.sistemaTalla === 'ROPA') return [...this.tallasRopa];
+    return [];
+  }
+
+  puedeAsignarMas(item: InventarioItemDto): boolean {
+    return item.esEppAsignable && item.cantidadDisponible > 0;
   }
 
   etiquetaAsignado(item: InventarioItemDto): string {

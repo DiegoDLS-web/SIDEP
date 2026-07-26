@@ -117,6 +117,12 @@ model InventarioItem {
   nombre         String                     @db.VarChar(200)
   categoria      String?                    @db.VarChar(100)
   tipoInventario String?                    @map("tipo_inventario") @db.VarChar(80)
+  /// Agrupa EPP del mismo tipo (BOTA_ESTRUCTURAL, CHAQUETA_RESCATE, GORRA, etc.)
+  tipoEpp        String?                    @map("tipo_epp") @db.VarChar(80)
+  /// Talla: 35-46 (botas) o XS-XXL (ropa/gorras)
+  talla          String?                    @db.VarChar(10)
+  /// BOTA | ROPA | null
+  sistemaTalla   String?                    @map("sistema_talla") @db.VarChar(20)
   bodegaId       Int                        @map("bodega_id")
   marca          String?                    @db.VarChar(100)
   modelo         String?                    @db.VarChar(100)
@@ -138,6 +144,8 @@ model InventarioItem {
   @@index([bodegaId])
   @@index([categoria])
   @@index([tipoInventario])
+  @@index([tipoEpp])
+  @@index([talla])
   @@map("inventario_item")
 }
 
@@ -151,6 +159,7 @@ model AsignacionInventarioEpp {
   inventarioItem   InventarioItem @relation(fields: [inventarioItemId], references: [id], onDelete: Cascade)
   usuario          Usuario        @relation(fields: [usuarioRut], references: [rut])
 
+  @@unique([inventarioItemId, usuarioRut])
   @@index([usuarioRut])
   @@index([inventarioItemId])
   @@map("asignacion_inventario_epp")

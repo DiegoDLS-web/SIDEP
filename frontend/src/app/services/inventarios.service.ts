@@ -60,6 +60,12 @@ export class InventariosService {
       .pipe(map((r) => r.data));
   }
 
+  actualizarMetaItem(id: number, data: { talla: string | null }): Observable<InventarioItemDto> {
+    return this.http
+      .patch<ApiOk<InventarioItemDto>>(`${this.base}/items/${id}/meta`, data)
+      .pipe(map((r) => r.data));
+  }
+
   asignarEpp(itemId: number, usuarioRut: string): Observable<InventarioItemDto> {
     return this.http
       .post<ApiOk<InventarioItemDto>>(`${this.base}/items/${itemId}/asignar-epp`, { usuarioRut })

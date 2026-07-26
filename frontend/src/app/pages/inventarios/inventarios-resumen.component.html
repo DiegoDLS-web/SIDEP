@@ -1,7 +1,7 @@
 <div class="mt-4 space-y-6">
   <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
     <div>
-      <p class="text-sm text-slate-500">Control de materiales y equipos</p>
+      <p class="text-sm text-slate-500">Control de materiales y equipos · EPP con tallas y stock disponible</p>
     </div>
     <div class="flex flex-wrap gap-2">
       <a
@@ -11,6 +11,15 @@
         <lucide-icon name="package" class="h-4 w-4" [size]="16" color="currentColor" />
         Gestión de Bodega
       </a>
+      <button
+        type="button"
+        class="inline-flex items-center gap-2 rounded-xl bg-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-600 disabled:opacity-50"
+        [disabled]="exportandoPdf"
+        (click)="exportarPdfBodegas()"
+      >
+        <lucide-icon name="file-down" class="h-4 w-4" [size]="16" color="currentColor" />
+        {{ exportandoPdf ? 'Generando PDF…' : 'PDF por bodega' }}
+      </button>
       <button
         type="button"
         class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600"
@@ -63,7 +72,7 @@
           [(ngModel)]="busqueda"
           (ngModelChange)="onBuscarChange()"
           class="sid-input w-full pl-10"
-          placeholder="Buscar equipo…"
+          placeholder="Buscar equipo o talla…"
         />
       </div>
       <div class="relative">
@@ -120,15 +129,16 @@
   } @else {
     <div class="overflow-hidden rounded-2xl border border-slate-800 bg-[#121212]">
       <div class="overflow-x-auto">
-        <table class="w-full min-w-[980px] text-left text-sm">
+        <table class="w-full min-w-[1100px] text-left text-sm">
           <thead class="bg-[#1a1a1a] text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th class="px-4 py-3">Código</th>
               <th class="px-4 py-3">Artículo</th>
-              <th class="px-4 py-3">Categoría</th>
+              <th class="px-4 py-3">Talla</th>
               <th class="px-4 py-3">Bodega</th>
-              <th class="px-4 py-3 text-center">Cantidad</th>
-              <th class="px-4 py-3 text-center">Stock mín.</th>
+              <th class="px-3 py-3 text-center">Total</th>
+              <th class="px-3 py-3 text-center">Asign.</th>
+              <th class="px-3 py-3 text-center">Disp.</th>
               <th class="px-4 py-3">Asignado a</th>
               <th class="px-4 py-3">Estado</th>
               @if (puedeGestionar) {
@@ -142,17 +152,39 @@
                 <td class="px-4 py-3 font-mono text-xs text-slate-400">{{ item.codigo }}</td>
                 <td class="px-4 py-3">
                   <p class="font-semibold text-slate-100">{{ item.nombre }}</p>
-                  <p class="text-xs text-slate-500">{{ item.unidad }}</p>
+                  <p class="text-xs text-slate-500">
+                    {{ item.categoria ?? '—' }}
+                    @if (item.tipoEppEtiqueta && item.tipoEppEtiqueta !== '—') {
+                      · {{ item.tipoEppEtiqueta }}
+                    }
+                  </p>
                 </td>
                 <td class="px-4 py-3">
-                  <span class="rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-medium text-blue-300">{{ item.categoria ?? '—' }}</span>
+                  @if (puedeGestionar && tallasPara(item).length) {
+                    <select
+                      class="sid-input max-w-[5.5rem] py-1 text-xs"
+                      [ngModel]="item.talla ?? ''"
+                      (ngModelChange)="guardarTalla(item, $event)"
+                    >
+                      <option value="">Talla…</option>
+                      @for (t of tallasPara(item); track t) {
+                        <option [value]="t">{{ t }}</option>
+                      }
+                    </select>
+                  } @else {
+                    <span class="tabular-nums text-slate-300">{{ item.talla ?? '—' }}</span>
+                  }
                 </td>
                 <td class="px-4 py-3 text-slate-300">{{ item.bodegaNombre }}</td>
-                <td class="px-4 py-3 text-center text-lg font-bold tabular-nums text-white">{{ item.cantidad }}</td>
-                <td class="px-4 py-3 text-center tabular-nums text-slate-400">{{ item.stockMinimo }}</td>
+                <td class="px-3 py-3 text-center text-lg font-bold tabular-nums text-white">{{ item.cantidad }}</td>
+                <td class="px-3 py-3 text-center tabular-nums text-blue-300">{{ item.cantidadAsignada }}</td>
+                <td class="px-3 py-3 text-center tabular-nums font-semibold text-emerald-300">{{ item.cantidadDisponible }}</td>
                 <td class="px-4 py-3">
                   @if (asignandoItemId === item.id) {
                     <div class="flex min-w-[200px] flex-col gap-2">
+                      <p class="text-[11px] text-slate-500">
+                        Disponibles: {{ item.cantidadDisponible }} · Solo 1 por tipo de EPP
+                      </p>
                       <select [(ngModel)]="rutAsignacion" class="sid-input text-xs">
                         <option value="">Seleccionar voluntario…</option>
                         @for (v of voluntarios; track v.rut) {
@@ -164,24 +196,29 @@
                         <button type="button" class="text-xs text-slate-400" (click)="cancelarAsignacion()">Cancelar</button>
                       </div>
                     </div>
-                  } @else if (item.asignaciones.length) {
-                    <div class="flex flex-wrap gap-1">
-                      @for (a of item.asignaciones; track a.id) {
-                        <span class="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2.5 py-1 text-xs font-medium text-blue-200 ring-1 ring-blue-500/25">
-                          <lucide-icon name="user" class="h-3 w-3" [size]="12" color="currentColor" />
-                          {{ a.usuarioNombre }}
-                          @if (puedeGestionar) {
-                            <button type="button" class="ml-1 text-blue-300/70 hover:text-red-300" (click)="quitarAsignacion(item, a.id)">×</button>
+                  } @else {
+                    <div class="flex flex-col gap-1.5">
+                      @if (item.asignaciones.length) {
+                        <div class="flex flex-wrap gap-1">
+                          @for (a of item.asignaciones; track a.id) {
+                            <span class="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2.5 py-1 text-xs font-medium text-blue-200 ring-1 ring-blue-500/25">
+                              <lucide-icon name="user" class="h-3 w-3" [size]="12" color="currentColor" />
+                              {{ a.usuarioNombre }}
+                              @if (puedeGestionar) {
+                                <button type="button" class="ml-1 text-blue-300/70 hover:text-red-300" (click)="quitarAsignacion(item, a.id)">×</button>
+                              }
+                            </span>
                           }
-                        </span>
+                        </div>
+                      }
+                      @if (puedeGestionar && puedeAsignarMas(item)) {
+                        <button type="button" class="text-left text-xs font-medium text-blue-400 hover:text-blue-300" (click)="abrirAsignacion(item)">
+                          {{ item.asignaciones.length ? 'Asignar otro voluntario' : 'Asignar voluntario' }}
+                        </button>
+                      } @else if (!item.asignaciones.length) {
+                        <span class="text-slate-600">—</span>
                       }
                     </div>
-                  } @else if (item.esEppAsignable && puedeGestionar) {
-                    <button type="button" class="text-xs font-medium text-blue-400 hover:text-blue-300" (click)="abrirAsignacion(item)">
-                      Asignar voluntario
-                    </button>
-                  } @else {
-                    <span class="text-slate-600">—</span>
                   }
                 </td>
                 <td class="px-4 py-3">
@@ -196,6 +233,7 @@
                         type="button"
                         class="flex h-8 w-8 items-center justify-center rounded-full bg-red-600/20 text-red-300 ring-1 ring-red-500/30 hover:bg-red-600/30"
                         (click)="ajustar(item, -1)"
+                        title="Reducir stock total"
                       >
                         −
                       </button>
@@ -203,6 +241,7 @@
                         type="button"
                         class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600/20 text-emerald-300 ring-1 ring-emerald-500/30 hover:bg-emerald-600/30"
                         (click)="ajustar(item, 1)"
+                        title="Aumentar stock total"
                       >
                         +
                       </button>

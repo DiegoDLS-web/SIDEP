@@ -55,6 +55,7 @@ router.get('/inventarios/items/export', protect, inventarioItemsController.getEx
 router.get('/inventarios/bodegas', protect, inventarioItemsController.getBodegas);
 router.get('/inventarios/importacion/estado', protect, inventarioItemsController.getEstadoImportacion);
 router.patch('/inventarios/items/:id/cantidad', protect, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), inventarioItemsController.patchAjustarCantidad);
+router.patch('/inventarios/items/:id/meta', protect, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), inventarioItemsController.patchMetaItem);
 router.post('/inventarios/items/:id/asignar-epp', protect, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), inventarioItemsController.postAsignarEpp);
 router.delete('/inventarios/items/asignaciones/:asignacionId', protect, requireRoles('ADMIN', 'CAPITAN', 'TENIENTE'), inventarioItemsController.deleteAsignacionEpp);
 
