@@ -8,6 +8,13 @@ function rutUsuario(req: Request): string {
   return rut;
 }
 
+export const getCalendarioGuardias = asyncHandler(async (req: Request, res: Response) => {
+  const anio = Number(req.query.anio);
+  const mes = Number(req.query.mes);
+  const data = await guardiasService.calendarioMensualGuardias(anio, mes);
+  res.json(data);
+});
+
 export const getGuardias = asyncHandler(async (req: Request, res: Response) => {
   const filtros: Parameters<typeof guardiasService.listarGuardias>[0] = {};
   if (req.query.desde) filtros.desde = String(req.query.desde);

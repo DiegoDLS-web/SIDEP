@@ -8,8 +8,10 @@ const asistencia_cuartelero_dto_1 = require("../dtos/asistencia-cuartelero.dto")
 const asistencia_cuarteleros_controller_1 = require("../controllers/asistencia-cuarteleros.controller");
 const router = (0, express_1.Router)();
 const rolesGestion = (0, role_middleware_1.requireRoles)('ADMIN', 'CAPITAN', 'TENIENTE');
-router.get('/', auth_middleware_1.protect, (0, validate_1.validateQuery)(asistencia_cuartelero_dto_1.listarAsistenciaQueryDto), asistencia_cuarteleros_controller_1.getAsistencias);
+router.get('/planilla', auth_middleware_1.protect, (0, validate_1.validateQuery)(asistencia_cuartelero_dto_1.planillaAsistenciaQueryDto), asistencia_cuarteleros_controller_1.getPlanillaAsistencia);
 router.get('/resumen', auth_middleware_1.protect, asistencia_cuarteleros_controller_1.getResumenAsistencia);
+router.get('/', auth_middleware_1.protect, (0, validate_1.validateQuery)(asistencia_cuartelero_dto_1.listarAsistenciaQueryDto), asistencia_cuarteleros_controller_1.getAsistencias);
+router.post('/celda', auth_middleware_1.protect, rolesGestion, (0, validate_1.validate)(asistencia_cuartelero_dto_1.upsertCeldaAsistenciaDto), asistencia_cuarteleros_controller_1.postCeldaAsistencia);
 router.post('/', auth_middleware_1.protect, rolesGestion, (0, validate_1.validate)(asistencia_cuartelero_dto_1.registrarAsistenciaDto), asistencia_cuarteleros_controller_1.postAsistencia);
 router.patch('/:id', auth_middleware_1.protect, rolesGestion, (0, validate_1.validate)(asistencia_cuartelero_dto_1.actualizarAsistenciaDto), asistencia_cuarteleros_controller_1.patchAsistencia);
 router.delete('/:id', auth_middleware_1.protect, rolesGestion, asistencia_cuarteleros_controller_1.deleteAsistencia);

@@ -1,21 +1,27 @@
-<div class="sid-page sid-page-shell mx-auto w-full max-w-6xl px-4 py-6 md:px-6">
-  <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-    <div>
-      <p class="sid-pill mb-2 w-fit text-[10px] uppercase tracking-wider text-red-400/90">Cuartel</p>
-      <h1 class="flex items-center gap-2 text-2xl font-bold text-white">
-        <lucide-icon name="book-open" class="h-7 w-7 text-amber-400" [size]="28" color="currentColor"></lucide-icon>
-        Libro de novedades
-      </h1>
-      <p class="mt-1 text-sm sid-muted">Registro cronológico de hechos relevantes en el cuartel.</p>
+<div class="sid-page sid-page-shell sid-cuartel-page w-full min-w-0">
+  <section class="sid-hero-panel sid-hero-panel--amber">
+    <div class="sid-hero-panel__row sid-hero-panel__row--split-start">
+      <div class="min-w-0">
+        <p class="sid-page-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
+          Cuartel
+        </p>
+        <h1 class="sid-page-hero-title flex items-center gap-2 text-2xl font-bold sm:text-3xl">
+          <lucide-icon name="book-open" class="h-7 w-7 text-amber-400" [size]="28" color="currentColor"></lucide-icon>
+          Libro de novedades
+        </h1>
+        <p class="sid-page-hero-subtitle mt-1 max-w-3xl text-sm text-slate-300 sm:text-base">
+          Registro cronológico de hechos relevantes en el cuartel.
+        </p>
+      </div>
+      <button type="button" class="sid-btn sid-btn-primary shrink-0 rounded-lg px-4 py-2.5 text-sm font-semibold" (click)="abrirFormulario()">
+        Registrar novedad
+      </button>
     </div>
-    <button type="button" class="sid-btn sid-btn-primary rounded-lg px-4 py-2.5 text-sm font-semibold" (click)="abrirFormulario()">
-      Registrar novedad
-    </button>
-  </header>
+  </section>
 
-  <section class="mb-6 rounded-2xl border border-slate-800 bg-[#121212] p-4 sm:p-5">
+  <section class="rounded-2xl border border-slate-800 bg-[#121212] p-4 sm:p-5">
     <div class="sid-filtros-bar">
-      <div class="sid-filtros-bar__grid">
+      <div class="sid-filtros-bar__grid xl:grid-cols-6">
         <div>
           <label class="sid-filtros-bar__label">Desde</label>
           <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter w-full" [(ngModel)]="filtroDesde" />
@@ -41,7 +47,7 @@
             <option value="NO">Sin marcar importantes</option>
           </select>
         </div>
-        <div class="md:col-span-2">
+        <div class="xl:col-span-2">
           <label class="sid-filtros-bar__label">Búsqueda</label>
           <input type="search" class="sid-history-filter w-full" placeholder="Título o descripción…" [(ngModel)]="filtroTexto" />
         </div>
@@ -61,7 +67,7 @@
   } @else if (items.length === 0) {
     <app-sid-empty-state title="Sin novedades" description="No hay registros con los filtros aplicados." icon="book-open" />
   } @else {
-    <div class="space-y-3">
+    <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
       @for (n of items; track n.id) {
         <article class="rounded-xl border border-slate-800 bg-[#0a0a0a] p-4 sm:p-5" [class.border-amber-700/50]="n.importante">
           <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">

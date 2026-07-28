@@ -1,111 +1,252 @@
-<div class="sid-page sid-page-shell mx-auto w-full max-w-6xl px-4 py-6 md:px-6">
-  <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-    <div>
-      <p class="sid-pill mb-2 w-fit text-[10px] uppercase tracking-wider text-red-400/90">Cuartel</p>
-      <h1 class="flex items-center gap-2 text-2xl font-bold text-white">
-        <lucide-icon name="calendar-days" class="h-7 w-7 text-red-500" [size]="28" color="currentColor"></lucide-icon>
-        Sistema de guardias
-      </h1>
-      <p class="mt-1 max-w-2xl text-sm sid-muted">
-        Programación por grupos 1–4: cuartelero, OBAC y personal de turno.
-      </p>
-    </div>
-    @if (puedeGestionar) {
-      <button type="button" class="sid-btn sid-btn-primary rounded-lg px-4 py-2.5 text-sm font-semibold" (click)="abrirNuevo()">
-        Registrar turno
-      </button>
-    }
-  </header>
-
-  <div class="mb-6 grid gap-3 sm:grid-cols-3">
-    <div class="rounded-xl border border-slate-800 bg-[#121212] p-4">
-      <p class="text-[10px] uppercase text-slate-500">Grupos hoy</p>
-      <p class="text-2xl font-bold text-white tabular-nums">{{ resumenGrupos }}/4</p>
-    </div>
-    <div class="rounded-xl border border-slate-800 bg-[#121212] p-4">
-      <p class="text-[10px] uppercase text-slate-500">Voluntarios en turno hoy</p>
-      <p class="text-2xl font-bold text-emerald-400 tabular-nums">{{ resumenMiembros }}</p>
-    </div>
-    <div class="rounded-xl border border-slate-800 bg-[#121212] p-4">
-      <label class="mb-1 block text-[10px] uppercase text-slate-500">Consultar día</label>
-      <app-sid-date-input
-        preset="filter"
-        [dense]="true"
-        inputClass="sid-history-filter w-full"
-        [(ngModel)]="fechaConsulta"
-        (ngModelChange)="cargar()"
-      />
-    </div>
-  </div>
-
-  <section class="mb-6 rounded-2xl border border-slate-800 bg-[#121212] p-4 sm:p-5">
-    <div class="sid-filtros-bar">
-      <div class="sid-filtros-bar__grid max-w-3xl">
-        <div>
-          <label class="sid-filtros-bar__label">Desde</label>
-          <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter w-full" [(ngModel)]="filtroDesde" />
-        </div>
-        <div>
-          <label class="sid-filtros-bar__label">Hasta</label>
-          <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter w-full" [(ngModel)]="filtroHasta" />
-        </div>
-        <div>
-          <label class="sid-filtros-bar__label">Grupo</label>
-          <select class="sid-history-filter w-full" [(ngModel)]="filtroGrupo">
-            <option value="TODAS">Todos</option>
-            @for (g of grupos; track g) {
-              <option [value]="g">Grupo {{ g }}</option>
-            }
-          </select>
-        </div>
+<div class="sid-page sid-page-shell sid-cuartel-page w-full min-w-0">
+  <section class="sid-hero-panel sid-hero-panel--red">
+    <div class="sid-hero-panel__row sid-hero-panel__row--split-start">
+      <div class="min-w-0">
+        <p class="sid-page-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-xs text-red-200">
+          Cuartel · Notifica guardia nocturna
+        </p>
+        <h1 class="sid-page-hero-title flex items-center gap-2 text-2xl font-bold sm:text-3xl">
+          <lucide-icon name="calendar-days" class="h-7 w-7 text-red-500" [size]="28" color="currentColor"></lucide-icon>
+          Sistema de guardias
+        </h1>
+        <p class="sid-page-hero-subtitle mt-1 max-w-3xl text-sm text-slate-300 sm:text-base">
+          Calendario mensual, planilla de asistencia y turnos por grupos 1–4 (conductor, OBAC y personal).
+        </p>
       </div>
-      <div class="sid-filtros-bar__actions !border-t-0 !pt-0">
-        <button type="button" class="sid-btn sid-btn-primary sid-filter-action-btn" (click)="cargar()">Aplicar filtros</button>
-        <button type="button" class="sid-btn sid-btn-neutral sid-filter-action-btn" (click)="filtroDesde = ''; filtroHasta = ''; filtroGrupo = 'TODAS'; cargar()">Limpiar</button>
-      </div>
+      @if (puedeGestionar) {
+        <button type="button" class="sid-btn sid-btn-primary shrink-0 rounded-lg px-4 py-2.5 text-sm font-semibold" (click)="abrirNuevo()">
+          Registrar turno
+        </button>
+      }
     </div>
   </section>
 
-  @if (loading) {
-    <p class="text-sm sid-muted">Cargando turnos…</p>
-  } @else if (turnos.length === 0) {
-    <app-sid-empty-state title="Sin turnos registrados" description="Ajusta el rango de fechas o registra un nuevo turno de guardia." icon="calendar-days" />
-  } @else {
-    <div class="mb-3 flex justify-end">
-      <app-sid-record-count-badge [count]="turnos.length" label="Turnos" />
-    </div>
-    <div class="space-y-3">
-      @for (t of turnos; track t.id) {
-        <article class="rounded-xl border border-slate-800 bg-[#0a0a0a] p-4 sm:p-5">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p class="text-lg font-semibold text-white">
-                Grupo {{ t.grupo }}
-                <span class="ml-2 text-sm font-normal text-slate-400">{{ t.fecha }} · {{ etiquetaTurno(t.tipoTurno) }}</span>
-              </p>
-              <p class="mt-2 text-sm text-slate-300">
-                Cuartelero: <span class="text-white">{{ t.cuartelero?.nombre ?? '—' }}</span>
-                · OBAC: <span class="text-white">{{ t.obac?.nombre ?? '—' }}</span>
-              </p>
-              @if (t.miembros.length) {
-                <p class="mt-1 text-xs text-slate-500">
-                  Personal ({{ t.miembros.length }}): {{ nombresMiembros(t) }}
-                </p>
+  <div class="flex flex-wrap gap-2">
+    <button type="button" class="sid-btn rounded-lg px-4 py-2 text-sm" [class.sid-btn-primary]="vista === 'calendario'" [class.sid-btn-neutral]="vista !== 'calendario'" (click)="cambiarVista('calendario')">
+      Calendario mensual
+    </button>
+    <button type="button" class="sid-btn rounded-lg px-4 py-2 text-sm" [class.sid-btn-primary]="vista === 'asistencia'" [class.sid-btn-neutral]="vista !== 'asistencia'" (click)="cambiarVista('asistencia')">
+      Asistencia
+    </button>
+    <button type="button" class="sid-btn rounded-lg px-4 py-2 text-sm" [class.sid-btn-primary]="vista === 'listado'" [class.sid-btn-neutral]="vista !== 'listado'" (click)="cambiarVista('listado')">
+      Listado de turnos
+    </button>
+  </div>
+
+  @if (vista === 'asistencia') {
+    <app-guardias-asistencia-planilla [fechaReferencia]="fechaSeleccionada" />
+  } @else if (vista === 'calendario') {
+    <section class="rounded-2xl border border-slate-800 bg-[#121212] p-4 sm:p-5">
+      <div class="sid-filtros-bar">
+        <div class="sid-filtros-bar__grid max-w-2xl sm:grid-cols-3">
+          <div>
+            <label class="sid-filtros-bar__label">Mes</label>
+            <select class="sid-history-filter w-full" [(ngModel)]="mesSeleccionado" (ngModelChange)="cargarCalendario()">
+              @for (m of meses; track m.value) {
+                <option [value]="m.value">{{ m.label }}</option>
               }
-              @if (t.observaciones) {
-                <p class="mt-2 text-sm text-slate-400">{{ t.observaciones }}</p>
+            </select>
+          </div>
+          <div>
+            <label class="sid-filtros-bar__label">Año</label>
+            <select class="sid-history-filter w-full" [(ngModel)]="anioSeleccionado" (ngModelChange)="cargarCalendario()">
+              @for (a of aniosDisponibles; track a) {
+                <option [value]="a">{{ a }}</option>
               }
-            </div>
-            @if (puedeGestionar) {
-              <div class="flex shrink-0 gap-2">
-                <button type="button" class="sid-btn sid-btn-neutral px-3 py-1.5 text-xs" (click)="abrirEditar(t)">Editar</button>
-                <button type="button" class="sid-btn sid-btn-neutral px-3 py-1.5 text-xs text-red-300" (click)="eliminar(t)">Eliminar</button>
-              </div>
+            </select>
+          </div>
+          <div class="flex items-end">
+            <button type="button" class="sid-btn sid-btn-neutral sid-filter-action-btn w-full" (click)="limpiarMes()">Limpiar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="overflow-hidden rounded-2xl border border-red-900/40 bg-[#0a0a0a]">
+      <div class="border-b border-red-900/50 bg-red-950/40 px-4 py-3 text-center text-sm font-semibold uppercase tracking-wide text-red-100">
+        {{ tituloCalendario }}
+      </div>
+
+      @if (loading) {
+        <p class="py-12 text-center text-sm sid-muted">Cargando calendario…</p>
+      } @else {
+        <div class="sid-guardia-calendario w-full">
+          <div class="sid-guardia-calendario__head">
+            @for (ds of diasSemana; track ds) {
+              <div class="sid-guardia-calendario__head-cell">{{ ds }}</div>
             }
           </div>
-        </article>
+          @for (sem of semanas; track $index) {
+            <div class="sid-guardia-calendario__row">
+              @for (cel of sem; track $index) {
+                @if (cel.vacia || !cel.dia) {
+                  <div class="sid-guardia-calendario__celda sid-guardia-calendario__celda--vacia"></div>
+                } @else {
+                  <button
+                    type="button"
+                    class="sid-guardia-calendario__celda"
+                    [class]="claseCelda(cel.dia!)"
+                    (click)="seleccionarDia(cel.dia!)"
+                  >
+                    <span class="sid-guardia-calendario__fecha">{{ fechaCorta(cel.dia!.fecha) }}</span>
+                    @if (cel.dia!.estado === 'completa') {
+                      <lucide-icon name="circle-check" class="sid-guardia-calendario__icono sid-guardia-calendario__icono--ok" [size]="22" color="currentColor"></lucide-icon>
+                      <span class="sid-guardia-calendario__grupos">G{{ cel.dia!.gruposNocturnos.join(' · G') }}</span>
+                    } @else if (cel.dia!.estado === 'parcial') {
+                      <lucide-icon name="triangle-alert" class="sid-guardia-calendario__icono sid-guardia-calendario__icono--parcial" [size]="22" color="currentColor"></lucide-icon>
+                      <span class="sid-guardia-calendario__grupos">G{{ cel.dia!.gruposNocturnos.join(' · G') }}</span>
+                    } @else {
+                      <lucide-icon name="alert-circle" class="sid-guardia-calendario__icono sid-guardia-calendario__icono--sin" [size]="22" color="currentColor"></lucide-icon>
+                      <span class="sid-guardia-calendario__grupos">Sin cobertura</span>
+                    }
+                  </button>
+                }
+              }
+            </div>
+          }
+        </div>
+
+        <div class="flex flex-wrap gap-4 border-t border-slate-800 px-4 py-3 text-xs text-slate-400">
+          <span class="inline-flex items-center gap-1.5"><lucide-icon name="circle-check" [size]="14" color="currentColor" class="text-emerald-400"></lucide-icon> 4 grupos cubiertos</span>
+          <span class="inline-flex items-center gap-1.5"><lucide-icon name="triangle-alert" [size]="14" color="currentColor" class="text-amber-400"></lucide-icon> Cobertura parcial</span>
+          <span class="inline-flex items-center gap-1.5"><lucide-icon name="alert-circle" [size]="14" color="currentColor" class="text-red-400"></lucide-icon> Sin guardia nocturna</span>
+          <span class="text-slate-500">Fin de semana resaltado · Hoy en verde</span>
+        </div>
       }
-    </div>
+    </section>
+
+    @if (diaSeleccionado) {
+      <section class="rounded-2xl border border-slate-800 bg-[#121212] p-4 sm:p-5">
+        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 class="text-lg font-semibold text-white">Día {{ fechaCorta(diaSeleccionado.fecha) }}</h2>
+            <p class="text-sm text-slate-400">
+              Grupos nocturnos: {{ diaSeleccionado.gruposNocturnos.length }}/4 ·
+              {{ resumenMiembros }} voluntarios en turno
+            </p>
+          </div>
+            @if (puedeGestionar) {
+              <button type="button" class="sid-btn sid-btn-neutral px-3 py-2 text-sm" (click)="cambiarVista('asistencia')">
+                Planilla de asistencia
+              </button>
+              <button type="button" class="sid-btn sid-btn-primary px-3 py-2 text-sm" (click)="abrirNuevo(diaSeleccionado.fecha)">
+                Agregar turno este día
+              </button>
+            }
+        </div>
+
+        @if (diaSeleccionado.turnos.length === 0) {
+          <app-sid-empty-state title="Sin turnos" description="No hay guardias registradas para este día." icon="calendar-days" />
+        } @else {
+          <div class="overflow-x-auto rounded-xl border border-slate-800">
+            <table class="sid-table w-full min-w-[640px] text-left text-sm">
+              <thead>
+                <tr class="border-b border-slate-800 bg-[#0a0a0a] text-xs uppercase text-slate-500">
+                  <th class="px-4 py-3">Grupo</th>
+                  <th class="px-4 py-3">Turno</th>
+                  <th class="px-4 py-3">Conductor</th>
+                  <th class="px-4 py-3">OBAC</th>
+                  <th class="px-4 py-3">Personal</th>
+                  @if (puedeGestionar) {
+                    <th class="px-4 py-3 text-right">Acciones</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (t of diaSeleccionado.turnos; track t.id) {
+                  <tr class="border-b border-slate-800/80 hover:bg-white/[0.02]">
+                    <td class="px-4 py-3 font-semibold text-white">Grupo {{ t.grupo }}</td>
+                    <td class="px-4 py-3 text-slate-400">{{ etiquetaTurno(t.tipoTurno) }}</td>
+                    <td class="px-4 py-3 text-white">{{ t.cuartelero?.nombre ?? '—' }}</td>
+                    <td class="px-4 py-3 text-white">{{ t.obac?.nombre ?? '—' }}</td>
+                    <td class="px-4 py-3 text-slate-400">{{ t.miembros.length ? nombresMiembros(t) : '—' }}</td>
+                    @if (puedeGestionar) {
+                      <td class="px-4 py-3 text-right">
+                        <button type="button" class="sid-btn sid-btn-neutral mr-2 px-2 py-1 text-xs" (click)="abrirEditar(t)">Editar</button>
+                        <button type="button" class="sid-btn sid-btn-neutral px-2 py-1 text-xs text-red-300" (click)="eliminar(t)">Eliminar</button>
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    }
+  } @else {
+    <section class="rounded-2xl border border-slate-800 bg-[#121212] p-4 sm:p-5">
+      <div class="sid-filtros-bar">
+        <div class="sid-filtros-bar__grid xl:grid-cols-4">
+          <div>
+            <label class="sid-filtros-bar__label">Desde</label>
+            <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter w-full" [(ngModel)]="filtroDesde" />
+          </div>
+          <div>
+            <label class="sid-filtros-bar__label">Hasta</label>
+            <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter w-full" [(ngModel)]="filtroHasta" />
+          </div>
+          <div>
+            <label class="sid-filtros-bar__label">Grupo</label>
+            <select class="sid-history-filter w-full" [(ngModel)]="filtroGrupo">
+              <option value="TODAS">Todos</option>
+              @for (g of grupos; track g) {
+                <option [value]="g">Grupo {{ g }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="sid-filtros-bar__actions !border-t-0 !pt-0">
+          <button type="button" class="sid-btn sid-btn-primary sid-filter-action-btn" (click)="cargarListado()">Aplicar filtros</button>
+          <button type="button" class="sid-btn sid-btn-neutral sid-filter-action-btn" (click)="filtroDesde = ''; filtroHasta = ''; filtroGrupo = 'TODAS'; cargarListado()">Limpiar</button>
+        </div>
+      </div>
+    </section>
+
+    @if (loading) {
+      <p class="text-sm sid-muted">Cargando turnos…</p>
+    } @else if (turnos.length === 0) {
+      <app-sid-empty-state title="Sin turnos registrados" description="Ajusta el rango de fechas o registra un nuevo turno de guardia." icon="calendar-days" />
+    } @else {
+      <div class="mb-3 flex justify-end">
+        <app-sid-record-count-badge [count]="turnos.length" label="Turnos" />
+      </div>
+      <div class="overflow-x-auto rounded-xl border border-slate-800">
+        <table class="sid-table w-full min-w-[720px] text-left text-sm">
+          <thead>
+            <tr class="border-b border-slate-800 bg-[#0a0a0a] text-xs uppercase text-slate-500">
+              <th class="px-4 py-3">Fecha</th>
+              <th class="px-4 py-3">Grupo</th>
+              <th class="px-4 py-3">Turno</th>
+              <th class="px-4 py-3">Conductor</th>
+              <th class="px-4 py-3">OBAC</th>
+              <th class="px-4 py-3">Personal</th>
+              @if (puedeGestionar) {
+                <th class="px-4 py-3 text-right">Acciones</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (t of turnos; track t.id) {
+              <tr class="border-b border-slate-800/80 hover:bg-white/[0.02]">
+                <td class="px-4 py-3 text-slate-300">{{ t.fecha }}</td>
+                <td class="px-4 py-3 font-semibold text-white">Grupo {{ t.grupo }}</td>
+                <td class="px-4 py-3 text-slate-400">{{ etiquetaTurno(t.tipoTurno) }}</td>
+                <td class="px-4 py-3 text-white">{{ t.cuartelero?.nombre ?? '—' }}</td>
+                <td class="px-4 py-3 text-white">{{ t.obac?.nombre ?? '—' }}</td>
+                <td class="px-4 py-3 text-slate-400">{{ t.miembros.length ? nombresMiembros(t) : '—' }}</td>
+                @if (puedeGestionar) {
+                  <td class="px-4 py-3 text-right">
+                    <button type="button" class="sid-btn sid-btn-neutral mr-2 px-2 py-1 text-xs" (click)="abrirEditar(t)">Editar</button>
+                    <button type="button" class="sid-btn sid-btn-neutral px-2 py-1 text-xs text-red-300" (click)="eliminar(t)">Eliminar</button>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
   }
 
   @if (mostrarFormulario && puedeGestionar) {
@@ -136,27 +277,33 @@
             </select>
           </div>
           <div>
-            <label class="sid-filtros-bar__label">Cuartelero</label>
+            <label class="sid-filtros-bar__label">Conductor</label>
             <select class="sid-history-filter w-full" [(ngModel)]="form.cuarteleroRut">
               <option value="">— Sin asignar —</option>
-              @for (v of voluntarios; track v.rut) {
+              @for (v of conductoresHabilitados; track v.rut) {
                 <option [value]="v.rut">{{ v.nombre }}</option>
               }
             </select>
+            @if (conductoresHabilitados.length === 0) {
+              <p class="mt-1 text-[11px] text-amber-300/95">No hay conductores habilitados. Márcalos en Usuarios.</p>
+            }
           </div>
           <div>
             <label class="sid-filtros-bar__label">OBAC</label>
             <select class="sid-history-filter w-full" [(ngModel)]="form.obacRut">
               <option value="">— Sin asignar —</option>
-              @for (v of voluntarios; track v.rut) {
+              @for (v of obacOficialidad; track v.rut) {
                 <option [value]="v.rut">{{ v.nombre }}</option>
               }
             </select>
+            @if (obacOficialidad.length === 0) {
+              <p class="mt-1 text-[11px] text-amber-300/95">No hay capitán ni tenientes activos.</p>
+            }
           </div>
           <div>
             <label class="sid-filtros-bar__label">Personal de guardia</label>
             <div class="max-h-36 overflow-y-auto rounded-lg border border-slate-700 p-2">
-              @for (v of voluntarios; track v.rut) {
+              @for (v of personalGuardia; track v.rut) {
                 <label class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm text-slate-200 hover:bg-slate-800/60">
                   <input type="checkbox" [checked]="miembroSeleccionado(v.rut)" (change)="toggleMiembro(v.rut)" />
                   {{ v.nombre }}

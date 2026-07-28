@@ -102,7 +102,6 @@ export class MainLayoutComponent implements OnDestroy {
         { routerLink: '/licencias-medicas', label: 'Licencias', icon: 'heart-pulse' },
         { routerLink: '/guardias', label: 'Sistema de guardias', icon: 'calendar-days' },
         { routerLink: '/libro-novedades', label: 'Libro de novedades', icon: 'book-open' },
-        { routerLink: '/asistencia-cuarteleros', label: 'Asistencia cuarteleros', icon: 'user-check' },
         { routerLink: '/analitica-operacional', label: 'Analítica operacional', icon: 'chart-column' },
       ],
     },

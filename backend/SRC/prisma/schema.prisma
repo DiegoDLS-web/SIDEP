@@ -638,6 +638,8 @@ model AsistenciaCuartelero {
   fecha            DateTime @db.Date
   usuarioRut       String   @map("usuario_rut") @db.VarChar(20)
   grupoGuardia     String?  @map("grupo_guardia") @db.VarChar(10)
+  tipoTurno        String   @default("DIURNA") @map("tipo_turno") @db.VarChar(20)
+  estadoAsistencia String   @default("ASISTE") @map("estado_asistencia") @db.VarChar(30)
   presente         Int      @default(1) @db.SmallInt
   horaEntrada      String?  @map("hora_entrada") @db.VarChar(5)
   horaSalida       String?  @map("hora_salida") @db.VarChar(5)
@@ -648,7 +650,7 @@ model AsistenciaCuartelero {
   usuario          Usuario  @relation("AsistenciaCuarteleroUsuario", fields: [usuarioRut], references: [rut])
   registradoPor    Usuario  @relation("AsistenciaCuarteleroRegistrador", fields: [registradoPorRut], references: [rut])
 
-  @@unique([fecha, usuarioRut])
+  @@unique([fecha, usuarioRut, tipoTurno])
   @@index([fecha])
   @@map("asistencia_cuartelero")
 }

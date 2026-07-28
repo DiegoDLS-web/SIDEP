@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.listarGuardiasQueryDto = exports.actualizarGuardiaDto = exports.crearGuardiaDto = exports.tiposTurnoGuardia = exports.gruposGuardia = void 0;
+exports.calendarioGuardiasQueryDto = exports.listarGuardiasQueryDto = exports.actualizarGuardiaDto = exports.crearGuardiaDto = exports.tiposTurnoGuardia = exports.gruposGuardia = void 0;
 const zod_1 = require("zod");
 exports.gruposGuardia = ['1', '2', '3', '4'];
 exports.tiposTurnoGuardia = ['24H', 'DIA', 'NOCHE'];
@@ -18,4 +18,8 @@ exports.listarGuardiasQueryDto = zod_1.z.object({
     desde: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     hasta: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     grupo: zod_1.z.enum(exports.gruposGuardia).optional(),
+});
+exports.calendarioGuardiasQueryDto = zod_1.z.object({
+    anio: zod_1.z.coerce.number().int().min(2000).max(2100),
+    mes: zod_1.z.coerce.number().int().min(1).max(12),
 });

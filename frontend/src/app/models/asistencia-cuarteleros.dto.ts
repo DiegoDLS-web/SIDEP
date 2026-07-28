@@ -1,10 +1,31 @@
 import type { GrupoGuardia, UsuarioCuartelDto } from './guardias.dto';
 
+export const ESTADOS_ASISTENCIA_GUARDIA = [
+  'ASISTE',
+  'NO_ASISTE',
+  'DEJA_REEMPLAZO',
+  'REEMPLAZA',
+  'LIBERADO',
+] as const;
+
+export type EstadoAsistenciaGuardia = (typeof ESTADOS_ASISTENCIA_GUARDIA)[number];
+export type TipoTurnoAsistencia = 'NOCTURNA' | 'DIURNA';
+
+export const ETIQUETAS_ESTADO_ASISTENCIA: Record<EstadoAsistenciaGuardia, string> = {
+  ASISTE: 'Asiste',
+  NO_ASISTE: 'No asiste',
+  DEJA_REEMPLAZO: 'Deja reemplazo',
+  REEMPLAZA: 'Reemplaza',
+  LIBERADO: 'Liberado',
+};
+
 export type AsistenciaCuarteleroDto = {
   id: string;
   fecha: string;
   usuarioRut: string;
   grupoGuardia: GrupoGuardia | null;
+  tipoTurno: TipoTurnoAsistencia;
+  estadoAsistencia: EstadoAsistenciaGuardia;
   presente: boolean;
   horaEntrada: string | null;
   horaSalida: string | null;
@@ -29,4 +50,42 @@ export type AsistenciaResumenDto = {
   presentes: number;
   ausentes: number;
   items: AsistenciaCuarteleroDto[];
+};
+
+export type PlanillaColumnaDto = {
+  key: string;
+  fecha: string;
+  tipoTurno: TipoTurnoAsistencia;
+  label: string;
+  sublabel: string;
+};
+
+export type PlanillaCeldaDto = {
+  id: string | null;
+  estadoAsistencia: EstadoAsistenciaGuardia | null;
+  registradoPor: UsuarioCuartelDto | null;
+  updatedAt: string | null;
+};
+
+export type PlanillaFilaDto = {
+  numero: number;
+  usuarioRut: string;
+  nombre: string;
+  grupoGuardia: GrupoGuardia | null;
+  totalAsistencias: number;
+  celdas: Record<string, PlanillaCeldaDto>;
+};
+
+export type PlanillaAsistenciaDto = {
+  desde: string;
+  hasta: string;
+  columnas: PlanillaColumnaDto[];
+  filas: PlanillaFilaDto[];
+  registradores: Array<{
+    rut: string;
+    nombre: string;
+    rol: string;
+    ultimaActualizacion: string;
+  }>;
+  estados: EstadoAsistenciaGuardia[];
 };

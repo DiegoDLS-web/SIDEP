@@ -12,6 +12,7 @@ function mapUsuarioBasico(u) {
         rut: u.rut,
         nombre: nombreCompletoUsuario(u),
         rol: u.rol?.nombre ?? null,
+        rolCodigo: u.rol?.codigo ?? null,
         cargo: u.cargo?.nombre ?? null,
     };
 }

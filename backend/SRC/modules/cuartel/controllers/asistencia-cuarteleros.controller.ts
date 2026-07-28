@@ -8,6 +8,20 @@ function rutUsuario(req: Request): string {
   return rut;
 }
 
+export const getPlanillaAsistencia = asyncHandler(async (req: Request, res: Response) => {
+  const desde = String(req.query.desde ?? '');
+  const hasta = String(req.query.hasta ?? '');
+  const filtros: Parameters<typeof asistenciaService.obtenerPlanillaAsistencia>[0] = { desde, hasta };
+  if (req.query.grupo) filtros.grupo = String(req.query.grupo);
+  const data = await asistenciaService.obtenerPlanillaAsistencia(filtros);
+  res.json(data);
+});
+
+export const postCeldaAsistencia = asyncHandler(async (req: Request, res: Response) => {
+  const data = await asistenciaService.upsertCeldaAsistencia(rutUsuario(req), req.body);
+  res.status(200).json(data);
+});
+
 export const getAsistencias = asyncHandler(async (req: Request, res: Response) => {
   const filtros: Parameters<typeof asistenciaService.listarAsistencias>[0] = {};
   if (req.query.fecha) filtros.fecha = String(req.query.fecha);

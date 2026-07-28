@@ -201,14 +201,14 @@ export const routes: Routes = [
         loadComponent: loadGuardiasPageComponent,
       },
       {
+        path: 'asistencia-cuarteleros',
+        redirectTo: 'guardias',
+        pathMatch: 'full',
+      },
+      {
         path: 'libro-novedades',
         title: 'Libro de novedades · SIDEP',
         loadComponent: loadLibroNovedadesPageComponent,
-      },
-      {
-        path: 'asistencia-cuarteleros',
-        title: 'Asistencia cuarteleros · SIDEP',
-        loadComponent: loadAsistenciaCuartelerosPageComponent,
       },
     ],
   },

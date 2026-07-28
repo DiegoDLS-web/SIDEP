@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteGuardia = exports.patchGuardia = exports.postGuardia = exports.getGuardia = exports.getResumenGuardias = exports.getGuardias = void 0;
+exports.deleteGuardia = exports.patchGuardia = exports.postGuardia = exports.getGuardia = exports.getResumenGuardias = exports.getGuardias = exports.getCalendarioGuardias = void 0;
 const async_handler_1 = require("../../../middlewares/async-handler");
 const guardiasService = __importStar(require("../services/guardias.service"));
 function rutUsuario(req) {
@@ -42,6 +42,12 @@ function rutUsuario(req) {
         throw new Error('No autorizado');
     return rut;
 }
+exports.getCalendarioGuardias = (0, async_handler_1.asyncHandler)(async (req, res) => {
+    const anio = Number(req.query.anio);
+    const mes = Number(req.query.mes);
+    const data = await guardiasService.calendarioMensualGuardias(anio, mes);
+    res.json(data);
+});
 exports.getGuardias = (0, async_handler_1.asyncHandler)(async (req, res) => {
     const filtros = {};
     if (req.query.desde)

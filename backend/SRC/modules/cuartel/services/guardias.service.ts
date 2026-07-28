@@ -163,3 +163,69 @@ export async function eliminarGuardia(id: string) {
   await prisma.guardiaTurno.delete({ where: { id } });
   return true;
 }
+
+const MESES_ES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
+
+function esTurnoNocturno(tipoTurno: string): boolean {
+  return tipoTurno === 'NOCHE' || tipoTurno === '24H';
+}
+
+function estadoCobertura(grupos: Set<string>): 'sin' | 'parcial' | 'completa' {
+  if (grupos.size === 0) return 'sin';
+  if (grupos.size >= 4) return 'completa';
+  return 'parcial';
+}
+
+export async function calendarioMensualGuardias(anio: number, mes: number) {
+  const mesStr = String(mes).padStart(2, '0');
+  const ultimoDia = new Date(Date.UTC(anio, mes, 0)).getUTCDate();
+  const desde = `${anio}-${mesStr}-01`;
+  const hasta = `${anio}-${mesStr}-${String(ultimoDia).padStart(2, '0')}`;
+
+  const turnos = await listarGuardias({ desde, hasta });
+  const porFecha = new Map<string, ReturnType<typeof mapGuardia>[]>();
+  for (const t of turnos) {
+    const arr = porFecha.get(t.fecha) ?? [];
+    arr.push(t);
+    porFecha.set(t.fecha, arr);
+  }
+
+  const dias: Array<{
+    fecha: string;
+    dia: number;
+    diaSemana: number;
+    esFinDeSemana: boolean;
+    estado: 'sin' | 'parcial' | 'completa';
+    gruposNocturnos: string[];
+    turnos: ReturnType<typeof mapGuardia>[];
+  }> = [];
+
+  for (let d = 1; d <= ultimoDia; d++) {
+    const fecha = `${anio}-${mesStr}-${String(d).padStart(2, '0')}`;
+    const dt = new Date(`${fecha}T12:00:00.000Z`);
+    const diaSemana = dt.getUTCDay();
+    const delDia = porFecha.get(fecha) ?? [];
+    const gruposNoct = new Set(
+      delDia.filter((t) => esTurnoNocturno(t.tipoTurno)).map((t) => t.grupo),
+    );
+    dias.push({
+      fecha,
+      dia: d,
+      diaSemana,
+      esFinDeSemana: diaSemana === 0 || diaSemana === 6,
+      estado: estadoCobertura(gruposNoct),
+      gruposNocturnos: [...gruposNoct].sort(),
+      turnos: delDia,
+    });
+  }
+
+  return {
+    anio,
+    mes,
+    mesLabel: MESES_ES[mes - 1] ?? String(mes),
+    dias,
+  };
+}

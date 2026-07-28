@@ -11,7 +11,6 @@ export const OPCIONES_MENU_SIDEP: ReadonlyArray<{ path: string; label: string }>
   { path: '/licencias-medicas', label: 'Licencias' },
   { path: '/guardias', label: 'Sistema de guardias' },
   { path: '/libro-novedades', label: 'Libro de novedades' },
-  { path: '/asistencia-cuarteleros', label: 'Asistencia cuarteleros' },
   { path: '/analitica-operacional', label: 'Analítica operacional' },
   { path: '/usuarios', label: 'Usuarios' },
   { path: '/auditoria', label: 'Auditoría' },

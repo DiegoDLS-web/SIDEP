@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteAsistencia = exports.patchAsistencia = exports.postAsistencia = exports.getResumenAsistencia = exports.getAsistencias = void 0;
+exports.deleteAsistencia = exports.patchAsistencia = exports.postAsistencia = exports.getResumenAsistencia = exports.getAsistencias = exports.postCeldaAsistencia = exports.getPlanillaAsistencia = void 0;
 const async_handler_1 = require("../../../middlewares/async-handler");
 const asistenciaService = __importStar(require("../services/asistencia-cuarteleros.service"));
 function rutUsuario(req) {
@@ -42,6 +42,19 @@ function rutUsuario(req) {
         throw new Error('No autorizado');
     return rut;
 }
+exports.getPlanillaAsistencia = (0, async_handler_1.asyncHandler)(async (req, res) => {
+    const desde = String(req.query.desde ?? '');
+    const hasta = String(req.query.hasta ?? '');
+    const filtros = { desde, hasta };
+    if (req.query.grupo)
+        filtros.grupo = String(req.query.grupo);
+    const data = await asistenciaService.obtenerPlanillaAsistencia(filtros);
+    res.json(data);
+});
+exports.postCeldaAsistencia = (0, async_handler_1.asyncHandler)(async (req, res) => {
+    const data = await asistenciaService.upsertCeldaAsistencia(rutUsuario(req), req.body);
+    res.status(200).json(data);
+});
 exports.getAsistencias = (0, async_handler_1.asyncHandler)(async (req, res) => {
     const filtros = {};
     if (req.query.fecha)

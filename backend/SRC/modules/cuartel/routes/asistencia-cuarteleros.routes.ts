@@ -5,21 +5,27 @@ import { validate, validateQuery } from '../../../middlewares/validate';
 import {
   actualizarAsistenciaDto,
   listarAsistenciaQueryDto,
+  planillaAsistenciaQueryDto,
   registrarAsistenciaDto,
+  upsertCeldaAsistenciaDto,
 } from '../dtos/asistencia-cuartelero.dto';
 import {
   deleteAsistencia,
   getAsistencias,
+  getPlanillaAsistencia,
   getResumenAsistencia,
   patchAsistencia,
   postAsistencia,
+  postCeldaAsistencia,
 } from '../controllers/asistencia-cuarteleros.controller';
 
 const router = Router();
 const rolesGestion = requireRoles('ADMIN', 'CAPITAN', 'TENIENTE');
 
-router.get('/', protect, validateQuery(listarAsistenciaQueryDto), getAsistencias);
+router.get('/planilla', protect, validateQuery(planillaAsistenciaQueryDto), getPlanillaAsistencia);
 router.get('/resumen', protect, getResumenAsistencia);
+router.get('/', protect, validateQuery(listarAsistenciaQueryDto), getAsistencias);
+router.post('/celda', protect, rolesGestion, validate(upsertCeldaAsistenciaDto), postCeldaAsistencia);
 router.post('/', protect, rolesGestion, validate(registrarAsistenciaDto), postAsistencia);
 router.patch('/:id', protect, rolesGestion, validate(actualizarAsistenciaDto), patchAsistencia);
 router.delete('/:id', protect, rolesGestion, deleteAsistencia);

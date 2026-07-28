@@ -144,7 +144,6 @@ app.get('/api/auth/mi-navegacion', protect, async (req, res) => {
       '/licencias-medicas',
       '/guardias',
       '/libro-novedades',
-      '/asistencia-cuarteleros',
       '/analitica-operacional',
       '/usuarios',
       '/auditoria',

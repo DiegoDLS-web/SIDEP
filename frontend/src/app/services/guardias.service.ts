@@ -1,11 +1,16 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import type { GuardiaResumenDto, GuardiaTurnoDto, TipoTurnoGuardia, GrupoGuardia } from '../models/guardias.dto';
+import type { GuardiaCalendarioDto, GuardiaResumenDto, GuardiaTurnoDto, TipoTurnoGuardia, GrupoGuardia } from '../models/guardias.dto';
 
 @Injectable({ providedIn: 'root' })
 export class GuardiasService {
   private readonly http = inject(HttpClient);
+
+  calendario(anio: number, mes: number): Observable<GuardiaCalendarioDto> {
+    const params = new HttpParams().set('anio', String(anio)).set('mes', String(mes));
+    return this.http.get<GuardiaCalendarioDto>('/api/guardias/calendario', { params });
+  }
 
   listar(filtros?: { desde?: string; hasta?: string; grupo?: GrupoGuardia }): Observable<GuardiaTurnoDto[]> {
     let params = new HttpParams();

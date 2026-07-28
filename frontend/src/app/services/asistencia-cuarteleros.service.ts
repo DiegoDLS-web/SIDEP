@@ -5,12 +5,34 @@ import type {
   AsistenciaCuarteleroDto,
   AsistenciaPaginaDto,
   AsistenciaResumenDto,
+  EstadoAsistenciaGuardia,
+  PlanillaAsistenciaDto,
+  TipoTurnoAsistencia,
 } from '../models/asistencia-cuarteleros.dto';
 import type { GrupoGuardia } from '../models/guardias.dto';
 
 @Injectable({ providedIn: 'root' })
 export class AsistenciaCuartelerosService {
   private readonly http = inject(HttpClient);
+
+  planilla(filtros: { desde: string; hasta: string; grupo?: GrupoGuardia }): Observable<PlanillaAsistenciaDto> {
+    let params = new HttpParams().set('desde', filtros.desde).set('hasta', filtros.hasta);
+    if (filtros.grupo) params = params.set('grupo', filtros.grupo);
+    return this.http.get<PlanillaAsistenciaDto>('/api/asistencia-cuarteleros/planilla', { params });
+  }
+
+  guardarCelda(payload: {
+    fecha: string;
+    usuarioRut: string;
+    tipoTurno: TipoTurnoAsistencia;
+    estadoAsistencia: EstadoAsistenciaGuardia | null;
+    grupoGuardia?: GrupoGuardia | null;
+  }): Observable<AsistenciaCuarteleroDto | { ok: boolean; eliminado: boolean }> {
+    return this.http.post<AsistenciaCuarteleroDto | { ok: boolean; eliminado: boolean }>(
+      '/api/asistencia-cuarteleros/celda',
+      payload,
+    );
+  }
 
   listar(filtros?: {
     fecha?: string;
@@ -40,6 +62,8 @@ export class AsistenciaCuartelerosService {
     fecha: string;
     usuarioRut: string;
     grupoGuardia?: GrupoGuardia | null;
+    tipoTurno?: TipoTurnoAsistencia;
+    estadoAsistencia?: EstadoAsistenciaGuardia;
     presente?: boolean;
     horaEntrada?: string | null;
     horaSalida?: string | null;
@@ -52,6 +76,8 @@ export class AsistenciaCuartelerosService {
     id: string,
     payload: Partial<{
       grupoGuardia: GrupoGuardia | null;
+      tipoTurno: TipoTurnoAsistencia;
+      estadoAsistencia: EstadoAsistenciaGuardia;
       presente: boolean;
       horaEntrada: string | null;
       horaSalida: string | null;

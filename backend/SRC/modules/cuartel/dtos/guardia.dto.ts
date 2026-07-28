@@ -20,3 +20,8 @@ export const listarGuardiasQueryDto = z.object({
   hasta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   grupo: z.enum(gruposGuardia).optional(),
 });
+
+export const calendarioGuardiasQueryDto = z.object({
+  anio: z.coerce.number().int().min(2000).max(2100),
+  mes: z.coerce.number().int().min(1).max(12),
+});

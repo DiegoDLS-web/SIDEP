@@ -11,7 +11,7 @@ export function mapUsuarioBasico(u: {
   nombres: string;
   apellidoPaterno: string;
   apellidoMaterno: string;
-  rol?: { nombre?: string } | null;
+  rol?: { nombre?: string; codigo?: string } | null;
   cargo?: { nombre?: string } | null;
 } | null | undefined) {
   if (!u) return null;
@@ -19,6 +19,7 @@ export function mapUsuarioBasico(u: {
     rut: u.rut,
     nombre: nombreCompletoUsuario(u),
     rol: u.rol?.nombre ?? null,
+    rolCodigo: u.rol?.codigo ?? null,
     cargo: u.cargo?.nombre ?? null,
   };
 }

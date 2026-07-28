@@ -9,6 +9,7 @@ exports.obtenerGuardia = obtenerGuardia;
 exports.crearGuardia = crearGuardia;
 exports.actualizarGuardia = actualizarGuardia;
 exports.eliminarGuardia = eliminarGuardia;
+exports.calendarioMensualGuardias = calendarioMensualGuardias;
 const crypto_1 = __importDefault(require("crypto"));
 const prisma_1 = __importDefault(require("../../../prisma"));
 const usuario_map_util_1 = require("../utils/usuario-map.util");
@@ -146,4 +147,54 @@ async function actualizarGuardia(id, data) {
 async function eliminarGuardia(id) {
     await prisma_1.default.guardiaTurno.delete({ where: { id } });
     return true;
+}
+const MESES_ES = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
+function esTurnoNocturno(tipoTurno) {
+    return tipoTurno === 'NOCHE' || tipoTurno === '24H';
+}
+function estadoCobertura(grupos) {
+    if (grupos.size === 0)
+        return 'sin';
+    if (grupos.size >= 4)
+        return 'completa';
+    return 'parcial';
+}
+async function calendarioMensualGuardias(anio, mes) {
+    const mesStr = String(mes).padStart(2, '0');
+    const ultimoDia = new Date(Date.UTC(anio, mes, 0)).getUTCDate();
+    const desde = `${anio}-${mesStr}-01`;
+    const hasta = `${anio}-${mesStr}-${String(ultimoDia).padStart(2, '0')}`;
+    const turnos = await listarGuardias({ desde, hasta });
+    const porFecha = new Map();
+    for (const t of turnos) {
+        const arr = porFecha.get(t.fecha) ?? [];
+        arr.push(t);
+        porFecha.set(t.fecha, arr);
+    }
+    const dias = [];
+    for (let d = 1; d <= ultimoDia; d++) {
+        const fecha = `${anio}-${mesStr}-${String(d).padStart(2, '0')}`;
+        const dt = new Date(`${fecha}T12:00:00.000Z`);
+        const diaSemana = dt.getUTCDay();
+        const delDia = porFecha.get(fecha) ?? [];
+        const gruposNoct = new Set(delDia.filter((t) => esTurnoNocturno(t.tipoTurno)).map((t) => t.grupo));
+        dias.push({
+            fecha,
+            dia: d,
+            diaSemana,
+            esFinDeSemana: diaSemana === 0 || diaSemana === 6,
+            estado: estadoCobertura(gruposNoct),
+            gruposNocturnos: [...gruposNoct].sort(),
+            turnos: delDia,
+        });
+    }
+    return {
+        anio,
+        mes,
+        mesLabel: MESES_ES[mes - 1] ?? String(mes),
+        dias,
+    };
 }
