@@ -62,6 +62,21 @@ export const getHistorial = async (req: Request, res: Response) => {
         res.status(500).json({ success: false, message: 'Error al obtener historial' });
     }
 };
+
+export const getHistorialBatch = async (req: Request, res: Response) => {
+    try {
+        const raw = String(req.query.carroIds ?? '').trim();
+        const carroIds = raw ? raw.split(',').map((s) => s.trim()).filter(Boolean) : [];
+        const entidadTipo = req.query.entidadTipo as string | undefined;
+        const data = await checklistsService.obtenerHistorialBatch(carroIds, {
+            ...(entidadTipo ? { entidadTipo } : {}),
+            excluirBorradores: req.query.excluirBorradores !== '0',
+        });
+        res.status(200).json({ success: true, data });
+    } catch {
+        res.status(500).json({ success: false, message: 'Error al obtener historial batch' });
+    }
+};
 export const editPlantilla = async (req: Request, res: Response) => {
     try {
         // Añadimos "as string"

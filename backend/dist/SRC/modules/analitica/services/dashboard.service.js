@@ -4,10 +4,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDashboardResumen = void 0;
+exports.invalidarCacheDashboard = invalidarCacheDashboard;
 const prisma_1 = __importDefault(require("../../../prisma"));
 const partes_where_1 = require("../../operaciones/partes-where");
 const checklist_estado_operativo_util_1 = require("../../../utils/checklist-estado-operativo.util");
 const carro_estado_auditoria_util_1 = require("../../../utils/carro-estado-auditoria.util");
+const inventario_items_service_1 = require("../../logistica/services/inventario-items.service");
+const fecha_calendario_util_1 = require("../../../utils/fecha-calendario.util");
+const DASHBOARD_CACHE_TTL_MS = 90_000;
+const dashboardCache = new Map();
+/** Invalida caché del dashboard (p. ej. tras crear o editar un parte). */
+function invalidarCacheDashboard() {
+    dashboardCache.clear();
+}
 function parseMetadataParte(raw) {
     if (!raw)
         return null;
@@ -25,6 +34,17 @@ function claveCodigoParte(p) {
     return metaClave || p.clave?.codigo || 'SIN_CLAVE';
 }
 const getDashboardResumen = async (anioParam, claveFilter, carroIdFilter) => {
+    const cacheKey = `${anioParam ?? ''}:${claveFilter ?? ''}:${carroIdFilter ?? ''}`;
+    const cached = dashboardCache.get(cacheKey);
+    if (cached && cached.expires > Date.now()) {
+        return cached.data;
+    }
+    const data = await buildDashboardResumen(anioParam, claveFilter, carroIdFilter);
+    dashboardCache.set(cacheKey, { data, expires: Date.now() + DASHBOARD_CACHE_TTL_MS });
+    return data;
+};
+exports.getDashboardResumen = getDashboardResumen;
+const buildDashboardResumen = async (anioParam, claveFilter, carroIdFilter) => {
     const anio = anioParam || new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
     const inicioAnio = new Date(Date.UTC(anio, 0, 1, 0, 0, 0));
@@ -82,35 +102,42 @@ const getDashboardResumen = async (anioParam, claveFilter, carroIdFilter) => {
     const finMesFiltrado = new Date(Date.UTC(anio, mesReferencia, 0, 23, 59, 59, 999));
     const whereClauseMes = { ...whereClause, fechaEmergencia: { gte: inicioMesFiltrado, lte: finMesFiltrado } };
     const emergenciasEsteMes = await prisma_1.default.parteEmergencia.count({ where: whereClauseMes });
-    // 5. porMes
-    const allPartes = await prisma_1.default.parteEmergencia.findMany({
+    // 5–6 y heatmap: una sola lectura de fechas/claves del año filtrado
+    const partesAnio = await prisma_1.default.parteEmergencia.findMany({
         where: whereClause,
-        select: { fechaEmergencia: true },
+        select: {
+            fechaEmergencia: true,
+            metadata: true,
+            clave: { select: { codigo: true } },
+        },
     });
     const monthGroups = {};
-    for (const p of allPartes) {
+    const typeGroups = {};
+    const conteoPorDia = {};
+    const SEMANAS = 4;
+    const finHeatmapKey = anio === anioActual ? (0, fecha_calendario_util_1.fechaCalendarioKey)(new Date()) : `${anio}-12-31`;
+    const inicioHeatmapKey = (0, fecha_calendario_util_1.inicioHeatmapDesdeFin)(finHeatmapKey, SEMANAS);
+    for (const p of partesAnio) {
         const d = p.fechaEmergencia;
         const period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         monthGroups[period] = (monthGroups[period] || 0) + 1;
+        const code = claveCodigoParte(p);
+        typeGroups[code] = (typeGroups[code] || 0) + 1;
+        const key = (0, fecha_calendario_util_1.fechaCalendarioKey)(d);
+        if (key >= inicioHeatmapKey && key <= finHeatmapKey) {
+            conteoPorDia[key] = (conteoPorDia[key] || 0) + 1;
+        }
     }
     const porMes = Object.entries(monthGroups)
         .map(([periodo, cantidad]) => ({ periodo, cantidad }))
         .sort((a, b) => a.periodo.localeCompare(b.periodo));
-    const partesParaAnios = await prisma_1.default.parteEmergencia.findMany({
-        where: (0, partes_where_1.parteWhereNoAnulado)(),
-        select: { fechaEmergencia: true },
-    });
-    const aniosConDatos = [...new Set(partesParaAnios.map((p) => p.fechaEmergencia.getFullYear()))].sort((a, b) => b - a);
-    // 6. porTipo
-    const partesConClave = await prisma_1.default.parteEmergencia.findMany({
-        where: whereClause,
-        include: { clave: true },
-    });
-    const typeGroups = {};
-    for (const p of partesConClave) {
-        const code = claveCodigoParte(p);
-        typeGroups[code] = (typeGroups[code] || 0) + 1;
-    }
+    const aniosConDatos = [
+        ...new Set((await prisma_1.default.parteEmergencia.findMany({
+            where: (0, partes_where_1.parteWhereNoAnulado)(),
+            select: { fechaEmergencia: true },
+            take: 5000,
+        })).map((p) => p.fechaEmergencia.getFullYear())),
+    ].sort((a, b) => b - a);
     const porTipo = Object.entries(typeGroups)
         .map(([claveEmergencia, cantidad]) => ({ claveEmergencia, cantidad }))
         .sort((a, b) => b.cantidad - a.cantidad || a.claveEmergencia.localeCompare(b.claveEmergencia));
@@ -130,36 +157,13 @@ const getDashboardResumen = async (anioParam, claveFilter, carroIdFilter) => {
         estado: p.estado.nombre,
         unidades: p.unidades.map((u) => u.carro.nomenclatura),
     }));
-    // Heatmap: últimas 4 semanas respecto al año filtrado (fin de año si es pasado)
-    const SEMANAS = 4;
-    const hoyReal = new Date();
-    const finHeatmap = anio === anioActual
-        ? new Date(hoyReal.getFullYear(), hoyReal.getMonth(), hoyReal.getDate(), 23, 59, 59, 999)
-        : new Date(Date.UTC(anio, 11, 31, 23, 59, 59, 999));
-    const inicioHeatmap = new Date(finHeatmap);
-    inicioHeatmap.setHours(0, 0, 0, 0);
-    const diaSemana = inicioHeatmap.getDay();
-    const diasHastaLunes = diaSemana === 0 ? 6 : diaSemana - 1;
-    inicioHeatmap.setDate(inicioHeatmap.getDate() - diasHastaLunes - (SEMANAS - 1) * 7);
-    const partesHeatmap = await prisma_1.default.parteEmergencia.findMany({
-        where: whereClause,
-        select: { fechaEmergencia: true },
-    });
-    const conteoPorDia = {};
-    for (const p of partesHeatmap) {
-        const fecha = p.fechaEmergencia;
-        if (fecha < inicioHeatmap || fecha > finHeatmap)
-            continue;
-        const key = fecha.toISOString().slice(0, 10);
-        conteoPorDia[key] = (conteoPorDia[key] || 0) + 1;
-    }
+    // Heatmap: últimas 4 semanas (calendario America/Santiago)
     const heatmapSemanas = [];
     for (let w = 0; w < SEMANAS; w++) {
         const semana = [];
         for (let d = 0; d < 7; d++) {
-            const celda = new Date(inicioHeatmap);
-            celda.setDate(inicioHeatmap.getDate() + w * 7 + d);
-            const key = celda.toISOString().slice(0, 10);
+            const offset = w * 7 + d;
+            const key = (0, fecha_calendario_util_1.sumarDiasCalendarioKey)(inicioHeatmapKey, offset);
             semana.push(conteoPorDia[key] || 0);
         }
         heatmapSemanas.push(semana);
@@ -192,8 +196,11 @@ const getDashboardResumen = async (anioParam, claveFilter, carroIdFilter) => {
         if (parsed)
             ultimoCambioEstadoPorCarro.set(row.entidadId, parsed);
     }
+    const carroIds = carros.map((c) => c.id);
     const ejecucionesSemaforo = await prisma_1.default.checklistEjecucion.findMany({
+        where: { entidadId: { in: carroIds } },
         orderBy: { fechaRevision: 'desc' },
+        take: Math.max(carroIds.length * 6, 120),
     });
     const ultimaEjecucionPorCarroTipo = new Map();
     for (const exec of ejecucionesSemaforo) {
@@ -298,7 +305,23 @@ const getDashboardResumen = async (anioParam, claveFilter, carroIdFilter) => {
             checklistTrauma: mapChecklist(checkTrauma),
         };
     });
-    return {
+    try {
+        const alertasInv = await (0, inventario_items_service_1.obtenerAlertasInventario)();
+        for (const a of alertasInv.slice(0, 20)) {
+            alertas.push({
+                tipo: a.tipo,
+                severidad: a.severidad,
+                titulo: a.titulo,
+                detalle: a.detalle,
+                inventarioItemId: a.itemId ?? null,
+                bodega: a.bodega ?? null,
+            });
+        }
+    }
+    catch (err) {
+        console.error('[SIDEP dashboard] alertas inventario:', err);
+    }
+    const payload = {
         anio,
         filtros: {
             clave: claveFilter || null,
@@ -317,5 +340,5 @@ const getDashboardResumen = async (anioParam, claveFilter, carroIdFilter) => {
         unidadesSemaforo,
         generadoEn: new Date().toISOString(),
     };
+    return payload;
 };
-exports.getDashboardResumen = getDashboardResumen;

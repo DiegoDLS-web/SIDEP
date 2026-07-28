@@ -2,21 +2,19 @@ import { Injectable } from '@angular/core';
 import type { SesionUsuarioDto } from '../../models/auth.dto';
 import type { AuthSesionStorage } from './auth-sesion-storage.interface';
 
-const TOKEN_KEY = 'sidep_token';
 const USER_KEY = 'sidep_user';
 
 /**
- * Persistencia de sesión en el navegador (localStorage).
- * Una sola responsabilidad: leer/escribir claves; sin llamadas HTTP.
+ * Persistencia de sesión en el navegador (solo usuario; token en cookie httpOnly).
  */
 @Injectable({ providedIn: 'root' })
 export class AuthLocalStorageService implements AuthSesionStorage {
   getToken(): string | null {
-    return localStorage.getItem(TOKEN_KEY);
+    return null;
   }
 
-  setToken(token: string): void {
-    localStorage.setItem(TOKEN_KEY, token);
+  setToken(_token: string): void {
+    /* token en cookie httpOnly */
   }
 
   getUsuarioGuardado(): SesionUsuarioDto | null {
@@ -36,7 +34,6 @@ export class AuthLocalStorageService implements AuthSesionStorage {
   }
 
   limpiar(): void {
-    localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
   }
 }

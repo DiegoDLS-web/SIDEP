@@ -2,10 +2,16 @@
 
 <div class="sid-page sid-page-shell w-full min-w-0 py-6 sm:py-8">
   @if (!vm || vm.status === 'loading') {
-    <div class="flex min-h-[30vh] flex-col items-center justify-center gap-3 text-slate-400">
-      <lucide-icon name="file-text" class="h-10 w-10 animate-pulse text-rose-500" [size]="40" color="currentColor" />
-      <p class="text-sm">Cargando parte…</p>
-    </div>
+    <section class="space-y-4" aria-busy="true" aria-label="Cargando parte">
+      <div class="h-8 w-40 sid-skeleton rounded-lg"></div>
+      <div class="h-36 rounded-2xl border border-[var(--sid-border)] sid-skeleton"></div>
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        @for (i of [1, 2, 3]; track i) {
+          <div class="h-24 rounded-xl border border-[var(--sid-border)] sid-skeleton"></div>
+        }
+      </div>
+      <div class="h-72 rounded-2xl border border-[var(--sid-border)] sid-skeleton"></div>
+    </section>
   } @else if (vm.status === 'error') {
     <div class="max-w-md rounded-2xl border border-red-900/50 bg-red-950/25 p-5 text-sm text-red-300">
       {{ vm.message }}

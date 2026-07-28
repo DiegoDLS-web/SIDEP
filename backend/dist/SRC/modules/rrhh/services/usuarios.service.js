@@ -8,6 +8,7 @@ const prisma_1 = __importDefault(require("../../../prisma"));
 const storage_1 = require("../../../shared/storage");
 const rrhh_service_1 = require("./rrhh.service");
 const hash_1 = require("../../../utils/security/hash");
+const password_policy_util_1 = require("../../../utils/security/password-policy.util");
 const rut_util_1 = require("../../../utils/rut.util");
 const AppError_1 = require("../../../utils/errors/AppError");
 const prisma_error_util_1 = require("../../../utils/prisma-error.util");
@@ -37,21 +38,23 @@ const listarUsuarios = async () => {
             grupoSanguineo: true,
         },
         orderBy: { rut: 'asc' },
+        take: 5000,
     });
-    return usuarios.map(rrhh_service_1.mapUsuarioToDto);
+    return usuarios.map((u) => (0, rrhh_service_1.mapUsuarioToDto)(u));
 };
 exports.listarUsuarios = listarUsuarios;
-/** Lista mínima de usuarios activos para selects (cualquier voluntario activo). */
+/** Lista mínima de usuarios activos para selects (sin email/teléfono/firma). */
 const listarUsuariosSelector = async () => {
     const usuarios = await prisma_1.default.usuario.findMany({
         where: { activo: 1 },
         include: {
+            cargo: true,
             rol: true,
-            tipoVoluntario: true,
         },
         orderBy: [{ nombres: 'asc' }, { apellidoPaterno: 'asc' }],
+        take: 2000,
     });
-    return usuarios.map(rrhh_service_1.mapUsuarioToDto);
+    return usuarios.map(rrhh_service_1.mapUsuarioSelectorDto);
 };
 exports.listarUsuariosSelector = listarUsuariosSelector;
 const obtenerMetricasUsuarios = async () => {
@@ -92,7 +95,7 @@ const obtenerMetricasUsuarios = async () => {
     };
 };
 exports.obtenerMetricasUsuarios = obtenerMetricasUsuarios;
-const listarUsuariosPaginado = async (page, pageSize, q, estado, tipoVoluntario, cargo) => {
+const listarUsuariosPaginado = async (page, pageSize, q, estado, tipoVoluntario, cargo, incluirClaveNomina = false) => {
     const andConditions = [];
     if (q && q.trim()) {
         const term = q.trim();
@@ -177,7 +180,7 @@ const listarUsuariosPaginado = async (page, pageSize, q, estado, tipoVoluntario,
         take: pageSize,
     });
     return {
-        items: usuarios.map(rrhh_service_1.mapUsuarioToDto),
+        items: usuarios.map((u) => (0, rrhh_service_1.mapUsuarioToDto)(u, { incluirClaveNomina })),
         total,
         page,
         pageSize,
@@ -238,7 +241,8 @@ const crearUsuario = async (datos) => {
         }
         throw new AppError_1.ConflictError('Ya existe un usuario con ese correo electrónico.');
     }
-    const hashedPassword = await (0, hash_1.hashPassword)(rutNormalizado || 'sidep123');
+    const passwordProvisional = (0, password_policy_util_1.generarPasswordProvisional)();
+    const hashFinal = await (0, hash_1.hashPassword)(passwordProvisional);
     // Validar rango de fechas (1900 - 2100)
     if (datos.fechaNacimiento) {
         const d = new Date(datos.fechaNacimiento);
@@ -259,7 +263,8 @@ const crearUsuario = async (datos) => {
             apellidoPaterno: datos.apellidoPaterno,
             apellidoMaterno: datos.apellidoMaterno,
             email: emailNormalizado,
-            passwordHash: hashedPassword,
+            passwordHash: hashFinal,
+            requiereCambioPassword: 1,
             telefono: datos.telefono || null,
             direccion: datos.direccion || null,
             region: datos.region || null,
@@ -292,7 +297,10 @@ const crearUsuario = async (datos) => {
             grupoSanguineo: true,
         },
     });
-    return (0, rrhh_service_1.mapUsuarioToDto)(nuevoUsuario);
+    return {
+        usuario: (0, rrhh_service_1.mapUsuarioToDto)(nuevoUsuario, { incluirClaveNomina: true }),
+        passwordProvisional,
+    };
 };
 exports.crearUsuario = crearUsuario;
 const actualizarUsuario = async (rut, datos) => {
@@ -451,6 +459,13 @@ const actualizarUsuario = async (rut, datos) => {
             updateData.firmaImagenUrl = datos.firmaImagen;
         }
     }
+    const pasaInactivo = usuarioExistente.activo === 1 &&
+        (updateData.activo === 0 ||
+            (datos.estadoVoluntario !== undefined &&
+                String(datos.estadoVoluntario).trim().toUpperCase() === 'INACTIVO'));
+    if (pasaInactivo) {
+        updateData.tokenVersion = { increment: 1 };
+    }
     const usuarioActualizado = await prisma_1.default.usuario.update({
         where: { rut: usuarioExistente.rut },
         data: updateData,
@@ -523,6 +538,7 @@ const eliminarUsuario = async (rut) => {
                 fotoPerfilPublicId: null,
                 firmaImagenUrl: null,
                 firmaImagenPublicId: null,
+                tokenVersion: { increment: 1 },
             },
         });
         const detalle = referencias.length > 0

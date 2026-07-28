@@ -199,42 +199,16 @@
             Aplicar filtros
           </button>
         </div>
-        <div class="flex shrink-0 flex-col gap-2 max-sm:[&>button]:w-full sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2 max-xl:border-t max-xl:border-slate-800/80 max-xl:pt-3">
-          <button
-            type="button"
-            class="sid-btn sid-btn-neutral rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-gray-100 hover:bg-gray-700"
-            title="Limpiar filtros y recargar"
-            (click)="limpiarFiltrosHistorialGeneral()"
-          >
-            Limpiar filtros
-          </button>
-          <button
-            type="button"
-            class="sid-btn sid-btn-neutral rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-gray-100 hover:bg-gray-700"
-            title="Actualizar datos"
-            (click)="cargarHistorialGeneral()"
-          >
-            Actualizar
-          </button>
-          <button
-            type="button"
-            class="sid-btn sid-btn-primary inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-40"
-            [disabled]="historialGeneralFiltrado().length === 0"
-            (click)="exportarHistorialGeneralPdf()"
-          >
-            <lucide-icon [name]="icon.pdf" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-            Descargar PDF
-          </button>
-          <button
-            type="button"
-            class="sid-btn sid-btn-success inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700 disabled:opacity-40"
-            [disabled]="historialGeneralFiltrado().length === 0"
-            (click)="exportarHistorialGeneralExcel()"
-          >
-            <lucide-icon [name]="icon.excel" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-            Descargar Excel
-          </button>
-        </div>
+        <app-sid-history-filter-actions
+          [showApply]="false"
+          [exportPdfDisabled]="historialGeneralFiltrado().length === 0"
+          [exportExcelDisabled]="historialGeneralFiltrado().length === 0"
+          [borderTop]="false"
+          (clear)="limpiarFiltrosHistorialGeneral()"
+          (refresh)="cargarHistorialGeneral()"
+          (exportPdf)="exportarHistorialGeneralPdf()"
+          (exportExcel)="exportarHistorialGeneralExcel()"
+        />
       </div>
 
       @if (historialGeneralLoading) {
@@ -363,30 +337,13 @@
             </tbody>
           </table>
         </div>
-        <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p class="text-xs sid-muted">
-            Página {{ paginaHistorialGeneral }} de {{ totalPaginasHistorialGeneral() }} ·
-            {{ historialGeneralFilas.length }} registro(s)
-          </p>
-          <div class="flex gap-2">
-            <button
-              type="button"
-              class="sid-btn sid-btn-neutral rounded-lg border border-gray-600 bg-gray-800 px-3 py-1.5 text-sm disabled:opacity-40"
-              [disabled]="paginaHistorialGeneral <= 1"
-              (click)="cambiarPaginaHistorialGeneral(-1)"
-            >
-              Anterior
-            </button>
-            <button
-              type="button"
-              class="sid-btn sid-btn-neutral rounded-lg border border-gray-600 bg-gray-800 px-3 py-1.5 text-sm disabled:opacity-40"
-              [disabled]="paginaHistorialGeneral >= totalPaginasHistorialGeneral()"
-              (click)="cambiarPaginaHistorialGeneral(1)"
-            >
-              Siguiente
-            </button>
-          </div>
-        </div>
+        <app-sid-pagination-footer
+          [page]="paginaHistorialGeneral"
+          [totalPages]="totalPaginasHistorialGeneral()"
+          [totalRecords]="historialGeneralFiltrado().length"
+          [pageSize]="tamanioPaginaHistorialGeneral"
+          (pageDelta)="cambiarPaginaHistorialGeneral($event)"
+        />
       }
     </section>
   </div>

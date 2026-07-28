@@ -10,4 +10,6 @@ router.get('/', auth_middleware_1.protect, (0, role_middleware_1.requireRoles)('
 router.put('/', auth_middleware_1.protect, (0, role_middleware_1.requireRoles)('ADMIN'), configuraciones_controller_1.actualizarConfiguraciones);
 router.post('/logo-compania', auth_middleware_1.protect, (0, role_middleware_1.requireRoles)('ADMIN'), storage_1.uploadImage.single('file'), configuraciones_controller_1.subirLogoCompania);
 router.put('/tipos-emergencia', auth_middleware_1.protect, (0, role_middleware_1.requireRoles)('ADMIN'), configuraciones_controller_1.actualizarTiposEmergencia);
+router.post('/probar-correo', auth_middleware_1.protect, (0, role_middleware_1.requireRoles)('ADMIN'), configuraciones_controller_1.probarCorreo);
+router.get('/logs-correo', auth_middleware_1.protect, (0, role_middleware_1.requireRoles)('ADMIN'), configuraciones_controller_1.obtenerLogsCorreo);
 exports.default = router;

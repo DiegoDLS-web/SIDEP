@@ -1,5 +1,6 @@
 import prisma from '../../../prisma';
 import crypto from 'crypto';
+import { notificarLicenciaResuelta } from '../../notificaciones/notificaciones-scheduler.service';
 
 // ─── Helpers de mapeo ───────────────────────────────────────────────
 
@@ -180,20 +181,34 @@ export const editarLicencia = async (
 
 // ─── 4. Listar todas las licencias (gestión) ────────────────────────
 
-export const listarGestion = async (estado?: string) => {
-  const where: any = {};
-  if (estado && estado.trim()) {
+export const listarGestion = async (opts?: { estado?: string; page?: number; pageSize?: number }) => {
+  const where: Record<string, unknown> = {};
+  if (opts?.estado?.trim()) {
     where.estado = {
-      nombre: { equals: estado.trim(), mode: 'insensitive' },
+      nombre: { equals: opts.estado.trim(), mode: 'insensitive' },
     };
   }
+  const page = Math.max(1, opts?.page ?? 1);
+  const pageSize = Math.min(100, Math.max(10, opts?.pageSize ?? 50));
 
-  const licencias = await prisma.licenciaMedica.findMany({
-    where,
-    include: INCLUDE_LICENCIA,
-    orderBy: { createdAt: 'desc' },
-  });
-  return licencias.map(mapLicenciaToDto);
+  const [total, licencias] = await Promise.all([
+    prisma.licenciaMedica.count({ where }),
+    prisma.licenciaMedica.findMany({
+      where,
+      include: INCLUDE_LICENCIA,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
+
+  return {
+    items: licencias.map(mapLicenciaToDto),
+    total,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+  };
 };
 
 // ─── 5. Cambiar estado (aprobar/rechazar/anular) ────────────────────
@@ -234,7 +249,15 @@ export const cambiarEstado = async (
     include: INCLUDE_LICENCIA,
   });
 
-  return mapLicenciaToDto(actualizada);
+  const dto = mapLicenciaToDto(actualizada);
+  const estadoNorm = String(estado).trim().toUpperCase();
+  if (['APROBADA', 'RECHAZADA', 'ANULADA'].includes(estadoNorm)) {
+    void notificarLicenciaResuelta(actualizada.id).catch((err: unknown) => {
+      console.error('[SIDEP] Error al notificar resolución de licencia:', err);
+    });
+  }
+
+  return dto;
 };
 
 // ─── 6. Licencias activas en una fecha ──────────────────────────────

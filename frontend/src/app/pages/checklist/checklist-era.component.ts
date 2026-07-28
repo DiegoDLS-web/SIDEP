@@ -5,7 +5,7 @@ import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
 import type { ChecklistRegistroDto } from '../../models/checklist.dto';
 import type { CarroDto } from '../../models/carro.dto';
-import type { UsuarioListaDto } from '../../models/usuario.dto';
+import type { UsuarioSelectorDto } from '../../models/usuario.dto';
 import { CarrosService } from '../../services/carros.service';
 import { AuthService } from '../../services/auth.service';
 import { ChecklistsService } from '../../services/checklists.service';
@@ -16,6 +16,8 @@ import { BorradorLocalService } from '../../services/borrador-local.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
+import { SidPaginationFooterComponent } from '../../shared/sid-pagination-footer.component';
+import { SidHistoryFilterActionsComponent } from '../../shared/sid-history-filter-actions.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
 import { firmaEfectiva } from '../../utils/firma-resolver';
@@ -181,7 +183,7 @@ const ERA_PRESETS_UNIDAD: Record<string, EraPreset> = {
 @Component({
   selector: 'app-checklist-era',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidEmptyStateComponent, SidDateInputComponent, SidEdicionPendienteBannerComponent, SidPlantillaEdicionBannerComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidEmptyStateComponent, SidDateInputComponent, SidEdicionPendienteBannerComponent, SidPlantillaEdicionBannerComponent, SidPaginationFooterComponent, SidHistoryFilterActionsComponent],
   templateUrl: './checklist-era.component.html',
 })
 export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendiente {
@@ -214,7 +216,7 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
   readonly splitFh = splitFechaHoraEsCl;
 
   carros: CarroDto[] = [];
-  usuarios: UsuarioListaDto[] = [];
+  usuarios: UsuarioSelectorDto[] = [];
   loading = true;
   error: string | null = null;
   saving = false;

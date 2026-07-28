@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import type { ConfiguracionSistemaDto, LogosPdfCabecera } from '../../models/configuracion.dto';
+import type { ConfiguracionSistemaDto, EmailLogDto, LogosPdfCabecera } from '../../models/configuracion.dto';
 import type { RolUsuarioDto } from '../../models/rol.dto';
 import { ConfiguracionesService } from '../../services/configuraciones.service';
 import { RolesService } from '../../services/roles.service';
@@ -38,8 +38,12 @@ export class ConfiguracionesComponent implements OnInit, ComponenteConEdicionPen
   loading = true;
   guardando = false;
   subiendoLogoCompania = false;
+  probandoCorreo = false;
+  cargandoLogsCorreo = false;
   error: string | null = null;
   exito: string | null = null;
+  correoPrueba = '';
+  logsCorreo: EmailLogDto[] = [];
   roles: RolUsuarioDto[] = [];
   readonly logoCompaniaPreview = signal<string | null>(null);
   archivoLogoCompania: File | null = null;
@@ -100,6 +104,7 @@ export class ConfiguracionesComponent implements OnInit, ComponenteConEdicionPen
         this.tryAsegurarNavegacion();
         void this.actualizarVistaPreviaLogoCompania();
         this.controlEdicion.marcarLimpio();
+        this.cargarLogsCorreo();
       },
       error: () => {
         this.error = 'No se pudieron cargar las configuraciones.';
@@ -261,6 +266,49 @@ export class ConfiguracionesComponent implements OnInit, ComponenteConEdicionPen
         this.toast.error('No se pudieron guardar los cambios.');
       },
     });
+  }
+
+  cargarLogsCorreo(): void {
+    this.cargandoLogsCorreo = true;
+    this.configApi.listarLogsCorreo(30).subscribe({
+      next: (logs) => {
+        this.logsCorreo = logs;
+        this.cargandoLogsCorreo = false;
+      },
+      error: () => {
+        this.cargandoLogsCorreo = false;
+      },
+    });
+  }
+
+  probarCorreo(): void {
+    const to = (this.correoPrueba || this.config.compania.emailInstitucional || '').trim();
+    if (!to) {
+      this.toast.error('Indica un correo de destino para la prueba.');
+      return;
+    }
+    this.probandoCorreo = true;
+    this.configApi.probarCorreo(to).subscribe({
+      next: (r) => {
+        this.probandoCorreo = false;
+        this.toast.exito(r.message || 'Correo de prueba enviado.');
+        this.cargarLogsCorreo();
+      },
+      error: (err: { error?: { error?: string } }) => {
+        this.probandoCorreo = false;
+        const msg = err?.error?.error ?? 'No se pudo enviar el correo de prueba.';
+        this.toast.error(msg);
+        this.cargarLogsCorreo();
+      },
+    });
+  }
+
+  formatearFechaLog(iso: string): string {
+    try {
+      return new Date(iso).toLocaleString('es-CL');
+    } catch {
+      return iso;
+    }
   }
 
 }

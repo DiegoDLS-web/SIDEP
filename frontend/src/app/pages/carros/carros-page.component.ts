@@ -17,6 +17,8 @@ import { ToastService } from '../../services/toast.service';
 import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
+import { SidPaginationFooterComponent } from '../../shared/sid-pagination-footer.component';
+import { SidHistoryFilterActionsComponent } from '../../shared/sid-history-filter-actions.component';
 import { nombreListaSoloPersona } from '../usuarios/usuario-registro.constants';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
@@ -54,6 +56,8 @@ type CarrosView =
     SidEmptyStateComponent,
     SidDateInputComponent,
     SidEdicionPendienteBannerComponent,
+    SidPaginationFooterComponent,
+    SidHistoryFilterActionsComponent,
   ],
   templateUrl: './carros-page.component.html',
 })

@@ -5,11 +5,13 @@ import type { AuditoriaItemDto } from '../../models/auditoria.dto';
 import { AuditoriaService } from '../../services/auditoria.service';
 import { ToastService } from '../../services/toast.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
+import { SidPaginationFooterComponent } from '../../shared/sid-pagination-footer.component';
+import { SidHistoryFilterActionsComponent } from '../../shared/sid-history-filter-actions.component';
 
 @Component({
   selector: 'app-auditoria-log',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidepIconsModule],
+  imports: [CommonModule, FormsModule, SidepIconsModule, SidPaginationFooterComponent, SidHistoryFilterActionsComponent],
   templateUrl: './auditoria-log.component.html',
 })
 export class AuditoriaLogComponent implements OnInit {

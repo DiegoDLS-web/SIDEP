@@ -1,11 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { jsPDF } from 'jspdf';
-import { catchError, forkJoin, of } from 'rxjs';
-import type { DashboardResumenDto } from '../../models/dashboard.dto';
+import type jsPDF from 'jspdf';
+import { catchError, of } from 'rxjs';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
-import { DashboardService } from '../../services/dashboard.service';
 import { ReportesService } from '../../services/reportes.service';
 import type { AnaliticaOperacionalDto } from '../../models/reportes.dto';
 import { PdfExportService } from '../../services/pdf-export.service';
@@ -19,7 +17,6 @@ import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-em
 })
 export class AnaliticaPageComponent implements OnInit {
   private readonly reportesApi = inject(ReportesService);
-  private readonly dashboardApi = inject(DashboardService);
   private readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly nf = new Intl.NumberFormat('es-CL');
@@ -30,7 +27,6 @@ export class AnaliticaPageComponent implements OnInit {
   exportandoPng: string | null = null;
   error: string | null = null;
   datos: AnaliticaOperacionalDto | null = null;
-  dashboardDatos: DashboardResumenDto | null = null;
   anio = new Date().getFullYear();
   mes = new Date().getMonth() + 1;
   mesAsistenciaSeleccionado = new Date().getMonth() + 1;
@@ -59,13 +55,9 @@ export class AnaliticaPageComponent implements OnInit {
   cargar(): void {
     this.loading = true;
     this.error = null;
-    forkJoin({
-      analitica: this.reportesApi.analiticaOperacional(this.anio, this.mes),
-      dashboard: this.dashboardApi.resumen(this.anio, 'todos', 'todas').pipe(catchError(() => of(null))),
-    }).subscribe({
-      next: ({ analitica, dashboard }) => {
+    this.reportesApi.analiticaOperacional(this.anio, this.mes).subscribe({
+      next: (analitica) => {
         this.datos = this.normalizarAnalitica(analitica);
-        this.dashboardDatos = dashboard;
         const mesesConDetalle =
           this.datos.asistenciaVoluntariosDetallePorMes
             ?.filter((x) => (x.voluntarios?.length ?? 0) > 0)
@@ -177,7 +169,7 @@ export class AnaliticaPageComponent implements OnInit {
   }
 
   get statsDashboard(): Array<{ label: string; value: string; icon: string; grad: string }> {
-    const d = this.dashboardDatos;
+    const d = this.datos?.resumenDashboard;
     if (!d) {
       return [
         { label: `Emergencias totales ${this.anio}`, value: '—', icon: 'flame', grad: 'from-red-500 to-red-600' },
@@ -215,7 +207,7 @@ export class AnaliticaPageComponent implements OnInit {
   }
 
   get mesesChartDashboard(): { mes: string; cantidadActual: number; cantidadPrev: number }[] {
-    const actual = this.dashboardDatos;
+    const actual = this.datos?.resumenDashboard;
     if (!actual) return [];
     const labels = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const anio = actual.anio;
@@ -236,12 +228,12 @@ export class AnaliticaPageComponent implements OnInit {
   }
 
   maxPorTipoDashboard(): number {
-    const t = this.dashboardDatos?.porTipo ?? [];
+    const t = this.datos?.resumenDashboard?.porTipo ?? [];
     return Math.max(...t.map((x) => x.cantidad), 1);
   }
 
   maxHeatDashboard(): number {
-    const h = this.dashboardDatos?.heatmapSemanas ?? [];
+    const h = this.datos?.resumenDashboard?.heatmapSemanas ?? [];
     let m = 0;
     for (const row of h) {
       for (const v of row) {
@@ -438,7 +430,8 @@ export class AnaliticaPageComponent implements OnInit {
     if (!host || this.exportandoPdf) return;
     this.exportandoPdf = true;
     try {
-      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+      const { default: JsPDF } = await import('jspdf');
+      const doc = new JsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
       const margin = 10;
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();

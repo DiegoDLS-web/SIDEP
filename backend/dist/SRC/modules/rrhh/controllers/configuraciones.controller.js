@@ -33,8 +33,10 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.actualizarTiposEmergencia = exports.subirLogoCompania = exports.actualizarConfiguraciones = exports.obtenerConfiguracionOperativa = exports.obtenerConfiguraciones = void 0;
+exports.obtenerLogsCorreo = exports.probarCorreo = exports.actualizarTiposEmergencia = exports.subirLogoCompania = exports.actualizarConfiguraciones = exports.obtenerConfiguracionOperativa = exports.obtenerConfiguraciones = void 0;
 const configuracionesService = __importStar(require("../services/configuraciones.service"));
+const email_service_1 = require("../../../utils/email/email.service");
+const email_log_service_1 = require("../../../utils/email/email-log.service");
 const obtenerConfiguraciones = async (req, res) => {
     try {
         const dto = await configuracionesService.obtenerConfiguracionesService();
@@ -100,3 +102,42 @@ const actualizarTiposEmergencia = async (req, res) => {
     }
 };
 exports.actualizarTiposEmergencia = actualizarTiposEmergencia;
+const probarCorreo = async (req, res) => {
+    try {
+        const to = String(req.body?.to ?? '').trim();
+        if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+            return res.status(400).json({ success: false, error: 'Indica un correo de destino válido.' });
+        }
+        await (0, email_service_1.verificarConexionSmtp)();
+        await (0, email_service_1.enviarCorreoPrueba)(to);
+        return res.status(200).json({ ok: true, message: `Correo de prueba enviado a ${to}` });
+    }
+    catch (error) {
+        const msg = error?.message === 'SMTP_NO_CONFIGURADO'
+            ? 'El envío SMTP no está configurado en el servidor.'
+            : 'No se pudo enviar el correo de prueba.';
+        console.error('🔥 ERROR EN PROBAR CORREO:', error);
+        return res.status(500).json({ success: false, error: msg });
+    }
+};
+exports.probarCorreo = probarCorreo;
+const obtenerLogsCorreo = async (req, res) => {
+    try {
+        const limit = Number(req.query.limit ?? 50);
+        const logs = await (0, email_log_service_1.listarEmailLogs)(limit);
+        return res.status(200).json(logs.map((l) => ({
+            id: l.id,
+            tipo: l.tipo,
+            destinatario: l.destinatario,
+            subject: l.subject,
+            ok: l.ok === 1,
+            detalle: l.detalle,
+            createdAt: l.createdAt.toISOString(),
+        })));
+    }
+    catch (error) {
+        console.error('🔥 ERROR EN LOGS CORREO:', error);
+        return res.status(500).json({ success: false, error: 'Error al obtener historial de correos' });
+    }
+};
+exports.obtenerLogsCorreo = obtenerLogsCorreo;

@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto';
 import prisma from '../../prisma';
 import { hashPassword } from '../../utils/security/hash';
+import { validarPasswordNueva } from '../../utils/security/password-policy.util';
 import { correoSmtpDisponible, enviarCorreoRecuperacionPassword } from '../../utils/email/email.service';
 import { puedeAccederApp } from '../../utils/usuario-acceso.util';
 
@@ -89,8 +90,9 @@ export async function restablecerPasswordConToken(token: string, password: strin
   if (!tokenNorm) throw new Error('Enlace inválido o expirado.');
 
   const nueva = String(password ?? '');
-  if (nueva.length < 8) {
-    throw new Error('La contraseña debe tener al menos 8 caracteres.');
+  const errPolitica = validarPasswordNueva(nueva);
+  if (errPolitica) {
+    throw new Error(errPolitica);
   }
 
   const row = await prisma.passwordResetToken.findUnique({ where: { token: tokenNorm } });
@@ -103,7 +105,7 @@ export async function restablecerPasswordConToken(token: string, password: strin
   await prisma.$transaction([
     prisma.usuario.update({
       where: { rut: row.usuarioRut },
-      data: { passwordHash: hash },
+      data: { passwordHash: hash, requiereCambioPassword: 0 },
     }),
     prisma.passwordResetToken.update({
       where: { id: row.id },

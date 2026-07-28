@@ -24,11 +24,14 @@ import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util'
 import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
 import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
 import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
+import { SidPaginationFooterComponent } from '../../shared/sid-pagination-footer.component';
+import { InventariosService } from '../../services/inventarios.service';
+import type { EppAsignadoUsuarioDto } from '../../models/inventarios.dto';
 
 @Component({
   selector: 'app-mi-perfil',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidEdicionPendienteBannerComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidEdicionPendienteBannerComponent, SidPaginationFooterComponent],
   templateUrl: './mi-perfil.component.html',
 })
 export class MiPerfilComponent implements OnInit, ComponenteConEdicionPendiente {
@@ -37,6 +40,10 @@ export class MiPerfilComponent implements OnInit, ComponenteConEdicionPendiente 
   private readonly toast = inject(ToastService);
   readonly navUi = inject(NavegacionUiService);
   private readonly confirmDialog = inject(ConfirmDialogService);
+  private readonly inventariosApi = inject(InventariosService);
+
+  eppAsignado: EppAsignadoUsuarioDto[] = [];
+  eppCargando = false;
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -102,9 +109,76 @@ export class MiPerfilComponent implements OnInit, ComponenteConEdicionPendiente 
   cambiandoPassword = false;
   errorPasswordForm: string | null = null;
 
+  mfaHabilitado = false;
+  mfaDisponible = false;
+  mfaSetupUrl: string | null = null;
+  mfaCode = '';
+  mfaCargando = false;
+
   ngOnInit(): void {
     this.navUi.refrescar();
     this.cargarPerfil();
+    this.cargarMfaEstado();
+  }
+
+  private cargarMfaEstado(): void {
+    this.auth.getMfaEstado().subscribe({
+      next: (d) => {
+        this.mfaDisponible = d.disponible;
+        this.mfaHabilitado = d.habilitado;
+      },
+      error: () => {},
+    });
+  }
+
+  iniciarConfigMfa(): void {
+    this.mfaCargando = true;
+    this.auth.iniciarMfaSetup().subscribe({
+      next: (d) => {
+        this.mfaSetupUrl = d.otpauthUrl;
+        this.mfaCargando = false;
+        this.toast.info('Escanea el código con Google Authenticator e ingresa el código de prueba.');
+      },
+      error: (err) => {
+        this.mfaCargando = false;
+        this.toast.error('No se pudo iniciar MFA.');
+      },
+    });
+  }
+
+  confirmarActivarMfa(): void {
+    if (!this.mfaCode.trim()) return;
+    this.mfaCargando = true;
+    this.auth.activarMfa(this.mfaCode.trim()).subscribe({
+      next: () => {
+        this.mfaHabilitado = true;
+        this.mfaSetupUrl = null;
+        this.mfaCode = '';
+        this.mfaCargando = false;
+        this.toast.exito('MFA activado para tu cuenta de administrador.');
+      },
+      error: () => {
+        this.mfaCargando = false;
+        this.toast.error('Código inválido.');
+      },
+    });
+  }
+
+  desactivarMfaCuenta(): void {
+    if (!this.mfaCode.trim()) return;
+    this.mfaCargando = true;
+    this.auth.desactivarMfa(this.mfaCode.trim()).subscribe({
+      next: () => {
+        this.mfaHabilitado = false;
+        this.mfaCode = '';
+        this.mfaCargando = false;
+        this.toast.exito('MFA desactivado.');
+      },
+      error: () => {
+        this.mfaCargando = false;
+        this.toast.error('Código inválido.');
+      },
+    });
   }
 
   nombreMesPerfil(m: number | undefined): string {
@@ -125,6 +199,20 @@ export class MiPerfilComponent implements OnInit, ComponenteConEdicionPendiente 
       error: () => {
         this.resumenError = 'No se pudo cargar tu resumen operativo (asistencias y licencias).';
         this.resumenCargando = false;
+      },
+    });
+  }
+
+  private cargarEppAsignado(rut: string): void {
+    this.eppCargando = true;
+    this.inventariosApi.listarEppUsuario(rut).subscribe({
+      next: (items) => {
+        this.eppAsignado = items;
+        this.eppCargando = false;
+      },
+      error: () => {
+        this.eppAsignado = [];
+        this.eppCargando = false;
       },
     });
   }
@@ -160,6 +248,7 @@ export class MiPerfilComponent implements OnInit, ComponenteConEdicionPendiente 
         this.poblarMisForm(p);
         this.loading = false;
         this.cargarResumenOperativo();
+        this.cargarEppAsignado(p.rut);
       },
       error: () => {
         this.error = 'No se pudo cargar tu perfil.';

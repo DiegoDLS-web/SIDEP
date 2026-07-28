@@ -10,6 +10,8 @@ import {
 import { obtenerConfiguracionOperativa } from '../controllers/configuraciones.controller';
 import { protect } from '../../../middlewares/auth.middleware';
 import { uploadImage, uploadPdf } from '../../../shared/storage';
+import { validate } from '../../../middlewares/validate';
+import { cambiarPasswordDto } from '../../autenticacion/dtos/auth.dto';
 import configuracionesRoutes from './configuraciones.routes';
 
 const router = Router();
@@ -24,7 +26,7 @@ router.post('/mi-perfil/foto', protect, uploadImage.single('foto'), subirFotoPer
 router.post('/licencias/archivo', protect, uploadPdf.single('documento'), subirArchivoLicencia);
 
 // 3. Cambio de contraseña propia
-router.patch('/mi-perfil/password', protect, cambiarMiPassword);
+router.patch('/mi-perfil/password', protect, validate(cambiarPasswordDto), cambiarMiPassword);
 
 // 3b. Configuración operativa (sin datos sensibles de administración)
 router.get('/configuracion-operativa', protect, obtenerConfiguracionOperativa);

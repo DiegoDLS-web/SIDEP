@@ -77,6 +77,9 @@ export const loadAnaliticaPageComponent = () =>
 export const loadMiPerfilComponent = () =>
   import('../pages/perfil/mi-perfil.component').then((m) => m.MiPerfilComponent);
 
+export const loadInventariosResumenComponent = () =>
+  import('../pages/inventarios/inventarios-resumen.component').then((m) => m.InventariosResumenComponent);
+
 export const loadAuditoriaShellComponent = () =>
   import('../pages/auditoria/auditoria-shell.component').then((m) => m.AuditoriaShellComponent);
 
@@ -92,21 +95,13 @@ export const loadAuditoriaUsuariosComponent = () =>
 export const loadAuditoriaLogComponent = () =>
   import('../pages/auditoria/auditoria-log.component').then((m) => m.AuditoriaLogComponent);
 
-export const loadInventariosShellComponent = () =>
-  import('../pages/inventarios/inventarios-shell.component').then((m) => m.InventariosShellComponent);
+export const loadGuardiasPageComponent = () =>
+  import('../pages/guardias/guardias-page.component').then((m) => m.GuardiasPageComponent);
 
-export const loadInventariosResumenComponent = () =>
-  import('../pages/inventarios/inventarios-resumen.component').then((m) => m.InventariosResumenComponent);
+export const loadLibroNovedadesPageComponent = () =>
+  import('../pages/libro-novedades/libro-novedades-page.component').then((m) => m.LibroNovedadesPageComponent);
 
-export const loadInventariosBodegaComponent = () =>
-  import('../pages/inventarios/inventarios-bodega.component').then((m) => m.InventariosBodegaComponent);
-
-/** Pantallas “próximamente” reutilizables. */
-export function rutaPlaceholder(title: string) {
-  return {
-    loadComponent: () =>
-      import('../pages/placeholder/feature-placeholder.component').then((m) => m.FeaturePlaceholderComponent),
-    data: { title },
-    title: `${title} · SIDEP`,
-  };
-}
+export const loadAsistenciaCuartelerosPageComponent = () =>
+  import('../pages/asistencia-cuarteleros/asistencia-cuarteleros-page.component').then(
+    (m) => m.AsistenciaCuartelerosPageComponent,
+  );

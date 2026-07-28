@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import * as usuariosService from '../services/usuarios.service';
 import { mapUsuarioToDto } from '../services/rrhh.service';
 import { hashPassword } from '../../../utils/security/hash';
+import { generarPasswordProvisional } from '../../../utils/security/password-policy.util';
 import prisma from '../../../prisma';
 import { validarRut } from '../../../utils/rut.util';
 import { asyncHandler } from '../../../middlewares/async-handler';
@@ -29,8 +30,20 @@ export const getUsuariosPaginado = asyncHandler(async (req: Request, res: Respon
   const estado = req.query.estado as string | undefined;
   const tipoVoluntario = req.query.tipoVoluntario as string | undefined;
   const cargo = req.query.cargo as string | undefined;
+  const actorRol = String((req as Request & { dbUser?: { rol?: { codigo?: string } } }).dbUser?.rol?.codigo ?? '')
+    .trim()
+    .toUpperCase();
+  const incluirClaveNomina = actorRol === 'ADMIN';
 
-  const data = await usuariosService.listarUsuariosPaginado(page, pageSize, q, estado, tipoVoluntario, cargo);
+  const data = await usuariosService.listarUsuariosPaginado(
+    page,
+    pageSize,
+    q,
+    estado,
+    tipoVoluntario,
+    cargo,
+    incluirClaveNomina,
+  );
   res.status(200).json(data);
 });
 
@@ -62,8 +75,8 @@ export const postUsuario = asyncHandler(async (req: Request, res: Response) => {
     throw new ValidationError(['El RUT no es válido.']);
   }
   validarAsignacionRolAdmin(req, req.body.rol);
-  const nuevo = await usuariosService.crearUsuario(req.body);
-  res.status(201).json(nuevo);
+  const { usuario, passwordProvisional } = await usuariosService.crearUsuario(req.body);
+  res.status(201).json({ ...usuario, passwordProvisional });
 });
 
 export const patchUsuario = asyncHandler(async (req: Request, res: Response) => {
@@ -111,16 +124,22 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
     throw new NotFoundError('Usuario', rut);
   }
 
-  const cleanRut = usuario.rut.replace(/[^0-9kK]/g, '');
-  const nuevoHash = await hashPassword(cleanRut || 'sidep123');
+  const passwordProvisional = generarPasswordProvisional();
+  const nuevoHash = await hashPassword(passwordProvisional);
 
   await prisma.usuario.update({
     where: { rut: usuario.rut },
-    data: { passwordHash: nuevoHash },
+    data: {
+      passwordHash: nuevoHash,
+      requiereCambioPassword: 1,
+      tokenVersion: { increment: 1 },
+    },
   });
 
   res.status(200).json({
     success: true,
-    message: `Contraseña restablecida al RUT (${cleanRut}). El usuario deberá cambiarla al ingresar.`,
+    passwordProvisional,
+    message:
+      'Contraseña restablecida. Comunica la contraseña provisional al usuario; deberá cambiarla al ingresar.',
   });
 });

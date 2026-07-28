@@ -14,6 +14,8 @@ import { CarrosService } from '../../services/carros.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
+import { SidPaginationFooterComponent } from '../../shared/sid-pagination-footer.component';
+import { SidHistoryFilterActionsComponent } from '../../shared/sid-history-filter-actions.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 import type { EstadoChecklist } from '../../models/checklist.dto';
@@ -25,7 +27,7 @@ import { exportarExcelSidep } from '../../utils/excel-export.util';
 @Component({
   selector: 'app-bolso-trauma',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidEmptyStateComponent, SidDateInputComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidEmptyStateComponent, SidDateInputComponent, SidPaginationFooterComponent, SidHistoryFilterActionsComponent],
   templateUrl: './bolso-trauma.component.html',
 })
 export class BolsoTraumaComponent implements OnInit, OnDestroy {

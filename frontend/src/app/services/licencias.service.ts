@@ -51,12 +51,28 @@ export class LicenciasService {
     return this.http.patch<LicenciaMedicaDto>(`/api/licencias/${id}`, payload);
   }
 
-  listarGestion(estado?: LicenciaEstado): Observable<LicenciaMedicaDto[]> {
-    let params = new HttpParams();
+  listarGestion(
+    estado?: LicenciaEstado,
+    page = 1,
+    pageSize = 100,
+  ): Observable<{
+    items: LicenciaMedicaDto[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }> {
+    let params = new HttpParams().set('page', String(page)).set('pageSize', String(pageSize));
     if (estado) {
       params = params.set('estado', estado);
     }
-    return this.http.get<LicenciaMedicaDto[]>('/api/licencias', { params });
+    return this.http.get<{
+      items: LicenciaMedicaDto[];
+      total: number;
+      page: number;
+      pageSize: number;
+      totalPages: number;
+    }>('/api/licencias', { params });
   }
 
   cambiarEstado(

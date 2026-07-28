@@ -3,7 +3,7 @@ import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, catchError, of } from 'rxjs';
-import type { UsuarioListaDto } from '../../models/usuario.dto';
+import type { UsuarioSelectorDto } from '../../models/usuario.dto';
 import { BolsosTraumaService } from '../../services/bolsos-trauma.service';
 import { ChecklistsService } from '../../services/checklists.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
@@ -175,7 +175,7 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
   unidad = 'R-1';
   nombreCarro = '';
   bolsoNumero = 1;
-  usuarios: UsuarioListaDto[] = [];
+  usuarios: UsuarioSelectorDto[] = [];
   cuarteleroId: string = '';
   nombreInspector = '';
   grupoGuardia = '';
@@ -362,40 +362,20 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
   }
 
   /** Si la API de usuarios falla, permite al menos seleccionar al usuario de la sesión. */
-  private usuariosDesdeSesion(): UsuarioListaDto[] {
+  private usuariosDesdeSesion(): UsuarioSelectorDto[] {
     const u = this.auth.usuarioActual;
     if (!u?.rut) return [];
     const nombre = (u.nombre ?? '').trim() || 'Usuario de sesión';
-    const ahora = new Date().toISOString();
     return [
       {
         id: u.rut,
         rut: u.rut,
         nombre,
         rol: u.rol ?? 'VOLUNTARIOS',
-        email: null,
-        telefono: null,
-        activo: true,
-        nombres: nombre,
-        apellidoPaterno: null,
-        apellidoMaterno: null,
-        nacionalidad: null,
-        grupoSanguineo: null,
-        direccion: null,
-        region: null,
-        comuna: null,
-        actividad: null,
-        fechaNacimiento: null,
-        fechaIngreso: null,
-        tipoVoluntario: null,
-        cuerpoBombero: null,
-        compania: null,
-        estadoVoluntario: null,
+        claveNomina: null,
         cargoOficialidad: null,
-        observacionesRegistro: null,
-        firmaImagen: null,
-        createdAt: ahora,
-        updatedAt: ahora,
+        autorizadoConducir: false,
+        activo: true,
       },
     ];
   }

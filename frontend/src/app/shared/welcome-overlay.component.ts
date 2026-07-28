@@ -1,4 +1,4 @@
-import { Component, input, output } from '@angular/core';
+import { Component, ElementRef, afterNextRender, input, output, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 /**
@@ -10,6 +10,7 @@ import { CommonModule } from '@angular/common';
   imports: [CommonModule],
   template: `
     <div
+      #layer
       class="sid-welcome-layer"
       [class.sid-welcome-layer--leave]="leaving()"
       role="dialog"
@@ -23,6 +24,7 @@ import { CommonModule } from '@angular/common';
       <div class="sid-welcome-orb sid-welcome-orb--b" aria-hidden="true"></div>
 
       <button
+        #skipBtn
         type="button"
         class="sid-welcome-skip"
         (click)="skip.emit(); $event.stopPropagation()"
@@ -44,4 +46,12 @@ export class WelcomeOverlayComponent {
   readonly nombreUsuario = input.required<string>();
   readonly leaving = input(false);
   readonly skip = output<void>();
+  private readonly skipBtn = viewChild<ElementRef<HTMLButtonElement>>('skipBtn');
+  private readonly layer = viewChild<ElementRef<HTMLElement>>('layer');
+
+  constructor() {
+    afterNextRender(() => {
+      this.skipBtn()?.nativeElement.focus();
+    });
+  }
 }

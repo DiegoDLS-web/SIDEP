@@ -1,7 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import type jsPDF from 'jspdf';
 import { CatalogoTiposEmergenciaService } from './catalogo-tipos-emergencia.service';
 import { PdfExportService } from './pdf-export.service';
 import { UsuariosService } from './usuarios.service';
@@ -21,11 +20,24 @@ export class PartesExportService {
   private readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
   private readonly pdfMarca = inject(PdfExportService);
   private readonly usuariosApi = inject(UsuariosService);
+  private pdfLibsPromise: Promise<{ jsPDF: typeof jsPDF; autoTable: (...args: unknown[]) => void }> | null = null;
+
+  private pdfLibs() {
+    if (!this.pdfLibsPromise) {
+      this.pdfLibsPromise = Promise.all([import('jspdf'), import('jspdf-autotable')]).then(
+        ([jspdfMod, autoTableMod]) => ({
+          jsPDF: jspdfMod.default,
+          autoTable: autoTableMod.default as (...args: unknown[]) => void,
+        }),
+      );
+    }
+    return this.pdfLibsPromise;
+  }
 
   private async nombresAsistenciaMap(): Promise<Record<string, string>> {
     const map: Record<string, string> = {};
     try {
-      const usuarios = await firstValueFrom(this.usuariosApi.listar());
+      const usuarios = await firstValueFrom(this.usuariosApi.voluntariosParaSelect());
       for (const u of usuarios) {
         map[u.id] = nombreListaSoloPersona(u);
         if (u.rut) map[u.rut] = nombreListaSoloPersona(u);
@@ -93,7 +105,10 @@ export class PartesExportService {
   }
 
   async exportarPdf(parte: any): Promise<void> {
-    const nombresMap = await this.nombresAsistenciaMap();
+    const [{ jsPDF, autoTable }, nombresMap] = await Promise.all([
+      this.pdfLibs(),
+      this.nombresAsistenciaMap(),
+    ]);
     const doc = new jsPDF();
     const margin = 14;
     const meta = parte.metadata ?? {};

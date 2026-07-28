@@ -101,8 +101,14 @@ exports.patchLicencia = patchLicencia;
 const getLicencias = async (req, res) => {
     try {
         const estado = req.query.estado;
-        const list = await licenciasService.listarGestion(estado);
-        return res.status(200).json(list);
+        const page = req.query.page ? Number(req.query.page) : 1;
+        const pageSize = req.query.pageSize ? Number(req.query.pageSize) : 50;
+        const data = await licenciasService.listarGestion({
+            ...(estado ? { estado } : {}),
+            page,
+            pageSize,
+        });
+        return res.status(200).json(data);
     }
     catch (error) {
         console.error('🔥 ERROR EN GET LICENCIAS GESTION:', error);

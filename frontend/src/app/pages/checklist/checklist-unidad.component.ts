@@ -14,6 +14,7 @@ import { BorradorLocalService } from '../../services/borrador-local.service';
 import { CambioEstadoDialogService } from '../../services/cambio-estado-dialog.service';
 import { solicitarMotivoCambioEstado } from '../../utils/cambio-estado.util';
 import { UsuariosService } from '../../services/usuarios.service';
+import { InventariosService } from '../../services/inventarios.service';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
 import { firmaEfectiva } from '../../utils/firma-resolver';
@@ -70,6 +71,9 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
   private readonly toast = inject(ToastService);
   private readonly borradorLocal = inject(BorradorLocalService);
   private readonly cambioEstadoDialog = inject(CambioEstadoDialogService);
+  private readonly inventariosApi = inject(InventariosService);
+
+  stockBodega: Record<string, { disponible: number; bodega: string }> = {};
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -395,7 +399,36 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
     }
     this.controlEdicion.marcarLimpio();
     this.loading = false;
+    this.cargarStockBodegaChecklist();
     void this.ofrecerRestaurarBorradorLocal();
+  }
+
+  private cargarStockBodegaChecklist(): void {
+    const nombres = [
+      ...new Set(
+        this.ubicaciones.flatMap((u) => u.materiales.map((m) => m.nombre.trim()).filter(Boolean)),
+      ),
+    ].slice(0, 80);
+    if (!nombres.length) {
+      this.stockBodega = {};
+      return;
+    }
+    this.inventariosApi.stockPorNombres(nombres).subscribe({
+      next: (mapa) => {
+        this.stockBodega = Object.fromEntries(
+          Object.entries(mapa).map(([k, v]) => [k, { disponible: v.disponible, bodega: v.bodega }]),
+        );
+      },
+      error: () => {
+        this.stockBodega = {};
+      },
+    });
+  }
+
+  stockBodegaMaterial(nombre: string): { disponible: number; bodega: string } | null {
+    const key = nombre.trim();
+    if (!key) return null;
+    return this.stockBodega[key] ?? null;
   }
 
   private limpiarCamposRegistroCaptura(): void {

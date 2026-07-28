@@ -368,7 +368,7 @@
       <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-red-400/95">Institucional</h3>
       @if (!editandoId) {
         <p class="mb-4 rounded-xl border border-slate-700/80 bg-slate-950/40 px-3 py-2.5 text-sm text-slate-400">
-          La contraseña de acceso se asigna automáticamente; el voluntario debe cambiarla al iniciar sesión por primera vez.
+          Se generará una contraseña provisional aleatoria. Al crear el usuario, se mostrará una sola vez para que la comuniques de forma segura; el voluntario deberá cambiarla al primer ingreso.
         </p>
       }
       <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -473,6 +473,26 @@
         }
       </div>
 
+      @if (editandoId && puedeVerEppUsuario) {
+        <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-blue-400/95">Uniforme y EPP asignado</h3>
+        <div class="mb-6 rounded-xl border border-blue-900/35 bg-blue-950/15 p-4">
+          @if (eppUsuarioCargando) {
+            <p class="text-sm text-slate-400">Cargando EPP…</p>
+          } @else if (!eppUsuarioEdicion.length) {
+            <p class="text-sm text-slate-500">Sin EPP asignado en inventario.</p>
+          } @else {
+            <div class="grid gap-2 sm:grid-cols-2">
+              @for (e of eppUsuarioEdicion; track e.asignacionId) {
+                <div class="rounded-lg border border-slate-800 bg-black/25 px-3 py-2 text-sm">
+                  <p class="font-medium text-slate-100">{{ e.tipoEppEtiqueta }}{{ e.talla ? ' · ' + e.talla : '' }}</p>
+                  <p class="text-xs text-slate-400">{{ e.nombre }} · {{ e.bodegaNombre }}</p>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+
       @if (editandoId) {
         <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-red-400/95">Observaciones del registro</h3>
         <div class="mb-6">
@@ -484,6 +504,34 @@
             class="sid-input w-full min-h-[5rem] resize-y"
           ></textarea>
         </div>
+      }
+
+      @if (editandoId && esAdmin) {
+        <section class="mb-6 rounded-xl border border-red-900/45 bg-red-950/15 p-4">
+          <h3 class="mb-2 text-xs font-bold uppercase tracking-wider text-red-400">Zona de peligro</h3>
+          <p class="mb-3 text-sm text-slate-300">
+            Eliminar un usuario es una acción sensible. Si tiene historial en partes, asistencias, checklists o licencias,
+            el sistema lo dará de baja en lugar de borrarlo físicamente.
+          </p>
+          <label class="mb-1 block text-xs font-medium text-slate-400">
+            Escribe el RUT completo (<span class="font-mono text-slate-200">{{ form.rut }}</span>) para habilitar la eliminación
+          </label>
+          <input
+            [(ngModel)]="eliminarConfirmRut"
+            name="eliminarConfirmRut"
+            class="sid-input mb-3 w-full font-mono text-sm"
+            [placeholder]="form.rut"
+            autocomplete="off"
+          />
+          <button
+            type="button"
+            class="rounded-xl border border-red-700/60 bg-red-900/40 px-4 py-2.5 text-sm font-semibold text-red-100 transition-colors hover:bg-red-800/60 disabled:cursor-not-allowed disabled:opacity-40"
+            [disabled]="!puedeEliminarDesdeEdicion()"
+            (click)="eliminarDesdeEdicion()"
+          >
+            Eliminar usuario permanentemente
+          </button>
+        </section>
       }
 
       <div class="mt-2 flex flex-col gap-2 border-t border-gray-800 pt-6 sm:flex-row sm:items-center">
@@ -566,8 +614,8 @@
             <div class="min-w-0 flex-1 text-center sm:pt-1 sm:text-left">
               <h3 class="break-words text-lg font-bold leading-snug text-white">{{ usuario.nombre }}</h3>
               <p class="mt-2 text-sm text-slate-500">{{ usuario.rut }}</p>
-              @if (usuario.claveNomina?.trim()) {
-                <p class="mt-1 font-mono text-xs text-slate-400">Clave {{ usuario.claveNomina }}</p>
+              @if (esAdmin && usuario.claveNomina?.trim()) {
+                <p class="mt-1 font-mono text-xs text-slate-400">Clave nómina {{ usuario.claveNomina }}</p>
               }
               <p class="mt-1.5 text-sm font-medium text-slate-300">{{ etiquetaTipoVoluntario(usuario.tipoVoluntario) }}</p>
               @if (usuario.autorizadoConducir) {
@@ -627,47 +675,19 @@
             >
               {{ usuario.estadoVoluntario === 'INACTIVO' || !usuario.activo ? 'Activar' : 'Dar de baja' }}
             </button>
-            @if (esAdmin) {
-              <button
-                type="button"
-                class="flex-1 rounded-xl bg-red-800/90 px-3 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700"
-                (click)="eliminar(usuario)"
-              >
-                Eliminar
-              </button>
-            }
           </div>
         </div>
       }
     </div>
-    @if (!loading && totalLista > 0 && totalPaginas > 1) {
-      <div class="mt-6 flex flex-col items-center justify-center gap-3 border-t border-gray-800/80 pt-4 sm:flex-row sm:justify-between">
-        <p class="text-sm text-slate-400">
-          Página <span class="tabular-nums text-slate-200">{{ paginaLista }}</span> de
-          <span class="tabular-nums text-slate-200">{{ totalPaginas }}</span>
-          <span class="text-slate-500"> · {{ totalLista }} usuarios</span>
-        </p>
-        <div class="flex flex-wrap items-center justify-center gap-2">
-          <button
-            type="button"
-            class="rounded-xl border border-slate-600 bg-slate-800/80 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-            (click)="cambiarPagina(-1)"
-            [disabled]="paginaLista <= 1"
-            aria-label="Ir a la página anterior del listado"
-          >
-            Anterior
-          </button>
-          <button
-            type="button"
-            class="rounded-xl border border-slate-600 bg-slate-800/80 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-            (click)="cambiarPagina(1)"
-            [disabled]="paginaLista >= totalPaginas"
-            aria-label="Ir a la página siguiente del listado"
-          >
-            Siguiente
-          </button>
-        </div>
-      </div>
+    @if (!loading && totalLista > 0) {
+      <app-sid-pagination-footer
+        [page]="paginaLista"
+        [totalPages]="totalPaginas"
+        [totalRecords]="totalLista"
+        recordUnit="usuario(s)"
+        [pageSize]="tamanioPagina"
+        (pageDelta)="cambiarPagina($event)"
+      />
     }
     </div>
   }

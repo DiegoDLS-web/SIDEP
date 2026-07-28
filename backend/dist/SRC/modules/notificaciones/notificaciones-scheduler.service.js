@@ -1,47 +1,16 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.notificarNuevaEmergencia = notificarNuevaEmergencia;
+exports.notificarLicenciaResuelta = notificarLicenciaResuelta;
+exports.ejecutarTareasCron = ejecutarTareasCron;
 exports.iniciarSchedulerNotificaciones = iniciarSchedulerNotificaciones;
 exports.detenerSchedulerNotificaciones = detenerSchedulerNotificaciones;
 const prisma_1 = __importDefault(require("../../prisma"));
 const email_service_1 = require("../../utils/email/email.service");
-const inventariosService = __importStar(require("../logistica/services/inventarios.service"));
+const inventario_items_service_1 = require("../logistica/services/inventario-items.service");
 const TZ_CHILE = 'America/Santiago';
 const DIAS_SIN_CHECKLIST = 7;
 const enviadoHoy = new Set();
@@ -96,17 +65,17 @@ async function destinatariosInstitucionales() {
     }
     return [...emails];
 }
-async function enviarResumenDiario() {
-    if (yaEnviado('resumen-diario'))
-        return;
+async function enviarResumenDiario(forzar = false) {
+    if (!forzar && yaEnviado('resumen-diario'))
+        return false;
     const config = await obtenerConfig();
     if (!config || config.resumenDiarioEmail !== 1)
-        return;
+        return false;
     if (!(0, email_service_1.correoSmtpDisponible)())
-        return;
+        return false;
     const destinos = await destinatariosInstitucionales();
     if (!destinos.length)
-        return;
+        return false;
     const ahora = new Date();
     const ayerInicio = new Date(ahora);
     ayerInicio.setDate(ayerInicio.getDate() - 1);
@@ -137,21 +106,23 @@ async function enviarResumenDiario() {
             to,
             subject: `Resumen diario SIDEP · ${fechaLabel}`,
             text: texto,
+            tipo: 'resumen-diario',
         });
     }
     marcarEnviado('resumen-diario');
+    return true;
 }
-async function enviarRecordatoriosChecklist() {
-    if (yaEnviado('recordatorio-checklist'))
-        return;
+async function enviarRecordatoriosChecklist(forzar = false) {
+    if (!forzar && yaEnviado('recordatorio-checklist'))
+        return false;
     const config = await obtenerConfig();
     if (!config || config.recordatoriosChecklist !== 1)
-        return;
+        return false;
     if (!(0, email_service_1.correoSmtpDisponible)())
-        return;
+        return false;
     const destinos = await destinatariosInstitucionales();
     if (!destinos.length)
-        return;
+        return false;
     const limite = new Date();
     limite.setDate(limite.getDate() - DIAS_SIN_CHECKLIST);
     const carros = await prisma_1.default.carro.findMany({
@@ -178,7 +149,7 @@ async function enviarRecordatoriosChecklist() {
     }
     if (!pendientes.length) {
         marcarEnviado('recordatorio-checklist');
-        return;
+        return false;
     }
     const texto = [
         'Recordatorio de checklist — SIDEP',
@@ -190,32 +161,52 @@ async function enviarRecordatoriosChecklist() {
         '— SIDEP',
     ].join('\n');
     for (const to of destinos) {
-        await (0, email_service_1.enviarCorreo)({ to, subject: 'Recordatorio checklist · SIDEP', text: texto });
+        await (0, email_service_1.enviarCorreo)({
+            to,
+            subject: 'Recordatorio checklist · SIDEP',
+            text: texto,
+            tipo: 'recordatorio-checklist',
+        });
     }
     marcarEnviado('recordatorio-checklist');
+    return true;
 }
-async function enviarAlertasInventario() {
-    if (yaEnviado('alerta-inventario'))
-        return;
+async function enviarAlertasInventario(forzar = false) {
+    if (!forzar && yaEnviado('alerta-inventario'))
+        return false;
     const config = await obtenerConfig();
     if (!config || config.alertasInventario !== 1)
-        return;
+        return false;
     if (!(0, email_service_1.correoSmtpDisponible)())
-        return;
-    const bajoMinimo = await inventariosService.listarMaterialesBajoMinimo();
-    if (!bajoMinimo.length) {
+        return false;
+    const alertas = await (0, inventario_items_service_1.listarItemsAlertaStock)();
+    if (!alertas.length) {
         marcarEnviado('alerta-inventario');
-        return;
+        return false;
     }
     const destinos = await destinatariosInstitucionales();
     if (!destinos.length)
-        return;
-    const lineas = bajoMinimo.map((m) => `· ${m.nombre} (${m.codigo}): ${m.cantidad}/${m.stockMinimo} ${m.unidad ?? 'un'}`);
-    const texto = ['Alertas de inventario — SIDEP', '', 'Materiales bajo stock mínimo en bodega:', '', ...lineas, '', '— SIDEP'].join('\n');
+        return false;
+    const lineas = alertas.map((m) => `· [${m.estadoStock}] ${m.nombre} (${m.codigo}) — ${m.bodega}: ${m.cantidadDisponible} disp. (mín. ${m.stockMinimo})`);
+    const texto = [
+        'Alertas de inventario — SIDEP',
+        '',
+        'Ítems con stock bajo o crítico (inventario unificado):',
+        '',
+        ...lineas,
+        '',
+        '— SIDEP',
+    ].join('\n');
     for (const to of destinos) {
-        await (0, email_service_1.enviarCorreo)({ to, subject: 'Alerta inventario bodega · SIDEP', text: texto });
+        await (0, email_service_1.enviarCorreo)({
+            to,
+            subject: 'Alerta inventario · SIDEP',
+            text: texto,
+            tipo: 'alerta-inventario',
+        });
     }
     marcarEnviado('alerta-inventario');
+    return true;
 }
 async function notificarNuevaEmergencia(parte) {
     const config = await obtenerConfig();
@@ -240,21 +231,70 @@ async function notificarNuevaEmergencia(parte) {
             to,
             subject: `Nueva emergencia · ${parte.correlativo}`,
             text: texto,
+            tipo: 'alerta-emergencia',
         });
     }
 }
-async function ejecutarTareasProgramadas() {
+async function notificarLicenciaResuelta(licenciaId) {
+    if (!(0, email_service_1.correoSmtpDisponible)())
+        return;
+    const lic = await prisma_1.default.licenciaMedica.findUnique({
+        where: { id: licenciaId },
+        include: {
+            usuario: { include: { rol: true } },
+            estado: true,
+            resolutor: { include: { cargo: true, rol: true } },
+        },
+    });
+    if (!lic?.usuario?.email?.trim())
+        return;
+    const estado = lic.estado?.nombre?.toUpperCase() ?? '';
+    if (!['APROBADA', 'RECHAZADA', 'ANULADA'].includes(estado))
+        return;
+    const nombre = `${lic.usuario.nombres} ${lic.usuario.apellidoPaterno}`.trim();
+    const resolutor = lic.resolutor
+        ? `${lic.resolutor.nombres} ${lic.resolutor.apellidoPaterno}`.trim()
+        : 'Oficialidad';
+    const fechaInicio = lic.fechaInicio.toLocaleDateString('es-CL', { timeZone: TZ_CHILE });
+    const fechaTermino = lic.fechaTermino.toLocaleDateString('es-CL', { timeZone: TZ_CHILE });
+    const etiquetaEstado = estado === 'APROBADA' ? 'aprobada' : estado === 'RECHAZADA' ? 'rechazada' : 'anulada';
+    const texto = [
+        `Hola ${nombre},`,
+        '',
+        `Tu solicitud de licencia médica fue ${etiquetaEstado}.`,
+        '',
+        `Período: ${fechaInicio} – ${fechaTermino}`,
+        `Resuelto por: ${resolutor}`,
+        lic.observacionResolucion ? `Observación: ${lic.observacionResolucion}` : '',
+        '',
+        '— SIDEP',
+    ]
+        .filter(Boolean)
+        .join('\n');
+    await (0, email_service_1.enviarCorreo)({
+        to: lic.usuario.email.trim(),
+        subject: `Licencia ${etiquetaEstado} · SIDEP`,
+        text: texto,
+        tipo: 'licencia-resuelta',
+    });
+}
+async function ejecutarTareasCron(tarea = 'auto', forzar = false) {
     const { hora, minuto } = horaChile();
+    const ejecutadas = [];
+    const debeResumen = tarea === 'todas' || tarea === 'resumen-diario' || (tarea === 'auto' && hora === 8 && minuto === 0);
+    const debeChecklist = tarea === 'todas' || tarea === 'checklist' || (tarea === 'auto' && hora === 7 && minuto === 0);
+    const debeInventario = tarea === 'todas' || tarea === 'inventario' || (tarea === 'auto' && hora === 9 && minuto === 0);
+    if (debeResumen && (await enviarResumenDiario(forzar)))
+        ejecutadas.push('resumen-diario');
+    if (debeChecklist && (await enviarRecordatoriosChecklist(forzar)))
+        ejecutadas.push('checklist');
+    if (debeInventario && (await enviarAlertasInventario(forzar)))
+        ejecutadas.push('inventario');
+    return { ejecutadas };
+}
+async function ejecutarTareasProgramadas() {
     try {
-        if (hora === 8 && minuto === 0) {
-            await enviarResumenDiario();
-        }
-        if (hora === 7 && minuto === 0) {
-            await enviarRecordatoriosChecklist();
-        }
-        if (hora === 9 && minuto === 0) {
-            await enviarAlertasInventario();
-        }
+        await ejecutarTareasCron('auto', false);
     }
     catch (err) {
         console.error('[SIDEP notificaciones]', err);

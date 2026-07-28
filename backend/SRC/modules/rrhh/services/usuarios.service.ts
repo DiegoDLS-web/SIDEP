@@ -1,7 +1,8 @@
 import prisma from '../../../prisma';
 import { StorageService, cloudinary } from '../../../shared/storage';
-import { mapUsuarioToDto } from './rrhh.service';
+import { mapUsuarioToDto, mapUsuarioSelectorDto } from './rrhh.service';
 import { hashPassword } from '../../../utils/security/hash';
+import { generarPasswordProvisional } from '../../../utils/security/password-policy.util';
 import { validarRut, normalizarRut } from '../../../utils/rut.util';
 import { NotFoundError, ValidationError, ConflictError } from '../../../utils/errors/AppError';
 import { esErrorIntegridadReferencial } from '../../../utils/prisma-error.util';
@@ -37,21 +38,23 @@ export const listarUsuarios = async () => {
       grupoSanguineo: true,
     },
     orderBy: { rut: 'asc' },
+    take: 5000,
   });
-  return usuarios.map(mapUsuarioToDto);
+  return usuarios.map((u) => mapUsuarioToDto(u));
 };
 
-/** Lista mínima de usuarios activos para selects (cualquier voluntario activo). */
+/** Lista mínima de usuarios activos para selects (sin email/teléfono/firma). */
 export const listarUsuariosSelector = async () => {
   const usuarios = await prisma.usuario.findMany({
     where: { activo: 1 },
     include: {
+      cargo: true,
       rol: true,
-      tipoVoluntario: true,
     },
     orderBy: [{ nombres: 'asc' }, { apellidoPaterno: 'asc' }],
+    take: 2000,
   });
-  return usuarios.map(mapUsuarioToDto);
+  return usuarios.map(mapUsuarioSelectorDto);
 };
 
 export const obtenerMetricasUsuarios = async () => {
@@ -102,7 +105,8 @@ export const listarUsuariosPaginado = async (
   q?: string,
   estado?: string,
   tipoVoluntario?: string,
-  cargo?: string
+  cargo?: string,
+  incluirClaveNomina = false,
 ) => {
   const andConditions: any[] = [];
 
@@ -193,7 +197,7 @@ export const listarUsuariosPaginado = async (
   });
 
   return {
-    items: usuarios.map(mapUsuarioToDto),
+    items: usuarios.map((u) => mapUsuarioToDto(u, { incluirClaveNomina })),
     total,
     page,
     pageSize,
@@ -258,7 +262,8 @@ export const crearUsuario = async (datos: any) => {
     throw new ConflictError('Ya existe un usuario con ese correo electrónico.');
   }
 
-  const hashedPassword = await hashPassword(rutNormalizado || 'sidep123');
+  const passwordProvisional = generarPasswordProvisional();
+  const hashFinal = await hashPassword(passwordProvisional);
 
   // Validar rango de fechas (1900 - 2100)
   if (datos.fechaNacimiento) {
@@ -281,7 +286,8 @@ export const crearUsuario = async (datos: any) => {
       apellidoPaterno: datos.apellidoPaterno,
       apellidoMaterno: datos.apellidoMaterno,
       email: emailNormalizado,
-      passwordHash: hashedPassword,
+      passwordHash: hashFinal,
+      requiereCambioPassword: 1,
       telefono: datos.telefono || null,
       direccion: datos.direccion || null,
       region: datos.region || null,
@@ -315,7 +321,10 @@ export const crearUsuario = async (datos: any) => {
     },
   });
 
-  return mapUsuarioToDto(nuevoUsuario);
+  return {
+    usuario: mapUsuarioToDto(nuevoUsuario, { incluirClaveNomina: true }),
+    passwordProvisional,
+  };
 };
 
 export const actualizarUsuario = async (rut: string, datos: any) => {
@@ -463,6 +472,15 @@ export const actualizarUsuario = async (rut: string, datos: any) => {
     }
   }
 
+  const pasaInactivo =
+    usuarioExistente.activo === 1 &&
+    (updateData.activo === 0 ||
+      (datos.estadoVoluntario !== undefined &&
+        String(datos.estadoVoluntario).trim().toUpperCase() === 'INACTIVO'));
+  if (pasaInactivo) {
+    updateData.tokenVersion = { increment: 1 };
+  }
+
   const usuarioActualizado = await prisma.usuario.update({
     where: { rut: usuarioExistente.rut },
     data: updateData,
@@ -541,6 +559,7 @@ export const eliminarUsuario = async (rut: string) => {
         fotoPerfilPublicId: null,
         firmaImagenUrl: null,
         firmaImagenPublicId: null,
+        tokenVersion: { increment: 1 },
       },
     });
     const detalle =

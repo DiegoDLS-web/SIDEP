@@ -7,7 +7,9 @@ type ConfirmState = {
   message: string;
   confirmText: string;
   cancelText: string;
-  variant: 'default' | 'logout';
+  variant: 'default' | 'logout' | 'danger';
+  requireText?: string;
+  requireTextHint?: string;
 };
 
 @Injectable({ providedIn: 'root' })
@@ -20,6 +22,8 @@ export class ConfirmDialogService {
     confirmText: 'Confirmar',
     cancelText: 'Cancelar',
     variant: 'default',
+    requireText: undefined,
+    requireTextHint: undefined,
   });
 
   readonly state$ = this.state.asObservable();
@@ -29,7 +33,9 @@ export class ConfirmDialogService {
     message: string;
     confirmText?: string;
     cancelText?: string;
-    variant?: 'default' | 'logout';
+    variant?: 'default' | 'logout' | 'danger';
+    requireText?: string;
+    requireTextHint?: string;
   }): Promise<boolean> {
     if (this.resolver) {
       this.resolver(false);
@@ -42,6 +48,8 @@ export class ConfirmDialogService {
       confirmText: opts.confirmText?.trim() || 'Confirmar',
       cancelText: opts.cancelText?.trim() || 'Cancelar',
       variant: opts.variant ?? 'default',
+      requireText: opts.requireText?.trim() || undefined,
+      requireTextHint: opts.requireTextHint?.trim() || undefined,
     });
     document.body.classList.add('confirm-open');
     return new Promise<boolean>((resolve) => {

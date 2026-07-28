@@ -25,11 +25,16 @@ const recoverLimiter = (0, express_rate_limit_1.default)({
     legacyHeaders: false,
 });
 const router = (0, express_1.Router)();
-router.post('/login', loginLimiter, autenticacion_controller_1.login);
+router.post('/login', loginLimiter, (0, validate_1.validate)(auth_dto_1.loginDto), autenticacion_controller_1.login);
+router.post('/mfa/verify', loginLimiter, (0, validate_1.validate)(auth_dto_1.mfaVerifyDto), autenticacion_controller_1.verifyMfa);
 /** Registro público deshabilitado: usar POST /api/usuarios con sesión de oficialidad. */
 router.post('/register', auth_middleware_1.protect, (0, role_middleware_1.requireRoles)('ADMIN', 'CAPITAN', 'TENIENTE'), (0, validate_1.validate)(auth_dto_1.registerDto), autenticacion_controller_1.register);
-router.post('/recuperar-password', recoverLimiter, autenticacion_controller_1.recuperarPassword);
-router.post('/restablecer-password', recoverLimiter, autenticacion_controller_1.restablecerPassword);
+router.post('/recuperar-password', recoverLimiter, (0, validate_1.validate)(auth_dto_1.recuperarPasswordDto), autenticacion_controller_1.recuperarPassword);
+router.post('/restablecer-password', recoverLimiter, (0, validate_1.validate)(auth_dto_1.restablecerPasswordDto), autenticacion_controller_1.restablecerPassword);
 router.get('/me', auth_middleware_1.protect, autenticacion_controller_1.me);
 router.post('/logout', auth_middleware_1.protect, autenticacion_controller_1.logout);
+router.get('/mfa/estado', auth_middleware_1.protect, (0, role_middleware_1.requireRoles)('ADMIN'), autenticacion_controller_1.getMfaEstado);
+router.post('/mfa/setup', auth_middleware_1.protect, (0, role_middleware_1.requireRoles)('ADMIN'), autenticacion_controller_1.postMfaSetup);
+router.post('/mfa/enable', auth_middleware_1.protect, (0, role_middleware_1.requireRoles)('ADMIN'), (0, validate_1.validate)(auth_dto_1.mfaCodeDto), autenticacion_controller_1.postMfaEnable);
+router.post('/mfa/disable', auth_middleware_1.protect, (0, role_middleware_1.requireRoles)('ADMIN'), (0, validate_1.validate)(auth_dto_1.mfaCodeDto), autenticacion_controller_1.postMfaDisable);
 exports.default = router;

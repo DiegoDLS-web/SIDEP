@@ -9,6 +9,7 @@ import {
 } from '../../../utils/parte-disponibilidad.util';
 import { puedeEditarParteCompletado } from '../../../utils/parte-edicion-roles.util';
 import { notificarNuevaEmergencia } from '../../notificaciones/notificaciones-scheduler.service';
+import { invalidarCacheDashboard } from '../../analitica/services/dashboard.service';
 
 type DbClient = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
@@ -129,6 +130,7 @@ function mapearVehiculosDto(
 export interface PartesPaginaFiltros {
   page?: number | undefined;
   pageSize?: number | undefined;
+  export?: boolean | undefined;
   tipos?: string | undefined;
   carros?: string | undefined;
   q?: string | undefined;
@@ -749,19 +751,128 @@ export const crearParteConRelaciones = async (data: Record<string, unknown>) => 
       correlativo: creado?.correlativo ?? correlativo,
       direccion: creado?.direccion ?? String(data.direccion || ''),
       claveEmergencia: creado?.claveEmergencia ?? String(data.claveEmergencia || ''),
-    }).catch(() => undefined);
+    }).catch((err) => {
+      console.error('[SIDEP] Error al enviar alerta de nueva emergencia:', err);
+    });
   }
 
+  invalidarCacheDashboard();
   return creado;
 };
 
 export const obtenerTodos = async () => {
   const partes = await prisma.parteEmergencia.findMany({
     where: whereExcluirAnulados,
-    include: parteInclude,
+    include: parteIncludeListado,
     orderBy: { fechaEmergencia: 'desc' },
+    take: 100,
   });
-  return partes.map((p) => mapParteToDto(p));
+  return partes.map((p) => mapParteListadoToDto(p));
+};
+
+export type ParteAnaliticaDto = {
+  tiempoDespachoMin: number | null;
+  tiempoRespuestaMin: number | null;
+  tiempoServicioMin: number | null;
+  voluntariosParte: number | null;
+  promedioVoluntariosBase: number | null;
+  tendenciaVoluntarios: 'subio' | 'bajo' | 'igual' | 'sin-datos';
+};
+
+function contarVoluntariosParte(
+  row: { metadata: string | null; asistencias?: { id: string }[] } | ParteConRelaciones | null,
+): number | null {
+  if (!row) return null;
+  if (row.metadata) {
+    try {
+      const meta = JSON.parse(row.metadata) as { asistenciaTotal?: number };
+      if (typeof meta.asistenciaTotal === 'number' && meta.asistenciaTotal >= 0) {
+        return meta.asistenciaTotal;
+      }
+    } catch {
+      /* metadata inválido */
+    }
+  }
+  if (row.asistencias?.length) return row.asistencias.length;
+  return null;
+}
+
+function promedioNumeros(vals: number[]): number | null {
+  if (!vals.length) return null;
+  return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10;
+}
+
+export const obtenerAnaliticaParte = async (id: string): Promise<ParteAnaliticaDto> => {
+  const parte = await prisma.parteEmergencia.findUnique({
+    where: { id },
+    include: parteInclude,
+  });
+  if (!parte) throw new ValidationError(['Parte no encontrado']);
+
+  const otros = await prisma.parteEmergencia.findMany({
+    where: { ...whereExcluirAnulados, id: { not: id } },
+    select: {
+      metadata: true,
+      asistencias: { select: { id: true } },
+    },
+    orderBy: { fechaEmergencia: 'desc' },
+    take: 30,
+  });
+
+  const voluntariosParte = contarVoluntariosParte(parte);
+  const muestra = otros
+    .map((p) => contarVoluntariosParte(p))
+    .filter((x): x is number => x != null);
+  const promedioVoluntariosBase = promedioNumeros(muestra);
+
+  let tendenciaVoluntarios: ParteAnaliticaDto['tendenciaVoluntarios'] = 'sin-datos';
+  if (voluntariosParte != null && promedioVoluntariosBase != null) {
+    if (voluntariosParte > promedioVoluntariosBase) tendenciaVoluntarios = 'subio';
+    else if (voluntariosParte < promedioVoluntariosBase) tendenciaVoluntarios = 'bajo';
+    else tendenciaVoluntarios = 'igual';
+  }
+
+  const tiemposDespacho: number[] = [];
+  const tiemposRespuesta: number[] = [];
+  const tiemposServicio: number[] = [];
+  const dto = mapParteToDto(parte);
+  if (!dto) throw new ValidationError(['Parte no encontrado']);
+
+  const base = new Date(dto.fecha);
+  for (const u of dto.unidades || []) {
+    const parseH = (fecha: Date, hora?: string | Date | null): Date | null => {
+      if (hora instanceof Date) return hora;
+      if (!hora || typeof hora !== 'string' || !hora.trim()) return null;
+      const m = hora.trim().match(/^(\d{1,2}):(\d{2})/);
+      if (!m) return null;
+      const d = new Date(fecha);
+      d.setHours(Number(m[1]), Number(m[2]), 0, 0);
+      return d;
+    };
+    const diffMin = (a: Date | null, b: Date | null): number | null => {
+      if (!a || !b) return null;
+      const ms = b.getTime() - a.getTime();
+      return ms >= 0 ? Math.round(ms / 60000) : null;
+    };
+    const horaDespacho = parseH(base, u.hora6_0 ?? u.horaSalida);
+    const horaLlegada = parseH(base, u.hora6_3);
+    const horaDisponible = parseH(base, u.hora6_10 ?? u.horaLlegada);
+    const despacho = diffMin(base, horaDespacho);
+    const respuesta = diffMin(horaDespacho, horaLlegada);
+    const servicio = diffMin(horaDespacho, horaDisponible);
+    if (despacho != null) tiemposDespacho.push(despacho);
+    if (respuesta != null) tiemposRespuesta.push(respuesta);
+    if (servicio != null) tiemposServicio.push(servicio);
+  }
+
+  return {
+    tiempoDespachoMin: promedioNumeros(tiemposDespacho),
+    tiempoRespuestaMin: promedioNumeros(tiemposRespuesta),
+    tiempoServicioMin: promedioNumeros(tiemposServicio),
+    voluntariosParte,
+    promedioVoluntariosBase,
+    tendenciaVoluntarios,
+  };
 };
 
 export const obtenerPorId = async (id: string) => {
@@ -829,7 +940,8 @@ function construirWhereListado(filtros: PartesPaginaFiltros): Prisma.ParteEmerge
 
 export const listarPagina = async (filtros: PartesPaginaFiltros) => {
   const page = Math.max(1, Number(filtros.page) || 1);
-  const pageSize = Math.min(2000, Math.max(1, Number(filtros.pageSize) || 10));
+  const maxSize = filtros.export ? 2000 : 100;
+  const pageSize = Math.min(maxSize, Math.max(1, Number(filtros.pageSize) || 10));
   const where = construirWhereListado(filtros);
 
   const [total, partes] = await Promise.all([
@@ -1019,6 +1131,7 @@ export const actualizarParte = async (
     await sincronizarAsistencias(tx, id, filasAsistencia);
   }, OPCIONES_TRANSACCION);
 
+  invalidarCacheDashboard();
   return obtenerPorId(id);
 };
 
@@ -1028,5 +1141,6 @@ export const anularParte = async (id: string) => {
     where: { id },
     data: { estadoId: anuladoId },
   });
+  invalidarCacheDashboard();
   return true;
 };

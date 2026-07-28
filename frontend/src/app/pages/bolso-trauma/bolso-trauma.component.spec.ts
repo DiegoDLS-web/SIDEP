@@ -25,7 +25,7 @@ describe('BolsoTraumaComponent (estado)', () => {
                 inspector: 'I',
                 grupoGuardia: '1',
                 firmaOficial: null,
-                observaciones: null,
+                observaciones: undefined,
                 totalItems: 1,
                 itemsOk: 1,
                 detalle: null,
@@ -55,9 +55,9 @@ describe('BolsoTraumaComponent (estado)', () => {
         totalItems: 10,
         itemsOk: 10,
         porcentaje: 100,
-        observaciones: null,
+        observaciones: undefined,
         estadoChecklist: 'CON_OBSERVACION',
-      }),
+      } as Parameters<typeof comp.etiquetaEstado>[0]),
     ).toBe('Con observación');
   });
 });

@@ -100,6 +100,9 @@ export class MainLayoutComponent implements OnDestroy {
           activePrefix: '/bolso-trauma',
         },
         { routerLink: '/licencias-medicas', label: 'Licencias', icon: 'heart-pulse' },
+        { routerLink: '/guardias', label: 'Sistema de guardias', icon: 'calendar-days' },
+        { routerLink: '/libro-novedades', label: 'Libro de novedades', icon: 'book-open' },
+        { routerLink: '/asistencia-cuarteleros', label: 'Asistencia cuarteleros', icon: 'user-check' },
         { routerLink: '/analitica-operacional', label: 'Analítica operacional', icon: 'chart-column' },
       ],
     },
@@ -182,7 +185,7 @@ export class MainLayoutComponent implements OnDestroy {
     const reduced =
       typeof globalThis.matchMedia === 'function' &&
       globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const ms = reduced ? 2400 : 4400;
+    const ms = reduced ? 1800 : 2800;
     this.bienvenidaTimer = setTimeout(() => this.iniciarCierreBienvenida(), ms);
   }
 
@@ -223,28 +226,22 @@ export class MainLayoutComponent implements OnDestroy {
     if (rol === 'ADMIN') {
       return this.baseSections;
     }
-    const sinAuditoria = (sections: NavSection[]): NavSection[] =>
-      sections.map((section) =>
-        section.title !== 'SISTEMA'
-          ? section
-          : { ...section, items: section.items.filter((item) => item.routerLink !== '/auditoria') },
-      );
     if (rol === 'CAPITAN' || rol === 'TENIENTE') {
-      return sinAuditoria(
-        sinCatalogoSiAplica(
-          this.baseSections.map((section) => {
-            if (section.title !== 'SISTEMA') {
-              return section;
-            }
-            return {
-              ...section,
-              items: section.items.filter((item) => item.routerLink !== '/configuraciones'),
-            };
-          }),
-        ),
+      return sinCatalogoSiAplica(
+        this.baseSections.map((section) => {
+          if (section.title !== 'SISTEMA') {
+            return section;
+          }
+          return {
+            ...section,
+            items: section.items.filter(
+              (item) => item.routerLink !== '/configuraciones' && item.routerLink !== '/auditoria',
+            ),
+          };
+        }),
       );
     }
-    return sinAuditoria(sinCatalogoSiAplica(this.baseSections.filter((section) => section.title !== 'SISTEMA')));
+    return sinCatalogoSiAplica(this.baseSections.filter((section) => section.title !== 'SISTEMA'));
   }
 
   private filtrarSeccionesPorRutas(allowed: ReadonlySet<string>): NavSection[] {

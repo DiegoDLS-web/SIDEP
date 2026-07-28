@@ -66,8 +66,14 @@ export const patchLicencia = async (req: Request, res: Response) => {
 export const getLicencias = async (req: Request, res: Response) => {
   try {
     const estado = req.query.estado as string | undefined;
-    const list = await licenciasService.listarGestion(estado);
-    return res.status(200).json(list);
+    const page = req.query.page ? Number(req.query.page) : 1;
+    const pageSize = req.query.pageSize ? Number(req.query.pageSize) : 50;
+    const data = await licenciasService.listarGestion({
+      ...(estado ? { estado } : {}),
+      page,
+      pageSize,
+    });
+    return res.status(200).json(data);
   } catch (error: any) {
     console.error('🔥 ERROR EN GET LICENCIAS GESTION:', error);
     return res.status(500).json({ success: false, error: error.message || 'Error al obtener licencias' });

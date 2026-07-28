@@ -33,10 +33,11 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.anularParte = exports.actualizarParte = exports.obtenerPartePorId = exports.obtenerMetricas = exports.obtenerPagina = exports.obtenerPartes = exports.crearParte = void 0;
+exports.exportarPartesPdf = exports.exportarPartesExcel = exports.anularParte = exports.actualizarParte = exports.obtenerPartePorId = exports.obtenerAnaliticaParte = exports.obtenerMetricas = exports.obtenerPagina = exports.obtenerPartes = exports.crearParte = void 0;
 const partesService = __importStar(require("../services/partes.service"));
 const AppError_1 = require("../../../utils/errors/AppError");
 const prisma_error_util_1 = require("../../../utils/prisma-error.util");
+const partes_export_util_1 = require("../../../utils/export/partes-export.util");
 function mensajeErrorParte(error, fallback) {
     if (error instanceof AppError_1.ValidationError) {
         return error.errors?.join(' ') || error.message;
@@ -100,6 +101,7 @@ const obtenerPagina = async (req, res) => {
         const pagina = await partesService.listarPagina({
             page: req.query.page ? Number(req.query.page) : undefined,
             pageSize: req.query.pageSize ? Number(req.query.pageSize) : undefined,
+            export: req.query.export === '1' || req.query.export === 'true',
             tipos: req.query.tipos,
             carros: req.query.carros,
             q: req.query.q,
@@ -127,6 +129,23 @@ const obtenerMetricas = async (req, res) => {
     }
 };
 exports.obtenerMetricas = obtenerMetricas;
+const obtenerAnaliticaParte = async (req, res) => {
+    try {
+        const id = String(req.params.id);
+        if (!id || id === 'undefined') {
+            return res.status(400).json({ message: 'ID no proporcionado' });
+        }
+        const data = await partesService.obtenerAnaliticaParte(id);
+        return res.status(200).json(data);
+    }
+    catch (error) {
+        console.error('Error al obtener analítica del parte:', error);
+        const msg = mensajeErrorParte(error, 'Error al obtener analítica');
+        const status = (0, prisma_error_util_1.statusErrorCliente)(error, 500);
+        return res.status(status).json(cuerpoErrorParte(error, msg));
+    }
+};
+exports.obtenerAnaliticaParte = obtenerAnaliticaParte;
 const obtenerPartePorId = async (req, res) => {
     try {
         const id = String(req.params.id);
@@ -175,3 +194,45 @@ const anularParte = async (req, res) => {
     }
 };
 exports.anularParte = anularParte;
+function filtrosExportDesdeQuery(req) {
+    return {
+        export: true,
+        page: 1,
+        pageSize: 2000,
+        q: req.query.q,
+        desde: req.query.desde,
+        hasta: req.query.hasta,
+        tipos: req.query.tipos,
+        carros: req.query.carros,
+        estado: req.query.estado,
+        persona: req.query.persona,
+    };
+}
+const exportarPartesExcel = async (req, res) => {
+    try {
+        const pagina = await partesService.listarPagina(filtrosExportDesdeQuery(req));
+        const buffer = await (0, partes_export_util_1.generarExcelPartes)(pagina.items);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=partes_${Date.now()}.xlsx`);
+        return res.status(200).send(buffer);
+    }
+    catch (error) {
+        console.error('Error export Excel partes:', error);
+        return res.status(500).json({ message: mensajeErrorParte(error, 'Error al exportar partes') });
+    }
+};
+exports.exportarPartesExcel = exportarPartesExcel;
+const exportarPartesPdf = async (req, res) => {
+    try {
+        const pagina = await partesService.listarPagina(filtrosExportDesdeQuery(req));
+        const buffer = await (0, partes_export_util_1.generarPdfPartes)(pagina.items, 'Listado de partes de emergencia — SIDEP');
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=partes_${Date.now()}.pdf`);
+        return res.status(200).send(buffer);
+    }
+    catch (error) {
+        console.error('Error export PDF partes:', error);
+        return res.status(500).json({ message: mensajeErrorParte(error, 'Error al exportar partes') });
+    }
+};
+exports.exportarPartesPdf = exportarPartesPdf;

@@ -3,13 +3,26 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.restablecerPassword = exports.recuperarPassword = exports.cambiarPassword = exports.loginDemo = exports.logout = exports.me = exports.login = exports.register = void 0;
+exports.restablecerPassword = exports.recuperarPassword = exports.cambiarPassword = exports.loginDemo = exports.logout = exports.me = exports.postMfaDisable = exports.postMfaEnable = exports.postMfaSetup = exports.getMfaEstado = exports.verifyMfa = exports.login = exports.register = void 0;
 const autenticacion_service_1 = require("./autenticacion.service");
 const password_reset_service_1 = require("./password-reset.service");
 const prisma_1 = __importDefault(require("../../prisma"));
 const rut_util_1 = require("../../utils/rut.util");
 const db_retry_util_1 = require("../../utils/db-retry.util");
 const usuario_acceso_util_1 = require("../../utils/usuario-acceso.util");
+const auth_cookie_util_1 = require("../../utils/security/auth-cookie.util");
+function mapUsuarioLogin(usuario) {
+    const nombreCompleto = `${usuario.nombres} ${usuario.apellidoPaterno} ${usuario.apellidoMaterno}`.trim();
+    return {
+        id: parseInt(usuario.rut.replace(/[^0-9]/g, ''), 10) || 0,
+        nombre: nombreCompleto,
+        rol: usuario.rol?.codigo || 'USER',
+        email: usuario.email,
+        rut: usuario.rut,
+        activo: usuario.activo === 1,
+        requiereCambioPassword: usuario.requiereCambioPassword === 1,
+    };
+}
 // 1. Registro
 const register = async (req, res) => {
     try {
@@ -20,14 +33,14 @@ const register = async (req, res) => {
         return res.status(201).json({
             success: true,
             message: 'Usuario registrado correctamente',
-            data: usuario
+            data: usuario,
         });
     }
     catch (error) {
         console.error('🔥 ERROR EN REGISTRO:', error);
         return res.status(400).json({
             success: false,
-            message: error.message || 'Error al registrar el usuario'
+            message: error.message || 'Error al registrar el usuario',
         });
     }
 };
@@ -36,27 +49,26 @@ exports.register = register;
 const login = async (req, res) => {
     try {
         const { rut, password } = req.body;
-        if (!rut || !password) {
-            return res.status(400).json({ success: false, message: 'RUT y contraseña requeridos' });
-        }
         const resultado = await (0, autenticacion_service_1.loginUsuario)(rut, password);
-        // Mapear al formato esperado por el frontend
-        const nombreCompleto = `${resultado.usuario.nombres} ${resultado.usuario.apellidoPaterno} ${resultado.usuario.apellidoMaterno}`.trim();
+        if (resultado.kind === 'mfa') {
+            return res.status(200).json({
+                success: true,
+                message: 'Verificación MFA requerida',
+                data: {
+                    requiresMfa: true,
+                    mfaToken: resultado.mfaToken,
+                    usuario: mapUsuarioLogin(resultado.usuario),
+                },
+            });
+        }
+        (0, auth_cookie_util_1.setAuthCookie)(res, resultado.token);
         const dataMapped = {
-            token: resultado.token,
-            usuario: {
-                id: parseInt(resultado.usuario.rut.replace(/[^0-9]/g, ''), 10) || 0,
-                nombre: nombreCompleto,
-                rol: resultado.usuario.rol?.codigo || 'USER',
-                email: resultado.usuario.email,
-                rut: resultado.usuario.rut,
-                activo: resultado.usuario.activo === 1
-            }
+            usuario: mapUsuarioLogin(resultado.usuario),
         };
         return res.status(200).json({
             success: true,
             message: 'Inicio de sesión exitoso',
-            data: dataMapped
+            data: dataMapped,
         });
     }
     catch (error) {
@@ -83,7 +95,74 @@ const login = async (req, res) => {
     }
 };
 exports.login = login;
-// 3. ME (Corregido para Schema Normalizado)
+const verifyMfa = async (req, res) => {
+    try {
+        const mfaToken = String(req.body?.mfaToken ?? '').trim();
+        const code = String(req.body?.code ?? '').trim();
+        if (!mfaToken || !code) {
+            return res.status(400).json({ success: false, message: 'Token MFA y código requeridos' });
+        }
+        const { token, usuario } = await (0, autenticacion_service_1.completarLoginMfa)(mfaToken, code);
+        (0, auth_cookie_util_1.setAuthCookie)(res, token);
+        return res.status(200).json({
+            success: true,
+            message: 'Inicio de sesión exitoso',
+            data: { usuario: mapUsuarioLogin(usuario) },
+        });
+    }
+    catch (error) {
+        const msg = String(error?.message ?? 'Error MFA');
+        return res.status(400).json({ success: false, message: msg });
+    }
+};
+exports.verifyMfa = verifyMfa;
+const getMfaEstado = async (req, res) => {
+    try {
+        const rut = req.user.rut;
+        const data = await (0, autenticacion_service_1.estadoMfa)(rut);
+        return res.status(200).json({ success: true, data });
+    }
+    catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.getMfaEstado = getMfaEstado;
+const postMfaSetup = async (req, res) => {
+    try {
+        const rut = req.user.rut;
+        const data = await (0, autenticacion_service_1.iniciarSetupMfa)(rut);
+        return res.status(200).json({ success: true, data });
+    }
+    catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+exports.postMfaSetup = postMfaSetup;
+const postMfaEnable = async (req, res) => {
+    try {
+        const rut = req.user.rut;
+        const code = String(req.body?.code ?? '').trim();
+        await (0, autenticacion_service_1.activarMfa)(rut, code);
+        return res.status(200).json({ success: true, message: 'MFA activado correctamente' });
+    }
+    catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+exports.postMfaEnable = postMfaEnable;
+const postMfaDisable = async (req, res) => {
+    try {
+        const rut = req.user.rut;
+        const code = String(req.body?.code ?? '').trim();
+        await (0, autenticacion_service_1.desactivarMfa)(rut, code);
+        return res.status(200).json({ success: true, message: 'MFA desactivado' });
+    }
+    catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+exports.postMfaDisable = postMfaDisable;
+// 3. ME
 const me = async (req, res) => {
     try {
         const userRut = req.user.rut;
@@ -106,6 +185,8 @@ const me = async (req, res) => {
             email: usuario.email,
             activo: usuario.activo === 1,
             estadoVoluntario: usuario.estadoVoluntario?.codigo ?? null,
+            requiereCambioPassword: usuario.requiereCambioPassword === 1,
+            mfaHabilitado: usuario.mfaEnabled === 1,
         });
     }
     catch (error) {
@@ -115,20 +196,20 @@ const me = async (req, res) => {
 };
 exports.me = me;
 // 4. LOGOUT
-const logout = async (req, res) => {
+const logout = async (_req, res) => {
+    (0, auth_cookie_util_1.clearAuthCookie)(res);
     return res.status(200).json({ success: true, message: 'Sesión cerrada' });
 };
 exports.logout = logout;
 // 5. LOGIN DEMO
-const loginDemo = async (req, res) => {
+const loginDemo = async (_req, res) => {
     return res.status(200).json({
-        token: 'demo-token',
-        usuario: { rut: '00.000.000-0', nombre: 'Demo Local', rol: 'ADMIN' }
+        usuario: { rut: '00.000.000-0', nombre: 'Demo Local', rol: 'ADMIN' },
     });
 };
 exports.loginDemo = loginDemo;
 // 6. CAMBIAR PASSWORD
-const cambiarPassword = async (req, res) => {
+const cambiarPassword = async (_req, res) => {
     return res.status(200).json({ success: true, message: 'Funcionalidad en desarrollo' });
 };
 exports.cambiarPassword = cambiarPassword;

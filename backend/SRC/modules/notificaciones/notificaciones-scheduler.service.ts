@@ -1,11 +1,13 @@
 import prisma from '../../prisma';
 import { correoSmtpDisponible, enviarCorreo } from '../../utils/email/email.service';
-import * as inventariosService from '../logistica/services/inventarios.service';
+import { listarItemsAlertaStock } from '../logistica/services/inventario-items.service';
 
 const TZ_CHILE = 'America/Santiago';
 const DIAS_SIN_CHECKLIST = 7;
 
 const enviadoHoy = new Set<string>();
+
+export type TareaCronNotificaciones = 'auto' | 'resumen-diario' | 'checklist' | 'inventario' | 'todas';
 
 function claveDia(tipo: string): string {
   const ahora = new Date();
@@ -63,14 +65,14 @@ async function destinatariosInstitucionales(): Promise<string[]> {
   return [...emails];
 }
 
-async function enviarResumenDiario(): Promise<void> {
-  if (yaEnviado('resumen-diario')) return;
+async function enviarResumenDiario(forzar = false): Promise<boolean> {
+  if (!forzar && yaEnviado('resumen-diario')) return false;
   const config = await obtenerConfig();
-  if (!config || config.resumenDiarioEmail !== 1) return;
-  if (!correoSmtpDisponible()) return;
+  if (!config || config.resumenDiarioEmail !== 1) return false;
+  if (!correoSmtpDisponible()) return false;
 
   const destinos = await destinatariosInstitucionales();
-  if (!destinos.length) return;
+  if (!destinos.length) return false;
 
   const ahora = new Date();
   const ayerInicio = new Date(ahora);
@@ -108,19 +110,21 @@ async function enviarResumenDiario(): Promise<void> {
       to,
       subject: `Resumen diario SIDEP · ${fechaLabel}`,
       text: texto,
+      tipo: 'resumen-diario',
     });
   }
   marcarEnviado('resumen-diario');
+  return true;
 }
 
-async function enviarRecordatoriosChecklist(): Promise<void> {
-  if (yaEnviado('recordatorio-checklist')) return;
+async function enviarRecordatoriosChecklist(forzar = false): Promise<boolean> {
+  if (!forzar && yaEnviado('recordatorio-checklist')) return false;
   const config = await obtenerConfig();
-  if (!config || config.recordatoriosChecklist !== 1) return;
-  if (!correoSmtpDisponible()) return;
+  if (!config || config.recordatoriosChecklist !== 1) return false;
+  if (!correoSmtpDisponible()) return false;
 
   const destinos = await destinatariosInstitucionales();
-  if (!destinos.length) return;
+  if (!destinos.length) return false;
 
   const limite = new Date();
   limite.setDate(limite.getDate() - DIAS_SIN_CHECKLIST);
@@ -155,7 +159,7 @@ async function enviarRecordatoriosChecklist(): Promise<void> {
 
   if (!pendientes.length) {
     marcarEnviado('recordatorio-checklist');
-    return;
+    return false;
   }
 
   const texto = [
@@ -169,37 +173,56 @@ async function enviarRecordatoriosChecklist(): Promise<void> {
   ].join('\n');
 
   for (const to of destinos) {
-    await enviarCorreo({ to, subject: 'Recordatorio checklist · SIDEP', text: texto });
+    await enviarCorreo({
+      to,
+      subject: 'Recordatorio checklist · SIDEP',
+      text: texto,
+      tipo: 'recordatorio-checklist',
+    });
   }
   marcarEnviado('recordatorio-checklist');
+  return true;
 }
 
-async function enviarAlertasInventario(): Promise<void> {
-  if (yaEnviado('alerta-inventario')) return;
+async function enviarAlertasInventario(forzar = false): Promise<boolean> {
+  if (!forzar && yaEnviado('alerta-inventario')) return false;
   const config = await obtenerConfig();
-  if (!config || config.alertasInventario !== 1) return;
-  if (!correoSmtpDisponible()) return;
+  if (!config || config.alertasInventario !== 1) return false;
+  if (!correoSmtpDisponible()) return false;
 
-  const bajoMinimo = await inventariosService.listarMaterialesBajoMinimo();
-  if (!bajoMinimo.length) {
+  const alertas = await listarItemsAlertaStock();
+  if (!alertas.length) {
     marcarEnviado('alerta-inventario');
-    return;
+    return false;
   }
 
   const destinos = await destinatariosInstitucionales();
-  if (!destinos.length) return;
+  if (!destinos.length) return false;
 
-  const lineas = bajoMinimo.map(
-    (m) => `· ${m.nombre} (${m.codigo}): ${m.cantidad}/${m.stockMinimo} ${m.unidad ?? 'un'}`,
+  const lineas = alertas.map(
+    (m) =>
+      `· [${m.estadoStock}] ${m.nombre} (${m.codigo}) — ${m.bodega}: ${m.cantidadDisponible} disp. (mín. ${m.stockMinimo})`,
   );
-  const texto = ['Alertas de inventario — SIDEP', '', 'Materiales bajo stock mínimo en bodega:', '', ...lineas, '', '— SIDEP'].join(
-    '\n',
-  );
+  const texto = [
+    'Alertas de inventario — SIDEP',
+    '',
+    'Ítems con stock bajo o crítico (inventario unificado):',
+    '',
+    ...lineas,
+    '',
+    '— SIDEP',
+  ].join('\n');
 
   for (const to of destinos) {
-    await enviarCorreo({ to, subject: 'Alerta inventario bodega · SIDEP', text: texto });
+    await enviarCorreo({
+      to,
+      subject: 'Alerta inventario · SIDEP',
+      text: texto,
+      tipo: 'alerta-inventario',
+    });
   }
   marcarEnviado('alerta-inventario');
+  return true;
 }
 
 export async function notificarNuevaEmergencia(parte: {
@@ -229,23 +252,82 @@ export async function notificarNuevaEmergencia(parte: {
       to,
       subject: `Nueva emergencia · ${parte.correlativo}`,
       text: texto,
+      tipo: 'alerta-emergencia',
     });
   }
 }
 
-async function ejecutarTareasProgramadas(): Promise<void> {
-  const { hora, minuto } = horaChile();
+export async function notificarLicenciaResuelta(licenciaId: string): Promise<void> {
+  if (!correoSmtpDisponible()) return;
 
+  const lic = await prisma.licenciaMedica.findUnique({
+    where: { id: licenciaId },
+    include: {
+      usuario: { include: { rol: true } },
+      estado: true,
+      resolutor: { include: { cargo: true, rol: true } },
+    },
+  });
+  if (!lic?.usuario?.email?.trim()) return;
+
+  const estado = lic.estado?.nombre?.toUpperCase() ?? '';
+  if (!['APROBADA', 'RECHAZADA', 'ANULADA'].includes(estado)) return;
+
+  const nombre = `${lic.usuario.nombres} ${lic.usuario.apellidoPaterno}`.trim();
+  const resolutor = lic.resolutor
+    ? `${lic.resolutor.nombres} ${lic.resolutor.apellidoPaterno}`.trim()
+    : 'Oficialidad';
+  const fechaInicio = lic.fechaInicio.toLocaleDateString('es-CL', { timeZone: TZ_CHILE });
+  const fechaTermino = lic.fechaTermino.toLocaleDateString('es-CL', { timeZone: TZ_CHILE });
+  const etiquetaEstado =
+    estado === 'APROBADA' ? 'aprobada' : estado === 'RECHAZADA' ? 'rechazada' : 'anulada';
+
+  const texto = [
+    `Hola ${nombre},`,
+    '',
+    `Tu solicitud de licencia médica fue ${etiquetaEstado}.`,
+    '',
+    `Período: ${fechaInicio} – ${fechaTermino}`,
+    `Resuelto por: ${resolutor}`,
+    lic.observacionResolucion ? `Observación: ${lic.observacionResolucion}` : '',
+    '',
+    '— SIDEP',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  await enviarCorreo({
+    to: lic.usuario.email.trim(),
+    subject: `Licencia ${etiquetaEstado} · SIDEP`,
+    text: texto,
+    tipo: 'licencia-resuelta',
+  });
+}
+
+export async function ejecutarTareasCron(
+  tarea: TareaCronNotificaciones = 'auto',
+  forzar = false,
+): Promise<{ ejecutadas: string[] }> {
+  const { hora, minuto } = horaChile();
+  const ejecutadas: string[] = [];
+
+  const debeResumen =
+    tarea === 'todas' || tarea === 'resumen-diario' || (tarea === 'auto' && hora === 8 && minuto === 0);
+  const debeChecklist =
+    tarea === 'todas' || tarea === 'checklist' || (tarea === 'auto' && hora === 7 && minuto === 0);
+  const debeInventario =
+    tarea === 'todas' || tarea === 'inventario' || (tarea === 'auto' && hora === 9 && minuto === 0);
+
+  if (debeResumen && (await enviarResumenDiario(forzar))) ejecutadas.push('resumen-diario');
+  if (debeChecklist && (await enviarRecordatoriosChecklist(forzar))) ejecutadas.push('checklist');
+  if (debeInventario && (await enviarAlertasInventario(forzar))) ejecutadas.push('inventario');
+
+  return { ejecutadas };
+}
+
+async function ejecutarTareasProgramadas(): Promise<void> {
   try {
-    if (hora === 8 && minuto === 0) {
-      await enviarResumenDiario();
-    }
-    if (hora === 7 && minuto === 0) {
-      await enviarRecordatoriosChecklist();
-    }
-    if (hora === 9 && minuto === 0) {
-      await enviarAlertasInventario();
-    }
+    await ejecutarTareasCron('auto', false);
   } catch (err) {
     console.error('[SIDEP notificaciones]', err);
   }

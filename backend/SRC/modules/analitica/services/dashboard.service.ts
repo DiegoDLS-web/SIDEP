@@ -13,6 +13,20 @@ import {
   detalleEstadoOficialCarro,
   parsearUltimoCambioEstadoCarro,
 } from '../../../utils/carro-estado-auditoria.util';
+import { obtenerAlertasInventario } from '../../logistica/services/inventario-items.service';
+import {
+  fechaCalendarioKey,
+  inicioHeatmapDesdeFin,
+  sumarDiasCalendarioKey,
+} from '../../../utils/fecha-calendario.util';
+
+const DASHBOARD_CACHE_TTL_MS = 90_000;
+const dashboardCache = new Map<string, { data: unknown; expires: number }>();
+
+/** Invalida caché del dashboard (p. ej. tras crear o editar un parte). */
+export function invalidarCacheDashboard(): void {
+  dashboardCache.clear();
+}
 
 function parseMetadataParte(raw: string | null | undefined): Record<string, unknown> | null {
   if (!raw) return null;
@@ -35,6 +49,17 @@ function claveCodigoParte(p: {
 }
 
 export const getDashboardResumen = async (anioParam?: number, claveFilter?: string, carroIdFilter?: string) => {
+  const cacheKey = `${anioParam ?? ''}:${claveFilter ?? ''}:${carroIdFilter ?? ''}`;
+  const cached = dashboardCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) {
+    return cached.data as Awaited<ReturnType<typeof buildDashboardResumen>>;
+  }
+  const data = await buildDashboardResumen(anioParam, claveFilter, carroIdFilter);
+  dashboardCache.set(cacheKey, { data, expires: Date.now() + DASHBOARD_CACHE_TTL_MS });
+  return data;
+};
+
+const buildDashboardResumen = async (anioParam?: number, claveFilter?: string, carroIdFilter?: string) => {
   const anio = anioParam || new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
@@ -102,37 +127,51 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
   const whereClauseMes = { ...whereClause, fechaEmergencia: { gte: inicioMesFiltrado, lte: finMesFiltrado } };
   const emergenciasEsteMes = await prisma.parteEmergencia.count({ where: whereClauseMes });
 
-  // 5. porMes
-  const allPartes = await prisma.parteEmergencia.findMany({
+  // 5–6 y heatmap: una sola lectura de fechas/claves del año filtrado
+  const partesAnio = await prisma.parteEmergencia.findMany({
     where: whereClause,
-    select: { fechaEmergencia: true },
+    select: {
+      fechaEmergencia: true,
+      metadata: true,
+      clave: { select: { codigo: true } },
+    },
   });
+
   const monthGroups: Record<string, number> = {};
-  for (const p of allPartes) {
+  const typeGroups: Record<string, number> = {};
+  const conteoPorDia: Record<string, number> = {};
+  const SEMANAS = 4;
+  const finHeatmapKey =
+    anio === anioActual ? fechaCalendarioKey(new Date()) : `${anio}-12-31`;
+  const inicioHeatmapKey = inicioHeatmapDesdeFin(finHeatmapKey, SEMANAS);
+
+  for (const p of partesAnio) {
     const d = p.fechaEmergencia;
     const period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     monthGroups[period] = (monthGroups[period] || 0) + 1;
+    const code = claveCodigoParte(p);
+    typeGroups[code] = (typeGroups[code] || 0) + 1;
+    const key = fechaCalendarioKey(d);
+    if (key >= inicioHeatmapKey && key <= finHeatmapKey) {
+      conteoPorDia[key] = (conteoPorDia[key] || 0) + 1;
+    }
   }
   const porMes = Object.entries(monthGroups)
     .map(([periodo, cantidad]) => ({ periodo, cantidad }))
     .sort((a, b) => a.periodo.localeCompare(b.periodo));
 
-  const partesParaAnios = await prisma.parteEmergencia.findMany({
-    where: parteWhereNoAnulado(),
-    select: { fechaEmergencia: true },
-  });
-  const aniosConDatos = [...new Set(partesParaAnios.map((p) => p.fechaEmergencia.getFullYear()))].sort((a, b) => b - a);
+  const aniosConDatos = [
+    ...new Set(
+      (
+        await prisma.parteEmergencia.findMany({
+          where: parteWhereNoAnulado(),
+          select: { fechaEmergencia: true },
+          take: 5000,
+        })
+      ).map((p) => p.fechaEmergencia.getFullYear()),
+    ),
+  ].sort((a, b) => b - a);
 
-  // 6. porTipo
-  const partesConClave = await prisma.parteEmergencia.findMany({
-    where: whereClause,
-    include: { clave: true },
-  });
-  const typeGroups: Record<string, number> = {};
-  for (const p of partesConClave) {
-    const code = claveCodigoParte(p);
-    typeGroups[code] = (typeGroups[code] || 0) + 1;
-  }
   const porTipo = Object.entries(typeGroups)
     .map(([claveEmergencia, cantidad]) => ({ claveEmergencia, cantidad }))
     .sort((a, b) => b.cantidad - a.cantidad || a.claveEmergencia.localeCompare(b.claveEmergencia));
@@ -155,38 +194,13 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
     unidades: p.unidades.map((u) => u.carro.nomenclatura),
   }));
 
-  // Heatmap: últimas 4 semanas respecto al año filtrado (fin de año si es pasado)
-  const SEMANAS = 4;
-  const hoyReal = new Date();
-  const finHeatmap =
-    anio === anioActual
-      ? new Date(hoyReal.getFullYear(), hoyReal.getMonth(), hoyReal.getDate(), 23, 59, 59, 999)
-      : new Date(Date.UTC(anio, 11, 31, 23, 59, 59, 999));
-  const inicioHeatmap = new Date(finHeatmap);
-  inicioHeatmap.setHours(0, 0, 0, 0);
-  const diaSemana = inicioHeatmap.getDay();
-  const diasHastaLunes = diaSemana === 0 ? 6 : diaSemana - 1;
-  inicioHeatmap.setDate(inicioHeatmap.getDate() - diasHastaLunes - (SEMANAS - 1) * 7);
-
-  const partesHeatmap = await prisma.parteEmergencia.findMany({
-    where: whereClause,
-    select: { fechaEmergencia: true },
-  });
-  const conteoPorDia: Record<string, number> = {};
-  for (const p of partesHeatmap) {
-    const fecha = p.fechaEmergencia;
-    if (fecha < inicioHeatmap || fecha > finHeatmap) continue;
-    const key = fecha.toISOString().slice(0, 10);
-    conteoPorDia[key] = (conteoPorDia[key] || 0) + 1;
-  }
-
+  // Heatmap: últimas 4 semanas (calendario America/Santiago)
   const heatmapSemanas: number[][] = [];
   for (let w = 0; w < SEMANAS; w++) {
     const semana: number[] = [];
     for (let d = 0; d < 7; d++) {
-      const celda = new Date(inicioHeatmap);
-      celda.setDate(inicioHeatmap.getDate() + w * 7 + d);
-      const key = celda.toISOString().slice(0, 10);
+      const offset = w * 7 + d;
+      const key = sumarDiasCalendarioKey(inicioHeatmapKey, offset);
       semana.push(conteoPorDia[key] || 0);
     }
     heatmapSemanas.push(semana);
@@ -220,8 +234,11 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
     if (parsed) ultimoCambioEstadoPorCarro.set(row.entidadId, parsed);
   }
 
+  const carroIds = carros.map((c) => c.id);
   const ejecucionesSemaforo = await prisma.checklistEjecucion.findMany({
+    where: { entidadId: { in: carroIds } },
     orderBy: { fechaRevision: 'desc' },
+    take: Math.max(carroIds.length * 6, 120),
   });
 
   const ultimaEjecucionPorCarroTipo = new Map<string, (typeof ejecucionesSemaforo)[number]>();
@@ -339,7 +356,23 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
     };
   });
 
-  return {
+  try {
+    const alertasInv = await obtenerAlertasInventario();
+    for (const a of alertasInv.slice(0, 20)) {
+      alertas.push({
+        tipo: a.tipo,
+        severidad: a.severidad,
+        titulo: a.titulo,
+        detalle: a.detalle,
+        inventarioItemId: a.itemId ?? null,
+        bodega: a.bodega ?? null,
+      });
+    }
+  } catch (err) {
+    console.error('[SIDEP dashboard] alertas inventario:', err);
+  }
+
+  const payload = {
     anio,
     filtros: {
       clave: claveFilter || null,
@@ -358,4 +391,5 @@ export const getDashboardResumen = async (anioParam?: number, claveFilter?: stri
     unidadesSemaforo,
     generadoEn: new Date().toISOString(),
   };
+  return payload;
 };

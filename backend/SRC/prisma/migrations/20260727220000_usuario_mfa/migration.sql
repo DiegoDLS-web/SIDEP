@@ -1,0 +1,3 @@
+-- MFA TOTP para administradores
+ALTER TABLE "usuario" ADD COLUMN IF NOT EXISTS "mfa_secret" VARCHAR(128);
+ALTER TABLE "usuario" ADD COLUMN IF NOT EXISTS "mfa_enabled" SMALLINT NOT NULL DEFAULT 0;

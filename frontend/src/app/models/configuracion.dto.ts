@@ -45,3 +45,13 @@ export interface ConfiguracionOperativaDto {
   reportes: ConfiguracionReportesDto;
   tiposEmergencia?: TipoEmergenciaItemDto[];
 }
+
+export interface EmailLogDto {
+  id: number;
+  tipo: string;
+  destinatario: string;
+  subject: string;
+  ok: boolean;
+  detalle: string | null;
+  createdAt: string;
+}

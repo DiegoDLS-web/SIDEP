@@ -74,6 +74,15 @@ async function main() {
 
   let seq = 1;
   let insertados = 0;
+  const contadorTallaPorTipo = new Map<string, number>();
+
+  function siguienteTalla(tipoEpp: string | null, sistema: ReturnType<typeof inferirSistemaTalla>): string | null {
+    if (!tipoEpp || !sistema) return null;
+    const pool = sistema === 'BOTA' ? Array.from({ length: 12 }, (_, i) => String(35 + i)) : ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+    const idx = contadorTallaPorTipo.get(tipoEpp) ?? 0;
+    contadorTallaPorTipo.set(tipoEpp, idx + 1);
+    return pool[idx % pool.length] ?? null;
+  }
 
   for (let r = 2; r <= ws.rowCount; r++) {
     const row = ws.getRow(r);
@@ -103,7 +112,7 @@ async function main() {
     const epp = esEppAsignable(nombre, categoria, tipo);
     const tipoEpp = epp ? inferirTipoEpp(nombre, categoria) : null;
     const sistemaTalla = inferirSistemaTalla(tipoEpp);
-    const talla = extraerTallaDeNombre(nombre, sistemaTalla);
+    const talla = extraerTallaDeNombre(nombre, sistemaTalla) ?? (epp ? siguienteTalla(tipoEpp, sistemaTalla) : null);
 
     await prisma.inventarioItem.create({
       data: {

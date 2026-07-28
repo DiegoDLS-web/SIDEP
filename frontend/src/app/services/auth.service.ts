@@ -22,6 +22,10 @@ import { limpiarBienvenidaSesionAlLogout } from '../core/welcome-overlay-session
 import type { SesionUsuarioDto } from '../models/auth.dto';
 import { mensajeApiError } from '../utils/api-error.util';
 
+export type LoginResult =
+  | { kind: 'ok'; usuario: SesionUsuarioDto }
+  | { kind: 'mfa'; mfaToken: string; usuario: SesionUsuarioDto };
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
@@ -37,7 +41,7 @@ export class AuthService {
   readonly usuario$ = this.userSubject.asObservable();
 
   get token(): string | null {
-    return this.storage.getToken();
+    return null;
   }
 
   get usuarioActual(): SesionUsuarioDto | null {
@@ -45,20 +49,36 @@ export class AuthService {
   }
 
   isAutenticado(): boolean {
-    return Boolean(this.token);
+    return Boolean(this.userSubject.value ?? this.storage.getUsuarioGuardado());
   }
 
   private invalidateSesionCache(): void {
     this.meRequest$ = null;
   }
 
-  login(rut: string, password: string): Observable<SesionUsuarioDto> {
+  login(rut: string, password: string): Observable<LoginResult> {
     this.invalidateSesionCache();
-    // Accedemos a 'resp.data' porque el backend ahora envía el objeto envuelto
     return this.http.post<any>('/api/auth/login', { rut, password }).pipe(
-      tap((resp) => {
-        this.storage.setToken(resp.data.token);
+      map((resp) => {
+        const data = resp.data;
+        if (data?.requiresMfa && data?.mfaToken) {
+          return {
+            kind: 'mfa' as const,
+            mfaToken: data.mfaToken as string,
+            usuario: mapLoginUsuarioASesion(data.usuario),
+          };
+        }
+        const user = mapLoginUsuarioASesion(data.usuario);
+        this.userSubject.next(user);
+        this.storage.setUsuarioGuardado(user);
+        return { kind: 'ok' as const, usuario: user };
       }),
+    );
+  }
+
+  verifyMfa(mfaToken: string, code: string): Observable<SesionUsuarioDto> {
+    this.invalidateSesionCache();
+    return this.http.post<any>('/api/auth/mfa/verify', { mfaToken, code }).pipe(
       map((resp) => mapLoginUsuarioASesion(resp.data.usuario)),
       tap((user) => {
         this.userSubject.next(user);
@@ -67,17 +87,36 @@ export class AuthService {
     );
   }
 
+  getMfaEstado(): Observable<{ habilitado: boolean; disponible: boolean }> {
+    return this.http
+      .get<{ success: boolean; data: { habilitado: boolean; disponible: boolean } }>(
+        '/api/auth/mfa/estado',
+      )
+      .pipe(map((r) => r.data));
+  }
+
+  iniciarMfaSetup(): Observable<{ secret: string; otpauthUrl: string }> {
+    return this.http
+      .post<{ success: boolean; data: { secret: string; otpauthUrl: string } }>(
+        '/api/auth/mfa/setup',
+        {},
+      )
+      .pipe(map((r) => r.data));
+  }
+
+  activarMfa(code: string): Observable<void> {
+    return this.http.post<void>('/api/auth/mfa/enable', { code });
+  }
+
+  desactivarMfa(code: string): Observable<void> {
+    return this.http.post<void>('/api/auth/mfa/disable', { code });
+  }
+
   loginDemo(): Observable<SesionUsuarioDto> {
     return throwError(() => new Error('El modo demo está deshabilitado. Usa tu RUT y contraseña institucional.'));
   }
 
-  /** Valida el token con el servidor y actualiza usuario en memoria y en disco. */
   cargarSesion(): Observable<SesionUsuarioDto | null> {
-    if (!this.token) {
-      this.userSubject.next(null);
-      this.invalidateSesionCache();
-      return of(null);
-    }
     if (!this.meRequest$) {
       this.meRequest$ = this.http.get<SesionUsuarioDto>('/api/auth/me').pipe(
         tap((u) => {
@@ -148,13 +187,6 @@ export class AuthService {
   private clearLocal(): void {
     this.storage.limpiar();
     this.invalidateSesionCache();
-  }
-
-  private activarSesionLocal(token: string, user: SesionUsuarioDto): void {
-    this.storage.setToken(token);
-    this.storage.setUsuarioGuardado(user);
-    this.invalidateSesionCache();
-    this.userSubject.next(user);
   }
 
   register(datos: any): Observable<any> {

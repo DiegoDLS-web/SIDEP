@@ -9,3 +9,9 @@ registerLocaleData(localeEsCl);
 
 bootstrapApplication(AppComponent, appConfig)
   .catch((err) => console.error(err));
+
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator && !window.location.hostname.includes('localhost')) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}

@@ -52,15 +52,14 @@
         />
       </div>
     </div>
-    <div class="mt-3 flex justify-end">
-      <button
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 px-4 py-2 text-xs font-medium text-slate-400 hover:bg-slate-800 hover:text-white"
-        (click)="limpiarFiltros()"
-      >
-        Limpiar filtros
-      </button>
-    </div>
+    <app-sid-history-filter-actions
+      [showApply]="false"
+      [showRefresh]="false"
+      [showPdf]="false"
+      [showExcel]="false"
+      [borderTop]="false"
+      (clear)="limpiarFiltros()"
+    />
   </div>
 
   @if (!loading && !error) {
@@ -153,32 +152,15 @@
       </table>
     </div>
 
-    @if (totalPaginas > 1) {
-      <div class="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-between">
-        <p class="text-sm text-slate-400">
-          Página <span class="tabular-nums text-slate-200">{{ pagina }}</span> de
-          <span class="tabular-nums text-slate-200">{{ totalPaginas }}</span>
-          <span class="text-slate-500"> · {{ total }} logs en total</span>
-        </p>
-        <div class="flex gap-2">
-          <button
-            type="button"
-            class="rounded-xl border border-slate-600 bg-slate-800/80 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-            (click)="cambiarPagina(-1)"
-            [disabled]="pagina <= 1"
-          >
-            Anterior
-          </button>
-          <button
-            type="button"
-            class="rounded-xl border border-slate-600 bg-slate-800/80 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-            (click)="cambiarPagina(1)"
-            [disabled]="pagina >= totalPaginas"
-          >
-            Siguiente
-          </button>
-        </div>
-      </div>
+    @if (total > 0) {
+      <app-sid-pagination-footer
+        [page]="pagina"
+        [totalPages]="totalPaginas"
+        [totalRecords]="total"
+        recordUnit="log(s)"
+        [pageSize]="tamanioPagina"
+        (pageDelta)="cambiarPagina($event)"
+      />
     }
   }
 </div>

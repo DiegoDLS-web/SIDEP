@@ -28,14 +28,15 @@ import {
   loadPasswordForgotComponent,
   loadPasswordResetComponent,
   loadUsuariosComponent,
+  loadInventariosResumenComponent,
   loadAuditoriaShellComponent,
   loadAuditoriaDashboardComponent,
   loadAuditoriaChecklistsComponent,
   loadAuditoriaUsuariosComponent,
   loadAuditoriaLogComponent,
-  loadInventariosShellComponent,
-  loadInventariosResumenComponent,
-  loadInventariosBodegaComponent,
+  loadGuardiasPageComponent,
+  loadLibroNovedadesPageComponent,
+  loadAsistenciaCuartelerosPageComponent,
 } from './routing/lazy-routes';
 
 /**
@@ -103,10 +104,20 @@ export const routes: Routes = [
       },
       {
         path: 'inventarios',
-        loadComponent: loadInventariosShellComponent,
+        title: 'Inventarios · SIDEP',
+        loadComponent: loadInventariosResumenComponent,
+      },
+      { path: 'inventarios/bodega', redirectTo: 'inventarios', pathMatch: 'full' },
+      {
+        path: 'auditoria',
+        canActivate: [adminGuard],
+        loadComponent: loadAuditoriaShellComponent,
         children: [
-          { path: '', title: 'Inventarios · SIDEP', loadComponent: loadInventariosResumenComponent },
-          { path: 'bodega', title: 'Inventarios · Bodega · SIDEP', loadComponent: loadInventariosBodegaComponent },
+          { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+          { path: 'dashboard', title: 'Auditoría · Panel · SIDEP', loadComponent: loadAuditoriaDashboardComponent },
+          { path: 'checklists', title: 'Auditoría · Checklists · SIDEP', loadComponent: loadAuditoriaChecklistsComponent },
+          { path: 'usuarios', title: 'Auditoría · Usuarios · SIDEP', loadComponent: loadAuditoriaUsuariosComponent },
+          { path: 'log', title: 'Auditoría · Trazabilidad · SIDEP', loadComponent: loadAuditoriaLogComponent },
         ],
       },
       {
@@ -158,34 +169,6 @@ export const routes: Routes = [
         loadComponent: loadConfiguracionesComponent,
       },
       {
-        path: 'auditoria',
-        canActivate: [adminGuard],
-        loadComponent: loadAuditoriaShellComponent,
-        children: [
-          { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
-          {
-            path: 'dashboard',
-            title: 'Auditoría · Panel · SIDEP',
-            loadComponent: loadAuditoriaDashboardComponent,
-          },
-          {
-            path: 'checklists',
-            title: 'Auditoría · Checklists · SIDEP',
-            loadComponent: loadAuditoriaChecklistsComponent,
-          },
-          {
-            path: 'usuarios',
-            title: 'Auditoría · Usuarios · SIDEP',
-            loadComponent: loadAuditoriaUsuariosComponent,
-          },
-          {
-            path: 'log',
-            title: 'Auditoría · Trazabilidad · SIDEP',
-            loadComponent: loadAuditoriaLogComponent,
-          },
-        ],
-      },
-      {
         path: 'perfil',
         title: 'Mi perfil · SIDEP',
         canDeactivate: [edicionPendienteGuard],
@@ -211,6 +194,21 @@ export const routes: Routes = [
         path: 'analitica-operacional',
         title: 'Analítica operacional · SIDEP',
         loadComponent: loadAnaliticaPageComponent,
+      },
+      {
+        path: 'guardias',
+        title: 'Sistema de guardias · SIDEP',
+        loadComponent: loadGuardiasPageComponent,
+      },
+      {
+        path: 'libro-novedades',
+        title: 'Libro de novedades · SIDEP',
+        loadComponent: loadLibroNovedadesPageComponent,
+      },
+      {
+        path: 'asistencia-cuarteleros',
+        title: 'Asistencia cuarteleros · SIDEP',
+        loadComponent: loadAsistenciaCuartelerosPageComponent,
       },
     ],
   },

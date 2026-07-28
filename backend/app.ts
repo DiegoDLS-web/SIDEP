@@ -1,6 +1,8 @@
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import fs from 'fs';
 import path from 'path';
 import authRoutes from './SRC/modules/autenticacion/autenticacion.routes';
@@ -12,10 +14,15 @@ import licenciasRoutes from './SRC/modules/rrhh/routes/licencias.routes';
 import auditoriaRoutes from './SRC/modules/auditoria/routes/auditoria.routes';
 import reportesRoutes from './SRC/modules/analitica/routes/reportes.routes';
 import dashboardRoutes from './SRC/modules/analitica/routes/dashboard.routes';
+import notificacionesRoutes from './SRC/modules/notificaciones/notificaciones.routes';
+import guardiasRoutes from './SRC/modules/cuartel/routes/guardias.routes';
+import novedadesRoutes from './SRC/modules/cuartel/routes/novedades.routes';
+import asistenciaCuartelerosRoutes from './SRC/modules/cuartel/routes/asistencia-cuarteleros.routes';
 import { protect } from './SRC/middlewares/auth.middleware';
 import { requireRoles } from './SRC/middlewares/role.middleware';
 import prisma from './SRC/prisma';
 import { auditoriaMiddleware } from './SRC/modules/auditoria/middlewares/auditoria.middleware';
+import { verificarConexionSmtp } from './SRC/utils/email/email.service';
 
 const app = express();
 
@@ -51,12 +58,42 @@ app.use(
 );
 app.use(express.json({ limit: '20mb' })); // Permite recibir información en JSON
 app.use(express.urlencoded({ limit: '20mb', extended: true }));
+app.use(cookieParser());
+app.use(compression());
 
 // --- RUTAS DE LA API (MODULARES) ---
 
 // 1. Ruta de estado (Healthcheck)
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'Servidor SIDEP Operativo 🚒' });
+app.get('/api/health', async (req, res) => {
+  const jwtOk = Boolean(process.env.JWT_SECRET?.trim());
+  const smtpOk = Boolean(process.env.SMTP_HOST?.trim() && process.env.SMTP_USER?.trim());
+  const cloudinaryOk = Boolean(
+    process.env.CLOUDINARY_CLOUD_NAME?.trim() &&
+      process.env.CLOUDINARY_API_KEY?.trim() &&
+      process.env.CLOUDINARY_API_SECRET?.trim(),
+  );
+  let dbOk = false;
+  let smtpConexionOk = false;
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    dbOk = true;
+  } catch {
+    dbOk = false;
+  }
+  if (smtpOk) {
+    try {
+      await verificarConexionSmtp();
+      smtpConexionOk = true;
+    } catch {
+      smtpConexionOk = false;
+    }
+  }
+  const ok = dbOk && jwtOk;
+  res.status(ok ? 200 : 503).json({
+    status: ok ? 'Servidor SIDEP Operativo 🚒' : 'Servidor SIDEP con problemas',
+    checks: { db: dbOk, jwt: jwtOk, smtp: smtpOk, smtpConexion: smtpConexionOk, cloudinary: cloudinaryOk },
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // 2. Ruta de Branding Público (Configuración básica)
@@ -105,10 +142,13 @@ app.get('/api/auth/mi-navegacion', protect, async (req, res) => {
       '/checklist-era',
       '/bolso-trauma',
       '/licencias-medicas',
+      '/guardias',
+      '/libro-novedades',
+      '/asistencia-cuarteleros',
       '/analitica-operacional',
       '/usuarios',
-      '/configuraciones',
       '/auditoria',
+      '/configuraciones',
       '/perfil'
     ];
 
@@ -116,12 +156,11 @@ app.get('/api/auth/mi-navegacion', protect, async (req, res) => {
       (path) =>
         path !== '/usuarios' &&
         path !== '/configuraciones' &&
-        path !== '/catalogo-emergencias' &&
-        path !== '/auditoria'
+        path !== '/catalogo-emergencias'
     );
 
     const operativesAdminCapitan = OPCIONES_MENU_SIDEP.filter(
-      (path) => path !== '/usuarios' && path !== '/configuraciones' && path !== '/auditoria'
+      (path) => path !== '/usuarios' && path !== '/configuraciones'
     );
 
     let paths: string[] = [];
@@ -153,6 +192,10 @@ app.use('/api/licencias', auditoriaMiddleware, licenciasRoutes);
 app.use('/api/auditoria', auditoriaRoutes);
 app.use('/api/reportes', protect, reportesRoutes);
 app.use('/api/dashboard', protect, dashboardRoutes);
+app.use('/api/notificaciones', notificacionesRoutes);
+app.use('/api/guardias', auditoriaMiddleware, guardiasRoutes);
+app.use('/api/novedades', auditoriaMiddleware, novedadesRoutes);
+app.use('/api/asistencia-cuarteleros', auditoriaMiddleware, asistenciaCuartelerosRoutes);
 
 app.get('/api/roles', protect, async (req, res) => {
   try {

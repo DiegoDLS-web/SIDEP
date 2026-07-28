@@ -1,4 +1,15 @@
 <div class="sid-page sid-page-shell sid-licencias-page w-full min-w-0">
+  @if (loading) {
+    <section class="space-y-4 p-4" aria-busy="true" aria-label="Cargando licencias">
+      <div class="h-28 rounded-2xl border border-[var(--sid-border)] sid-skeleton"></div>
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        @for (i of [1, 2, 3]; track i) {
+          <div class="h-24 rounded-xl border border-[var(--sid-border)] sid-skeleton"></div>
+        }
+      </div>
+      <div class="h-64 rounded-2xl border border-[var(--sid-border)] sid-skeleton"></div>
+    </section>
+  } @else {
   <section class="sid-hero-panel sid-hero-panel--fuchsia">
     <div class="sid-hero-panel__row sid-hero-panel__row--split-start">
       <div>
@@ -173,9 +184,7 @@
           >
             Limpiar filtros
           </button>
-          <div class="rounded-lg border border-slate-700 bg-[#0a0a0a] px-3 py-2 text-xs text-slate-300">
-            Registros: <strong class="text-white">{{ totalGestion }}</strong>
-          </div>
+          <app-sid-record-count-badge [count]="totalGestion" />
         </div>
       </div>
 
@@ -380,27 +389,13 @@
         </table>
       </div>
       @if (!errorGestion && gestionLicenciasFiltradas.length > 0) {
-        <div class="mt-4 flex flex-col gap-2 border-t border-slate-800/80 pt-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <span>Página {{ paginaGestionVista }} de {{ totalPaginasGestion }} · {{ gestionLicenciasFiltradas.length }} registro(s)</span>
-          <div class="flex items-center gap-2">
-            <button
-              type="button"
-              class="sid-btn sid-btn-neutral rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-white transition-colors hover:bg-slate-800 disabled:opacity-40"
-              [disabled]="paginaGestion <= 1"
-              (click)="cambiarPaginaGestion(-1)"
-            >
-              Anterior
-            </button>
-            <button
-              type="button"
-              class="sid-btn sid-btn-neutral rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-white transition-colors hover:bg-slate-800 disabled:opacity-40"
-              [disabled]="paginaGestionVista >= totalPaginasGestion"
-              (click)="cambiarPaginaGestion(1)"
-            >
-              Siguiente
-            </button>
-          </div>
-        </div>
+        <app-sid-pagination-footer
+          [page]="paginaGestionVista"
+          [totalPages]="totalPaginasGestion"
+          [totalRecords]="totalGestion"
+          [pageSize]="tamanioPaginaGestion"
+          (pageDelta)="cambiarPaginaGestion($event)"
+        />
       }
       @if (!errorGestion && gestionLicenciasFiltradas.length === 0) {
         <p class="mt-3 text-sm text-gray-500">No hay licencias para el filtro seleccionado.</p>
@@ -594,50 +589,16 @@
         </div>
       </div>
 
-      <div
-        class="flex flex-col gap-2 border-t border-slate-800/80 pt-4 max-sm:[&>button]:w-full sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2"
-      >
-        <button
-          type="button"
-          class="sid-btn sid-btn-primary inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
-          (click)="aplicarFiltrosHistorial()"
-        >
-          Aplicar filtros
-        </button>
-        <button
-          type="button"
-          class="sid-btn sid-btn-neutral inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900/50 px-4 py-2.5 text-sm text-white"
-          (click)="limpiarFiltrosHistorial()"
-        >
-          Limpiar filtros
-        </button>
-        <button
-          type="button"
-          class="sid-btn sid-btn-neutral inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900/50 px-4 py-2.5 text-sm text-white"
-          (click)="actualizarHistorialLicencias()"
-        >
-          <lucide-icon name="refresh-cw" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-          Actualizar
-        </button>
-        <button
-          type="button"
-          class="sid-btn sid-btn-primary inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40"
-          [disabled]="historialFiltrado.length === 0"
-          (click)="exportarHistorialPdf()"
-        >
-          <lucide-icon [name]="icon.pdf" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-          Descargar PDF
-        </button>
-        <button
-          type="button"
-          class="sid-btn sid-btn-success inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
-          [disabled]="historialFiltrado.length === 0"
-          (click)="exportarHistorialExcel()"
-        >
-          <lucide-icon [name]="icon.excel" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-          Descargar Excel
-        </button>
-      </div>
+      <app-sid-history-filter-actions
+        [clearDisabled]="!filtroHistorialEstado && !filtroHistorialTexto && !filtroHistorialDesde && !filtroHistorialHasta"
+        [exportPdfDisabled]="historialFiltrado.length === 0"
+        [exportExcelDisabled]="historialFiltrado.length === 0"
+        (apply)="aplicarFiltrosHistorial()"
+        (clear)="limpiarFiltrosHistorial()"
+        (refresh)="actualizarHistorialLicencias()"
+        (exportPdf)="exportarHistorialPdf()"
+        (exportExcel)="exportarHistorialExcel()"
+      />
     </div>
 
     <div class="space-y-4 lg:hidden">
@@ -745,31 +706,14 @@
       <p class="mt-3 text-sm text-gray-500">Sin solicitudes aún.</p>
     }
     @if (!loading && historialFiltrado.length > 0) {
-      <div class="mt-4 flex flex-col gap-3 border-t border-gray-800 pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <span class="text-sm text-gray-500">
-          Página {{ paginaHistorialVista }} de {{ totalPaginasHistorial }}
-          · {{ historialFiltrado.length }} registro(s)
-          · {{ tamanioPaginaHistorial }} por página
-        </span>
-        <div class="flex flex-wrap gap-2">
-          <button
-            type="button"
-            class="rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-white disabled:opacity-40"
-            [disabled]="paginaHistorialVista <= 1"
-            (click)="cambiarPaginaHistorial(-1)"
-          >
-            Anterior
-          </button>
-          <button
-            type="button"
-            class="rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-white disabled:opacity-40"
-            [disabled]="paginaHistorialVista >= totalPaginasHistorial"
-            (click)="cambiarPaginaHistorial(1)"
-          >
-            Siguiente
-          </button>
-        </div>
-      </div>
+      <app-sid-pagination-footer
+        [page]="paginaHistorialVista"
+        [totalPages]="totalPaginasHistorial"
+        [totalRecords]="historialFiltrado.length"
+        [pageSize]="tamanioPaginaHistorial"
+        (pageDelta)="cambiarPaginaHistorial($event)"
+      />
     }
   </section>
+  }
 </div>

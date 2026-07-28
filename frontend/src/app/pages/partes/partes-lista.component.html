@@ -380,51 +380,16 @@
           </div>
         </div>
 
-        <div
-          class="sid-filtros-bar__actions max-xl:[&>button]:w-full"
-        >
-          <button
-            type="button"
-            class="sid-btn sid-btn-primary order-first inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 sm:order-none"
-            (click)="aplicarFiltrosPartes()"
-          >
-            Aplicar filtros
-          </button>
-          <button
-            type="button"
-            class="sid-btn sid-btn-neutral inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900/70 px-4 py-2.5 text-sm text-slate-100 hover:bg-slate-800 disabled:opacity-40"
-            [disabled]="!hayFiltrosActivos()"
-            (click)="limpiarFiltros()"
-          >
-            Limpiar filtros
-          </button>
-          <button
-            type="button"
-            class="sid-btn sid-btn-neutral inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900/70 px-4 py-2.5 text-sm text-slate-100 hover:bg-slate-800"
-            (click)="actualizarListadoPartes()"
-          >
-            <lucide-icon name="refresh-cw" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
-            Actualizar
-          </button>
-          <button
-            type="button"
-            class="sid-btn sid-btn-primary inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40"
-            [disabled]="totalFiltrado === 0"
-            (click)="exportarPdf()"
-          >
-            <lucide-icon [name]="icon.pdf" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
-            Descargar PDF
-          </button>
-          <button
-            type="button"
-            class="sid-btn sid-btn-success inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
-            [disabled]="totalFiltrado === 0"
-            (click)="exportarExcel()"
-          >
-            <lucide-icon [name]="icon.excel" class="h-4 w-4" [size]="16" color="currentColor" aria-hidden="true"></lucide-icon>
-            Descargar Excel
-          </button>
-        </div>
+        <app-sid-history-filter-actions
+          [clearDisabled]="!hayFiltrosActivos()"
+          [exportPdfDisabled]="totalFiltrado === 0"
+          [exportExcelDisabled]="totalFiltrado === 0"
+          (apply)="aplicarFiltrosPartes()"
+          (clear)="limpiarFiltros()"
+          (refresh)="actualizarListadoPartes()"
+          (exportPdf)="exportarPdf()"
+          (exportExcel)="exportarExcel()"
+        />
 
         <div class="mt-6 rounded-xl border border-rose-900/35 bg-rose-950/15 p-4 md:p-5">
           <p class="mb-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-rose-300/90">Período rápido (solo partes)</p>
@@ -576,29 +541,17 @@
       </div>
     </div>
     @if (totalFiltrado > 0) {
-      <div class="mb-6 flex flex-col gap-2 px-1 xl:hidden sm:flex-row sm:items-center sm:justify-between">
-        <span class="text-sm text-gray-400">
-          Página {{ paginaPartes }} de {{ totalPaginasPartes() }} · {{ totalFiltrado }} resultado(s)
-        </span>
-        <div class="flex gap-2">
-          <button
-            type="button"
-            [disabled]="paginaPartes <= 1 || actualizandoTabla"
-            (click)="cambiarPaginaPartes(-1)"
-            class="rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-white disabled:opacity-40"
-          >
-            Anterior
-          </button>
-          <button
-            type="button"
-            [disabled]="paginaPartes >= totalPaginasPartes() || actualizandoTabla"
-            (click)="cambiarPaginaPartes(1)"
-            class="rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-white disabled:opacity-40"
-          >
-            Siguiente
-          </button>
-        </div>
-      </div>
+      <app-sid-pagination-footer
+        class="mb-6 px-1 xl:hidden"
+        [embedded]="true"
+        [page]="paginaPartes"
+        [totalPages]="totalPaginasPartes()"
+        [totalRecords]="totalFiltrado"
+        recordUnit="resultado(s)"
+        [pageSize]="tamanioPaginaPartes"
+        [navDisabled]="actualizandoTabla"
+        (pageDelta)="cambiarPaginaPartes($event)"
+      />
     }
 
     <div
@@ -710,29 +663,16 @@
         </table>
       </div>
       @if (totalFiltrado > 0) {
-        <div class="flex flex-col gap-3 border-t border-slate-800/80 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <span class="text-sm text-slate-500">
-            Página {{ paginaPartes }} de {{ totalPaginasPartes() }} · {{ totalFiltrado }} resultado(s)
-          </span>
-          <div class="flex gap-2">
-            <button
-              type="button"
-              [disabled]="paginaPartes <= 1 || actualizandoTabla"
-              (click)="cambiarPaginaPartes(-1)"
-              class="rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-sm text-white transition-colors hover:bg-slate-800 disabled:opacity-40"
-            >
-              Anterior
-            </button>
-            <button
-              type="button"
-              [disabled]="paginaPartes >= totalPaginasPartes() || actualizandoTabla"
-              (click)="cambiarPaginaPartes(1)"
-              class="rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-sm text-white transition-colors hover:bg-slate-800 disabled:opacity-40"
-            >
-              Siguiente
-            </button>
-          </div>
-        </div>
+        <app-sid-pagination-footer
+          [embedded]="true"
+          [page]="paginaPartes"
+          [totalPages]="totalPaginasPartes()"
+          [totalRecords]="totalFiltrado"
+          recordUnit="resultado(s)"
+          [pageSize]="tamanioPaginaPartes"
+          [navDisabled]="actualizandoTabla"
+          (pageDelta)="cambiarPaginaPartes($event)"
+        />
       }
     </div>
     </section>

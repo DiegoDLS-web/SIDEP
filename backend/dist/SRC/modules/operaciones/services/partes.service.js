@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.anularParte = exports.actualizarParte = exports.obtenerMetricas = exports.listarPagina = exports.obtenerPorId = exports.obtenerTodos = exports.crearParteConRelaciones = void 0;
+exports.anularParte = exports.actualizarParte = exports.obtenerMetricas = exports.listarPagina = exports.obtenerPorId = exports.obtenerAnaliticaParte = exports.obtenerTodos = exports.crearParteConRelaciones = void 0;
 exports.mapParteToDto = mapParteToDto;
 const uuid_1 = require("uuid");
 const prisma_1 = __importDefault(require("../../../prisma"));
@@ -12,6 +12,7 @@ const AppError_1 = require("../../../utils/errors/AppError");
 const parte_disponibilidad_util_1 = require("../../../utils/parte-disponibilidad.util");
 const parte_edicion_roles_util_1 = require("../../../utils/parte-edicion-roles.util");
 const notificaciones_scheduler_service_1 = require("../../notificaciones/notificaciones-scheduler.service");
+const dashboard_service_1 = require("../../analitica/services/dashboard.service");
 const OPCIONES_TRANSACCION = { maxWait: 10_000, timeout: 60_000 };
 function esEstadoParteFlexible(estado) {
     const codigo = String(estado || '').trim().toUpperCase();
@@ -651,20 +652,126 @@ const crearParteConRelaciones = async (data) => {
             correlativo: creado?.correlativo ?? correlativo,
             direccion: creado?.direccion ?? String(data.direccion || ''),
             claveEmergencia: creado?.claveEmergencia ?? String(data.claveEmergencia || ''),
-        }).catch(() => undefined);
+        }).catch((err) => {
+            console.error('[SIDEP] Error al enviar alerta de nueva emergencia:', err);
+        });
     }
+    (0, dashboard_service_1.invalidarCacheDashboard)();
     return creado;
 };
 exports.crearParteConRelaciones = crearParteConRelaciones;
 const obtenerTodos = async () => {
     const partes = await prisma_1.default.parteEmergencia.findMany({
         where: whereExcluirAnulados,
-        include: parteInclude,
+        include: parteIncludeListado,
         orderBy: { fechaEmergencia: 'desc' },
+        take: 100,
     });
-    return partes.map((p) => mapParteToDto(p));
+    return partes.map((p) => mapParteListadoToDto(p));
 };
 exports.obtenerTodos = obtenerTodos;
+function contarVoluntariosParte(row) {
+    if (!row)
+        return null;
+    if (row.metadata) {
+        try {
+            const meta = JSON.parse(row.metadata);
+            if (typeof meta.asistenciaTotal === 'number' && meta.asistenciaTotal >= 0) {
+                return meta.asistenciaTotal;
+            }
+        }
+        catch {
+            /* metadata inválido */
+        }
+    }
+    if (row.asistencias?.length)
+        return row.asistencias.length;
+    return null;
+}
+function promedioNumeros(vals) {
+    if (!vals.length)
+        return null;
+    return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10;
+}
+const obtenerAnaliticaParte = async (id) => {
+    const parte = await prisma_1.default.parteEmergencia.findUnique({
+        where: { id },
+        include: parteInclude,
+    });
+    if (!parte)
+        throw new AppError_1.ValidationError(['Parte no encontrado']);
+    const otros = await prisma_1.default.parteEmergencia.findMany({
+        where: { ...whereExcluirAnulados, id: { not: id } },
+        select: {
+            metadata: true,
+            asistencias: { select: { id: true } },
+        },
+        orderBy: { fechaEmergencia: 'desc' },
+        take: 30,
+    });
+    const voluntariosParte = contarVoluntariosParte(parte);
+    const muestra = otros
+        .map((p) => contarVoluntariosParte(p))
+        .filter((x) => x != null);
+    const promedioVoluntariosBase = promedioNumeros(muestra);
+    let tendenciaVoluntarios = 'sin-datos';
+    if (voluntariosParte != null && promedioVoluntariosBase != null) {
+        if (voluntariosParte > promedioVoluntariosBase)
+            tendenciaVoluntarios = 'subio';
+        else if (voluntariosParte < promedioVoluntariosBase)
+            tendenciaVoluntarios = 'bajo';
+        else
+            tendenciaVoluntarios = 'igual';
+    }
+    const tiemposDespacho = [];
+    const tiemposRespuesta = [];
+    const tiemposServicio = [];
+    const dto = mapParteToDto(parte);
+    if (!dto)
+        throw new AppError_1.ValidationError(['Parte no encontrado']);
+    const base = new Date(dto.fecha);
+    for (const u of dto.unidades || []) {
+        const parseH = (fecha, hora) => {
+            if (hora instanceof Date)
+                return hora;
+            if (!hora || typeof hora !== 'string' || !hora.trim())
+                return null;
+            const m = hora.trim().match(/^(\d{1,2}):(\d{2})/);
+            if (!m)
+                return null;
+            const d = new Date(fecha);
+            d.setHours(Number(m[1]), Number(m[2]), 0, 0);
+            return d;
+        };
+        const diffMin = (a, b) => {
+            if (!a || !b)
+                return null;
+            const ms = b.getTime() - a.getTime();
+            return ms >= 0 ? Math.round(ms / 60000) : null;
+        };
+        const horaDespacho = parseH(base, u.hora6_0 ?? u.horaSalida);
+        const horaLlegada = parseH(base, u.hora6_3);
+        const horaDisponible = parseH(base, u.hora6_10 ?? u.horaLlegada);
+        const despacho = diffMin(base, horaDespacho);
+        const respuesta = diffMin(horaDespacho, horaLlegada);
+        const servicio = diffMin(horaDespacho, horaDisponible);
+        if (despacho != null)
+            tiemposDespacho.push(despacho);
+        if (respuesta != null)
+            tiemposRespuesta.push(respuesta);
+        if (servicio != null)
+            tiemposServicio.push(servicio);
+    }
+    return {
+        tiempoDespachoMin: promedioNumeros(tiemposDespacho),
+        tiempoRespuestaMin: promedioNumeros(tiemposRespuesta),
+        tiempoServicioMin: promedioNumeros(tiemposServicio),
+        voluntariosParte,
+        promedioVoluntariosBase,
+        tendenciaVoluntarios,
+    };
+};
+exports.obtenerAnaliticaParte = obtenerAnaliticaParte;
 const obtenerPorId = async (id) => {
     const parte = await prisma_1.default.parteEmergencia.findUnique({
         where: { id },
@@ -723,7 +830,8 @@ function construirWhereListado(filtros) {
 }
 const listarPagina = async (filtros) => {
     const page = Math.max(1, Number(filtros.page) || 1);
-    const pageSize = Math.min(2000, Math.max(1, Number(filtros.pageSize) || 10));
+    const maxSize = filtros.export ? 2000 : 100;
+    const pageSize = Math.min(maxSize, Math.max(1, Number(filtros.pageSize) || 10));
     const where = construirWhereListado(filtros);
     const [total, partes] = await Promise.all([
         prisma_1.default.parteEmergencia.count({ where }),
@@ -892,6 +1000,7 @@ const actualizarParte = async (id, data, rolActor) => {
         }
         await sincronizarAsistencias(tx, id, filasAsistencia);
     }, OPCIONES_TRANSACCION);
+    (0, dashboard_service_1.invalidarCacheDashboard)();
     return (0, exports.obtenerPorId)(id);
 };
 exports.actualizarParte = actualizarParte;
@@ -901,6 +1010,7 @@ const anularParte = async (id) => {
         where: { id },
         data: { estadoId: anuladoId },
     });
+    (0, dashboard_service_1.invalidarCacheDashboard)();
     return true;
 };
 exports.anularParte = anularParte;

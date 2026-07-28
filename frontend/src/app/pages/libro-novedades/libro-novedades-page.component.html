@@ -1,0 +1,150 @@
+<div class="sid-page sid-page-shell mx-auto w-full max-w-6xl px-4 py-6 md:px-6">
+  <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+      <p class="sid-pill mb-2 w-fit text-[10px] uppercase tracking-wider text-red-400/90">Cuartel</p>
+      <h1 class="flex items-center gap-2 text-2xl font-bold text-white">
+        <lucide-icon name="book-open" class="h-7 w-7 text-amber-400" [size]="28" color="currentColor"></lucide-icon>
+        Libro de novedades
+      </h1>
+      <p class="mt-1 text-sm sid-muted">Registro cronológico de hechos relevantes en el cuartel.</p>
+    </div>
+    <button type="button" class="sid-btn sid-btn-primary rounded-lg px-4 py-2.5 text-sm font-semibold" (click)="abrirFormulario()">
+      Registrar novedad
+    </button>
+  </header>
+
+  <section class="mb-6 rounded-2xl border border-slate-800 bg-[#121212] p-4 sm:p-5">
+    <div class="sid-filtros-bar">
+      <div class="sid-filtros-bar__grid">
+        <div>
+          <label class="sid-filtros-bar__label">Desde</label>
+          <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter w-full" [(ngModel)]="filtroDesde" />
+        </div>
+        <div>
+          <label class="sid-filtros-bar__label">Hasta</label>
+          <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter w-full" [(ngModel)]="filtroHasta" />
+        </div>
+        <div>
+          <label class="sid-filtros-bar__label">Categoría</label>
+          <select class="sid-history-filter w-full" [(ngModel)]="filtroCategoria">
+            <option value="">Todas</option>
+            @for (c of categorias; track c.value) {
+              <option [value]="c.value">{{ c.label }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="sid-filtros-bar__label">Importancia</label>
+          <select class="sid-history-filter w-full" [(ngModel)]="filtroImportante">
+            <option value="TODAS">Todas</option>
+            <option value="SI">Solo importantes</option>
+            <option value="NO">Sin marcar importantes</option>
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="sid-filtros-bar__label">Búsqueda</label>
+          <input type="search" class="sid-history-filter w-full" placeholder="Título o descripción…" [(ngModel)]="filtroTexto" />
+        </div>
+      </div>
+      <app-sid-history-filter-actions
+        [showPdf]="false"
+        [showExcel]="false"
+        (apply)="page = 1; cargar()"
+        (clear)="limpiarFiltros()"
+        (refresh)="cargar()"
+      />
+    </div>
+  </section>
+
+  @if (loading) {
+    <p class="text-sm sid-muted">Cargando novedades…</p>
+  } @else if (items.length === 0) {
+    <app-sid-empty-state title="Sin novedades" description="No hay registros con los filtros aplicados." icon="book-open" />
+  } @else {
+    <div class="space-y-3">
+      @for (n of items; track n.id) {
+        <article class="rounded-xl border border-slate-800 bg-[#0a0a0a] p-4 sm:p-5" [class.border-amber-700/50]="n.importante">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                @if (n.importante) {
+                  <span class="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-200">Importante</span>
+                }
+                <span class="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-300">{{ etiquetaCategoria(n.categoria) }}</span>
+                @if (n.grupoGuardia) {
+                  <span class="text-xs text-slate-500">Grupo {{ n.grupoGuardia }}</span>
+                }
+              </div>
+              <h2 class="mt-2 text-lg font-semibold text-white">{{ n.titulo }}</h2>
+              <p class="mt-1 text-xs text-slate-500">{{ fechaHoraEs(n.fechaHora) }} · {{ n.autor?.nombre ?? n.autorRut }}</p>
+              <p class="mt-3 whitespace-pre-wrap text-sm text-slate-300">{{ n.descripcion }}</p>
+            </div>
+            @if (puedeGestionar) {
+              <button type="button" class="sid-btn sid-btn-neutral shrink-0 px-3 py-1.5 text-xs text-red-300" (click)="eliminar(n)">Eliminar</button>
+            }
+          </div>
+        </article>
+      }
+    </div>
+    <app-sid-pagination-footer
+      [page]="page"
+      [totalPages]="totalPages"
+      [totalRecords]="total"
+      [pageSize]="pageSize"
+      (pageDelta)="cambiarPagina($event)"
+    />
+  }
+
+  @if (mostrarFormulario) {
+    <div class="fixed inset-0 z-[100] flex items-end justify-center bg-black/75 p-4 sm:items-center" role="dialog" aria-modal="true">
+      <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-700 bg-[#121212] p-5">
+        <h2 class="mb-4 text-lg font-bold text-white">Registrar novedad</h2>
+        <div class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="sid-filtros-bar__label">Fecha</label>
+              <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter w-full" [(ngModel)]="form.fecha" />
+            </div>
+            <div>
+              <label class="sid-filtros-bar__label">Hora</label>
+              <input type="time" class="sid-history-filter w-full" [(ngModel)]="form.hora" />
+            </div>
+          </div>
+          <div>
+            <label class="sid-filtros-bar__label">Categoría</label>
+            <select class="sid-history-filter w-full" [(ngModel)]="form.categoria">
+              @for (c of categorias; track c.value) {
+                <option [value]="c.value">{{ c.label }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="sid-filtros-bar__label">Grupo (opcional)</label>
+            <select class="sid-history-filter w-full" [(ngModel)]="form.grupoGuardia">
+              <option value="">—</option>
+              @for (g of grupos; track g) {
+                <option [value]="g">{{ g }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="sid-filtros-bar__label">Título</label>
+            <input type="text" class="sid-history-filter w-full" maxlength="200" [(ngModel)]="form.titulo" />
+          </div>
+          <div>
+            <label class="sid-filtros-bar__label">Descripción</label>
+            <textarea class="sid-history-filter min-h-[100px] w-full" [(ngModel)]="form.descripcion"></textarea>
+          </div>
+          <label class="flex items-center gap-2 text-sm text-slate-300">
+            <input type="checkbox" [(ngModel)]="form.importante" />
+            Marcar como importante
+          </label>
+        </div>
+        <div class="mt-5 flex justify-end gap-2">
+          <button type="button" class="sid-btn sid-btn-neutral px-4 py-2" (click)="mostrarFormulario = false">Cancelar</button>
+          <button type="button" class="sid-btn sid-btn-primary px-4 py-2" [disabled]="guardando" (click)="guardar()">Registrar</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

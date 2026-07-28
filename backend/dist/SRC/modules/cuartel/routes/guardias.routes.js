@@ -1,0 +1,17 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_middleware_1 = require("../../../middlewares/auth.middleware");
+const role_middleware_1 = require("../../../middlewares/role.middleware");
+const validate_1 = require("../../../middlewares/validate");
+const guardia_dto_1 = require("../dtos/guardia.dto");
+const guardias_controller_1 = require("../controllers/guardias.controller");
+const router = (0, express_1.Router)();
+const rolesGestion = (0, role_middleware_1.requireRoles)('ADMIN', 'CAPITAN', 'TENIENTE');
+router.get('/', auth_middleware_1.protect, (0, validate_1.validateQuery)(guardia_dto_1.listarGuardiasQueryDto), guardias_controller_1.getGuardias);
+router.get('/resumen', auth_middleware_1.protect, guardias_controller_1.getResumenGuardias);
+router.get('/:id', auth_middleware_1.protect, guardias_controller_1.getGuardia);
+router.post('/', auth_middleware_1.protect, rolesGestion, (0, validate_1.validate)(guardia_dto_1.crearGuardiaDto), guardias_controller_1.postGuardia);
+router.patch('/:id', auth_middleware_1.protect, rolesGestion, (0, validate_1.validate)(guardia_dto_1.actualizarGuardiaDto), guardias_controller_1.patchGuardia);
+router.delete('/:id', auth_middleware_1.protect, rolesGestion, guardias_controller_1.deleteGuardia);
+exports.default = router;

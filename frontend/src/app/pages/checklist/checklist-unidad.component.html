@@ -365,8 +365,17 @@
                 (blur)="confirmarCambioNombre(material)"
                 [readonly]="!editandoPlantilla"
                 placeholder="Nombre material"
-                class="mb-3 w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 text-sm text-white placeholder:text-gray-600 read-only:opacity-80"
+                class="mb-1 w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2.5 text-sm text-white placeholder:text-gray-600 read-only:opacity-80"
               />
+              @if (stockBodegaMaterial(material.nombre); as stock) {
+                @if (stock.disponible > 0) {
+                  <p class="mb-3 text-[11px] text-emerald-300">Bodega {{ stock.bodega }}: {{ stock.disponible }} disp.</p>
+                } @else {
+                  <p class="mb-3 text-[11px] text-amber-300">Sin stock en bodega institucional ({{ stock.bodega }})</p>
+                }
+              } @else {
+                <div class="mb-3"></div>
+              }
               <div class="mb-3 grid grid-cols-2 gap-3">
                 <div>
                   <label class="mb-1 block text-xs text-gray-500">Requerido</label>

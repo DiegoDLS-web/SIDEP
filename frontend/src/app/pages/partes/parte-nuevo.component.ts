@@ -245,9 +245,7 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
 
     forkJoin({
       carros: this.carrosApi.listar().pipe(catchError(() => of([]))),
-      usuarios: this.usuariosApi.listar().pipe(
-        catchError(() => this.usuariosApi.selectorObac().pipe(catchError(() => of([] as UsuarioListaDto[])))),
-      ),
+      usuarios: this.usuariosApi.voluntariosParaSelect().pipe(catchError(() => of([] as UsuarioListaDto[]))),
       licencias: this.licenciasApi.listarActivas(this.fechaDia).pipe(catchError(() => of([]))),
       parteEdicion:
         this.editandoParteId != null

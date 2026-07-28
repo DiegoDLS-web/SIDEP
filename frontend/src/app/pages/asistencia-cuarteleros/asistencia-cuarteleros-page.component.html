@@ -1,0 +1,194 @@
+<div class="sid-page sid-page-shell mx-auto w-full max-w-6xl px-4 py-6 md:px-6">
+  <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+      <p class="sid-pill mb-2 w-fit text-[10px] uppercase tracking-wider text-red-400/90">Cuartel</p>
+      <h1 class="flex items-center gap-2 text-2xl font-bold text-white">
+        <lucide-icon name="user-check" class="h-7 w-7 text-emerald-400" [size]="28" color="currentColor"></lucide-icon>
+        Asistencia cuarteleros
+      </h1>
+      <p class="mt-1 text-sm sid-muted">Control diario de presencia del personal de cuartel.</p>
+    </div>
+    @if (puedeGestionar) {
+      <button type="button" class="sid-btn sid-btn-primary rounded-lg px-4 py-2.5 text-sm font-semibold" (click)="abrirNuevo()">
+        Registrar asistencia
+      </button>
+    }
+  </header>
+
+  <div class="mb-6 grid gap-3 sm:grid-cols-3">
+    <div class="rounded-xl border border-slate-800 bg-[#121212] p-4">
+      <p class="text-xs uppercase tracking-wide text-slate-500">Fecha consulta</p>
+      <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter mt-2 w-full" [(ngModel)]="fechaConsulta" (ngModelChange)="cargar()" />
+    </div>
+    <div class="rounded-xl border border-slate-800 bg-[#121212] p-4">
+      <p class="text-xs uppercase tracking-wide text-slate-500">Presentes</p>
+      <p class="mt-1 text-2xl font-bold text-emerald-400">{{ resumenPresentes }}</p>
+    </div>
+    <div class="rounded-xl border border-slate-800 bg-[#121212] p-4">
+      <p class="text-xs uppercase tracking-wide text-slate-500">Ausentes / total</p>
+      <p class="mt-1 text-2xl font-bold text-white">{{ resumenAusentes }} <span class="text-base font-normal text-slate-500">/ {{ resumenTotal }}</span></p>
+    </div>
+  </div>
+
+  <section class="mb-6 rounded-2xl border border-slate-800 bg-[#121212] p-4 sm:p-5">
+    <div class="sid-filtros-bar">
+      <div class="sid-filtros-bar__grid">
+        <div>
+          <label class="sid-filtros-bar__label">Desde</label>
+          <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter w-full" [(ngModel)]="filtroDesde" />
+        </div>
+        <div>
+          <label class="sid-filtros-bar__label">Hasta</label>
+          <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter w-full" [(ngModel)]="filtroHasta" />
+        </div>
+        <div>
+          <label class="sid-filtros-bar__label">Grupo</label>
+          <select class="sid-history-filter w-full" [(ngModel)]="filtroGrupo">
+            <option value="TODAS">Todos</option>
+            @for (g of grupos; track g) {
+              <option [value]="g">Grupo {{ g }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <label class="sid-filtros-bar__label">Estado</label>
+          <select class="sid-history-filter w-full" [(ngModel)]="filtroPresente">
+            <option value="TODAS">Todos</option>
+            <option value="SI">Presentes</option>
+            <option value="NO">Ausentes</option>
+          </select>
+        </div>
+      </div>
+      <app-sid-history-filter-actions
+        [showPdf]="false"
+        [showExcel]="false"
+        (apply)="page = 1; cargar()"
+        (clear)="limpiarFiltros()"
+        (refresh)="cargar()"
+      />
+    </div>
+  </section>
+
+  @if (loading) {
+    <p class="text-sm sid-muted">Cargando asistencia…</p>
+  } @else if (items.length === 0) {
+    <app-sid-empty-state title="Sin registros" description="No hay asistencia con los filtros aplicados." icon="user-check" />
+  } @else {
+    <div class="mb-3 flex justify-end">
+      <app-sid-record-count-badge [count]="total" />
+    </div>
+    <div class="overflow-x-auto rounded-xl border border-slate-800">
+      <table class="sid-table w-full min-w-[640px] text-left text-sm">
+        <thead>
+          <tr class="border-b border-slate-800 bg-[#0a0a0a] text-xs uppercase text-slate-500">
+            <th class="px-4 py-3">Fecha</th>
+            <th class="px-4 py-3">Cuartelero</th>
+            <th class="px-4 py-3">Grupo</th>
+            <th class="px-4 py-3">Estado</th>
+            <th class="px-4 py-3">Entrada</th>
+            <th class="px-4 py-3">Salida</th>
+            @if (puedeGestionar) {
+              <th class="px-4 py-3 text-right">Acciones</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (a of items; track a.id) {
+            <tr class="border-b border-slate-800/80 hover:bg-white/[0.02]">
+              <td class="px-4 py-3 text-slate-300">{{ a.fecha }}</td>
+              <td class="px-4 py-3 font-medium text-white">{{ a.usuario?.nombre ?? a.usuarioRut }}</td>
+              <td class="px-4 py-3 text-slate-400">{{ a.grupoGuardia ? 'Grupo ' + a.grupoGuardia : '—' }}</td>
+              <td class="px-4 py-3">
+                @if (a.presente) {
+                  <span class="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-300">Presente</span>
+                } @else {
+                  <span class="rounded-full bg-red-500/15 px-2 py-0.5 text-xs font-semibold text-red-300">Ausente</span>
+                }
+              </td>
+              <td class="px-4 py-3 text-slate-400">{{ a.horaEntrada ?? '—' }}</td>
+              <td class="px-4 py-3 text-slate-400">{{ a.horaSalida ?? '—' }}</td>
+              @if (puedeGestionar) {
+                <td class="px-4 py-3 text-right">
+                  <button type="button" class="sid-btn sid-btn-neutral mr-2 px-2 py-1 text-xs" (click)="abrirEditar(a)">Editar</button>
+                  <button type="button" class="sid-btn sid-btn-neutral px-2 py-1 text-xs text-red-300" (click)="eliminar(a)">Eliminar</button>
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-sid-pagination-footer
+      [page]="page"
+      [totalPages]="totalPages"
+      [totalRecords]="total"
+      [pageSize]="pageSize"
+      (pageDelta)="cambiarPagina($event)"
+    />
+  }
+
+  @if (mostrarFormulario) {
+    <div class="fixed inset-0 z-[100] flex items-end justify-center bg-black/75 p-4 sm:items-center" role="dialog" aria-modal="true">
+      <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-700 bg-[#121212] p-5">
+        <h2 class="mb-4 text-lg font-bold text-white">{{ editandoId ? 'Editar asistencia' : 'Registrar asistencia' }}</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="sid-filtros-bar__label">Fecha</label>
+            @if (editandoId) {
+              <p class="sid-history-filter w-full opacity-80">{{ form.fecha }}</p>
+            } @else {
+              <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter w-full" [(ngModel)]="form.fecha" />
+            }
+          </div>
+          @if (!editandoId) {
+            <div>
+              <label class="sid-filtros-bar__label">Cuartelero</label>
+              <select class="sid-history-filter w-full" [(ngModel)]="form.usuarioRut">
+                <option value="">Seleccionar…</option>
+                @for (v of voluntarios; track v.rut) {
+                  <option [value]="v.rut">{{ v.nombre }}</option>
+                }
+              </select>
+            </div>
+          } @else {
+            <div>
+              <label class="sid-filtros-bar__label">Cuartelero</label>
+              <p class="sid-history-filter w-full opacity-80">{{ nombreVoluntario(form.usuarioRut) }}</p>
+            </div>
+          }
+          <div>
+            <label class="sid-filtros-bar__label">Grupo (opcional)</label>
+            <select class="sid-history-filter w-full" [(ngModel)]="form.grupoGuardia">
+              <option value="">—</option>
+              @for (g of grupos; track g) {
+                <option [value]="g">{{ g }}</option>
+              }
+            </select>
+          </div>
+          <label class="flex items-center gap-2 text-sm text-slate-300">
+            <input type="checkbox" [(ngModel)]="form.presente" />
+            Presente
+          </label>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="sid-filtros-bar__label">Hora entrada</label>
+              <input type="time" class="sid-history-filter w-full" [(ngModel)]="form.horaEntrada" />
+            </div>
+            <div>
+              <label class="sid-filtros-bar__label">Hora salida</label>
+              <input type="time" class="sid-history-filter w-full" [(ngModel)]="form.horaSalida" />
+            </div>
+          </div>
+          <div>
+            <label class="sid-filtros-bar__label">Observaciones</label>
+            <textarea class="sid-history-filter min-h-[72px] w-full" [(ngModel)]="form.observaciones"></textarea>
+          </div>
+        </div>
+        <div class="mt-5 flex justify-end gap-2">
+          <button type="button" class="sid-btn sid-btn-neutral px-4 py-2" (click)="mostrarFormulario = false">Cancelar</button>
+          <button type="button" class="sid-btn sid-btn-primary px-4 py-2" [disabled]="guardando" (click)="guardar()">Guardar</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

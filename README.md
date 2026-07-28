@@ -174,3 +174,5 @@ Resumen:
 4. Configurar `DATABASE_URL`, `JWT_SECRET`, `FRONTEND_URL` y `APP_PUBLIC_URL` con la URL pública.
 
 La app quedará en una URL del tipo `https://sidep-xxxx.onrender.com`.
+
+Operaciones (staging, logs, backups, CI): **[docs/OPERACIONES.md](./docs/OPERACIONES.md)**

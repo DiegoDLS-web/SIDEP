@@ -1,4 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
+import { shareReplay } from 'rxjs';
 import { ConfiguracionesService } from './configuraciones.service';
 import {
   CLAVES_EMERGENCIA,
@@ -24,29 +25,37 @@ export class CatalogoTiposEmergenciaService {
   readonly clavesEmergencia = signal<ClaveEmergenciaOpcion[]>(CLAVES_EMERGENCIA);
 
   constructor() {
-    this.reload();
+    this.configApi
+      .obtenerOperativa()
+      .pipe(shareReplay({ bufferSize: 1, refCount: true, windowTime: 120_000 }))
+      .subscribe({
+        next: (cfg) => this.aplicarConfig(cfg),
+        error: () => this.clavesEmergencia.set(CLAVES_EMERGENCIA),
+      });
   }
 
   reload(): void {
     this.configApi.obtenerOperativa().subscribe({
-      next: (cfg) => {
-        if (cfg.tiposEmergencia && cfg.tiposEmergencia.length > 0) {
-          const conTodos: ClaveEmergenciaOpcion[] = [
-            { value: 'todos', label: 'Todos los tipos' },
-            ...cfg.tiposEmergencia.map((t) => {
-              const value = String(t.value ?? '').trim();
-              const raw = String(t.label ?? '').trim();
-              const label = raw || ETIQUETA_POR_VALOR.get(value) || value;
-              return { value, label };
-            }),
-          ];
-          this.clavesEmergencia.set(conTodos);
-        } else {
-          this.clavesEmergencia.set(CLAVES_EMERGENCIA);
-        }
-      },
+      next: (cfg) => this.aplicarConfig(cfg),
       error: () => this.clavesEmergencia.set(CLAVES_EMERGENCIA),
     });
+  }
+
+  private aplicarConfig(cfg: { tiposEmergencia?: TipoEmergenciaItemDto[] }): void {
+    if (cfg.tiposEmergencia && cfg.tiposEmergencia.length > 0) {
+      const conTodos: ClaveEmergenciaOpcion[] = [
+        { value: 'todos', label: 'Todos los tipos' },
+        ...cfg.tiposEmergencia.map((t) => {
+          const value = String(t.value ?? '').trim();
+          const raw = String(t.label ?? '').trim();
+          const label = raw || ETIQUETA_POR_VALOR.get(value) || value;
+          return { value, label };
+        }),
+      ];
+      this.clavesEmergencia.set(conTodos);
+    } else {
+      this.clavesEmergencia.set(CLAVES_EMERGENCIA);
+    }
   }
 
   etiqueta(clave: string): string {

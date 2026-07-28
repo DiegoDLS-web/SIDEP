@@ -6,11 +6,16 @@ import {
     logout,
     recuperarPassword,
     restablecerPassword,
+    verifyMfa,
+    getMfaEstado,
+    postMfaSetup,
+    postMfaEnable,
+    postMfaDisable,
 } from './autenticacion.controller';
 import { protect } from '../../middlewares/auth.middleware';
 import { requireRoles } from '../../middlewares/role.middleware';
 import { validate } from '../../middlewares/validate';
-import { registerDto } from './dtos/auth.dto';
+import { loginDto, mfaVerifyDto, mfaCodeDto, registerDto, recuperarPasswordDto, restablecerPasswordDto } from './dtos/auth.dto';
 import rateLimit from 'express-rate-limit';
 
 const loginLimiter = rateLimit({
@@ -31,7 +36,8 @@ const recoverLimiter = rateLimit({
 
 const router = Router();
 
-router.post('/login', loginLimiter, login);
+router.post('/login', loginLimiter, validate(loginDto), login);
+router.post('/mfa/verify', loginLimiter, validate(mfaVerifyDto), verifyMfa);
 /** Registro público deshabilitado: usar POST /api/usuarios con sesión de oficialidad. */
 router.post(
   '/register',
@@ -40,10 +46,15 @@ router.post(
   validate(registerDto),
   register,
 );
-router.post('/recuperar-password', recoverLimiter, recuperarPassword);
-router.post('/restablecer-password', recoverLimiter, restablecerPassword);
+router.post('/recuperar-password', recoverLimiter, validate(recuperarPasswordDto), recuperarPassword);
+router.post('/restablecer-password', recoverLimiter, validate(restablecerPasswordDto), restablecerPassword);
 
 router.get('/me', protect, me);
 router.post('/logout', protect, logout);
+
+router.get('/mfa/estado', protect, requireRoles('ADMIN'), getMfaEstado);
+router.post('/mfa/setup', protect, requireRoles('ADMIN'), postMfaSetup);
+router.post('/mfa/enable', protect, requireRoles('ADMIN'), validate(mfaCodeDto), postMfaEnable);
+router.post('/mfa/disable', protect, requireRoles('ADMIN'), validate(mfaCodeDto), postMfaDisable);
 
 export default router;

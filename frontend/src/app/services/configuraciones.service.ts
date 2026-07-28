@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import type { ConfiguracionOperativaDto, ConfiguracionSistemaDto, TipoEmergenciaItemDto } from '../models/configuracion.dto';
+import type { ConfiguracionOperativaDto, ConfiguracionSistemaDto, EmailLogDto, TipoEmergenciaItemDto } from '../models/configuracion.dto';
 
 @Injectable({ providedIn: 'root' })
 export class ConfiguracionesService {
@@ -38,5 +38,13 @@ export class ConfiguracionesService {
     const fd = new FormData();
     fd.append('file', file);
     return this.http.post<{ ok: boolean; path: string }>('/api/rrhh/configuraciones/logo-compania', fd);
+  }
+
+  probarCorreo(to: string): Observable<{ ok: boolean; message: string }> {
+    return this.http.post<{ ok: boolean; message: string }>('/api/rrhh/configuraciones/probar-correo', { to });
+  }
+
+  listarLogsCorreo(limit = 50): Observable<EmailLogDto[]> {
+    return this.http.get<EmailLogDto[]>(`/api/rrhh/configuraciones/logs-correo?limit=${limit}`);
   }
 }

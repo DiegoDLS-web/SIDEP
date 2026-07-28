@@ -1,0 +1,40 @@
+name: Notificaciones cron
+
+on:
+  schedule:
+    # 07:00, 08:00 y 09:00 hora Chile (UTC-4 en invierno aprox.)
+    - cron: '0 11 * * *'
+    - cron: '0 12 * * *'
+    - cron: '0 13 * * *'
+  workflow_dispatch:
+    inputs:
+      tarea:
+        description: 'Tarea a ejecutar'
+        required: false
+        default: 'todas'
+        type: choice
+        options:
+          - auto
+          - resumen-diario
+          - checklist
+          - inventario
+          - todas
+
+jobs:
+  cron:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar notificaciones SIDEP
+        env:
+          SIDEP_API_URL: ${{ secrets.SIDEP_API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          TAREA: ${{ github.event.inputs.tarea || 'auto' }}
+        run: |
+          if [ -z "$SIDEP_API_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "Configura los secrets SIDEP_API_URL y CRON_SECRET en el repositorio."
+            exit 1
+          fi
+          curl -fsS -X POST "${SIDEP_API_URL%/}/api/notificaciones/cron?tarea=${TAREA}" \
+            -H "Content-Type: application/json" \
+            -H "X-Cron-Secret: ${CRON_SECRET}" \
+            -d "{\"tarea\":\"${TAREA}\"}"

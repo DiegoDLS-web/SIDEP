@@ -1,10 +1,16 @@
 import prisma from '../../../prisma';
 import { StorageService, cloudinary } from '../../../shared/storage';
 import { hashPassword, comparePassword } from '../../../utils/security/hash';
+import { generarPasswordProvisional, validarPasswordNueva } from '../../../utils/security/password-policy.util';
+
+export type MapUsuarioOpts = {
+  incluirClaveNomina?: boolean;
+};
 
 // Mapea un modelo Usuario de la BD al DTO UsuarioListaDto del frontend
-export function mapUsuarioToDto(usuario: any): any {
+export function mapUsuarioToDto(usuario: any, opts?: MapUsuarioOpts): any {
   const nombreCompleto = `${usuario.nombres} ${usuario.apellidoPaterno} ${usuario.apellidoMaterno}`.trim();
+  const incluirClave = opts?.incluirClaveNomina !== false;
   return {
     id: usuario.rut,
     nombre: nombreCompleto,
@@ -33,9 +39,44 @@ export function mapUsuarioToDto(usuario: any): any {
     firmaImagen: usuario.firmaImagenUrl || null,
     fotoPerfil: usuario.fotoPerfilUrl || null,
     autorizadoConducir: usuario.autorizadoConducir === 1,
-    claveNomina: usuario.claveNomina || null,
+    claveNomina: incluirClave ? usuario.claveNomina || null : null,
     createdAt: usuario.createdAt ? new Date(usuario.createdAt).toISOString() : new Date().toISOString(),
     updatedAt: usuario.updatedAt ? new Date(usuario.updatedAt).toISOString() : new Date().toISOString(),
+  };
+}
+
+/** DTO mínimo para selects (partes, checklist, inventario) — sin PII sensible. */
+export function mapUsuarioSelectorDto(usuario: {
+  rut: string;
+  nombres: string;
+  apellidoPaterno: string;
+  apellidoMaterno: string;
+  claveNomina?: string | null;
+  activo: number;
+  autorizadoConducir?: number | null;
+  cargo?: { codigo?: string; nombre?: string } | null;
+  rol?: { codigo?: string; nombre?: string } | null;
+}): {
+  id: string;
+  rut: string;
+  nombre: string;
+  rol: string;
+  claveNomina: string | null;
+  cargoOficialidad: string | null;
+  autorizadoConducir: boolean;
+  activo: boolean;
+  firmaImagen: string | null;
+} {
+  return {
+    id: usuario.rut,
+    rut: usuario.rut,
+    nombre: `${usuario.nombres} ${usuario.apellidoPaterno} ${usuario.apellidoMaterno}`.trim(),
+    rol: usuario.rol?.codigo || usuario.rol?.nombre || 'USER',
+    claveNomina: usuario.claveNomina || null,
+    cargoOficialidad: usuario.cargo?.codigo || usuario.cargo?.nombre || null,
+    autorizadoConducir: usuario.autorizadoConducir === 1,
+    activo: usuario.activo === 1,
+    firmaImagen: (usuario as { firmaImagenUrl?: string | null }).firmaImagenUrl || null,
   };
 }
 
@@ -321,9 +362,14 @@ export const cambiarPassword = async (rut: string, passwordActual: string, passw
     throw new Error('La contraseña actual es incorrecta.');
   }
 
+  const errPolitica = validarPasswordNueva(passwordNueva, rut);
+  if (errPolitica) {
+    throw new Error(errPolitica);
+  }
+
   const nuevoHash = await hashPassword(passwordNueva);
   await prisma.usuario.update({
     where: { rut },
-    data: { passwordHash: nuevoHash },
+    data: { passwordHash: nuevoHash, requiereCambioPassword: 0 },
   });
 };

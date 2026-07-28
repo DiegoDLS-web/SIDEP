@@ -1,6 +1,6 @@
+import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { inject, Injectable } from '@angular/core';
-import { Observable, catchError, of, map } from 'rxjs';
+import { Observable, catchError, map, of, shareReplay } from 'rxjs';
 import type {
   CarroHistorialGeneralFila,
   CarroRegistroHistorialDto,
@@ -12,6 +12,9 @@ import { apiUrl } from '../utils/api-url.util';
 export class CarrosService {
   private readonly http = inject(HttpClient);
   private demoHistorialId = 1;
+  private listarCache$: Observable<CarroDto[]> | null = null;
+  private listarCacheAt = 0;
+  private readonly listarTtlMs = 120_000;
 
   private snapshotHistorial(c: CarroDto): CarroRegistroHistorialDto {
     return {
@@ -136,9 +139,22 @@ export class CarrosService {
   ];
 
   listar(): Observable<CarroDto[]> {
-    return this.http.get<{ success: boolean; data: CarroDto[] }>(apiUrl('logistica', 'carros')).pipe(
+    const now = Date.now();
+    if (this.listarCache$ && now - this.listarCacheAt < this.listarTtlMs) {
+      return this.listarCache$;
+    }
+    this.listarCache$ = this.http.get<{ success: boolean; data: CarroDto[] }>(apiUrl('logistica', 'carros')).pipe(
       map((res) => res.data ?? []),
+      shareReplay(1),
+      catchError(() => of(this.demoCarrosActivos())),
     );
+    this.listarCacheAt = now;
+    return this.listarCache$;
+  }
+
+  invalidarCacheListado(): void {
+    this.listarCache$ = null;
+    this.listarCacheAt = 0;
   }
 
   private demoCarrosActivos(): CarroDto[] {

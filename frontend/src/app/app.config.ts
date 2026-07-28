@@ -1,4 +1,4 @@
-import { ApplicationConfig, LOCALE_ID, provideZoneChangeDetection } from '@angular/core';
+import { ApplicationConfig, ErrorHandler, LOCALE_ID, provideZoneChangeDetection } from '@angular/core';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import {
   PreloadAllModules,
@@ -11,6 +11,8 @@ import { routes } from './app.routes';
 import { authInterceptor } from './interceptors/auth.interceptor';
 import { shortLivedGetCacheInterceptor } from './interceptors/short-lived-get-cache.interceptor';
 
+import { SidGlobalErrorHandler } from './core/errors/sid-global-error-handler';
+
 /**
  * Configuración global: locale, HTTP, router con precarga de rutas lazy.
  * PreloadAllModules descarga en segundo plano el resto de chunks tras el arranque.
@@ -19,6 +21,7 @@ import { shortLivedGetCacheInterceptor } from './interceptors/short-lived-get-ca
 export const appConfig: ApplicationConfig = {
   providers: [
     { provide: LOCALE_ID, useValue: 'es-CL' },
+    { provide: ErrorHandler, useClass: SidGlobalErrorHandler },
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideHttpClient(withInterceptors([authInterceptor, shortLivedGetCacheInterceptor])),
     provideRouter(

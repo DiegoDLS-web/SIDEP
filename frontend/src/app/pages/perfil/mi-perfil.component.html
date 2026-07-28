@@ -325,6 +325,34 @@
       </div>
     </section>
 
+    <section class="rounded-2xl border border-blue-900/35 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
+      <h2 class="mb-1 flex items-center gap-2 text-lg font-bold text-white">
+        <lucide-icon name="shirt" class="h-5 w-5 text-blue-300" [size]="20" color="currentColor"></lucide-icon>
+        Uniforme y EPP asignado
+      </h2>
+      <p class="mb-4 text-sm text-slate-500">Equipamiento de protección personal entregado desde bodega de uniformes.</p>
+      @if (eppCargando) {
+        <p class="text-sm text-slate-400">Cargando asignaciones…</p>
+      } @else if (!eppAsignado.length) {
+        <p class="text-sm text-slate-500">No tienes EPP registrado en inventario.</p>
+      } @else {
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          @for (e of eppAsignado; track e.asignacionId) {
+            <article class="rounded-xl border border-slate-800 bg-black/30 p-4">
+              <p class="font-semibold text-slate-100">{{ e.tipoEppEtiqueta }}</p>
+              <p class="text-sm text-slate-400">{{ e.nombre }}</p>
+              <div class="mt-2 flex flex-wrap gap-2 text-xs">
+                @if (e.talla) {
+                  <span class="rounded-full bg-blue-500/15 px-2 py-0.5 text-blue-200">Talla {{ e.talla }}</span>
+                }
+                <span class="rounded-full bg-slate-700/40 px-2 py-0.5 text-slate-300">{{ e.bodegaNombre }}</span>
+              </div>
+            </article>
+          }
+        </div>
+      }
+    </section>
+
     @if (resumenError) {
       <div class="sid-feedback rounded-xl border border-amber-800/50 bg-amber-950/25 px-4 py-3 text-sm text-amber-100">
         {{ resumenError }}
@@ -420,30 +448,14 @@
                 </li>
               }
             </ul>
-            @if (totalPaginasLicenciasPerfil() > 1) {
-              <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p class="text-xs text-slate-500">
-                  Página {{ paginaLicenciasPerfil }} de {{ totalPaginasLicenciasPerfil() }}
-                </p>
-                <div class="flex gap-2">
-                  <button
-                    type="button"
-                    class="rounded-lg border border-slate-600 bg-slate-800/80 px-3 py-1.5 text-sm text-white disabled:opacity-40"
-                    [disabled]="paginaLicenciasPerfil <= 1"
-                    (click)="cambiarPaginaLicenciasPerfil(-1)"
-                  >
-                    Anterior
-                  </button>
-                  <button
-                    type="button"
-                    class="rounded-lg border border-slate-600 bg-slate-800/80 px-3 py-1.5 text-sm text-white disabled:opacity-40"
-                    [disabled]="paginaLicenciasPerfil >= totalPaginasLicenciasPerfil()"
-                    (click)="cambiarPaginaLicenciasPerfil(1)"
-                  >
-                    Siguiente
-                  </button>
-                </div>
-              </div>
+            @if (r.licencias.items.length > 0) {
+              <app-sid-pagination-footer
+                [page]="paginaLicenciasPerfil"
+                [totalPages]="totalPaginasLicenciasPerfil()"
+                [totalRecords]="r.licencias.items.length"
+                [pageSize]="tamPagLicenciasPerfil"
+                (pageDelta)="cambiarPaginaLicenciasPerfil($event)"
+              />
             }
           }
         </div>
@@ -517,30 +529,15 @@
                 </li>
               }
             </ul>
-            @if (totalPaginasEmergenciasPerfil() > 1) {
-              <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p class="text-xs text-slate-500">
-                  Página {{ paginaEmergenciasPerfil }} de {{ totalPaginasEmergenciasPerfil() }}
-                </p>
-                <div class="flex gap-2">
-                  <button
-                    type="button"
-                    class="rounded-lg border border-slate-600 bg-slate-800/80 px-3 py-1.5 text-sm text-white disabled:opacity-40"
-                    [disabled]="paginaEmergenciasPerfil <= 1"
-                    (click)="cambiarPaginaEmergenciasPerfil(-1)"
-                  >
-                    Anterior
-                  </button>
-                  <button
-                    type="button"
-                    class="rounded-lg border border-slate-600 bg-slate-800/80 px-3 py-1.5 text-sm text-white disabled:opacity-40"
-                    [disabled]="paginaEmergenciasPerfil >= totalPaginasEmergenciasPerfil()"
-                    (click)="cambiarPaginaEmergenciasPerfil(1)"
-                  >
-                    Siguiente
-                  </button>
-                </div>
-              </div>
+            @if (r.emergenciasRecientes.length > 0) {
+              <app-sid-pagination-footer
+                [page]="paginaEmergenciasPerfil"
+                [totalPages]="totalPaginasEmergenciasPerfil()"
+                [totalRecords]="r.emergenciasRecientes.length"
+                recordUnit="emergencia(s)"
+                [pageSize]="tamPagEmergenciasPerfil"
+                (pageDelta)="cambiarPaginaEmergenciasPerfil($event)"
+              />
             }
           </div>
         }
@@ -667,6 +664,50 @@
         </div>
       }
     </section>
+
+    @if (mfaDisponible) {
+      <section class="rounded-2xl border border-violet-900/40 bg-[#121212] p-5 sm:p-6" aria-labelledby="mfa-title">
+        <h2 id="mfa-title" class="mb-2 text-lg font-bold text-white">Autenticación en dos pasos (MFA)</h2>
+        <p class="mb-4 text-sm text-slate-400">
+          Obligatorio para administradores con MFA activo. Usa Google Authenticator o similar.
+        </p>
+        @if (mfaHabilitado) {
+          <p class="mb-3 text-sm text-emerald-300">MFA activo en tu cuenta.</p>
+          <div class="flex flex-wrap items-end gap-2">
+            <input
+              type="text"
+              inputmode="numeric"
+              maxlength="8"
+              [(ngModel)]="mfaCode"
+              placeholder="Código para desactivar"
+              class="sid-input rounded-lg border border-slate-700 bg-[#0a0a0a] px-3 py-2 text-sm"
+            />
+            <button type="button" class="sid-btn sid-btn-neutral text-sm" [disabled]="mfaCargando" (click)="desactivarMfaCuenta()">
+              Desactivar MFA
+            </button>
+          </div>
+        } @else if (mfaSetupUrl) {
+          <p class="mb-2 break-all text-xs text-slate-500">{{ mfaSetupUrl }}</p>
+          <div class="flex flex-wrap items-end gap-2">
+            <input
+              type="text"
+              inputmode="numeric"
+              maxlength="8"
+              [(ngModel)]="mfaCode"
+              placeholder="Código de prueba"
+              class="sid-input rounded-lg border border-slate-700 bg-[#0a0a0a] px-3 py-2 text-sm"
+            />
+            <button type="button" class="sid-btn sid-btn-primary text-sm" [disabled]="mfaCargando" (click)="confirmarActivarMfa()">
+              Confirmar activación
+            </button>
+          </div>
+        } @else {
+          <button type="button" class="sid-btn sid-btn-primary text-sm" [disabled]="mfaCargando" (click)="iniciarConfigMfa()">
+            Configurar MFA
+          </button>
+        }
+      </section>
+    }
 
     <section class="rounded-2xl border border-slate-800 bg-[#121212] p-5 shadow-lg shadow-black/20 ring-1 ring-inset ring-white/5 sm:p-6">
       <h2 class="mb-2 flex items-center gap-2 text-lg font-bold text-white">

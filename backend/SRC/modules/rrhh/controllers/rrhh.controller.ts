@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import * as rrhhService from '../services/rrhh.service';
+import { validarPasswordNueva } from '../../../utils/security/password-policy.util';
 
 // 1. Obtener mi perfil
 export const getMiPerfil = async (req: Request, res: Response) => {
@@ -125,8 +126,9 @@ export const cambiarMiPassword = async (req: Request, res: Response) => {
     if (!passwordActual || !passwordNueva) {
       return res.status(400).json({ success: false, error: 'Se requieren la contraseña actual y la nueva.' });
     }
-    if (passwordNueva.length < 8) {
-      return res.status(400).json({ success: false, error: 'La nueva contraseña debe tener al menos 8 caracteres.' });
+    const errPolitica = validarPasswordNueva(passwordNueva, userRut);
+    if (errPolitica) {
+      return res.status(400).json({ success: false, error: errPolitica });
     }
 
     await rrhhService.cambiarPassword(userRut, passwordActual, passwordNueva);

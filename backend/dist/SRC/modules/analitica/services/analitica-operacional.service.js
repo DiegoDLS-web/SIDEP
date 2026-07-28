@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getAnaliticaOperacionalReporte = void 0;
 const prisma_1 = __importDefault(require("../../../prisma"));
 const partes_where_1 = require("../../operaciones/partes-where");
+const dashboard_service_1 = require("./dashboard.service");
 const getAnaliticaOperacionalReporte = async (anioParam, mesParam) => {
     const anio = anioParam || new Date().getFullYear();
     const mes = mesParam || (new Date().getMonth() + 1);
@@ -336,6 +337,7 @@ const getAnaliticaOperacionalReporte = async (anioParam, mesParam) => {
             voluntarios,
         };
     });
+    const resumenDashboard = await (0, dashboard_service_1.getDashboardResumen)(anio, 'todos', undefined);
     return {
         anio,
         mes,
@@ -360,6 +362,16 @@ const getAnaliticaOperacionalReporte = async (anioParam, mesParam) => {
         asistenciaVoluntariosDetallePorMes,
         totalPartesMes,
         partesPorClave,
+        resumenDashboard: {
+            anio: resumenDashboard.anio,
+            totalEmergencias: resumenDashboard.totalEmergencias,
+            tiempoPromedioRespuestaMin: resumenDashboard.tiempoPromedioRespuestaMin,
+            porcentajeResueltas: resumenDashboard.porcentajeResueltas,
+            emergenciasEsteMes: resumenDashboard.emergenciasEsteMes,
+            porMes: resumenDashboard.porMes,
+            porTipo: resumenDashboard.porTipo,
+            heatmapSemanas: resumenDashboard.heatmapSemanas,
+        },
     };
 };
 exports.getAnaliticaOperacionalReporte = getAnaliticaOperacionalReporte;

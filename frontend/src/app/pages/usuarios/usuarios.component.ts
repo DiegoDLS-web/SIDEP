@@ -10,6 +10,8 @@ import { RolesService } from '../../services/roles.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { ToastService } from '../../services/toast.service';
 import { UsuariosService } from '../../services/usuarios.service';
+import { InventariosService } from '../../services/inventarios.service';
+import type { EppAsignadoUsuarioDto } from '../../models/inventarios.dto';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import {
@@ -28,6 +30,7 @@ import { confirmarDescartarCambios } from '../../utils/confirmar-descartar.util'
 import type { ComponenteConEdicionPendiente } from '../../guards/edicion-pendiente.guard';
 import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-pendiente-global.util';
 import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
+import { SidPaginationFooterComponent } from '../../shared/sid-pagination-footer.component';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { exportarExcelSidep } from '../../utils/excel-export.util';
 import { validarRut, normalizarRut } from '../../utils/rut.util';
@@ -63,11 +66,12 @@ type FormUsuario = {
 @Component({
   selector: 'app-usuarios',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidDateInputComponent, SidEdicionPendienteBannerComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidDateInputComponent, SidEdicionPendienteBannerComponent, SidPaginationFooterComponent],
   templateUrl: './usuarios.component.html',
 })
 export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente {
   private readonly usuariosApi = inject(UsuariosService);
+  private readonly inventariosApi = inject(InventariosService);
   private readonly rolesApi = inject(RolesService);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
@@ -106,6 +110,10 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
 
   mostrandoFormulario = false;
   editandoId: string | null = null;
+  /** Confirmación escrita en zona de peligro al editar (RUT). */
+  eliminarConfirmRut = '';
+  eppUsuarioEdicion: EppAsignadoUsuarioDto[] = [];
+  eppUsuarioCargando = false;
   /** Al editar: valor inicial de firma para no enviar PATCH si no hubo cambios. */
   private firmaInicialEdicion: string | null = null;
   /** Al editar: valor inicial de foto de perfil. */
@@ -145,6 +153,11 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
 
   get esAdmin(): boolean {
     return this.auth.usuarioActual?.rol?.trim().toUpperCase() === 'ADMIN';
+  }
+
+  get puedeVerEppUsuario(): boolean {
+    const r = this.auth.usuarioActual?.rol?.trim().toUpperCase();
+    return r === 'ADMIN' || r === 'CAPITAN' || r === 'TENIENTE';
   }
 
   get rolesParaFormulario(): RolUsuarioDto[] {
@@ -369,6 +382,7 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
     document.body.classList.add('confirm-open');
     this.mostrandoFormulario = true;
     this.editandoId = usuario.id;
+    this.eliminarConfirmRut = '';
     this.firmaInicialEdicion = usuario.firmaImagen ?? '';
     this.fotoInicialEdicion = usuario.fotoPerfil?.trim() ? usuario.fotoPerfil! : '';
     this.exito = null;
@@ -400,14 +414,50 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
       claveNomina: usuario.claveNomina?.trim() ?? '',
     };
     this.controlEdicionForm.marcarLimpio();
+    this.cargarEppUsuarioEdicion(usuario.rut);
+  }
+
+  private cargarEppUsuarioEdicion(rut: string): void {
+    if (!this.puedeVerEppUsuario) {
+      this.eppUsuarioEdicion = [];
+      return;
+    }
+    this.eppUsuarioCargando = true;
+    this.inventariosApi.listarEppUsuario(rut).subscribe({
+      next: (items) => {
+        this.eppUsuarioEdicion = items;
+        this.eppUsuarioCargando = false;
+      },
+      error: () => {
+        this.eppUsuarioEdicion = [];
+        this.eppUsuarioCargando = false;
+      },
+    });
   }
 
   private cerrarFormularioSinConfirmar(): void {
     document.body.classList.remove('confirm-open');
     this.mostrandoFormulario = false;
     this.editandoId = null;
+    this.eliminarConfirmRut = '';
     this.firmaInicialEdicion = null;
     this.fotoInicialEdicion = null;
+  }
+
+  puedeEliminarDesdeEdicion(): boolean {
+    if (!this.editandoId || !this.esAdmin) return false;
+    return this.eliminarConfirmRut.trim() === this.form.rut.trim();
+  }
+
+  async eliminarDesdeEdicion(): Promise<void> {
+    if (!this.editandoId || !this.puedeEliminarDesdeEdicion()) return;
+    const nombre =
+      `${this.form.nombres} ${this.form.apellidoPaterno} ${this.form.apellidoMaterno}`.trim() || 'Usuario';
+    await this.eliminar({
+      id: this.editandoId,
+      rut: this.form.rut,
+      nombre,
+    } as UsuarioListaDto);
   }
 
   async intentarCancelarForm(): Promise<void> {
@@ -841,11 +891,18 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
     }
 
     this.usuariosApi.crear(crear).subscribe({
-      next: () => {
+      next: (resp) => {
         this.guardando = false;
         this.cerrarFormularioSinConfirmar();
-        this.exito = 'Usuario creado correctamente.';
-        this.toast.exito('Usuario creado correctamente.');
+        const pwd = resp.passwordProvisional?.trim();
+        this.exito = pwd
+          ? `Usuario creado. Contraseña provisional: ${pwd} — comunícala de forma segura al voluntario.`
+          : 'Usuario creado correctamente.';
+        this.toast.exito(
+          pwd
+            ? `Usuario creado. Contraseña provisional: ${pwd}`
+            : 'Usuario creado correctamente.',
+        );
         this.recargarTrasMutacion();
       },
       error: (err) => {
@@ -919,10 +976,13 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
       return;
     }
     const ok = await this.confirmDialog.abrir({
-      title: 'Confirmar eliminación',
-      message: `¿Deseas eliminar al usuario "${usuario.nombre}"?`,
-      confirmText: 'Eliminar',
+      title: 'Eliminar usuario permanentemente',
+      message: `Esta acción intentará eliminar a "${usuario.nombre}" (RUT ${usuario.rut}).\n\nSi tiene registros históricos (partes, checklists, licencias), quedará dado de baja automáticamente para preservar la trazabilidad.`,
+      confirmText: 'Eliminar definitivamente',
       cancelText: 'Cancelar',
+      variant: 'danger',
+      requireText: usuario.rut,
+      requireTextHint: `Escribe el RUT exacto (${usuario.rut}) para confirmar`,
     });
     if (!ok) return;
     this.usuariosApi.eliminar(usuario.id).subscribe({
@@ -935,6 +995,7 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
         } else {
           this.toast.exito('Usuario eliminado correctamente.');
         }
+        this.cerrarFormularioSinConfirmar();
         this.recargarTrasMutacion();
       },
       error: (err) => {
@@ -951,7 +1012,7 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
     }
     const ok = await this.confirmDialog.abrir({
       title: 'Restablecer contraseña',
-      message: `¿Estás seguro de restablecer la contraseña del usuario "${usuario.nombre}" al RUT por defecto?`,
+      message: `¿Generar una nueva contraseña provisional para "${usuario.nombre}"? El usuario deberá cambiarla al ingresar.`,
       confirmText: 'Restablecer',
       cancelText: 'Cancelar',
     });
@@ -959,7 +1020,12 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
 
     this.usuariosApi.resetPassword(usuario.id).subscribe({
       next: (res) => {
-        this.toast.exito(res.message || 'Contraseña restablecida con éxito.');
+        const pwd = res.passwordProvisional?.trim();
+        this.toast.exito(
+          pwd
+            ? `${res.message || 'Contraseña restablecida.'} Provisional: ${pwd}`
+            : res.message || 'Contraseña restablecida con éxito.',
+        );
       },
       error: (err: any) => {
         const msg = err?.error?.error ?? 'No se pudo restablecer la contraseña.';
@@ -992,7 +1058,9 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
   }
 
   exportarExcel(): void {
-    this.usuariosApi.listar().subscribe({
+    this.usuariosApi
+      .listarParaExport(200, this.busqueda, this.filtroEstado, this.filtroTipo, this.filtroCargo)
+      .subscribe({
       next: (items) => {
         if (items.length === 0) {
           this.toast.advertencia('No hay usuarios para exportar.');
@@ -1028,7 +1096,9 @@ export class UsuariosComponent implements OnInit, ComponenteConEdicionPendiente 
   }
 
   exportarPdf(): void {
-    this.usuariosApi.listar().subscribe({
+    this.usuariosApi
+      .listarParaExport(200, this.busqueda, this.filtroEstado, this.filtroTipo, this.filtroCargo)
+      .subscribe({
       next: (items) => {
         if (items.length === 0) {
           this.toast.advertencia('No hay usuarios para exportar.');

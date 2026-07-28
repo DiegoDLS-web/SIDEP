@@ -1,68 +1,252 @@
-<div class="mt-4 space-y-6">
-  <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-    <div>
-      <p class="text-sm text-slate-500">Control de materiales y equipos · EPP con tallas y stock disponible</p>
+<div class="sid-page sid-page-shell sid-inventarios-page w-full min-w-0">
+  <a routerLink="/" class="sid-back-link mb-1">
+    <lucide-icon name="arrow-left" class="h-4 w-4" [size]="16" color="currentColor" />
+    Volver al inicio
+  </a>
+
+  <section class="sid-hero-panel sid-hero-panel--amber">
+    <div class="sid-hero-panel__row sid-hero-panel__row--split-start">
+      <div>
+        <p class="sid-page-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
+          Logística · Bodegas
+        </p>
+        <h1 class="sid-page-hero-title text-2xl font-bold sm:text-3xl">Inventarios</h1>
+        <p class="sid-page-hero-subtitle mt-1 text-sm text-gray-300 sm:text-base">
+          Consulta el stock por bodega, registra entradas y salidas, asigna EPP y exporta reportes.
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          class="sid-btn sid-btn-neutral inline-flex items-center gap-2 border-amber-800/40 bg-black/30 text-sm"
+          [disabled]="loading"
+          (click)="cargar(page)"
+        >
+          <lucide-icon name="refresh-cw" class="h-4 w-4" [size]="16" color="currentColor" />
+          Actualizar
+        </button>
+        <button
+          type="button"
+          class="sid-btn sid-btn-neutral inline-flex items-center gap-2 border-slate-700/60 bg-black/30 text-sm"
+          (click)="togglePanelExport()"
+        >
+          <lucide-icon name="file-down" class="h-4 w-4" [size]="16" color="currentColor" />
+          Exportar
+          <lucide-icon [name]="panelExportAbierto ? 'chevron-up' : 'chevron-down'" class="h-4 w-4" [size]="16" color="currentColor" />
+        </button>
+        @if (puedeGestionar) {
+          <button
+            type="button"
+            class="sid-btn sid-btn-neutral inline-flex items-center gap-2 border-emerald-800/40 bg-black/30 text-sm"
+            (click)="togglePanelImport()"
+          >
+            <lucide-icon name="upload" class="h-4 w-4" [size]="16" color="currentColor" />
+            Importar planilla
+          </button>
+          <button
+            type="button"
+            class="sid-btn sid-btn-primary inline-flex items-center gap-2 text-sm"
+            (click)="abrirRegistrarMaterial()"
+          >
+            <lucide-icon name="plus-circle" class="h-4 w-4" [size]="16" color="currentColor" />
+            Registrar material
+          </button>
+        }
+      </div>
     </div>
-    <div class="flex flex-wrap gap-2">
-      <a
-        routerLink="/inventarios/bodega"
-        class="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
-      >
-        <lucide-icon name="package" class="h-4 w-4" [size]="16" color="currentColor" />
-        Gestión de Bodega
-      </a>
-      <button
-        type="button"
-        class="inline-flex items-center gap-2 rounded-xl bg-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-600 disabled:opacity-50"
-        [disabled]="exportandoPdf"
-        (click)="exportarPdfBodegas()"
-      >
-        <lucide-icon name="file-down" class="h-4 w-4" [size]="16" color="currentColor" />
-        {{ exportandoPdf ? 'Generando PDF…' : 'PDF por bodega' }}
-      </button>
-      <button
-        type="button"
-        class="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600"
-        (click)="exportarExcel()"
-      >
-        <lucide-icon name="file-spreadsheet" class="h-4 w-4" [size]="16" color="currentColor" />
-        Exportar Excel
-      </button>
-    </div>
-  </div>
+  </section>
+
+  @if (panelImportAbierto && puedeGestionar) {
+    <section class="rounded-xl border border-emerald-900/40 bg-[#121212] p-4" aria-labelledby="import-title">
+      <h2 id="import-title" class="mb-2 text-lg font-semibold text-emerald-100">Importación masiva desde Excel</h2>
+      <p class="mb-3 text-sm text-gray-400">
+        Planilla con hoja <strong>PRIMERA</strong>: nombre, cantidad, marca, modelo, estado, valor, observaciones, tipo.
+        @if (estadoImport) {
+          <span class="block mt-1">Ítems actuales en BD: {{ estadoImport.total }}</span>
+        }
+      </p>
+      <div class="flex flex-wrap items-end gap-3">
+        <label class="flex flex-col gap-1 text-sm text-gray-300">
+          Archivo .xlsx
+          <input type="file" accept=".xlsx" class="text-sm" (change)="onArchivoImport($event)" />
+        </label>
+        <label class="inline-flex items-center gap-2 text-sm text-gray-400">
+          <input type="checkbox" [(ngModel)]="permitirImportDuplicados" />
+          Permitir si ya hay ítems (añadir más)
+        </label>
+        <button
+          type="button"
+          class="sid-btn sid-btn-primary text-sm"
+          [disabled]="importandoExcel || !archivoImportSeleccionado"
+          (click)="ejecutarImportacion()"
+        >
+          {{ importandoExcel ? 'Importando…' : 'Ejecutar importación' }}
+        </button>
+      </div>
+    </section>
+  }
+
+  @if (panelExportAbierto) {
+    <section class="sid-inv-export-panel rounded-xl border border-slate-800 bg-[#121212] p-3 sm:p-4">
+      <div class="sid-inv-export-table-wrap overflow-x-auto">
+        <table class="sid-inv-export-table w-full text-sm">
+          <thead>
+            <tr class="text-left text-[10px] uppercase tracking-wider text-slate-500">
+              <th class="pb-2 pr-3 font-semibold">Bodega</th>
+              <th class="pb-2 px-2 text-center font-semibold">Excel</th>
+              <th class="pb-2 pl-2 text-center font-semibold">PDF</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (b of bodegasCatalogo; track b.codigo) {
+              <tr class="border-t border-slate-800/70">
+                <td class="py-1.5 pr-3 text-slate-300">{{ b.nombre }}</td>
+                <td class="py-1.5 px-2 text-center">
+                  <button
+                    type="button"
+                    class="sid-inv-export-btn sid-inv-export-btn--excel"
+                    [disabled]="exportandoAlgunaDescarga()"
+                    (click)="exportarExcelBodega(b.codigo, b.nombre)"
+                    [title]="'Excel · ' + b.nombre"
+                  >
+                    {{ estaExportando('excel:' + b.codigo) ? '…' : 'XLS' }}
+                  </button>
+                </td>
+                <td class="py-1.5 pl-2 text-center">
+                  <button
+                    type="button"
+                    class="sid-inv-export-btn sid-inv-export-btn--pdf"
+                    [disabled]="exportandoAlgunaDescarga()"
+                    (click)="exportarPdfBodega(b.codigo, b.nombre)"
+                    [title]="'PDF · ' + b.nombre"
+                  >
+                    {{ estaExportando('pdf:' + b.codigo) ? '…' : 'PDF' }}
+                  </button>
+                </td>
+              </tr>
+            }
+            <tr class="border-t border-amber-900/40 bg-amber-950/10">
+              <td class="py-2 pr-3 font-medium text-amber-100">Todas las bodegas</td>
+              <td class="py-2 px-2 text-center">
+                <button
+                  type="button"
+                  class="sid-inv-export-btn sid-inv-export-btn--excel font-semibold"
+                  [disabled]="exportandoAlgunaDescarga()"
+                  (click)="exportarExcelCompleto()"
+                >
+                  {{ estaExportando('excel:completo') ? '…' : 'XLS' }}
+                </button>
+              </td>
+              <td class="py-2 pl-2 text-center">
+                <button
+                  type="button"
+                  class="sid-inv-export-btn sid-inv-export-btn--pdf font-semibold"
+                  [disabled]="exportandoAlgunaDescarga()"
+                  (click)="exportarPdfCompleto()"
+                >
+                  {{ estaExportando('pdf:completo') ? '…' : 'PDF' }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
 
   @if (metricas) {
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div class="rounded-2xl border border-slate-800 bg-[#121212] p-5">
-        <div class="flex items-center justify-between">
-          <p class="text-xs uppercase tracking-wide text-slate-500">Total ítems</p>
-          <lucide-icon name="package" class="h-5 w-5 text-blue-400" [size]="20" color="currentColor" />
-        </div>
+    <section class="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 xl:grid-cols-4">
+      <article class="sid-card-hover rounded-xl border border-slate-700/40 bg-gradient-to-br from-slate-950/40 to-transparent p-5">
+        <p class="text-xs uppercase tracking-wide text-slate-400">Total ítems</p>
         <p class="mt-2 text-3xl font-bold tabular-nums text-white">{{ metricas.totalItems }}</p>
-      </div>
-      <div class="rounded-2xl border border-emerald-900/40 bg-[#121212] p-5">
-        <div class="flex items-center justify-between">
-          <p class="text-xs uppercase tracking-wide text-slate-500">Stock normal</p>
-          <lucide-icon name="circle-check" class="h-5 w-5 text-emerald-400" [size]="20" color="currentColor" />
-        </div>
+      </article>
+      <article class="sid-card-hover rounded-xl border border-emerald-700/35 bg-gradient-to-br from-emerald-950/30 to-transparent p-5">
+        <p class="text-xs uppercase tracking-wide text-emerald-200/80">Stock normal</p>
         <p class="mt-2 text-3xl font-bold tabular-nums text-emerald-300">{{ metricas.stockNormal }}</p>
-      </div>
-      <div class="rounded-2xl border border-amber-700/40 bg-[#121212] p-5 ring-1 ring-amber-500/20">
-        <div class="flex items-center justify-between">
-          <p class="text-xs uppercase tracking-wide text-slate-500">Stock bajo</p>
-          <lucide-icon name="triangle-alert" class="h-5 w-5 text-amber-400" [size]="20" color="currentColor" />
-        </div>
+      </article>
+      <article class="sid-card-hover rounded-xl border border-amber-700/35 bg-gradient-to-br from-amber-950/30 to-transparent p-5">
+        <p class="text-xs uppercase tracking-wide text-amber-200/80">Stock bajo</p>
         <p class="mt-2 text-3xl font-bold tabular-nums text-amber-300">{{ metricas.stockBajo }}</p>
-      </div>
-      <div class="rounded-2xl border border-red-800/50 bg-[#121212] p-5 ring-1 ring-red-500/25">
-        <div class="flex items-center justify-between">
-          <p class="text-xs uppercase tracking-wide text-slate-500">Stock crítico</p>
-          <lucide-icon name="triangle-alert" class="h-5 w-5 text-red-400" [size]="20" color="currentColor" />
-        </div>
+      </article>
+      <article class="sid-card-hover rounded-xl border border-red-700/35 bg-gradient-to-br from-red-950/30 to-transparent p-5">
+        <p class="text-xs uppercase tracking-wide text-red-200/80">Stock crítico</p>
         <p class="mt-2 text-3xl font-bold tabular-nums text-red-300">{{ metricas.stockCritico }}</p>
+      </article>
+    </section>
+  }
+
+  @if (alertas.length) {
+    <section class="sid-inv-alertas rounded-xl border border-slate-800 bg-[#121212] px-3 py-2.5 sm:px-4">
+      <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap items-center gap-2 text-sm">
+          <lucide-icon name="alert-triangle" class="h-4 w-4 text-amber-400" [size]="16" color="currentColor" />
+          <span class="font-medium text-slate-200">Stock fuera de norma</span>
+          @if (resumenAlertas.criticos) {
+            <span class="rounded-full bg-red-500/15 px-2 py-0.5 text-[11px] font-semibold text-red-300">{{ resumenAlertas.criticos }} crítico</span>
+          }
+          @if (resumenAlertas.bajos) {
+            <span class="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-300">{{ resumenAlertas.bajos }} bajo</span>
+          }
+        </div>
+        @if (alertas.length > 6) {
+          <button type="button" class="text-xs text-amber-400 hover:text-amber-300" (click)="alertasExpandidas = !alertasExpandidas">
+            {{ alertasExpandidas ? 'Ver menos' : 'Ver todas (' + alertas.length + ')' }}
+          </button>
+        }
       </div>
+      <ul class="sid-inv-alertas-list" [class.sid-inv-alertas-list--expanded]="alertasExpandidas">
+        @for (a of alertasVisibles; track a.titulo + a.bodega + a.tipo) {
+          <li>
+            <button
+              type="button"
+              class="sid-inv-alerta-item w-full text-left"
+              [ngClass]="clasesAlerta(a.severidad)"
+              (click)="irAlerta(a)"
+              [title]="'Ir a ' + a.titulo"
+            >
+              <span class="sid-inv-alerta-pill" [class.sid-inv-alerta-pill--critico]="a.severidad === 'critico'">
+                {{ a.severidad === 'critico' ? 'Crítico' : 'Bajo' }}
+              </span>
+              <span class="min-w-0 flex-1 truncate font-medium">{{ etiquetaAlerta(a) }}</span>
+              <span class="hidden shrink-0 text-slate-500 sm:inline">{{ a.bodega }}</span>
+              <span class="shrink-0 tabular-nums text-slate-400">{{ a.detalle }}</span>
+            </button>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  <div class="sid-section-divider" data-title="Bodega"></div>
+
+  <section class="rounded-2xl border border-amber-900/30 bg-[#121212] p-4 sm:p-5">
+    <p class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Selecciona bodega</p>
+    <div class="flex flex-wrap gap-2">
+      @for (b of bodegasSelector; track b.codigo) {
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all"
+          [class]="
+            bodegaActiva === b.codigo
+              ? 'bg-amber-600 text-white shadow-md shadow-amber-900/30 ring-1 ring-amber-400/40'
+              : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
+          "
+          (click)="setBodega(b.codigo)"
+        >
+          <lucide-icon name="building-2" class="h-4 w-4" [size]="16" color="currentColor" />
+          {{ b.nombre }}
+        </button>
+      }
+    </div>
+  </section>
+
+  @if (error) {
+    <div class="sid-feedback rounded-lg border border-red-800 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+      {{ error }}
     </div>
   }
+
+  <div class="sid-section-divider" data-title="Filtros"></div>
 
   <section class="rounded-2xl border border-slate-800 bg-[#121212] p-4 sm:p-5">
     <div class="grid gap-3 lg:grid-cols-2">
@@ -72,7 +256,7 @@
           [(ngModel)]="busqueda"
           (ngModelChange)="onBuscarChange()"
           class="sid-input w-full pl-10"
-          placeholder="Buscar equipo o talla…"
+          placeholder="Buscar material, código, talla o tipo EPP…"
         />
       </div>
       <div class="relative">
@@ -81,188 +265,547 @@
           [(ngModel)]="filtroVoluntario"
           (ngModelChange)="onBuscarChange()"
           class="sid-input w-full pl-10"
-          placeholder="Filtrar por voluntario (solo uniformes / EPP)…"
+          placeholder="Buscar por voluntario (nombre o RUT)…"
         />
       </div>
     </div>
-
-    <div class="mt-4 space-y-3">
-      <div>
-        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Bodega</p>
+    @if (eppVoluntario.length) {
+      <div class="mt-4 rounded-xl border border-blue-800/40 bg-blue-950/20 p-3">
+        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-200">EPP asignado al voluntario</p>
         <div class="flex flex-wrap gap-2">
-          @for (b of bodegas; track b.codigo) {
-            <button
-              type="button"
-              class="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
-              [class]="bodegaActiva === b.codigo ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
-              (click)="setBodega(b.codigo)"
-            >
-              {{ b.nombre }}
-            </button>
+          @for (e of eppVoluntario; track e.asignacionId) {
+            <span class="rounded-full bg-blue-500/15 px-2.5 py-1 text-xs text-blue-100">
+              {{ e.tipoEppEtiqueta }}{{ e.talla ? ' · ' + e.talla : '' }} — {{ e.nombre }}
+            </span>
           }
         </div>
       </div>
-      <div>
-        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Categoría</p>
-        <div class="flex flex-wrap gap-2">
-          @for (c of categorias; track c) {
-            <button
-              type="button"
-              class="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
-              [class]="categoriaActiva === c ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
-              (click)="setCategoria(c)"
-            >
-              {{ c === 'TODAS' ? 'Todas' : c }}
-            </button>
-          }
-        </div>
+    }
+    @if (esBodegaEpp) {
+      <div class="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          class="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
+          [class]="vistaModo === 'lista' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300'"
+          (click)="setVistaModo('lista')"
+        >
+          Vista lista
+        </button>
+        <button
+          type="button"
+          class="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
+          [class]="vistaModo === 'matriz' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300'"
+          (click)="setVistaModo('matriz')"
+        >
+          Matriz por talla
+        </button>
+      </div>
+    }
+    <div class="mt-4">
+      <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Categoría</p>
+      <div class="flex flex-wrap gap-2">
+        @for (c of categorias; track c) {
+          <button
+            type="button"
+            class="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
+            [class]="categoriaActiva === c ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
+            (click)="setCategoria(c)"
+          >
+            {{ c === 'TODAS' ? 'Todas' : c }}
+          </button>
+        }
       </div>
     </div>
   </section>
 
   @if (loading) {
     <div class="flex min-h-[16rem] items-center justify-center rounded-2xl border border-slate-800 bg-[#121212] text-slate-400">
+      <lucide-icon name="loader-2" class="mr-2 h-5 w-5 animate-spin" [size]="20" color="currentColor" />
       Cargando inventario…
     </div>
-  } @else if (error && !items.length) {
-    <div class="rounded-xl border border-red-800/60 bg-red-950/30 px-4 py-3 text-sm text-red-200">{{ error }}</div>
+  } @else if (!items.length && !mostrarMatriz) {
+    <app-sid-empty-state
+      title="Sin ítems en esta bodega"
+      description="No hay materiales que coincidan con los filtros. Prueba otra bodega o revisa la importación de la planilla."
+      icon="package"
+    />
+  } @else if (mostrarMatriz && !matrizEpp.length) {
+    <app-sid-empty-state
+      title="Sin EPP en esta bodega"
+      description="No hay uniformes o EPP que coincidan con los filtros."
+      icon="shirt"
+    />
   } @else {
-    <div class="overflow-hidden rounded-2xl border border-slate-800 bg-[#121212]">
-      <div class="overflow-x-auto">
-        <table class="w-full min-w-[1100px] text-left text-sm">
-          <thead class="bg-[#1a1a1a] text-xs uppercase tracking-wide text-slate-500">
-            <tr>
-              <th class="px-4 py-3">Código</th>
-              <th class="px-4 py-3">Artículo</th>
-              <th class="px-4 py-3">Talla</th>
-              <th class="px-4 py-3">Bodega</th>
-              <th class="px-3 py-3 text-center">Total</th>
-              <th class="px-3 py-3 text-center">Asign.</th>
-              <th class="px-3 py-3 text-center">Disp.</th>
-              <th class="px-4 py-3">Asignado a</th>
-              <th class="px-4 py-3">Estado</th>
-              @if (puedeGestionar) {
-                <th class="px-4 py-3 text-center">Acciones</th>
-              }
-            </tr>
-          </thead>
-          <tbody>
-            @for (item of items; track item.id) {
-              <tr class="border-t border-slate-800/80 hover:bg-white/[0.02]">
-                <td class="px-4 py-3 font-mono text-xs text-slate-400">{{ item.codigo }}</td>
-                <td class="px-4 py-3">
-                  <p class="font-semibold text-slate-100">{{ item.nombre }}</p>
-                  <p class="text-xs text-slate-500">
-                    {{ item.categoria ?? '—' }}
-                    @if (item.tipoEppEtiqueta && item.tipoEppEtiqueta !== '—') {
-                      · {{ item.tipoEppEtiqueta }}
-                    }
-                  </p>
-                </td>
-                <td class="px-4 py-3">
-                  @if (puedeGestionar && tallasPara(item).length) {
-                    <select
-                      class="sid-input max-w-[5.5rem] py-1 text-xs"
-                      [ngModel]="item.talla ?? ''"
-                      (ngModelChange)="guardarTalla(item, $event)"
+    <!-- Lista principal a ancho completo; panel lateral debajo (evita tabla comprimida) -->
+    <section class="sid-inventarios-panel min-w-0 w-full rounded-2xl border border-slate-800 bg-[#121212]">
+      <div class="flex flex-col gap-3 border-b border-slate-800 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <h2 class="flex min-w-0 items-center gap-2 text-lg font-semibold text-white">
+          <lucide-icon name="clipboard-list" class="h-5 w-5 shrink-0 text-amber-400" [size]="20" color="currentColor" />
+          <span class="min-w-0 truncate">
+            @if (mostrarMatriz) {
+              Matriz EPP · {{ bodegaNombreActiva }}
+            } @else {
+              {{ bodegaNombreActiva }} ({{ total }} ítems)
+            }
+          </span>
+        </h2>
+        @if (!mostrarMatriz && total > 0) {
+          <app-sid-pagination-footer
+            [compact]="true"
+            [page]="page"
+            [totalPages]="totalPaginas"
+            [totalRecords]="total"
+            recordUnit="ítem(s)"
+            (pageDelta)="cambiarPaginaInventario($event)"
+          />
+        }
+      </div>
+
+      @if (mostrarMatriz) {
+        <div class="sid-inventarios-matriz-wrap">
+          <table class="sid-inventarios-matriz">
+            <thead>
+              <tr>
+                <th class="sid-matriz-sticky-col">Tipo EPP</th>
+                @for (t of tallasMatrizCabecera; track t) {
+                  <th>{{ t }}</th>
+                }
+                <th>Total</th>
+                <th>Disp.</th>
+                <th>Asig.</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (fila of matrizEpp; track fila.tipoEpp) {
+                <tr>
+                  <th scope="row" class="sid-matriz-sticky-col">{{ fila.tipoEppEtiqueta }}</th>
+                  @for (t of fila.tallas; track t) {
+                    @let celda = fila.celdas[t];
+                    <td
+                      class="sid-matriz-celda"
+                      [ngClass]="celda ? clasesCeldaMatriz(celda.estadoStock) : 'sid-matriz-celda--vacia'"
+                      [title]="celda ? etiquetaAsignacionesCelda(celda) : ''"
                     >
-                      <option value="">Talla…</option>
-                      @for (t of tallasPara(item); track t) {
-                        <option [value]="t">{{ t }}</option>
+                      @if (celda) {
+                        <span class="sid-matriz-qty">{{ celda.cantidad }}</span>
+                        <span class="sid-matriz-disp">D:{{ celda.cantidadDisponible }}</span>
+                        @if (celda.asignaciones.length) {
+                          <span class="sid-matriz-asig">{{ etiquetaAsignacionesCelda(celda) }}</span>
+                        }
+                      } @else {
+                        <span class="text-slate-600">—</span>
+                      }
+                    </td>
+                  }
+                  <td class="sid-matriz-total tabular-nums">{{ fila.totalCantidad }}</td>
+                  <td class="sid-matriz-total tabular-nums text-emerald-300">{{ fila.totalDisponible }}</td>
+                  <td class="sid-matriz-total tabular-nums text-blue-300">{{ fila.totalAsignado }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <div class="sid-inventarios-table-wrap">
+          <table class="sid-inventarios-table">
+            <colgroup>
+              <col class="col-codigo" />
+              <col class="col-articulo" />
+              @if (mostrarColumnaBodega) {
+                <col class="col-bodega" />
+              }
+              <col class="col-talla" />
+              <col class="col-num" />
+              <col class="col-num" />
+              <col class="col-num" />
+              <col class="col-asignado" />
+              <col class="col-estado" />
+              @if (puedeGestionar) {
+                <col class="col-acciones" />
+              }
+            </colgroup>
+            <thead>
+              <tr>
+                <th scope="col">Código</th>
+                <th scope="col">Artículo</th>
+                @if (mostrarColumnaBodega) {
+                  <th scope="col">Bodega</th>
+                }
+                <th scope="col">Talla</th>
+                <th scope="col" class="text-right">Total</th>
+                <th scope="col" class="text-right">Disp.</th>
+                <th scope="col" class="text-right">Asig.</th>
+                <th scope="col">Asignado a</th>
+                <th scope="col">Estado</th>
+                @if (puedeGestionar) {
+                  <th scope="col" class="text-center">Acciones</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of items; track item.id) {
+                <tr>
+                  <td class="sid-inv-cell-codigo" [title]="item.codigo">{{ item.codigo }}</td>
+                  <td class="sid-inv-cell-articulo">
+                    <span class="sid-inv-nombre" [title]="item.nombre">{{ item.nombre }}</span>
+                    <span class="sid-inv-meta">{{ item.categoria ?? 'Sin categoría' }}@if (item.tipoEppEtiqueta && item.tipoEppEtiqueta !== '—') { · {{ item.tipoEppEtiqueta }} }</span>
+                  </td>
+                  @if (mostrarColumnaBodega) {
+                    <td class="sid-inv-cell-bodega" [title]="item.bodegaNombre">{{ item.bodegaNombre }}</td>
+                  }
+                  <td class="sid-inv-cell-talla">
+                    @if (puedeGestionar && tallasPara(item).length) {
+                      <select
+                        class="sid-inv-talla-select"
+                        [ngModel]="item.talla ?? ''"
+                        (ngModelChange)="guardarTalla(item, $event)"
+                      >
+                        <option value="">—</option>
+                        @for (t of tallasPara(item); track t) {
+                          <option [value]="t">{{ t }}</option>
+                        }
+                      </select>
+                    } @else {
+                      <span class="tabular-nums">{{ item.talla ?? '—' }}</span>
+                    }
+                  </td>
+                  <td class="sid-inv-cell-num tabular-nums text-slate-200">{{ item.cantidad }}</td>
+                  <td class="sid-inv-cell-num tabular-nums font-medium text-emerald-300">{{ item.cantidadDisponible }}</td>
+                  <td class="sid-inv-cell-num tabular-nums text-blue-300">{{ item.cantidadAsignada }}</td>
+                  <td class="sid-inv-cell-asignado">
+                    @if (asignandoItemId === item.id) {
+                      <div class="sid-inv-asignar-inline">
+                        <select [(ngModel)]="rutAsignacion" class="sid-input sid-inv-asignar-select">
+                          <option value="">Voluntario…</option>
+                          @for (v of voluntarios; track v.rut) {
+                            <option [value]="v.rut">{{ v.nombre }}</option>
+                          }
+                        </select>
+                        <button type="button" class="sid-inv-link text-emerald-400" (click)="confirmarAsignacion(item)">OK</button>
+                        <button type="button" class="sid-inv-link text-slate-500" (click)="cancelarAsignacion()">×</button>
+                      </div>
+                    } @else {
+                      <div class="sid-inv-asignados">
+                        @for (a of item.asignaciones; track a.id) {
+                          <span class="sid-inv-chip" [title]="a.usuarioNombre">
+                            {{ a.usuarioNombre }}
+                            @if (puedeGestionar) {
+                              <button type="button" class="sid-inv-chip-remove" (click)="quitarAsignacion(item, a.id)">×</button>
+                            }
+                          </span>
+                        }
+                        @if (puedeGestionar && puedeAsignarMas(item)) {
+                          <button type="button" class="sid-inv-link" (click)="abrirAsignacion(item)">+ Asignar</button>
+                        } @else if (!item.asignaciones.length) {
+                          <span class="text-slate-600">—</span>
+                        }
+                      </div>
+                    }
+                  </td>
+                  <td>
+                    <span class="sid-inv-estado" [ngClass]="clasesEstado(item.estadoStock)">{{ etiquetaEstado(item.estadoStock) }}</span>
+                  </td>
+                  @if (puedeGestionar) {
+                    <td>
+                      <div class="sid-inv-acciones">
+                        <button type="button" class="sid-inv-btn sid-inv-btn--minus" (click)="ajustar(item, -1)" title="Reducir 1">−</button>
+                        <button type="button" class="sid-inv-btn sid-inv-btn--plus" (click)="ajustar(item, 1)" title="Aumentar 1">+</button>
+                      </div>
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        @if (!mostrarMatriz && total > 0) {
+          <app-sid-pagination-footer
+            [page]="page"
+            [totalPages]="totalPaginas"
+            [totalRecords]="total"
+            recordUnit="ítem(s)"
+            [pageSize]="pageSize"
+            (pageDelta)="cambiarPaginaInventario($event)"
+          />
+        }
+      }
+    </section>
+
+    <div class="grid min-w-0 gap-6 lg:grid-cols-2">
+      @if (puedeGestionar) {
+        <section class="min-w-0 rounded-2xl border border-amber-900/30 bg-[#121212] p-5">
+          <h2 class="mb-1 flex items-center gap-2 text-lg font-semibold text-white">
+            <lucide-icon name="plus-circle" class="h-5 w-5 text-amber-400" [size]="20" color="currentColor" />
+            Registrar movimiento
+          </h2>
+          <p class="mb-4 text-xs text-slate-500">En {{ bodegaNombreActiva }}</p>
+          <div class="space-y-3">
+            <div>
+              <label class="mb-1 block text-xs font-medium text-slate-400">Ítem</label>
+              @if (cargandoItemsMovimiento) {
+                <p class="text-xs text-slate-500">Cargando ítems de la bodega…</p>
+              } @else if (!itemsBodegaActual.length) {
+                <p class="rounded-lg border border-amber-800/40 bg-amber-950/20 px-3 py-2 text-xs text-amber-200">
+                  No hay ítems en esta bodega. Cambia a vista lista o revisa los filtros.
+                </p>
+              } @else {
+                <select [(ngModel)]="movItemId" class="sid-input w-full">
+                  @for (item of itemsBodegaActual; track item.id) {
+                    <option [ngValue]="item.id">
+                      {{ item.nombre }}@if (item.talla) { · {{ item.talla }} } (disp. {{ item.cantidadDisponible }})
+                    </option>
+                  }
+                </select>
+              }
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400">Tipo</label>
+                <select [(ngModel)]="movTipo" class="sid-input w-full">
+                  <option value="ENTRADA">Entrada</option>
+                  <option value="SALIDA">Salida</option>
+                  <option value="AJUSTE">Ajuste (stock final)</option>
+                </select>
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400">Cantidad</label>
+                <input [(ngModel)]="movCantidad" type="number" min="1" class="sid-input w-full" />
+                <p class="mt-1 text-[11px] text-slate-500">{{ ayudaCantidadMovimiento() }}</p>
+              </div>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-medium text-slate-400">Motivo (opcional)</label>
+              <input [(ngModel)]="movMotivo" class="sid-input w-full" placeholder="Compra, consumo, corrección…" />
+            </div>
+            <button
+              type="button"
+              class="sid-btn w-full justify-center bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-50"
+              [disabled]="guardandoMovimiento || !movItemId"
+              (click)="registrarMovimiento()"
+            >
+              {{ guardandoMovimiento ? 'Guardando…' : 'Registrar movimiento' }}
+            </button>
+          </div>
+        </section>
+      }
+
+      <section class="min-w-0 rounded-2xl border border-slate-800 bg-[#121212] p-5" [class.lg:col-span-2]="!puedeGestionar">
+        <h2 class="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
+          <lucide-icon name="history" class="h-5 w-5 text-slate-400" [size]="20" color="currentColor" />
+          Historial reciente
+        </h2>
+        @if (!movimientos.length) {
+          <p class="text-sm text-slate-500">Sin movimientos registrados en esta bodega.</p>
+        } @else {
+          <div class="sid-inventarios-historial-wrap">
+            <table class="sid-inventarios-historial">
+              <colgroup>
+                <col />
+                <col />
+                <col />
+                <col />
+                <col />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col">Fecha</th>
+                  <th scope="col">Ítem</th>
+                  <th scope="col">Tipo</th>
+                  <th scope="col" class="text-right">Stock</th>
+                  <th scope="col">Motivo</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (m of movimientos; track m.id) {
+                  <tr>
+                    <td class="whitespace-nowrap text-slate-500">{{ formatoFecha(m.createdAt) }}</td>
+                    <td class="sid-inv-hist-item" [title]="m.itemNombre">{{ m.itemNombre }}</td>
+                    <td><span class="font-semibold" [ngClass]="clasesMovimiento(m.tipo)">{{ m.tipo }}</span></td>
+                    <td class="tabular-nums text-right text-slate-300">{{ m.cantidadAntes }} → {{ m.cantidadDespues }}</td>
+                    <td class="sid-inv-hist-motivo text-slate-500">{{ m.motivo || '—' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    </div>
+  }
+
+  @if (mostrarRegistrarMaterial) {
+    <div
+      class="fixed inset-0 z-[220] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
+      (click)="cerrarRegistrarMaterialSiBackdrop($event)"
+    >
+      <div
+        class="sid-modal-scroll flex max-h-[min(92vh,680px)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-amber-900/40 bg-[#121212] shadow-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="registrar-material-titulo"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="border-b border-slate-800 px-5 py-4">
+          <h2 id="registrar-material-titulo" class="text-lg font-semibold text-white">Registrar material</h2>
+          <p class="mt-1 text-sm text-slate-400">
+            Mismos campos que la planilla Excel: ítem, cantidad, marca, modelo, estado, valor y observaciones.
+          </p>
+          <div class="mt-4 flex gap-2">
+            @for (n of [1, 2, 3]; track n) {
+              <div
+                class="h-1.5 flex-1 rounded-full transition-colors"
+                [class.bg-amber-500]="pasoRegistrarMaterial >= n"
+                [class.bg-slate-700]="pasoRegistrarMaterial < n"
+              ></div>
+            }
+          </div>
+          <p class="mt-2 text-xs font-medium uppercase tracking-wider text-amber-300/90">
+            @if (pasoRegistrarMaterial === 1) { Paso 1 · Qué es }
+            @else if (pasoRegistrarMaterial === 2) { Paso 2 · Detalle técnico }
+            @else { Paso 3 · Ubicación }
+          </p>
+        </div>
+
+        <div class="sid-modal-scroll min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          @if (pasoRegistrarMaterial === 1) {
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div class="sm:col-span-2">
+                <label class="mb-1 block text-xs font-medium text-slate-400">Nombre del ítem <span class="text-red-400">*</span></label>
+                <input
+                  [(ngModel)]="formMaterial.nombre"
+                  (ngModelChange)="sugerirBodegaMaterial()"
+                  class="sid-input w-full"
+                  placeholder="Ej. Chaqueta bombero, Manguera 38 mm, Casco forestal…"
+                />
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400">Cantidad <span class="text-red-400">*</span></label>
+                <input [(ngModel)]="formMaterial.cantidad" type="number" min="1" class="sid-input w-full" />
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400">Tipo (planilla) <span class="text-red-400">*</span></label>
+                <select [(ngModel)]="formMaterial.tipoInventario" (ngModelChange)="sugerirBodegaMaterial()" class="sid-input w-full">
+                  @for (t of tiposInventario; track t) {
+                    <option [ngValue]="t">{{ t }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+          } @else if (pasoRegistrarMaterial === 2) {
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400">Marca</label>
+                <input [(ngModel)]="formMaterial.marca" class="sid-input w-full" placeholder="Fabricante o marca" />
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400">Modelo</label>
+                <input [(ngModel)]="formMaterial.modelo" class="sid-input w-full" placeholder="Modelo o referencia" />
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400">Estado físico</label>
+                <select [(ngModel)]="formMaterial.estadoFisico" class="sid-input w-full">
+                  <option value="">Sin especificar</option>
+                  @for (e of estadosFisicos; track e) {
+                    <option [ngValue]="e">{{ e }}</option>
+                  }
+                </select>
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400">Valor (CLP, opcional)</label>
+                <input [(ngModel)]="formMaterial.valor" type="number" min="0" class="sid-input w-full" placeholder="Valor de reposición" />
+              </div>
+              <div class="sm:col-span-2">
+                <label class="mb-1 block text-xs font-medium text-slate-400">Observaciones</label>
+                <textarea
+                  [(ngModel)]="formMaterial.observaciones"
+                  rows="3"
+                  class="sid-input w-full min-h-[4.5rem] resize-y"
+                  placeholder="Condición especial, número de serie, ubicación interna…"
+                ></textarea>
+              </div>
+            </div>
+          } @else {
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400">Ubicación / bodega <span class="text-red-400">*</span></label>
+                <select [(ngModel)]="formMaterial.bodegaCodigo" class="sid-input w-full">
+                  @for (b of bodegasCatalogo; track b.codigo) {
+                    <option [ngValue]="b.codigo">{{ b.nombre }}</option>
+                  }
+                </select>
+                <p class="mt-1 text-[11px] text-slate-500">Sugerida según tipo; puedes cambiarla si el material está en otra bodega u oficina.</p>
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400">Categoría</label>
+                <select [(ngModel)]="formMaterial.categoria" (ngModelChange)="sugerirBodegaMaterial()" class="sid-input w-full">
+                  <option value="">Automática</option>
+                  @for (c of categorias.slice(1); track c) {
+                    <option [ngValue]="c">{{ c }}</option>
+                  }
+                </select>
+              </div>
+              @if (requiereTallaMaterial) {
+                <div class="sm:col-span-2">
+                  <label class="mb-1 block text-xs font-medium text-slate-400">Talla</label>
+                  @if (sistemaTallaMaterial === 'BOTA') {
+                    <select [(ngModel)]="formMaterial.talla" class="sid-input w-full">
+                      <option value="">Sin talla / varias</option>
+                      @for (t of tallasBota; track t) {
+                        <option [ngValue]="t">{{ t }}</option>
+                      }
+                    </select>
+                  } @else if (sistemaTallaMaterial === 'ROPA') {
+                    <select [(ngModel)]="formMaterial.talla" class="sid-input w-full">
+                      <option value="">Sin talla / varias</option>
+                      @for (t of tallasRopa; track t) {
+                        <option [ngValue]="t">{{ t }}</option>
                       }
                     </select>
                   } @else {
-                    <span class="tabular-nums text-slate-300">{{ item.talla ?? '—' }}</span>
+                    <input [(ngModel)]="formMaterial.talla" class="sid-input w-full" placeholder="Ej. M, 42, L" />
                   }
-                </td>
-                <td class="px-4 py-3 text-slate-300">{{ item.bodegaNombre }}</td>
-                <td class="px-3 py-3 text-center text-lg font-bold tabular-nums text-white">{{ item.cantidad }}</td>
-                <td class="px-3 py-3 text-center tabular-nums text-blue-300">{{ item.cantidadAsignada }}</td>
-                <td class="px-3 py-3 text-center tabular-nums font-semibold text-emerald-300">{{ item.cantidadDisponible }}</td>
-                <td class="px-4 py-3">
-                  @if (asignandoItemId === item.id) {
-                    <div class="flex min-w-[200px] flex-col gap-2">
-                      <p class="text-[11px] text-slate-500">
-                        Disponibles: {{ item.cantidadDisponible }} · Solo 1 por tipo de EPP
-                      </p>
-                      <select [(ngModel)]="rutAsignacion" class="sid-input text-xs">
-                        <option value="">Seleccionar voluntario…</option>
-                        @for (v of voluntarios; track v.rut) {
-                          <option [value]="v.rut">{{ v.nombre }}</option>
-                        }
-                      </select>
-                      <div class="flex gap-2">
-                        <button type="button" class="text-xs text-emerald-400" (click)="confirmarAsignacion(item)">Guardar</button>
-                        <button type="button" class="text-xs text-slate-400" (click)="cancelarAsignacion()">Cancelar</button>
-                      </div>
-                    </div>
-                  } @else {
-                    <div class="flex flex-col gap-1.5">
-                      @if (item.asignaciones.length) {
-                        <div class="flex flex-wrap gap-1">
-                          @for (a of item.asignaciones; track a.id) {
-                            <span class="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2.5 py-1 text-xs font-medium text-blue-200 ring-1 ring-blue-500/25">
-                              <lucide-icon name="user" class="h-3 w-3" [size]="12" color="currentColor" />
-                              {{ a.usuarioNombre }}
-                              @if (puedeGestionar) {
-                                <button type="button" class="ml-1 text-blue-300/70 hover:text-red-300" (click)="quitarAsignacion(item, a.id)">×</button>
-                              }
-                            </span>
-                          }
-                        </div>
-                      }
-                      @if (puedeGestionar && puedeAsignarMas(item)) {
-                        <button type="button" class="text-left text-xs font-medium text-blue-400 hover:text-blue-300" (click)="abrirAsignacion(item)">
-                          {{ item.asignaciones.length ? 'Asignar otro voluntario' : 'Asignar voluntario' }}
-                        </button>
-                      } @else if (!item.asignaciones.length) {
-                        <span class="text-slate-600">—</span>
-                      }
-                    </div>
-                  }
-                </td>
-                <td class="px-4 py-3">
-                  <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold" [ngClass]="clasesEstado(item.estadoStock)">
-                    {{ item.estadoStock === 'NORMAL' ? 'Normal' : item.estadoStock === 'BAJO' ? 'Bajo' : 'Crítico' }}
-                  </span>
-                </td>
-                @if (puedeGestionar) {
-                  <td class="px-4 py-3">
-                    <div class="flex items-center justify-center gap-2">
-                      <button
-                        type="button"
-                        class="flex h-8 w-8 items-center justify-center rounded-full bg-red-600/20 text-red-300 ring-1 ring-red-500/30 hover:bg-red-600/30"
-                        (click)="ajustar(item, -1)"
-                        title="Reducir stock total"
-                      >
-                        −
-                      </button>
-                      <button
-                        type="button"
-                        class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600/20 text-emerald-300 ring-1 ring-emerald-500/30 hover:bg-emerald-600/30"
-                        (click)="ajustar(item, 1)"
-                        title="Aumentar stock total"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </td>
-                }
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-
-      @if (totalPaginas > 1) {
-        <div class="flex items-center justify-between border-t border-slate-800 px-4 py-3 text-sm text-slate-400">
-          <span>{{ total }} ítems · Página {{ page }} / {{ totalPaginas }}</span>
-          <div class="flex gap-2">
-            <button type="button" class="rounded-lg bg-slate-800 px-3 py-1 disabled:opacity-40" [disabled]="page <= 1" (click)="irPagina(page - 1)">Anterior</button>
-            <button type="button" class="rounded-lg bg-slate-800 px-3 py-1 disabled:opacity-40" [disabled]="page >= totalPaginas" (click)="irPagina(page + 1)">Siguiente</button>
-          </div>
+                  <p class="mt-1 text-[11px] text-slate-500">Relevante para uniformes y EPP asignables a voluntarios.</p>
+                </div>
+              }
+              <div class="sm:col-span-2 rounded-xl border border-slate-800 bg-black/25 p-3 text-sm text-slate-300">
+                <p class="font-medium text-white">{{ formMaterial.nombre || '—' }}</p>
+                <p class="mt-1 text-xs text-slate-400">
+                  {{ formMaterial.cantidad }} u. · {{ formMaterial.tipoInventario }}
+                  @if (formMaterial.marca) { · {{ formMaterial.marca }} }
+                  @if (formMaterial.modelo) { {{ formMaterial.modelo }} }
+                </p>
+              </div>
+            </div>
+          }
         </div>
-      }
+
+        <div class="flex shrink-0 flex-wrap justify-end gap-2 border-t border-slate-800 px-5 py-4">
+          <button type="button" class="sid-btn sid-btn-neutral px-4 py-2 text-sm" (click)="cerrarRegistrarMaterial()">Cancelar</button>
+          @if (pasoRegistrarMaterial > 1) {
+            <button type="button" class="sid-btn sid-btn-neutral px-4 py-2 text-sm" (click)="pasoAnteriorMaterial()">Atrás</button>
+          }
+          @if (pasoRegistrarMaterial < 3) {
+            <button
+              type="button"
+              class="sid-btn sid-btn-primary px-4 py-2 text-sm disabled:opacity-40"
+              [disabled]="!puedeAvanzarPasoMaterial()"
+              (click)="pasoSiguienteMaterial()"
+            >
+              Siguiente
+            </button>
+          } @else {
+            <button
+              type="button"
+              class="sid-btn sid-btn-primary px-4 py-2 text-sm disabled:opacity-40"
+              [disabled]="guardandoMaterial || !formMaterial.bodegaCodigo"
+              (click)="guardarMaterial()"
+            >
+              {{ guardandoMaterial ? 'Guardando…' : 'Registrar material' }}
+            </button>
+          }
+        </div>
+      </div>
     </div>
   }
 </div>

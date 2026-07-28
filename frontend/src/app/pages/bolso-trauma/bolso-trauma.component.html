@@ -305,48 +305,17 @@
             <label class="mb-1 block text-xs text-gray-400">Hasta</label>
             <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter dark-date-input w-full text-sm" [(ngModel)]="filtroHasta" />
           </div>
-          <div class="flex w-full flex-wrap items-end gap-2 sm:ml-auto sm:w-auto">
-            <button
-              type="button"
-              (click)="aplicarFiltrosBolsoHistorial()"
-              class="sid-btn sid-btn-primary inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-900/20 hover:bg-red-700 sm:flex-initial"
-            >
-              Aplicar filtros
-            </button>
-            <button
-              type="button"
-              (click)="limpiarFiltrosBolsoHistorial()"
-              class="sid-btn sid-btn-neutral inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl border-slate-600 bg-[#0a0a0a] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#141414] sm:flex-initial"
-            >
-              Limpiar filtros
-            </button>
-            <button
-              type="button"
-              (click)="cargarHistorial()"
-              class="sid-btn sid-btn-neutral inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl border-slate-600 bg-[#0a0a0a] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#141414] sm:flex-initial"
-            >
-              <lucide-icon name="clipboard-list" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-              Actualizar
-            </button>
-            <button
-              type="button"
-              (click)="exportarHistorialPdf()"
-              [disabled]="historialFiltrado().length === 0"
-              class="sid-btn sid-btn-primary inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-900/20 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial"
-            >
-              <lucide-icon name="file-down" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-              Descargar PDF
-            </button>
-            <button
-              type="button"
-              (click)="exportarHistorialExcelBolso()"
-              [disabled]="historialFiltrado().length === 0"
-              class="sid-btn sid-btn-success inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-900/20 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-initial"
-            >
-              <lucide-icon name="file-spreadsheet" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-              Descargar Excel
-            </button>
-          </div>
+          <app-sid-history-filter-actions
+            class="w-full sm:ml-auto sm:w-auto"
+            [exportPdfDisabled]="historialFiltrado().length === 0"
+            [exportExcelDisabled]="historialFiltrado().length === 0"
+            [borderTop]="false"
+            (apply)="aplicarFiltrosBolsoHistorial()"
+            (clear)="limpiarFiltrosBolsoHistorial()"
+            (refresh)="cargarHistorial()"
+            (exportPdf)="exportarHistorialPdf()"
+            (exportExcel)="exportarHistorialExcelBolso()"
+          />
         </div>
       </div>
 
@@ -511,32 +480,14 @@
             </tbody>
           </table>
         </div>
-        <div
-          class="mt-4 flex flex-col gap-2 border-t border-slate-800/80 pt-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <span
-            >Página {{ paginaHistorial }} de {{ totalPaginasHistorial() }} ·
-            {{ historialFiltrado().length }} registro(s) con filtros</span
-          >
-          <div class="flex items-center gap-2">
-            <button
-              type="button"
-              (click)="cambiarPaginaHistorial(-1)"
-              [disabled]="paginaHistorial <= 1"
-              class="sid-btn sid-btn-neutral rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-white transition-colors hover:bg-slate-800 disabled:opacity-40"
-            >
-              Anterior
-            </button>
-            <button
-              type="button"
-              (click)="cambiarPaginaHistorial(1)"
-              [disabled]="paginaHistorial >= totalPaginasHistorial()"
-              class="sid-btn sid-btn-neutral rounded-lg border border-slate-600 bg-slate-900/50 px-3 py-1.5 text-white transition-colors hover:bg-slate-800 disabled:opacity-40"
-            >
-              Siguiente
-            </button>
-          </div>
-        </div>
+        <app-sid-pagination-footer
+          [page]="paginaHistorial"
+          [totalPages]="totalPaginasHistorial()"
+          [totalRecords]="historialFiltrado().length"
+          [pageSize]="tamanioPaginaHistorial"
+          suffix="con filtros"
+          (pageDelta)="cambiarPaginaHistorial($event)"
+        />
       }
     </section>
   }

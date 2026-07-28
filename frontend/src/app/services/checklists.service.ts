@@ -407,6 +407,40 @@ export class ChecklistsService {
       .pipe(catchError(() => of({ success: true, data: [] })));
   }
 
+  getHistorialBatch(
+    carroIds: string[],
+    entidadTipo?: 'CARRO' | 'UNIDAD' | 'ERA' | 'TRAUMA',
+  ): Observable<{ success: boolean; data: Record<string, ChecklistEjecucionDTO[]> }> {
+    let params = new HttpParams().set('excluirBorradores', '1').set('carroIds', carroIds.join(','));
+    if (entidadTipo) params = params.set('entidadTipo', entidadTipo);
+    return this.http
+      .get<{ success: boolean; data: Record<string, ChecklistEjecucionDTO[]> }>(`${this.apiUrl}/historial-batch`, {
+        params,
+      })
+      .pipe(catchError(() => of({ success: true, data: {} })));
+  }
+
+  historialBatchUnidades(unidades: ChecklistResumenUnidadDto[]): Observable<ChecklistRegistroDto[][]> {
+    return this.carrosApi.listar().pipe(
+      switchMap((carros) => {
+        const pairs = unidades
+          .map((u) => ({ unidad: u, carro: carros.find((c) => c.nomenclatura === u.unidad || String(c.id) === u.unidad) }))
+          .filter((p): p is { unidad: ChecklistResumenUnidadDto; carro: CarroDto } => !!p.carro);
+        if (!pairs.length) return of([] as ChecklistRegistroDto[][]);
+        return this.getHistorialBatch(pairs.map((p) => String(p.carro.id))).pipe(
+          map((res) =>
+            pairs.map(({ carro }) =>
+              (res.data[String(carro.id)] ?? [])
+                .map((e) => this.mapEjecucionToRegistro(e, carro))
+                .filter(Boolean) as ChecklistRegistroDto[],
+            ),
+          ),
+        );
+      }),
+      catchError(() => of([] as ChecklistRegistroDto[][])),
+    );
+  }
+
   getDetalleEjecucion(id: string): Observable<{ success: boolean; data: ChecklistEjecucionDTO }> {
     return this.http.get<{ success: boolean; data: ChecklistEjecucionDTO }>(`${this.apiUrl}/ejecucion/${id}`);
   }

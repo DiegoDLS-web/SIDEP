@@ -2,7 +2,7 @@ import { CommonModule, formatDate } from '@angular/common';
 import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { HttpEventType } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { catchError, finalize, of } from 'rxjs';
+import { catchError, finalize, forkJoin, of } from 'rxjs';
 import type { LicenciaEstado, LicenciaMedicaDto, LicenciasResumenDto } from '../../models/licencias.dto';
 import { AuthService } from '../../services/auth.service';
 import { LicenciasService } from '../../services/licencias.service';
@@ -12,6 +12,9 @@ import { SIDEP_ACTION_ICON } from '../../shared/sidep-action-icons';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SidEdicionPendienteBannerComponent } from '../../shared/sid-edicion-pendiente-banner.component';
+import { SidPaginationFooterComponent } from '../../shared/sid-pagination-footer.component';
+import { SidHistoryFilterActionsComponent } from '../../shared/sid-history-filter-actions.component';
+import { SidRecordCountBadgeComponent } from '../../shared/sid-record-count-badge.component';
 import { etiquetaOficialidadCargo } from '../usuarios/usuario-registro.constants';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { CambioEstadoDialogService } from '../../services/cambio-estado-dialog.service';
@@ -24,7 +27,7 @@ import { registrarEdicionPendienteGlobal } from '../../utils/registrar-edicion-p
 @Component({
   selector: 'app-licencias-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidepIconsModule, SidDateInputComponent, SidEdicionPendienteBannerComponent],
+  imports: [CommonModule, FormsModule, SidepIconsModule, SidDateInputComponent, SidEdicionPendienteBannerComponent, SidPaginationFooterComponent, SidHistoryFilterActionsComponent, SidRecordCountBadgeComponent],
   templateUrl: './licencias-page.component.html',
 })
 export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendiente {
@@ -54,6 +57,9 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
   okMsg: string | null = null;
   misLicencias: LicenciaMedicaDto[] = [];
   gestionLicencias: LicenciaMedicaDto[] = [];
+  gestionTotal = 0;
+  gestionTotalPages = 1;
+  metricasGestion = { pendientes: 0, aprobadas: 0, rechazadas: 0 };
   filtroGestion: '' | LicenciaEstado = '';
   filtroGestionTexto = '';
   filtroGestionDesde = '';
@@ -88,7 +94,7 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
   estadoEdicion: Record<string, LicenciaEstado> = {};
   observacionEdicion: Record<string, string> = {};
   paginaGestion = 1;
-  readonly tamanioPaginaGestion = 6;
+  readonly tamanioPaginaGestion = 20;
   paginaHistorial = 1;
   readonly tamanioPaginaHistorial = 8;
   modalNuevaSolicitudAbierta = false;
@@ -135,23 +141,23 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
   }
 
   get totalPendientes(): number {
-    return this.gestionLicencias.filter((x) => x.estado === 'PENDIENTE').length;
+    return this.metricasGestion.pendientes;
   }
 
   get totalAprobadas(): number {
-    return this.gestionLicencias.filter((x) => x.estado === 'APROBADA').length;
+    return this.metricasGestion.aprobadas;
   }
 
   get totalRechazadas(): number {
-    return this.gestionLicencias.filter((x) => x.estado === 'RECHAZADA').length;
+    return this.metricasGestion.rechazadas;
   }
 
   get totalGestion(): number {
-    return this.gestionLicencias.length;
+    return this.gestionTotal;
   }
 
   get totalPaginasGestion(): number {
-    return Math.max(1, Math.ceil(this.gestionLicenciasFiltradas.length / this.tamanioPaginaGestion));
+    return Math.max(1, this.gestionTotalPages);
   }
 
   get paginaGestionVista(): number {
@@ -159,9 +165,7 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
   }
 
   get gestionLicenciasPaginadas(): LicenciaMedicaDto[] {
-    const paginaActiva = Math.min(this.paginaGestion, this.totalPaginasGestion);
-    const inicio = (paginaActiva - 1) * this.tamanioPaginaGestion;
-    return this.gestionLicenciasFiltradas.slice(inicio, inicio + this.tamanioPaginaGestion);
+    return this.gestionLicenciasFiltradas;
   }
 
   get gestionLicenciasFiltradas(): LicenciaMedicaDto[] {
@@ -264,21 +268,42 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
     }
   }
 
-  cargarGestion(): void {
+  cargarGestion(page = 1): void {
     this.errorGestion = null;
     this.api
-      .listarGestion(undefined)
+      .listarGestion(this.filtroGestion || undefined, page, this.tamanioPaginaGestion)
       .pipe(
         catchError(() => {
           this.errorGestion = 'No se pudo cargar la gestión de licencias.';
-          return of([]);
+          return of({ items: [], total: 0, page: 1, pageSize: this.tamanioPaginaGestion, totalPages: 1 });
         }),
       )
-      .subscribe((rows) => {
-        this.gestionLicencias = rows;
-        this.paginaGestion = 1;
+      .subscribe((data) => {
+        this.gestionLicencias = data.items;
+        this.gestionTotal = data.total;
+        this.gestionTotalPages = data.totalPages;
+        this.paginaGestion = data.page;
         this.paginaHistorial = 1;
-        this.sincronizarBaselineResolucion(rows);
+        this.sincronizarBaselineResolucion(data.items);
+      });
+    this.cargarMetricasGestion();
+  }
+
+  private cargarMetricasGestion(): void {
+    if (!this.puedeGestionar) return;
+    forkJoin({
+      pendientes: this.api.listarGestion('PENDIENTE', 1, 1),
+      aprobadas: this.api.listarGestion('APROBADA', 1, 1),
+      rechazadas: this.api.listarGestion('RECHAZADA', 1, 1),
+    })
+      .pipe(catchError(() => of(null)))
+      .subscribe((data) => {
+        if (!data) return;
+        this.metricasGestion = {
+          pendientes: data.pendientes.total,
+          aprobadas: data.aprobadas.total,
+          rechazadas: data.rechazadas.total,
+        };
       });
   }
 
@@ -418,6 +443,7 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
     if (!ok) return;
     this.filtroGestion = estado;
     this.paginaGestion = 1;
+    this.cargarGestion(1);
   }
 
   async limpiarFiltrosGestion(): Promise<void> {
@@ -430,6 +456,7 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
     this.filtroGestionDesde = '';
     this.filtroGestionHasta = '';
     this.paginaGestion = 1;
+    this.cargarGestion(1);
   }
 
   limpiarFiltrosHistorial(): void {
@@ -450,6 +477,7 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
       return;
     }
     this.paginaGestion = next;
+    this.cargarGestion(next);
   }
 
   abrirModalNuevaSolicitud(): void {

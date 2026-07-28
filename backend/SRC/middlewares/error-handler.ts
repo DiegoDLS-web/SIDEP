@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
 import { resolverErrorHttp } from '../utils/prisma-error.util';
+import { logError } from '../utils/logger/logger';
 
 export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
   const resuelto = resolverErrorHttp(err);
@@ -20,7 +21,11 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
   }
 
   // Error genérico — no exponer detalles internos
-  console.error('[ERROR NO CONTROLADO]', err);
+  logError(err, {
+    context: 'errorHandler',
+    path: req.originalUrl,
+    method: req.method,
+  });
   return res.status(500).json({
     success: false,
     message: 'Error interno del servidor.',

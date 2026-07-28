@@ -89,4 +89,14 @@ export interface AnaliticaOperacionalDto {
     claveEmergencia: string;
     cantidad: number;
   }>;
+  resumenDashboard?: {
+    anio: number;
+    totalEmergencias: number;
+    tiempoPromedioRespuestaMin: number;
+    porcentajeResueltas: number;
+    emergenciasEsteMes: number;
+    porMes: Array<{ periodo: string; cantidad: number }>;
+    porTipo: Array<{ claveEmergencia: string; cantidad: number }>;
+    heatmapSemanas: number[][];
+  };
 }

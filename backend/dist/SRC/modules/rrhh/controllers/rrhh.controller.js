@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cambiarMiPassword = exports.subirArchivoLicencia = exports.subirFotoPerfil = exports.getMiResumenOperativo = exports.patchMiPerfil = exports.getMiPerfil = void 0;
 const rrhhService = __importStar(require("../services/rrhh.service"));
+const password_policy_util_1 = require("../../../utils/security/password-policy.util");
 // 1. Obtener mi perfil
 const getMiPerfil = async (req, res) => {
     try {
@@ -150,8 +151,9 @@ const cambiarMiPassword = async (req, res) => {
         if (!passwordActual || !passwordNueva) {
             return res.status(400).json({ success: false, error: 'Se requieren la contraseña actual y la nueva.' });
         }
-        if (passwordNueva.length < 8) {
-            return res.status(400).json({ success: false, error: 'La nueva contraseña debe tener al menos 8 caracteres.' });
+        const errPolitica = (0, password_policy_util_1.validarPasswordNueva)(passwordNueva, userRut);
+        if (errPolitica) {
+            return res.status(400).json({ success: false, error: errPolitica });
         }
         await rrhhService.cambiarPassword(userRut, passwordActual, passwordNueva);
         return res.status(200).json({ success: true, message: 'Contraseña actualizada correctamente.' });

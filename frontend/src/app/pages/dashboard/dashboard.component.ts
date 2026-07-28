@@ -15,6 +15,12 @@ import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directi
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
 import type { CuadroHonorDto } from '../../models/reportes.dto';
 import { etiquetaCuadroHonor } from '../usuarios/usuario-registro.constants';
+import {
+  fechaCalendarioKey,
+  formatearCalendarioKeyEs,
+  inicioHeatmapDesdeFin,
+  sumarDiasCalendarioKey,
+} from '../../shared/fecha-calendario.util';
 
 type StatCard = {
   label: string;
@@ -107,22 +113,32 @@ export class DashboardComponent implements OnInit, OnDestroy {
       },
     });
     this.cargar();
-    this.refreshInterval = window.setInterval(() => this.cargar(), 30_000);
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
+    this.refreshInterval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') this.cargar(true);
+    }, 90_000);
   }
 
   ngOnDestroy(): void {
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
     if (this.refreshInterval != null) {
       clearInterval(this.refreshInterval);
     }
   }
 
+  private readonly onVisibilityChange = (): void => {
+    if (document.visibilityState === 'visible' && this.datos) {
+      this.cargar(true);
+    }
+  };
+
   aplicarFiltros(): void {
     this.cargar();
   }
 
-  private cargar(): void {
+  private cargar(silent = false): void {
     this.error = null;
-    this.loading = !this.datos;
+    if (!silent) this.loading = !this.datos;
     forkJoin({
       actual: this.dashboardApi.resumen(this.anio, this.claveFiltro, this.unidadFiltro),
       previo: this.dashboardApi
@@ -235,21 +251,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return `${m.mes} ${y}: ${n} ${n === 1 ? 'emergencia' : 'emergencias'}`;
   }
 
-  private inicioHeatmap(): Date {
-    const fin = new Date();
-    fin.setHours(23, 59, 59, 999);
-    const inicio = new Date(fin);
-    inicio.setHours(0, 0, 0, 0);
-    const diaSemana = inicio.getDay();
-    const diasHastaLunes = diaSemana === 0 ? 6 : diaSemana - 1;
-    inicio.setDate(inicio.getDate() - diasHastaLunes - (DashboardComponent.HEATMAP_SEMANAS - 1) * 7);
-    return inicio;
+  private inicioHeatmapKey(): string {
+    const anioActual = new Date().getFullYear();
+    const finKey = this.anio === anioActual ? fechaCalendarioKey(new Date()) : `${this.anio}-12-31`;
+    return inicioHeatmapDesdeFin(finKey, DashboardComponent.HEATMAP_SEMANAS);
   }
 
   heatmapEtiqueta(iw: number, id: number, val: number): string {
-    const celda = new Date(this.inicioHeatmap());
-    celda.setDate(celda.getDate() + iw * 7 + id);
-    const fecha = formatDate(celda, 'dd/MM/yyyy', 'es-CL');
+    const key = sumarDiasCalendarioKey(this.inicioHeatmapKey(), iw * 7 + id);
+    const fecha = formatearCalendarioKeyEs(key);
     return `${fecha}: ${val} ${val === 1 ? 'emergencia' : 'emergencias'}`;
   }
 

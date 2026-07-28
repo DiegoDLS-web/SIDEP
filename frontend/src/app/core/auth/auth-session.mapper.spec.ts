@@ -17,6 +17,7 @@ describe('mapLoginUsuarioASesion', () => {
       email: 'juan@ejemplo.cl',
       rut: '12.345.678-9',
       activo: true,
+      estadoVoluntario: null,
       requiereCambioPassword: true,
     });
   });

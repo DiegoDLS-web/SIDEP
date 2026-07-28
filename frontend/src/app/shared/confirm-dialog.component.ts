@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, HostListener, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ConfirmDialogService } from '../services/confirm-dialog.service';
 import { SidepIconsModule } from './sidep-icons.module';
@@ -7,7 +8,7 @@ import { SidepIconsModule } from './sidep-icons.module';
 @Component({
   selector: 'app-confirm-dialog',
   standalone: true,
-  imports: [CommonModule, SidepIconsModule],
+  imports: [CommonModule, FormsModule, SidepIconsModule],
   template: `
     @if (vm().open) {
       <div
@@ -18,41 +19,57 @@ import { SidepIconsModule } from './sidep-icons.module';
         <div
           class="confirm-dialog flex max-h-[min(90vh,560px)] w-full max-w-md flex-col rounded-2xl border border-slate-700 bg-[linear-gradient(145deg,#111827,#0b1220)] shadow-2xl shadow-black/60 ring-1 ring-inset ring-white/5"
           [class.confirm-dialog-logout]="vm().variant === 'logout'"
+          [class.confirm-dialog-danger]="vm().variant === 'danger'"
           role="dialog"
           aria-modal="true"
           aria-labelledby="confirm-dialog-title"
           aria-describedby="confirm-dialog-desc"
           (click)="$event.stopPropagation()"
         >
-          <div
-            class="sid-modal-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain p-5"
-          >
-          <div class="mb-3 flex items-center gap-3">
-            <div
-              class="confirm-icon-wrap flex h-10 w-10 items-center justify-center rounded-xl ring-1"
-              [class.bg-red-600/20]="vm().variant !== 'logout'"
-              [class.text-red-300]="vm().variant !== 'logout'"
-              [class.ring-red-500/30]="vm().variant !== 'logout'"
-              [class.bg-violet-600/20]="vm().variant === 'logout'"
-              [class.text-violet-200]="vm().variant === 'logout'"
-              [class.ring-violet-400/40]="vm().variant === 'logout'"
-              aria-hidden="true"
-            >
-              <lucide-icon
-                [name]="vm().variant === 'logout' ? 'log-out' : 'triangle-alert'"
-                class="h-5 w-5"
-                [size]="20"
-                color="currentColor"
+          <div class="sid-modal-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
+            <div class="mb-3 flex items-center gap-3">
+              <div
+                class="confirm-icon-wrap flex h-10 w-10 items-center justify-center rounded-xl ring-1"
+                [class.bg-red-600/20]="vm().variant !== 'logout'"
+                [class.text-red-300]="vm().variant !== 'logout'"
+                [class.ring-red-500/30]="vm().variant !== 'logout'"
+                [class.bg-violet-600/20]="vm().variant === 'logout'"
+                [class.text-violet-200]="vm().variant === 'logout'"
+                [class.ring-violet-400/40]="vm().variant === 'logout'"
+                aria-hidden="true"
+              >
+                <lucide-icon
+                  [name]="vm().variant === 'logout' ? 'log-out' : 'triangle-alert'"
+                  class="h-5 w-5"
+                  [size]="20"
+                  color="currentColor"
+                />
+              </div>
+              <div>
+                <h3 id="confirm-dialog-title" class="text-base font-semibold text-white">{{ vm().title }}</h3>
+                <p class="text-xs text-slate-400">
+                  @if (vm().variant === 'logout') {
+                    Cierre seguro de sesión
+                  } @else if (vm().variant === 'danger') {
+                    Acción destructiva — confirma con cuidado
+                  } @else {
+                    Esta acción puede ser irreversible
+                  }
+                </p>
+              </div>
+            </div>
+            <p id="confirm-dialog-desc" class="mb-4 whitespace-pre-line text-sm text-slate-200">{{ vm().message }}</p>
+            @if (vm().requireText) {
+              <label class="mb-1 block text-xs font-medium text-slate-400">
+                {{ vm().requireTextHint || 'Escribe el texto exacto para habilitar la confirmación' }}
+              </label>
+              <input
+                [(ngModel)]="textoConfirmacion"
+                class="sid-input w-full font-mono text-sm"
+                [placeholder]="vm().requireText"
+                autocomplete="off"
               />
-            </div>
-            <div>
-              <h3 id="confirm-dialog-title" class="text-base font-semibold text-white">{{ vm().title }}</h3>
-              <p class="text-xs text-slate-400">
-                {{ vm().variant === 'logout' ? 'Cierre seguro de sesión' : 'Esta acción puede ser irreversible' }}
-              </p>
-            </div>
-          </div>
-          <p id="confirm-dialog-desc" class="mb-5 text-sm text-slate-200">{{ vm().message }}</p>
+            }
           </div>
           <div class="flex shrink-0 justify-end gap-2 border-t border-slate-800/90 bg-[#0b1220]/95 p-5 pt-4">
             <button
@@ -64,11 +81,12 @@ import { SidepIconsModule } from './sidep-icons.module';
             </button>
             <button
               type="button"
-              class="rounded-lg px-4 py-2 text-sm font-semibold text-white"
+              class="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
               [class.bg-red-600]="vm().variant !== 'logout'"
               [class.hover:bg-red-700]="vm().variant !== 'logout'"
               [class.bg-violet-600]="vm().variant === 'logout'"
               [class.hover:bg-violet-700]="vm().variant === 'logout'"
+              [disabled]="!puedeConfirmar()"
               (click)="confirmar()"
             >
               {{ vm().confirmText }}
@@ -89,6 +107,9 @@ import { SidepIconsModule } from './sidep-icons.module';
       }
       .confirm-dialog {
         animation: dialogIn 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .confirm-dialog-danger {
+        border-color: rgba(239, 68, 68, 0.45);
       }
       .confirm-dialog-logout {
         border-color: rgba(167, 139, 250, 0.45);
@@ -134,6 +155,8 @@ import { SidepIconsModule } from './sidep-icons.module';
 export class ConfirmDialogComponent {
   private readonly confirm = inject(ConfirmDialogService);
 
+  textoConfirmacion = '';
+
   readonly vm = toSignal(this.confirm.state$, {
     initialValue: {
       open: false,
@@ -142,19 +165,30 @@ export class ConfirmDialogComponent {
       confirmText: 'Confirmar',
       cancelText: 'Cancelar',
       variant: 'default' as const,
+      requireText: undefined,
+      requireTextHint: undefined,
     },
   });
 
+  puedeConfirmar(): boolean {
+    const v = this.vm();
+    if (!v.requireText) return true;
+    return this.textoConfirmacion.trim() === v.requireText.trim();
+  }
+
   confirmar(): void {
+    if (!this.puedeConfirmar()) return;
+    this.textoConfirmacion = '';
     this.confirm.confirmar();
   }
 
   cancelar(): void {
+    this.textoConfirmacion = '';
     this.confirm.cancelar();
   }
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    this.confirm.cancelar();
+    this.cancelar();
   }
 }

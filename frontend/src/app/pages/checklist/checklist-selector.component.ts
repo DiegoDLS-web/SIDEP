@@ -14,6 +14,8 @@ import { solicitarMotivoCambioEstado } from '../../utils/cambio-estado.util';
 import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
+import { SidPaginationFooterComponent } from '../../shared/sid-pagination-footer.component';
+import { SidHistoryFilterActionsComponent } from '../../shared/sid-history-filter-actions.component';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { calcularEstadoChecklist, etiquetaEstadoChecklist } from '../../utils/checklist-estado';
 import { etiquetaCompletandoOCompletado } from '../../utils/etiqueta-completitud';
@@ -31,6 +33,8 @@ import { etiquetaUnidadCarro } from '../../utils/etiqueta-unidad-carro';
     SidScrollRevealDirective,
     SidEmptyStateComponent,
     SidDateInputComponent,
+    SidPaginationFooterComponent,
+    SidHistoryFilterActionsComponent,
   ],
   templateUrl: './checklist-selector.component.html',
 })
@@ -137,11 +141,7 @@ export class ChecklistSelectorComponent implements OnInit {
       return;
     }
     this.historialLoading = true;
-    forkJoin(
-      this.unidades.map((unidad) =>
-        this.checklistsApi.historialCompletoUnidad(unidad.unidad).pipe(catchError(() => of([]))),
-      ),
-    ).subscribe({
+    this.checklistsApi.historialBatchUnidades(this.unidades).subscribe({
       next: (responses) => {
         this.historialesPorUnidad = responses.map((r) => r ?? []);
         this.historialLoading = false;

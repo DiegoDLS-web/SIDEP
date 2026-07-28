@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.obtenerResumen = exports.listarActivas = exports.cambiarEstado = exports.listarGestion = exports.editarLicencia = exports.crearLicencia = exports.listarMisLicencias = void 0;
 const prisma_1 = __importDefault(require("../../../prisma"));
 const crypto_1 = __importDefault(require("crypto"));
+const notificaciones_scheduler_service_1 = require("../../notificaciones/notificaciones-scheduler.service");
 // ─── Helpers de mapeo ───────────────────────────────────────────────
 /** Nombre completo a partir del modelo Usuario. */
 function nombreCompleto(usuario) {
@@ -155,19 +156,32 @@ const editarLicencia = async (id, rut, datos) => {
 };
 exports.editarLicencia = editarLicencia;
 // ─── 4. Listar todas las licencias (gestión) ────────────────────────
-const listarGestion = async (estado) => {
+const listarGestion = async (opts) => {
     const where = {};
-    if (estado && estado.trim()) {
+    if (opts?.estado?.trim()) {
         where.estado = {
-            nombre: { equals: estado.trim(), mode: 'insensitive' },
+            nombre: { equals: opts.estado.trim(), mode: 'insensitive' },
         };
     }
-    const licencias = await prisma_1.default.licenciaMedica.findMany({
-        where,
-        include: INCLUDE_LICENCIA,
-        orderBy: { createdAt: 'desc' },
-    });
-    return licencias.map(mapLicenciaToDto);
+    const page = Math.max(1, opts?.page ?? 1);
+    const pageSize = Math.min(100, Math.max(10, opts?.pageSize ?? 50));
+    const [total, licencias] = await Promise.all([
+        prisma_1.default.licenciaMedica.count({ where }),
+        prisma_1.default.licenciaMedica.findMany({
+            where,
+            include: INCLUDE_LICENCIA,
+            orderBy: { createdAt: 'desc' },
+            skip: (page - 1) * pageSize,
+            take: pageSize,
+        }),
+    ]);
+    return {
+        items: licencias.map(mapLicenciaToDto),
+        total,
+        page,
+        pageSize,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    };
 };
 exports.listarGestion = listarGestion;
 // ─── 5. Cambiar estado (aprobar/rechazar/anular) ────────────────────
@@ -198,7 +212,14 @@ const cambiarEstado = async (id, resolutorRut, estado, observacionResolucion, fe
         },
         include: INCLUDE_LICENCIA,
     });
-    return mapLicenciaToDto(actualizada);
+    const dto = mapLicenciaToDto(actualizada);
+    const estadoNorm = String(estado).trim().toUpperCase();
+    if (['APROBADA', 'RECHAZADA', 'ANULADA'].includes(estadoNorm)) {
+        void (0, notificaciones_scheduler_service_1.notificarLicenciaResuelta)(actualizada.id).catch((err) => {
+            console.error('[SIDEP] Error al notificar resolución de licencia:', err);
+        });
+    }
+    return dto;
 };
 exports.cambiarEstado = cambiarEstado;
 // ─── 6. Licencias activas en una fecha ──────────────────────────────

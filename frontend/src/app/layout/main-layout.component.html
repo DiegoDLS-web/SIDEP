@@ -33,7 +33,7 @@
       </div>
     </div>
 
-    <nav class="sid-sidebar-nav sid-scroll-dark min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-4" aria-label="Secciones">
+    <nav class="sid-sidebar-nav sid-scroll-dark min-h-0 flex-1 overflow-x-hidden p-4" aria-label="Secciones">
       @for (section of sectionesSidebar(); track section.title; let si = $index) {
         <div class="sid-nav-section px-1 py-1" [class.mt-5]="si > 0">
           <p class="sid-nav-section-title mb-3 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
@@ -45,6 +45,7 @@
                 [routerLink]="item.routerLink"
                 class="sid-nav-item sid-nav-glass sid-card-hover flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150"
                 [ngClass]="navClasses(navActive(item))"
+                [attr.aria-current]="navActive(item) ? 'page' : null"
                 (click)="cerrarSidebar()"
               >
                 <lucide-icon
@@ -82,6 +83,7 @@
       <button
         type="button"
         class="sid-btn sid-btn-primary sid-logout-btn sid-logout-clean mt-3 flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-red-700"
+        aria-label="Cerrar sesión y salir de SIDEP"
         (click)="logout()"
       >
         <lucide-icon name="log-in" class="h-4 w-4 rotate-180" aria-hidden="true"></lucide-icon>
@@ -101,6 +103,7 @@
   <main
     id="main-content"
     tabindex="-1"
+    [attr.inert]="bienvenidaVisible() ? '' : null"
     class="sid-shell__main sid-scroll-dark min-h-0 w-full min-w-0 flex-1 overflow-x-hidden overflow-y-auto pb-[env(safe-area-inset-bottom)] pt-14 outline-none lg:pt-0"
     [class.route-fade-in]="routeTransitioning"
   >

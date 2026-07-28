@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.obtenerPlantillas = exports.patchEstadoEjecucion = exports.getDetalleEjecucion = exports.editPlantilla = exports.getHistorial = exports.addEjecucion = exports.addPlantilla = void 0;
+exports.obtenerPlantillas = exports.patchEstadoEjecucion = exports.getDetalleEjecucion = exports.editPlantilla = exports.getHistorialBatch = exports.getHistorial = exports.addEjecucion = exports.addPlantilla = void 0;
 const checklistsService = __importStar(require("../services/checklists.service"));
 const prisma_1 = require("../../../prisma");
 const prisma_error_util_1 = require("../../../utils/prisma-error.util");
@@ -85,6 +85,22 @@ const getHistorial = async (req, res) => {
     }
 };
 exports.getHistorial = getHistorial;
+const getHistorialBatch = async (req, res) => {
+    try {
+        const raw = String(req.query.carroIds ?? '').trim();
+        const carroIds = raw ? raw.split(',').map((s) => s.trim()).filter(Boolean) : [];
+        const entidadTipo = req.query.entidadTipo;
+        const data = await checklistsService.obtenerHistorialBatch(carroIds, {
+            ...(entidadTipo ? { entidadTipo } : {}),
+            excluirBorradores: req.query.excluirBorradores !== '0',
+        });
+        res.status(200).json({ success: true, data });
+    }
+    catch {
+        res.status(500).json({ success: false, message: 'Error al obtener historial batch' });
+    }
+};
+exports.getHistorialBatch = getHistorialBatch;
 const editPlantilla = async (req, res) => {
     try {
         // Añadimos "as string"

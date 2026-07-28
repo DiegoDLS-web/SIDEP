@@ -33,6 +33,23 @@ export interface UsuarioListaDto {
   updatedAt: string;
 }
 
+/** DTO mínimo del endpoint /usuarios/selector (sin email, teléfono ni firma). */
+export interface UsuarioSelectorDto {
+  id: string;
+  rut: string;
+  nombre: string;
+  rol: string;
+  claveNomina: string | null;
+  cargoOficialidad?: string | null;
+  autorizadoConducir?: boolean;
+  activo: boolean;
+  firmaImagen?: string | null;
+}
+
+export interface UsuarioCrearRespuestaDto extends UsuarioListaDto {
+  passwordProvisional?: string;
+}
+
 export interface UsuariosPaginaDto {
   items: UsuarioListaDto[];
   total: number;

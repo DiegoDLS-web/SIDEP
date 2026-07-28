@@ -37,15 +37,14 @@ describe('authGuard', () => {
     return raw;
   }
 
-  it('sin token redirige a login', async () => {
-    auth.isAutenticado.and.returnValue(false);
+  it('sin sesión válida redirige a login', async () => {
+    auth.cargarSesion.and.returnValue(of(null));
     const out = await run('/partes');
     expect(out).toBeInstanceOf(UrlTree);
     expect(router.serializeUrl(out as UrlTree)).toBe('/login');
   });
 
   it('si la sesión no se puede validar redirige a login', async () => {
-    auth.isAutenticado.and.returnValue(true);
     auth.cargarSesion.and.returnValue(of(null));
     const out = await run('/partes');
     expect(out).toBeInstanceOf(UrlTree);
@@ -63,14 +62,12 @@ describe('authGuard', () => {
   };
 
   it('usuario válido sin cambio de password obligatorio permite la ruta', async () => {
-    auth.isAutenticado.and.returnValue(true);
     auth.cargarSesion.and.returnValue(of(usuarioBase));
     const out = await run('/partes');
     expect(out).toBe(true);
   });
 
   it('requiere cambio de password: redirige a la pantalla de cambio', async () => {
-    auth.isAutenticado.and.returnValue(true);
     auth.cargarSesion.and.returnValue(
       of({ ...usuarioBase, requiereCambioPassword: true }),
     );
@@ -80,7 +77,6 @@ describe('authGuard', () => {
   });
 
   it('requiere cambio de password: permite permanecer en cambiar-password-inicial', async () => {
-    auth.isAutenticado.and.returnValue(true);
     auth.cargarSesion.and.returnValue(
       of({ ...usuarioBase, requiereCambioPassword: true }),
     );
@@ -89,7 +85,6 @@ describe('authGuard', () => {
   });
 
   it('si ya no requiere cambio, no deja en cambiar-password-inicial', async () => {
-    auth.isAutenticado.and.returnValue(true);
     auth.cargarSesion.and.returnValue(of(usuarioBase));
     const out = await run('/cambiar-password-inicial');
     expect(out).toBeInstanceOf(UrlTree);

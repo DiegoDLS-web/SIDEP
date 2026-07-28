@@ -4,8 +4,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
+const compression_1 = __importDefault(require("compression"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
+const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const autenticacion_routes_1 = __importDefault(require("./SRC/modules/autenticacion/autenticacion.routes"));
@@ -17,10 +19,15 @@ const licencias_routes_1 = __importDefault(require("./SRC/modules/rrhh/routes/li
 const auditoria_routes_1 = __importDefault(require("./SRC/modules/auditoria/routes/auditoria.routes"));
 const reportes_routes_1 = __importDefault(require("./SRC/modules/analitica/routes/reportes.routes"));
 const dashboard_routes_1 = __importDefault(require("./SRC/modules/analitica/routes/dashboard.routes"));
+const notificaciones_routes_1 = __importDefault(require("./SRC/modules/notificaciones/notificaciones.routes"));
+const guardias_routes_1 = __importDefault(require("./SRC/modules/cuartel/routes/guardias.routes"));
+const novedades_routes_1 = __importDefault(require("./SRC/modules/cuartel/routes/novedades.routes"));
+const asistencia_cuarteleros_routes_1 = __importDefault(require("./SRC/modules/cuartel/routes/asistencia-cuarteleros.routes"));
 const auth_middleware_1 = require("./SRC/middlewares/auth.middleware");
 const role_middleware_1 = require("./SRC/middlewares/role.middleware");
 const prisma_1 = __importDefault(require("./SRC/prisma"));
 const auditoria_middleware_1 = require("./SRC/modules/auditoria/middlewares/auditoria.middleware");
+const email_service_1 = require("./SRC/utils/email/email.service");
 const app = (0, express_1.default)();
 function origenesCorsPermitidos() {
     const raw = [
@@ -52,10 +59,40 @@ app.use((0, cors_1.default)({
 }));
 app.use(express_1.default.json({ limit: '20mb' })); // Permite recibir información en JSON
 app.use(express_1.default.urlencoded({ limit: '20mb', extended: true }));
+app.use((0, cookie_parser_1.default)());
+app.use((0, compression_1.default)());
 // --- RUTAS DE LA API (MODULARES) ---
 // 1. Ruta de estado (Healthcheck)
-app.get('/api/health', (req, res) => {
-    res.status(200).json({ status: 'Servidor SIDEP Operativo 🚒' });
+app.get('/api/health', async (req, res) => {
+    const jwtOk = Boolean(process.env.JWT_SECRET?.trim());
+    const smtpOk = Boolean(process.env.SMTP_HOST?.trim() && process.env.SMTP_USER?.trim());
+    const cloudinaryOk = Boolean(process.env.CLOUDINARY_CLOUD_NAME?.trim() &&
+        process.env.CLOUDINARY_API_KEY?.trim() &&
+        process.env.CLOUDINARY_API_SECRET?.trim());
+    let dbOk = false;
+    let smtpConexionOk = false;
+    try {
+        await prisma_1.default.$queryRaw `SELECT 1`;
+        dbOk = true;
+    }
+    catch {
+        dbOk = false;
+    }
+    if (smtpOk) {
+        try {
+            await (0, email_service_1.verificarConexionSmtp)();
+            smtpConexionOk = true;
+        }
+        catch {
+            smtpConexionOk = false;
+        }
+    }
+    const ok = dbOk && jwtOk;
+    res.status(ok ? 200 : 503).json({
+        status: ok ? 'Servidor SIDEP Operativo 🚒' : 'Servidor SIDEP con problemas',
+        checks: { db: dbOk, jwt: jwtOk, smtp: smtpOk, smtpConexion: smtpConexionOk, cloudinary: cloudinaryOk },
+        timestamp: new Date().toISOString(),
+    });
 });
 // 2. Ruta de Branding Público (Configuración básica)
 app.get('/api/branding-public', async (req, res) => {
@@ -100,17 +137,19 @@ app.get('/api/auth/mi-navegacion', auth_middleware_1.protect, async (req, res) =
             '/checklist-era',
             '/bolso-trauma',
             '/licencias-medicas',
+            '/guardias',
+            '/libro-novedades',
+            '/asistencia-cuarteleros',
             '/analitica-operacional',
             '/usuarios',
-            '/configuraciones',
             '/auditoria',
+            '/configuraciones',
             '/perfil'
         ];
         const sinCatalogoNiAdmin = OPCIONES_MENU_SIDEP.filter((path) => path !== '/usuarios' &&
             path !== '/configuraciones' &&
-            path !== '/catalogo-emergencias' &&
-            path !== '/auditoria');
-        const operativesAdminCapitan = OPCIONES_MENU_SIDEP.filter((path) => path !== '/usuarios' && path !== '/configuraciones' && path !== '/auditoria');
+            path !== '/catalogo-emergencias');
+        const operativesAdminCapitan = OPCIONES_MENU_SIDEP.filter((path) => path !== '/usuarios' && path !== '/configuraciones');
         let paths = [];
         if (rol === 'ADMIN') {
             paths = OPCIONES_MENU_SIDEP;
@@ -141,6 +180,10 @@ app.use('/api/licencias', auditoria_middleware_1.auditoriaMiddleware, licencias_
 app.use('/api/auditoria', auditoria_routes_1.default);
 app.use('/api/reportes', auth_middleware_1.protect, reportes_routes_1.default);
 app.use('/api/dashboard', auth_middleware_1.protect, dashboard_routes_1.default);
+app.use('/api/notificaciones', notificaciones_routes_1.default);
+app.use('/api/guardias', auditoria_middleware_1.auditoriaMiddleware, guardias_routes_1.default);
+app.use('/api/novedades', auditoria_middleware_1.auditoriaMiddleware, novedades_routes_1.default);
+app.use('/api/asistencia-cuarteleros', auditoria_middleware_1.auditoriaMiddleware, asistencia_cuarteleros_routes_1.default);
 app.get('/api/roles', auth_middleware_1.protect, async (req, res) => {
     try {
         const activos = req.query.activos === '1';

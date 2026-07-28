@@ -14,8 +14,16 @@
     </div>
 
     <div class="sid-glass-panel sid-panel rounded-xl border border-gray-700/80 bg-[#121212]/90 p-8 backdrop-blur-sm">
-      <h2 class="sid-title-balanced mb-2 text-2xl font-bold text-white">Iniciar Sesión</h2>
-      <p class="mb-5 text-sm text-gray-400">Ingresa tus credenciales institucionales para acceder al sistema.</p>
+      <h2 class="sid-title-balanced mb-2 text-2xl font-bold text-white">
+        {{ pasoMfa ? 'Verificación MFA' : 'Iniciar Sesión' }}
+      </h2>
+      <p class="mb-5 text-sm text-gray-400">
+        @if (pasoMfa) {
+          Ingresa el código de 6 dígitos de tu app autenticadora (Google Authenticator, etc.).
+        } @else {
+          Ingresa tus credenciales institucionales para acceder al sistema.
+        }
+      </p>
       @if (error) {
         <div
           class="sid-feedback mb-4 rounded-lg border px-4 py-3 text-sm"
@@ -35,6 +43,29 @@
       }
 
       <form class="space-y-5" (ngSubmit)="submit()">
+        @if (pasoMfa) {
+          <div>
+            <label class="mb-2 block text-sm font-medium text-gray-300" for="mfa-code">Código MFA</label>
+            <input
+              id="mfa-code"
+              type="text"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              name="mfaCode"
+              [(ngModel)]="mfaCode"
+              maxlength="8"
+              placeholder="000000"
+              class="sid-input box-border w-full !rounded-lg !border-gray-700 !bg-[#0a0a0a] !py-3 !px-4 text-center text-lg tracking-widest placeholder:text-gray-500"
+            />
+          </div>
+          <button
+            type="button"
+            class="sid-link-clean text-sm"
+            (click)="volverLogin()"
+          >
+            ← Volver al login
+          </button>
+        } @else {
         <div>
           <label class="mb-2 block text-sm font-medium text-gray-300">RUT</label>
           <div class="relative">
@@ -93,13 +124,14 @@
             >¿Olvidaste tu contraseña?</a
           >
         </div>
+        }
 
         <button
           type="submit"
           [disabled]="loading"
           class="sid-btn sid-btn-primary w-full rounded-lg py-3 font-medium disabled:opacity-60"
         >
-          {{ loading ? 'Ingresando...' : 'Ingresar al Sistema' }}
+          {{ loading ? 'Verificando...' : pasoMfa ? 'Verificar código' : 'Ingresar al Sistema' }}
         </button>
       </form>
 

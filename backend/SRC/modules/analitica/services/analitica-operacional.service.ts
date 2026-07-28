@@ -1,5 +1,6 @@
 import prisma from '../../../prisma';
 import { parteWhereNoAnulado } from '../../operaciones/partes-where';
+import { getDashboardResumen } from './dashboard.service';
 
 export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesParam?: number) => {
   const anio = anioParam || new Date().getFullYear();
@@ -376,6 +377,8 @@ export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesPara
     };
   });
 
+  const resumenDashboard = await getDashboardResumen(anio, 'todos', undefined);
+
   return {
     anio,
     mes,
@@ -400,5 +403,15 @@ export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesPara
     asistenciaVoluntariosDetallePorMes,
     totalPartesMes,
     partesPorClave,
+    resumenDashboard: {
+      anio: resumenDashboard.anio,
+      totalEmergencias: resumenDashboard.totalEmergencias,
+      tiempoPromedioRespuestaMin: resumenDashboard.tiempoPromedioRespuestaMin,
+      porcentajeResueltas: resumenDashboard.porcentajeResueltas,
+      emergenciasEsteMes: resumenDashboard.emergenciasEsteMes,
+      porMes: resumenDashboard.porMes,
+      porTipo: resumenDashboard.porTipo,
+      heatmapSemanas: resumenDashboard.heatmapSemanas,
+    },
   };
 };

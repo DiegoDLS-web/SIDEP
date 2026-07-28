@@ -5,6 +5,7 @@ import {
   ArchiveX,
   ArrowLeft,
   Bell,
+  BookOpen,
   Briefcase,
   Building2,
   Database,
@@ -59,6 +60,7 @@ import {
   TriangleAlert,
   Truck,
   User,
+  UserCheck,
   Users,
   Wrench,
   X,
@@ -67,13 +69,13 @@ import {
 
 // Extraemos la lista a una constante estática para que Angular compile sin errores
 export const icons = {
-  AlertCircle, ArchiveX, ArrowLeft, Bell, Briefcase, Building2, Check, Database, Calendar, CalendarDays,
+  AlertCircle, ArchiveX, ArrowLeft, Bell, BookOpen, Briefcase, Building2, Check, Database, Calendar, CalendarDays,
   Car, ChartColumn, CircleCheck, ChevronDown, ChevronRight, ChevronUp,
   ClipboardCheck, ClipboardList, Clock, Droplet, Eye, EyeOff, FileDown, FilePlus2, FileSpreadsheet, FileText,
   Flame, HeartPulse, History, Funnel, ImageDown, Key, LayoutDashboard, Loader2, Lock, LogIn,
   LogOut, Mail, Menu, MapPin, Package, Pencil, PenTool, Phone, Plus, PlusCircle, RefreshCw, Save, Search,
   Send, Settings, Shield, ShieldCheck, TrendingDown, TrendingUp, TriangleAlert, Truck,
-  User, Users, Wrench, X, Tags
+  User, UserCheck, Users, Wrench, X, Tags
 };
 
 @NgModule({

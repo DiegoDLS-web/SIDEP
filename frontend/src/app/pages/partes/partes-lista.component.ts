@@ -10,12 +10,15 @@ import { PartesExportService } from '../../services/partes-export.service';
 import { PartesService, PartesMetricasResp, PartesPaginaResp } from '../../services/partes.service';
 import { ToastService } from '../../services/toast.service';
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
+import { SidPaginationFooterComponent } from '../../shared/sid-pagination-footer.component';
+import { SidHistoryFilterActionsComponent } from '../../shared/sid-history-filter-actions.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { SidScrollRevealDirective } from '../../shared/sid-scroll-reveal.directive';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SIDEP_ACTION_ICON } from '../../shared/sidep-action-icons';
 import { splitFechaHoraEsCl } from '../../shared/fecha-hora-split';
 import { mensajeApiError } from '../../utils/api-error.util';
+import { descargarDesdeApi, queryString } from '../../utils/server-download.util';
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
 import { CarrosService } from '../../services/carros.service';
 import type { CarroDto } from '../../models/carro.dto';
@@ -51,6 +54,7 @@ export interface ParteListaUI {
     CommonModule, FormsModule, RouterLink, SidepIconsModule,
     ParteVistaSoloLecturaComponent, SidScrollRevealDirective,
     SidEmptyStateComponent, SidDateInputComponent,
+    SidPaginationFooterComponent, SidHistoryFilterActionsComponent,
   ],
   templateUrl: './partes-lista.component.html',
 })
@@ -663,25 +667,17 @@ export class PartesListaComponent implements OnInit {
   totalSistema(): number { return this.metricas?.totalSistema ?? 0; }
 
   exportarPdf(): void {
-    const pageSize = Math.min(2000, Math.max(this.totalFiltrado, this.tamanioPaginaPartes));
-    this.partesApi.listarPagina({ page: 1, pageSize, ...this.filtrosApi() }).subscribe({
-      next: (pagina) => {
-        if (this.totalFiltrado > pagina.items.length) this.toast.info(`Se exportan ${pagina.items.length} de ${this.totalFiltrado} registros.`);
-        void this.exportador.exportarPdfListado(pagina.items);
-      },
-      error: (err) => this.toast.error(mensajeApiError(err, 'No se pudo preparar el PDF.')),
-    });
+    const qs = queryString(this.filtrosApi() as Record<string, string | undefined>);
+    void descargarDesdeApi(`/api/operaciones/partes/export/pdf${qs}`, `partes_${Date.now()}.pdf`)
+      .then(() => this.toast.exito('PDF generado en el servidor.'))
+      .catch((e) => this.toast.error(e instanceof Error ? e.message : 'No se pudo exportar PDF.'));
   }
 
   exportarExcel(): void {
-    const pageSize = Math.min(2000, Math.max(this.totalFiltrado, this.tamanioPaginaPartes));
-    this.partesApi.listarPagina({ page: 1, pageSize, ...this.filtrosApi() }).subscribe({
-      next: (pagina) => {
-        if (this.totalFiltrado > pagina.items.length) this.toast.info(`Se exportan ${pagina.items.length} de ${this.totalFiltrado} registros.`);
-        this.exportador.exportarExcelListado(pagina.items);
-      },
-      error: (err) => this.toast.error(mensajeApiError(err, 'No se pudo preparar la exportación.')),
-    });
+    const qs = queryString(this.filtrosApi() as Record<string, string | undefined>);
+    void descargarDesdeApi(`/api/operaciones/partes/export/excel${qs}`, `partes_${Date.now()}.xlsx`)
+      .then(() => this.toast.exito('Excel generado en el servidor.'))
+      .catch((e) => this.toast.error(e instanceof Error ? e.message : 'No se pudo exportar Excel.'));
   }
 
   exportarPdfParte(parteUI: ParteListaUI): void {

@@ -1,7 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { catchError, firstValueFrom, of } from 'rxjs';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import type jsPDF from 'jspdf';
 import type { LogosPdfCabecera } from '../models/configuracion.dto';
 import { ConfiguracionesService } from './configuraciones.service';
 import { logosActivosPorConfig } from '../utils/reportes-logos.util';
@@ -148,6 +147,19 @@ function estadoChecklistDesdeRegistro(r: {
 @Injectable({ providedIn: 'root' })
 export class PdfExportService {
   private readonly configApi = inject(ConfiguracionesService);
+  private pdfLibsPromise: Promise<{ jsPDF: typeof jsPDF; autoTable: (...args: unknown[]) => void }> | null = null;
+
+  private pdfLibs() {
+    if (!this.pdfLibsPromise) {
+      this.pdfLibsPromise = Promise.all([import('jspdf'), import('jspdf-autotable')]).then(
+        ([jspdfMod, autoTableMod]) => ({
+          jsPDF: jspdfMod.default,
+          autoTable: autoTableMod.default as (...args: unknown[]) => void,
+        }),
+      );
+    }
+    return this.pdfLibsPromise;
+  }
 
   private resolverUrlLogo(path: string): string {
     const p = path.startsWith('/') ? path.slice(1) : path;
@@ -342,6 +354,7 @@ export class PdfExportService {
     nombreUnidad: string | null;
     registro: CarroRegistroHistorialDto;
   }): Promise<void> {
+    const { jsPDF, autoTable } = await this.pdfLibs();
     const doc = new jsPDF();
     const r = input.registro;
     const margin = 14;
@@ -437,6 +450,7 @@ export class PdfExportService {
 
   private dibujarInventarioChecklistPorUbicacion(
     doc: jsPDF,
+    autoTable: (...args: unknown[]) => void,
     materiales: UnidadMaterial[],
     startY: number,
     pageBreakY = 240,
@@ -502,6 +516,7 @@ export class PdfExportService {
     itemsOk: number;
     materiales: UnidadMaterial[];
   }): Promise<void> {
+    const { jsPDF, autoTable } = await this.pdfLibs();
     const doc = new jsPDF({
       orientation: input.materiales.length > 25 ? 'landscape' : 'portrait',
     });
@@ -539,7 +554,7 @@ export class PdfExportService {
     headerY += 6;
 
     const pageBreakY = input.materiales.length > 25 ? 175 : 240;
-    let y = this.dibujarInventarioChecklistPorUbicacion(doc, input.materiales, headerY, pageBreakY);
+    let y = this.dibujarInventarioChecklistPorUbicacion(doc, autoTable, input.materiales, headerY, pageBreakY);
 
     doc.setFontSize(10);
     doc.text('Observaciones:', 14, y + 10);
@@ -614,6 +629,7 @@ export class PdfExportService {
     nombreUnidad?: string;
     registro: ChecklistRegistroDto;
   }): Promise<void> {
+    const { jsPDF, autoTable } = await this.pdfLibs();
     const r = input.registro;
     const materiales = materialesDesdeDetalleChecklist(r.detalle);
     const doc = new jsPDF({
@@ -657,7 +673,7 @@ export class PdfExportService {
       doc.setFont('helvetica', 'normal');
       y += 6;
       const pageBreakY = materiales.length > 25 ? 175 : 240;
-      y = this.dibujarInventarioChecklistPorUbicacion(doc, materiales, y, pageBreakY);
+      y = this.dibujarInventarioChecklistPorUbicacion(doc, autoTable, materiales, y, pageBreakY);
     } else {
       doc.setFontSize(9);
       doc.setTextColor(120, 120, 120);
@@ -733,6 +749,7 @@ export class PdfExportService {
     nombreUnidad: string;
     registros: Array<ChecklistRegistroDto & { unidad?: string; nombreUnidad?: string }>;
   }): Promise<void> {
+    const { jsPDF, autoTable } = await this.pdfLibs();
     const doc = new jsPDF();
     const yHead = await this.drawHeaderMarca(doc, `Historial Checklist ${input.unidad}`, input.nombreUnidad || 'Unidad sin nombre');
     doc.setFontSize(10);
@@ -819,6 +836,7 @@ export class PdfExportService {
     equipos: EraEquipo[];
     recambios: EraRecambio[];
   }): Promise<void> {
+    const { jsPDF, autoTable } = await this.pdfLibs();
     const doc = new jsPDF();
     const yHead = await this.drawHeaderMarca(doc, `Check List ERA ${input.unidad}`, 'SIDEP · Equipos ERA');
     const unidadDesc = input.nombreCarro && input.nombreCarro !== '—' ? `${input.unidad} · ${input.nombreCarro}` : input.unidad;
@@ -1057,6 +1075,7 @@ export class PdfExportService {
       observaciones: string | null;
     }>;
   }): Promise<void> {
+    const { jsPDF, autoTable } = await this.pdfLibs();
     const doc = new jsPDF({ orientation: 'landscape' });
     const yHead = await this.drawHeaderMarca(doc, 'Historial Bolsos de Trauma', 'SIDEP · Exportación de registros');
     doc.setFontSize(10);
@@ -1118,6 +1137,7 @@ export class PdfExportService {
     /** Estado en sistema (APROBADA, RECHAZADA, …) para saber si aplica aviso de firma faltante. */
     estadoCodigo?: string | null;
   }): Promise<void> {
+    const { jsPDF, autoTable } = await this.pdfLibs();
     const doc = new jsPDF();
     const yHead = await this.drawHeaderMarca(doc, `Licencia #${input.id}`, 'SIDEP · Documento de licencia');
     doc.setFontSize(10);
@@ -1238,6 +1258,7 @@ export class PdfExportService {
     landscape?: boolean;
     resumen?: string[];
   }): Promise<void> {
+    const { jsPDF, autoTable } = await this.pdfLibs();
     const doc = new jsPDF({ orientation: input.landscape ? 'landscape' : 'portrait' });
     const margin = 14;
     const yHead = await this.drawHeaderMarca(doc, input.titulo, input.subtitulo);

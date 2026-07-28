@@ -65,13 +65,13 @@ export class ParteDetalleComponent implements OnInit, ComponenteConEdicionPendie
     switchMap((id) =>
       forkJoin({
         parte: this.partesApi.obtener(String(id)),
-        lista: this.partesApi.listar().pipe(catchError(() => of([] as any[]))),
+        analitica: this.partesApi.obtenerAnalitica(String(id)).pipe(catchError(() => of(null))),
       }).pipe(
         map(
-          ({ parte, lista }): DetalleVm => ({
+          ({ parte, analitica }): DetalleVm => ({
             status: 'ok',
             parte,
-            analitica: this.construirAnalitica(parte, lista),
+            analitica: analitica ?? this.construirAnaliticaLocal(parte),
           }),
         ),
         catchError(
@@ -448,7 +448,7 @@ export class ParteDetalleComponent implements OnInit, ComponenteConEdicionPendie
     return Math.round(n);
   }
 
-  private construirAnalitica(parte: any, lista: any[]): ParteAnalitica {
+  private construirAnaliticaLocal(parte: any): ParteAnalitica {
     const tiemposDespacho: number[] = [];
     const tiemposRespuesta: number[] = [];
     const tiemposServicio: number[] = [];
@@ -466,12 +466,7 @@ export class ParteDetalleComponent implements OnInit, ComponenteConEdicionPendie
     }
 
     const voluntariosParte = this.parseAsistenciaTotal(parte);
-    const muestra = lista
-      .filter((x) => x.id !== parte.id)
-      .slice(0, 30)
-      .map((x) => this.parseAsistenciaTotal(x))
-      .filter((x): x is number => x != null);
-    const promedioVoluntariosBase = this.promedio(muestra);
+    const promedioVoluntariosBase = null;
 
     let tendenciaVoluntarios: ParteAnalitica['tendenciaVoluntarios'] = 'sin-datos';
     if (voluntariosParte != null && promedioVoluntariosBase != null) {

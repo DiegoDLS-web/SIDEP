@@ -607,6 +607,14 @@ body {
     #0a0a0a;
 }
 
+.sid-hero-panel--amber {
+  border-color: rgba(146, 64, 14, 0.35);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(245, 158, 11, 0.16), transparent 48%),
+    radial-gradient(circle at 100% 0%, rgba(220, 38, 38, 0.1), transparent 42%),
+    #0a0a0a;
+}
+
 .sid-hero-panel--emerald {
   border-color: rgba(6, 78, 59, 0.3);
   background:
@@ -953,8 +961,41 @@ body.motion-suave .sid-brand-e-bar {
 .sid-shell__aside nav,
 .sid-sidebar-nav {
   overflow-x: hidden;
-  overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+@media (min-width: 1024px) and (min-height: 721px) {
+  .sid-sidebar-nav {
+    overflow-y: hidden;
+  }
+
+  .sid-sidebar-nav .sid-nav-section.mt-5 {
+    margin-top: 0.65rem;
+  }
+
+  .sid-sidebar-nav .sid-nav-section-title {
+    margin-bottom: 0.4rem;
+  }
+
+  .sid-sidebar-nav .sid-nav-item {
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+    font-size: 0.8125rem;
+  }
+
+  .sid-sidebar-top-divider {
+    padding: 0.65rem 0.75rem;
+  }
+
+  .sid-sidebar-footer {
+    padding: 0.65rem 0.75rem;
+  }
+}
+
+@media (max-width: 1023px), (max-height: 720px) {
+  .sid-sidebar-nav {
+    overflow-y: auto;
+  }
 }
 
 .sid-sidebar-footer {
@@ -1214,6 +1255,30 @@ body.motion-suave .sid-brand-e-bar {
   gap: 0.5rem;
   padding-top: 0.75rem;
   border-top: 1px solid rgba(51, 65, 85, 0.55);
+}
+
+/** Botones de acción en barras de filtros (historiales). */
+.sid-filter-action-btn {
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .sid-filter-action-btn {
+    width: auto;
+  }
+}
+
+.sid-pagination-footer {
+  /* contenedor semántico; estilos vía utilidades en el componente */
 }
 
 .sid-filtros-bar__label {
@@ -2353,4 +2418,529 @@ app-welcome-overlay {
  */
 .sid-input.pl-12 {
   padding-left: 3rem;
+}
+
+/* Inventario — tabla profesional a ancho completo */
+.sid-inventarios-page {
+  max-width: 100%;
+}
+
+.sid-inventarios-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.sid-inventarios-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-top: 1px solid rgb(30 41 55 / 0.8);
+}
+
+.sid-inventarios-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.sid-inventarios-table col.col-codigo {
+  width: 6.5rem;
+}
+
+.sid-inventarios-table col.col-articulo {
+  width: auto;
+}
+
+.sid-inventarios-table col.col-bodega {
+  width: 7.5rem;
+}
+
+.sid-inventarios-table col.col-talla {
+  width: 3.75rem;
+}
+
+.sid-inventarios-table col.col-num {
+  width: 3.25rem;
+}
+
+.sid-inventarios-table col.col-asignado {
+  width: 14rem;
+}
+
+.sid-inventarios-table col.col-estado {
+  width: 5.5rem;
+}
+
+.sid-inventarios-table col.col-acciones {
+  width: 4.5rem;
+}
+
+.sid-inventarios-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  background: #161616;
+  border-bottom: 1px solid #374151;
+  white-space: nowrap;
+}
+
+.sid-inventarios-table tbody td {
+  padding: 0.4rem 0.65rem;
+  border-bottom: 1px solid rgb(31 41 55 / 0.65);
+  color: #d1d5db;
+  vertical-align: middle;
+}
+
+.sid-inventarios-table tbody tr:nth-child(even) {
+  background: rgb(255 255 255 / 0.015);
+}
+
+.sid-inventarios-table tbody tr:hover {
+  background: rgb(255 255 255 / 0.035);
+}
+
+.sid-inv-cell-codigo {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sid-inv-cell-articulo {
+  min-width: 0;
+}
+
+.sid-inv-nombre {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: #f3f4f6;
+}
+
+.sid-inv-meta {
+  display: block;
+  margin-top: 0.1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  color: #6b7280;
+}
+
+.sid-inv-cell-bodega {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.sid-inv-cell-talla {
+  text-align: center;
+  font-size: 0.8125rem;
+}
+
+.sid-inv-cell-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sid-inv-talla-select {
+  width: 100%;
+  max-width: 3.25rem;
+  border: 1px solid #374151;
+  border-radius: 0.375rem;
+  background: #0a0a0a;
+  padding: 0.15rem 0.2rem;
+  font-size: 0.75rem;
+  color: #fbbf24;
+  text-align: center;
+}
+
+.sid-inv-estado {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sid-inv-acciones {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.sid-inv-btn {
+  display: inline-flex;
+  width: 1.65rem;
+  height: 1.65rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  transition: background-color 0.15s;
+}
+
+.sid-inv-btn--minus {
+  background: rgb(220 38 38 / 0.15);
+  color: #fca5a5;
+  border: 1px solid rgb(239 68 68 / 0.25);
+}
+
+.sid-inv-btn--minus:hover {
+  background: rgb(220 38 38 / 0.28);
+}
+
+.sid-inv-btn--plus {
+  background: rgb(5 150 105 / 0.15);
+  color: #6ee7b7;
+  border: 1px solid rgb(16 185 129 / 0.25);
+}
+
+.sid-inv-btn--plus:hover {
+  background: rgb(5 150 105 / 0.28);
+}
+
+.sid-inv-asignados {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.sid-inv-chip {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.15rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: rgb(59 130 246 / 0.12);
+  padding: 0.1rem 0.45rem;
+  font-size: 0.6875rem;
+  color: #bfdbfe;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sid-inv-chip-remove {
+  flex-shrink: 0;
+  color: rgb(147 197 253 / 0.65);
+  line-height: 1;
+}
+
+.sid-inv-chip-remove:hover {
+  color: #fca5a5;
+}
+
+.sid-inv-link {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #60a5fa;
+}
+
+.sid-inv-link:hover {
+  color: #93c5fd;
+}
+
+.sid-inv-asignar-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sid-inv-asignar-select {
+  min-width: 0;
+  flex: 1 1 7rem;
+  padding: 0.25rem 0.4rem !important;
+  font-size: 0.75rem !important;
+}
+
+.sid-inventarios-table-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-top: 1px solid rgb(30 41 55 / 0.8);
+  padding: 0.65rem 1rem;
+  font-size: 0.8125rem;
+  color: #9ca3af;
+}
+
+@media (min-width: 640px) {
+  .sid-inventarios-table-footer {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.sid-inventarios-historial-wrap {
+  max-height: min(22rem, 45vh);
+  overflow: auto;
+  border: 1px solid rgb(30 41 55 / 0.8);
+  border-radius: 0.65rem;
+}
+
+.sid-inventarios-historial {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.sid-inventarios-historial thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  background: #161616;
+  border-bottom: 1px solid #374151;
+}
+
+.sid-inventarios-historial tbody td {
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid rgb(31 41 55 / 0.55);
+  vertical-align: top;
+}
+
+.sid-inventarios-historial col:nth-child(1) {
+  width: 8.5rem;
+}
+
+.sid-inventarios-historial col:nth-child(3) {
+  width: 5rem;
+}
+
+.sid-inventarios-historial col:nth-child(4) {
+  width: 6rem;
+}
+
+.sid-inv-hist-item,
+.sid-inv-hist-motivo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .sid-inventarios-table {
+    min-width: 52rem;
+  }
+}
+
+/* Matriz EPP — tabla por tallas */
+.sid-inventarios-matriz-wrap {
+  overflow: auto;
+  max-height: min(70vh, 42rem);
+  border-top: 1px solid rgb(30 41 55 / 0.8);
+}
+
+.sid-inventarios-matriz {
+  width: 100%;
+  min-width: max-content;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.sid-inventarios-matriz thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 0.5rem 0.45rem;
+  text-align: center;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #d1d5db;
+  background: #161616;
+  border-bottom: 1px solid #374151;
+  white-space: nowrap;
+}
+
+.sid-matriz-sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-width: 10rem;
+  max-width: 14rem;
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+  font-weight: 600;
+  color: #f3f4f6;
+  background: #121212;
+  border-right: 1px solid #374151;
+  border-bottom: 1px solid rgb(31 41 55 / 0.65);
+}
+
+.sid-inventarios-matriz thead .sid-matriz-sticky-col {
+  z-index: 4;
+  background: #161616;
+}
+
+.sid-matriz-celda {
+  min-width: 3.25rem;
+  padding: 0.35rem 0.3rem;
+  text-align: center;
+  vertical-align: top;
+  border-bottom: 1px solid rgb(31 41 55 / 0.55);
+  border-right: 1px solid rgb(31 41 55 / 0.35);
+}
+
+.sid-matriz-celda--vacia {
+  background: rgb(255 255 255 / 0.01);
+}
+
+.sid-matriz-qty {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.sid-matriz-disp {
+  display: block;
+  font-size: 0.625rem;
+  color: #6ee7b7;
+}
+
+.sid-matriz-asig {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.5625rem;
+  line-height: 1.2;
+  color: #93c5fd;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 4.5rem;
+}
+
+.sid-matriz-total {
+  padding: 0.45rem 0.5rem;
+  text-align: center;
+  font-weight: 600;
+  border-bottom: 1px solid rgb(31 41 55 / 0.55);
+  background: rgb(255 255 255 / 0.02);
+}
+
+/* Panel exportación compacto */
+.sid-inv-export-panel {
+  animation: sid-inv-fade-in 0.15s ease-out;
+}
+
+.sid-inv-export-btn {
+  min-width: 2.75rem;
+  border-radius: 0.375rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: background-color 0.15s;
+}
+
+.sid-inv-export-btn--excel {
+  border: 1px solid rgb(6 95 70 / 0.45);
+  background: rgb(6 78 59 / 0.25);
+  color: #6ee7b7;
+}
+
+.sid-inv-export-btn--excel:hover:not(:disabled) {
+  background: rgb(6 78 59 / 0.45);
+}
+
+.sid-inv-export-btn--pdf {
+  border: 1px solid rgb(127 29 29 / 0.45);
+  background: rgb(127 29 29 / 0.2);
+  color: #fca5a5;
+}
+
+.sid-inv-export-btn--pdf:hover:not(:disabled) {
+  background: rgb(127 29 29 / 0.38);
+}
+
+.sid-inv-export-btn:disabled {
+  opacity: 0.45;
+}
+
+/* Alertas compactas */
+.sid-inv-alertas-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: 11rem;
+  overflow-y: auto;
+}
+
+.sid-inv-alertas-list--expanded {
+  max-height: min(24rem, 50vh);
+}
+
+.sid-inv-alerta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8125rem;
+  transition: background-color 0.12s;
+}
+
+.sid-inv-alerta-item:hover {
+  filter: brightness(1.08);
+}
+
+.sid-inv-alerta-pill {
+  flex-shrink: 0;
+  border-radius: 9999px;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgb(245 158 11 / 0.15);
+  color: #fcd34d;
+}
+
+.sid-inv-alerta-pill--critico {
+  background: rgb(239 68 68 / 0.15);
+  color: #fca5a5;
+}
+
+@keyframes sid-inv-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

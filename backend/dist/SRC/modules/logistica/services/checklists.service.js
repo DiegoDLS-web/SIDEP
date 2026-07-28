@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.actualizarEstadoEjecucion = exports.obtenerDetalleEjecucion = exports.actualizarPlantilla = exports.obtenerHistorial = exports.registrarEjecucion = exports.crearPlantilla = void 0;
+exports.actualizarEstadoEjecucion = exports.obtenerHistorialBatch = exports.obtenerDetalleEjecucion = exports.actualizarPlantilla = exports.obtenerHistorial = exports.registrarEjecucion = exports.crearPlantilla = void 0;
 const prisma_1 = __importDefault(require("../../../prisma"));
 const utils_1 = require("../../../utils");
 const crypto_1 = require("crypto");
@@ -121,6 +121,7 @@ const obtenerHistorial = async (carroId, opciones) => {
             plantilla: { select: { nombre: true } },
         },
         orderBy: { fechaRevision: 'desc' },
+        take: 200,
     });
     const excluirBorradores = opciones?.excluirBorradores !== false;
     return rows.filter((row) => {
@@ -167,6 +168,50 @@ const obtenerDetalleEjecucion = async (id) => {
     return ejecucion;
 };
 exports.obtenerDetalleEjecucion = obtenerDetalleEjecucion;
+/** Historial agrupado por carro (entidadId) en una sola consulta. */
+const obtenerHistorialBatch = async (carroIds, opciones) => {
+    const ids = [...new Set(carroIds.map((id) => String(id).trim()).filter(Boolean))];
+    if (!ids.length)
+        return {};
+    const tipoFiltro = opciones?.entidadTipo?.trim().toUpperCase();
+    const whereClause = { entidadId: { in: ids } };
+    if (tipoFiltro && tipoFiltro !== 'UNIDAD') {
+        whereClause.entidadTipo = tipoFiltro;
+    }
+    const rows = await prisma_1.default.checklistEjecucion.findMany({
+        where: whereClause,
+        include: {
+            revisor: { select: { nombres: true, apellidoPaterno: true } },
+            plantilla: { select: { nombre: true } },
+        },
+        orderBy: { fechaRevision: 'desc' },
+        take: Math.min(500, ids.length * (opciones?.limitPorCarro ?? 20)),
+    });
+    const excluirBorradores = opciones?.excluirBorradores !== false;
+    const filtradas = rows.filter((row) => {
+        if (excluirBorradores && (row.estado === 'BORRADOR' || (0, utils_1.esChecklistBorrador)(row.respuestasJson))) {
+            return false;
+        }
+        if (tipoFiltro === 'UNIDAD') {
+            const t = String(row.entidadTipo ?? '').toUpperCase();
+            return t === 'CARRO' || t === 'UNIDAD';
+        }
+        return true;
+    });
+    const limit = opciones?.limitPorCarro ?? 20;
+    const out = {};
+    for (const id of ids)
+        out[id] = [];
+    for (const row of filtradas) {
+        const key = String(row.entidadId);
+        if (!out[key])
+            out[key] = [];
+        if (out[key].length < limit)
+            out[key].push(row);
+    }
+    return out;
+};
+exports.obtenerHistorialBatch = obtenerHistorialBatch;
 const ESTADOS_CHECKLIST_PERMITIDOS = new Set(['COMPLETADO', 'PENDIENTE', 'CON_OBSERVACION']);
 function parseRespuestasEjecucion(raw) {
     if (!raw)

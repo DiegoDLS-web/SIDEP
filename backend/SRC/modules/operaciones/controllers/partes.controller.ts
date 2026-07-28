@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import * as partesService from '../services/partes.service';
 import { ValidationError } from '../../../utils/errors/AppError';
 import { mensajeErrorCliente, resolverErrorHttp, statusErrorCliente } from '../../../utils/prisma-error.util';
+import { generarExcelPartes, generarPdfPartes } from '../../../utils/export/partes-export.util';
 
 function mensajeErrorParte(error: unknown, fallback: string): string {
   if (error instanceof ValidationError) {
@@ -65,6 +66,7 @@ export const obtenerPagina = async (req: Request, res: Response): Promise<Respon
     const pagina = await partesService.listarPagina({
       page: req.query.page ? Number(req.query.page) : undefined,
       pageSize: req.query.pageSize ? Number(req.query.pageSize) : undefined,
+      export: req.query.export === '1' || req.query.export === 'true',
       tipos: req.query.tipos as string | undefined,
       carros: req.query.carros as string | undefined,
       q: req.query.q as string | undefined,
@@ -87,6 +89,22 @@ export const obtenerMetricas = async (req: Request, res: Response): Promise<Resp
   } catch (error: any) {
     console.error('Error al obtener métricas de partes:', error);
     return res.status(500).json({ message: error.message || 'Error al obtener métricas' });
+  }
+};
+
+export const obtenerAnaliticaParte = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const id = String(req.params.id);
+    if (!id || id === 'undefined') {
+      return res.status(400).json({ message: 'ID no proporcionado' });
+    }
+    const data = await partesService.obtenerAnaliticaParte(id);
+    return res.status(200).json(data);
+  } catch (error: unknown) {
+    console.error('Error al obtener analítica del parte:', error);
+    const msg = mensajeErrorParte(error, 'Error al obtener analítica');
+    const status = statusErrorCliente(error, 500);
+    return res.status(status).json(cuerpoErrorParte(error, msg));
   }
 };
 
@@ -134,5 +152,46 @@ export const anularParte = async (req: Request, res: Response): Promise<Response
     console.error('Error al anular parte:', error);
     const status = statusErrorCliente(error, 500);
     return res.status(status).json(cuerpoErrorParte(error, 'Error al anular parte'));
+  }
+};
+
+function filtrosExportDesdeQuery(req: Request): partesService.PartesPaginaFiltros {
+  return {
+    export: true,
+    page: 1,
+    pageSize: 2000,
+    q: req.query.q as string | undefined,
+    desde: req.query.desde as string | undefined,
+    hasta: req.query.hasta as string | undefined,
+    tipos: req.query.tipos as string | undefined,
+    carros: req.query.carros as string | undefined,
+    estado: req.query.estado as string | undefined,
+    persona: req.query.persona as string | undefined,
+  };
+}
+
+export const exportarPartesExcel = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const pagina = await partesService.listarPagina(filtrosExportDesdeQuery(req));
+    const buffer = await generarExcelPartes(pagina.items as any);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=partes_${Date.now()}.xlsx`);
+    return res.status(200).send(buffer);
+  } catch (error: unknown) {
+    console.error('Error export Excel partes:', error);
+    return res.status(500).json({ message: mensajeErrorParte(error, 'Error al exportar partes') });
+  }
+};
+
+export const exportarPartesPdf = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const pagina = await partesService.listarPagina(filtrosExportDesdeQuery(req));
+    const buffer = await generarPdfPartes(pagina.items as any, 'Listado de partes de emergencia — SIDEP');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=partes_${Date.now()}.pdf`);
+    return res.status(200).send(buffer);
+  } catch (error: unknown) {
+    console.error('Error export PDF partes:', error);
+    return res.status(500).json({ message: mensajeErrorParte(error, 'Error al exportar partes') });
   }
 };

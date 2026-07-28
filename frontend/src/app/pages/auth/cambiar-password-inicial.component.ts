@@ -31,7 +31,7 @@ export class CambiarPasswordInicialComponent {
       return;
     }
     if (this.passwordNueva.length < 8) {
-      this.error = 'La nueva contraseña debe tener al menos 8 caracteres.';
+      this.error = 'La nueva contraseña debe tener al menos 8 caracteres e incluir letras y números.';
       return;
     }
     if (this.passwordNueva !== this.passwordNueva2) {

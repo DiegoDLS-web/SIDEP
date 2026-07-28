@@ -62,7 +62,7 @@ export const auditoriaMiddleware = (req: Request, res: Response, next: NextFunct
         accion = resultado === 'OK' ? 'RESTABLECER_PASSWORD' : 'RESTABLECER_PASSWORD_ERROR';
         entidadId = parts[parts.length - 2] || null; // El anterior a 'reset-password'
         detalle = resultado === 'OK'
-          ? `Contraseña restablecida al RUT por defecto para el usuario con ID ${entidadId}.`
+          ? `Contraseña provisional generada para el usuario ${entidadId}; debe cambiarla al ingresar.`
           : `Fallo al restablecer contraseña para el usuario con ID ${entidadId}: ${responseBody?.error || responseBody?.message || 'Error desconocido'}`;
       } else if (metodoHttp === 'PATCH') {
         accion = resultado === 'OK' ? 'ACTUALIZAR_USUARIO' : 'ACTUALIZAR_USUARIO_ERROR';
@@ -203,6 +203,50 @@ export const auditoriaMiddleware = (req: Request, res: Response, next: NextFunct
       if (metodoHttp === 'POST') {
         accion = resultado === 'OK' ? 'ASIGNAR_MATERIAL' : 'ASIGNAR_MATERIAL_ERROR';
         detalle = `Material asignado a carro por ${actorRut}.`;
+      }
+    }
+    else if (ruta.startsWith('/api/logistica/inventarios/items')) {
+      entidad = 'InventarioItem';
+      const pathOnly = ruta.split('?')[0] || '';
+      const parts = pathOnly.split('/');
+      const lastPart = parts[parts.length - 1] || '';
+
+      if (metodoHttp === 'POST' && !parts.includes('asignar-epp') && !parts.includes('movimiento')) {
+        accion = resultado === 'OK' ? 'CREAR_ITEM_INVENTARIO' : 'CREAR_ITEM_INVENTARIO_ERROR';
+        entidadId = responseBody?.data?.codigo || responseBody?.data?.id ? String(responseBody.data.id) : null;
+        detalle = resultado === 'OK'
+          ? `Ítem ${responseBody?.data?.codigo || ''} "${responseBody?.data?.nombre || req.body?.nombre || ''}" registrado por ${actorRut}.`
+          : `Error al registrar ítem: ${responseBody?.message || responseBody?.error || 'Error desconocido'}`;
+      } else if (metodoHttp === 'POST' && ruta.includes('/movimiento')) {
+        accion = resultado === 'OK' ? 'MOVIMIENTO_INVENTARIO' : 'MOVIMIENTO_INVENTARIO_ERROR';
+        entidadId = parts[parts.length - 2] || null;
+        detalle = resultado === 'OK'
+          ? `Movimiento ${req.body?.tipo || ''} ×${req.body?.cantidad ?? '?'} en ítem ${entidadId} por ${actorRut}. Motivo: ${req.body?.motivo || '—'}`
+          : `Error en movimiento de inventario ítem ${entidadId}: ${responseBody?.message || 'Error desconocido'}`;
+      } else if (metodoHttp === 'POST' && ruta.includes('/asignar-epp')) {
+        accion = resultado === 'OK' ? 'ASIGNAR_EPP_INVENTARIO' : 'ASIGNAR_EPP_INVENTARIO_ERROR';
+        entidadId = parts[parts.length - 2] || null;
+        detalle = resultado === 'OK'
+          ? `EPP asignado desde ítem ${entidadId} a voluntario ${req.body?.usuarioRut || '?'}.`
+          : `Error al asignar EPP ítem ${entidadId}: ${responseBody?.message || 'Error desconocido'}`;
+      } else if (metodoHttp === 'PATCH' && ruta.endsWith('/cantidad')) {
+        accion = resultado === 'OK' ? 'AJUSTAR_CANTIDAD_INVENTARIO' : 'AJUSTAR_CANTIDAD_INVENTARIO_ERROR';
+        entidadId = parts[parts.length - 2] || null;
+        detalle = resultado === 'OK'
+          ? `Ajuste de cantidad (delta ${req.body?.delta ?? '?'}) en ítem ${entidadId} por ${actorRut}.`
+          : `Error al ajustar cantidad ítem ${entidadId}: ${responseBody?.message || 'Error desconocido'}`;
+      } else if (metodoHttp === 'PATCH' && ruta.endsWith('/meta')) {
+        accion = resultado === 'OK' ? 'ACTUALIZAR_META_INVENTARIO' : 'ACTUALIZAR_META_INVENTARIO_ERROR';
+        entidadId = parts[parts.length - 2] || null;
+        detalle = resultado === 'OK'
+          ? `Metadatos actualizados en ítem ${entidadId} por ${actorRut}.`
+          : `Error al actualizar ítem ${entidadId}: ${responseBody?.message || 'Error desconocido'}`;
+      } else if (metodoHttp === 'DELETE' && ruta.includes('/asignaciones/')) {
+        accion = resultado === 'OK' ? 'QUITAR_ASIGNACION_EPP' : 'QUITAR_ASIGNACION_EPP_ERROR';
+        entidadId = lastPart || null;
+        detalle = resultado === 'OK'
+          ? `Asignación EPP ${entidadId} removida por ${actorRut}.`
+          : `Error al quitar asignación ${entidadId}: ${responseBody?.message || 'Error desconocido'}`;
       }
     }
     else if (ruta.startsWith('/api/auth')) {

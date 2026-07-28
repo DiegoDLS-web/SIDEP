@@ -6,7 +6,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "test:ci": "ng test --no-watch --browsers=ChromeHeadless --include=**/auth.guard.spec.ts --include=**/auth.interceptor.spec.ts --include=**/admin.guard.spec.ts --include=**/guest.guard.spec.ts --include=**/rut.util.spec.ts --include=**/partes-filtros-fecha.util.spec.ts --include=**/checklist-estado.spec.ts --include=**/auth-session.mapper.spec.ts"
   },
   "prettier": {
     "printWidth": 100,
@@ -35,6 +36,7 @@
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "xlsx": "^0.18.5",
+    "xlsx-js-style": "^1.2.0",
     "zone.js": "~0.15.0"
   },
   "devDependencies": {

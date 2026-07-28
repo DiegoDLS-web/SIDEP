@@ -228,48 +228,15 @@
             />
           </div>
         </div>
-        <div class="sid-filtros-bar__actions w-full shrink-0 xl:w-auto xl:max-w-none">
-          <button
-            type="button"
-            (click)="aplicarFiltrosHistorial()"
-            class="sid-btn sid-btn-primary inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 sm:w-auto"
-          >
-            Aplicar filtros
-          </button>
-          <button
-            type="button"
-            (click)="limpiarFiltrosHistorial()"
-            class="sid-btn sid-btn-neutral inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gray-700 bg-[#0a0a0a] px-4 py-2 text-sm font-medium text-white hover:bg-[#161616] sm:w-auto"
-          >
-            Limpiar filtros
-          </button>
-          <button
-            type="button"
-            (click)="actualizarHistorial()"
-            class="sid-btn sid-btn-neutral inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gray-700 bg-[#0a0a0a] px-4 py-2 text-sm font-medium text-white hover:bg-[#161616] sm:w-auto"
-          >
-            <lucide-icon name="refresh-cw" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-            Actualizar
-          </button>
-          <button
-            type="button"
-            (click)="exportarHistorialPdf()"
-            [disabled]="filasHistorial.length === 0"
-            class="sid-btn sid-btn-primary inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
-          >
-            <lucide-icon name="file-down" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-            Descargar PDF
-          </button>
-          <button
-            type="button"
-            (click)="exportarHistorialExcel()"
-            [disabled]="filasHistorial.length === 0"
-            class="sid-btn sid-btn-success inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
-          >
-            <lucide-icon name="file-spreadsheet" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
-            Descargar Excel
-          </button>
-        </div>
+        <app-sid-history-filter-actions
+          [exportPdfDisabled]="filasHistorial.length === 0"
+          [exportExcelDisabled]="filasHistorial.length === 0"
+          (apply)="aplicarFiltrosHistorial()"
+          (clear)="limpiarFiltrosHistorial()"
+          (refresh)="actualizarHistorial()"
+          (exportPdf)="exportarHistorialPdf()"
+          (exportExcel)="exportarHistorialExcel()"
+        />
         </div>
       </div>
 
@@ -421,27 +388,13 @@
             </tbody>
           </table>
         </div>
-        <div class="mt-4 flex items-center justify-between text-sm sid-muted">
-          <span>Página {{ paginaHistorial }} de {{ totalPaginasHistorial() }}</span>
-          <div class="flex items-center gap-2">
-            <button
-              type="button"
-              (click)="cambiarPaginaHistorial(-1)"
-              [disabled]="paginaHistorial <= 1"
-              class="sid-btn sid-btn-neutral rounded-lg border border-gray-700 px-3 py-1.5 text-white disabled:opacity-40"
-            >
-              Anterior
-            </button>
-            <button
-              type="button"
-              (click)="cambiarPaginaHistorial(1)"
-              [disabled]="paginaHistorial >= totalPaginasHistorial()"
-              class="sid-btn sid-btn-neutral rounded-lg border border-gray-700 px-3 py-1.5 text-white disabled:opacity-40"
-            >
-              Siguiente
-            </button>
-          </div>
-        </div>
+        <app-sid-pagination-footer
+          [page]="paginaHistorial"
+          [totalPages]="totalPaginasHistorial()"
+          [totalRecords]="historialFiltrado().length"
+          [pageSize]="tamanioPaginaHistorial"
+          (pageDelta)="cambiarPaginaHistorial($event)"
+        />
       }
     </section>
   }

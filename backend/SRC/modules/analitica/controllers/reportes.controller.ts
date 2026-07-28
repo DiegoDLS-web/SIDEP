@@ -22,6 +22,7 @@ export const getAnaliticaOperacional = asyncHandler(async (req: Request, res: Re
   const anio = req.query.anio ? parseInt(req.query.anio as string, 10) : undefined;
   const mes = req.query.mes ? parseInt(req.query.mes as string, 10) : undefined;
   const data = await getAnaliticaOperacionalReporte(anio, mes);
+  res.set('Cache-Control', 'private, max-age=60');
   res.status(200).json(data);
 });
 
@@ -31,5 +32,6 @@ export const getDashboard = asyncHandler(async (req: Request, res: Response) => 
   const carroIdRaw = req.query.carroId as string | undefined;
   const carroId = carroIdRaw?.trim() || undefined;
   const data = await getDashboardResumen(anio, clave, carroId);
+  res.set('Cache-Control', 'private, max-age=60');
   res.status(200).json(data);
 });

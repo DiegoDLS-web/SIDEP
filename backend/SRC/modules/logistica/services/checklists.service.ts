@@ -142,6 +142,7 @@ export const obtenerHistorial = async (
             plantilla: { select: { nombre: true } },
         },
         orderBy: { fechaRevision: 'desc' },
+        take: 200,
     });
 
     const excluirBorradores = opciones?.excluirBorradores !== false;
@@ -184,6 +185,53 @@ export const obtenerDetalleEjecucion = async (id: string) => {
     });
     if (!ejecucion) throw new AppError('Ejecución de checklist no encontrada', 404);
     return ejecucion;
+};
+
+/** Historial agrupado por carro (entidadId) en una sola consulta. */
+export const obtenerHistorialBatch = async (
+    carroIds: string[],
+    opciones?: { entidadTipo?: string; excluirBorradores?: boolean; limitPorCarro?: number },
+) => {
+    const ids = [...new Set(carroIds.map((id) => String(id).trim()).filter(Boolean))];
+    if (!ids.length) return {} as Record<string, Awaited<ReturnType<typeof obtenerHistorial>>>;
+
+    const tipoFiltro = opciones?.entidadTipo?.trim().toUpperCase();
+    const whereClause: Record<string, unknown> = { entidadId: { in: ids } };
+    if (tipoFiltro && tipoFiltro !== 'UNIDAD') {
+        whereClause.entidadTipo = tipoFiltro;
+    }
+
+    const rows = await prisma.checklistEjecucion.findMany({
+        where: whereClause,
+        include: {
+            revisor: { select: { nombres: true, apellidoPaterno: true } },
+            plantilla: { select: { nombre: true } },
+        },
+        orderBy: { fechaRevision: 'desc' },
+        take: Math.min(500, ids.length * (opciones?.limitPorCarro ?? 20)),
+    });
+
+    const excluirBorradores = opciones?.excluirBorradores !== false;
+    const filtradas = rows.filter((row) => {
+        if (excluirBorradores && (row.estado === 'BORRADOR' || esChecklistBorrador(row.respuestasJson))) {
+            return false;
+        }
+        if (tipoFiltro === 'UNIDAD') {
+            const t = String(row.entidadTipo ?? '').toUpperCase();
+            return t === 'CARRO' || t === 'UNIDAD';
+        }
+        return true;
+    });
+
+    const limit = opciones?.limitPorCarro ?? 20;
+    const out: Record<string, typeof filtradas> = {};
+    for (const id of ids) out[id] = [];
+    for (const row of filtradas) {
+        const key = String(row.entidadId);
+        if (!out[key]) out[key] = [];
+        if (out[key].length < limit) out[key].push(row);
+    }
+    return out;
 };
 
 const ESTADOS_CHECKLIST_PERMITIDOS = new Set(['COMPLETADO', 'PENDIENTE', 'CON_OBSERVACION']);

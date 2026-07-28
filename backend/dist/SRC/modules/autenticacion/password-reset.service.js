@@ -8,6 +8,7 @@ exports.restablecerPasswordConToken = restablecerPasswordConToken;
 const crypto_1 = require("crypto");
 const prisma_1 = __importDefault(require("../../prisma"));
 const hash_1 = require("../../utils/security/hash");
+const password_policy_util_1 = require("../../utils/security/password-policy.util");
 const email_service_1 = require("../../utils/email/email.service");
 const usuario_acceso_util_1 = require("../../utils/usuario-acceso.util");
 const EXPIRY_MS = 2 * 60 * 60 * 1000;
@@ -68,8 +69,9 @@ async function restablecerPasswordConToken(token, password) {
     if (!tokenNorm)
         throw new Error('Enlace inválido o expirado.');
     const nueva = String(password ?? '');
-    if (nueva.length < 8) {
-        throw new Error('La contraseña debe tener al menos 8 caracteres.');
+    const errPolitica = (0, password_policy_util_1.validarPasswordNueva)(nueva);
+    if (errPolitica) {
+        throw new Error(errPolitica);
     }
     const row = await prisma_1.default.passwordResetToken.findUnique({ where: { token: tokenNorm } });
     if (!row || row.usedAt || row.expiresAt.getTime() < Date.now()) {
@@ -79,7 +81,7 @@ async function restablecerPasswordConToken(token, password) {
     await prisma_1.default.$transaction([
         prisma_1.default.usuario.update({
             where: { rut: row.usuarioRut },
-            data: { passwordHash: hash },
+            data: { passwordHash: hash, requiereCambioPassword: 0 },
         }),
         prisma_1.default.passwordResetToken.update({
             where: { id: row.id },

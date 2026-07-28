@@ -7,18 +7,11 @@ import { AuthService } from '../services/auth.service';
 describe('authInterceptor', () => {
   let http: HttpClient;
   let httpMock: HttpTestingController;
-  const authState = { token: null as string | null };
-  const authStub = {
-    get token() {
-      return authState.token;
-    },
-  };
 
   beforeEach(() => {
-    authState.token = null;
     TestBed.configureTestingModule({
       providers: [
-        { provide: AuthService, useValue: authStub },
+        { provide: AuthService, useValue: {} },
         provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
       ],
@@ -31,18 +24,24 @@ describe('authInterceptor', () => {
     httpMock.verify();
   });
 
-  it('no envía Authorization si no hay token', () => {
+  it('no envía Authorization (cookie httpOnly)', () => {
     http.get('/api/ping').subscribe();
     const req = httpMock.expectOne('/api/ping');
     expect(req.request.headers.has('Authorization')).toBe(false);
     req.flush({});
   });
 
-  it('añade Authorization Bearer cuando hay token', () => {
-    authState.token = 'mi-jwt';
+  it('usa withCredentials en rutas /api', () => {
     http.get('/api/ping').subscribe();
     const req = httpMock.expectOne('/api/ping');
-    expect(req.request.headers.get('Authorization')).toBe('Bearer mi-jwt');
+    expect(req.request.withCredentials).toBe(true);
+    req.flush({});
+  });
+
+  it('no altera peticiones fuera de /api', () => {
+    http.get('/assets/x.json').subscribe();
+    const req = httpMock.expectOne('/assets/x.json');
+    expect(req.request.withCredentials).toBe(false);
     req.flush({});
   });
 });

@@ -5,12 +5,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cambiarPassword = exports.actualizarArchivoLicencia = exports.actualizarFotoPerfil = exports.obtenerMiResumenOperativo = exports.actualizarMiPerfil = exports.obtenerMiPerfil = void 0;
 exports.mapUsuarioToDto = mapUsuarioToDto;
+exports.mapUsuarioSelectorDto = mapUsuarioSelectorDto;
 const prisma_1 = __importDefault(require("../../../prisma"));
 const storage_1 = require("../../../shared/storage");
 const hash_1 = require("../../../utils/security/hash");
+const password_policy_util_1 = require("../../../utils/security/password-policy.util");
 // Mapea un modelo Usuario de la BD al DTO UsuarioListaDto del frontend
-function mapUsuarioToDto(usuario) {
+function mapUsuarioToDto(usuario, opts) {
     const nombreCompleto = `${usuario.nombres} ${usuario.apellidoPaterno} ${usuario.apellidoMaterno}`.trim();
+    const incluirClave = opts?.incluirClaveNomina !== false;
     return {
         id: usuario.rut,
         nombre: nombreCompleto,
@@ -39,9 +42,23 @@ function mapUsuarioToDto(usuario) {
         firmaImagen: usuario.firmaImagenUrl || null,
         fotoPerfil: usuario.fotoPerfilUrl || null,
         autorizadoConducir: usuario.autorizadoConducir === 1,
-        claveNomina: usuario.claveNomina || null,
+        claveNomina: incluirClave ? usuario.claveNomina || null : null,
         createdAt: usuario.createdAt ? new Date(usuario.createdAt).toISOString() : new Date().toISOString(),
         updatedAt: usuario.updatedAt ? new Date(usuario.updatedAt).toISOString() : new Date().toISOString(),
+    };
+}
+/** DTO mínimo para selects (partes, checklist, inventario) — sin PII sensible. */
+function mapUsuarioSelectorDto(usuario) {
+    return {
+        id: usuario.rut,
+        rut: usuario.rut,
+        nombre: `${usuario.nombres} ${usuario.apellidoPaterno} ${usuario.apellidoMaterno}`.trim(),
+        rol: usuario.rol?.codigo || usuario.rol?.nombre || 'USER',
+        claveNomina: usuario.claveNomina || null,
+        cargoOficialidad: usuario.cargo?.codigo || usuario.cargo?.nombre || null,
+        autorizadoConducir: usuario.autorizadoConducir === 1,
+        activo: usuario.activo === 1,
+        firmaImagen: usuario.firmaImagenUrl || null,
     };
 }
 const obtenerMiPerfil = async (rut) => {
@@ -312,10 +329,14 @@ const cambiarPassword = async (rut, passwordActual, passwordNueva) => {
     if (!coincide) {
         throw new Error('La contraseña actual es incorrecta.');
     }
+    const errPolitica = (0, password_policy_util_1.validarPasswordNueva)(passwordNueva, rut);
+    if (errPolitica) {
+        throw new Error(errPolitica);
+    }
     const nuevoHash = await (0, hash_1.hashPassword)(passwordNueva);
     await prisma_1.default.usuario.update({
         where: { rut },
-        data: { passwordHash: nuevoHash },
+        data: { passwordHash: nuevoHash, requiereCambioPassword: 0 },
     });
 };
 exports.cambiarPassword = cambiarPassword;

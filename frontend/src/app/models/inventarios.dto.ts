@@ -65,6 +65,24 @@ export type BodegaDto = {
   nombre: string;
 };
 
+export type InventarioMovimientoItemDto = {
+  id: string;
+  inventarioItemId: number;
+  itemCodigo: string;
+  itemNombre: string;
+  bodegaCodigo: string;
+  bodegaNombre: string;
+  tipo: string;
+  cantidad: number;
+  cantidadAntes: number;
+  cantidadDespues: number;
+  motivo: string | null;
+  usuarioNombre: string | null;
+  createdAt: string;
+};
+
+export type TipoMovimientoInventario = 'ENTRADA' | 'SALIDA' | 'AJUSTE';
+
 // Legacy types (bodega movimientos / catálogo carros)
 export type MaterialCatalogoDto = {
   id: number;
@@ -124,3 +142,75 @@ export type InventarioCarroDto = {
 };
 
 export const CATEGORIAS_INVENTARIO = ['Equipamiento', 'Mangueras', 'Extintores', 'Uniformes'] as const;
+
+/** Tipos de la planilla Excel (columna TIPO). */
+export const TIPOS_INVENTARIO_PLANILLA = [
+  'EPP',
+  'MATERIAL INCENDIO',
+  'RESCATE',
+  'FORESTAL',
+  'OTRO',
+] as const;
+
+export const ESTADOS_FISICOS_INVENTARIO = ['BUENO', 'REGULAR', 'MALO'] as const;
+
+export type CrearItemInventarioPayload = {
+  nombre: string;
+  cantidad: number;
+  tipoInventario: string;
+  bodegaCodigo: string;
+  marca?: string | null;
+  modelo?: string | null;
+  estadoFisico?: string | null;
+  valor?: number | null;
+  observaciones?: string | null;
+  talla?: string | null;
+  categoria?: string | null;
+};
+
+export type AlertaInventarioDto = {
+  tipo: 'stock_critico' | 'stock_bajo' | 'epp_sin_talla' | 'uniforme_sin_stock';
+  severidad: 'critico' | 'advertencia' | 'info';
+  titulo: string;
+  detalle: string;
+  itemId?: number;
+  codigo?: string;
+  bodega?: string;
+  talla?: string | null;
+  cantidadAgrupada?: number;
+};
+
+export type CeldaMatrizEppDto = {
+  itemId: number;
+  codigo: string;
+  cantidad: number;
+  cantidadDisponible: number;
+  cantidadAsignada: number;
+  estadoStock: EstadoStockInventario;
+  asignaciones: AsignacionEppDto[];
+};
+
+export type FilaMatrizEppDto = {
+  tipoEpp: string;
+  tipoEppEtiqueta: string;
+  sistemaTalla: SistemaTallaInventario;
+  tallas: string[];
+  celdas: Record<string, CeldaMatrizEppDto | null>;
+  totalCantidad: number;
+  totalDisponible: number;
+  totalAsignado: number;
+};
+
+export type EppAsignadoUsuarioDto = {
+  asignacionId: string;
+  itemId: number;
+  codigo: string;
+  nombre: string;
+  tipoEpp: string | null;
+  tipoEppEtiqueta: string;
+  talla: string | null;
+  categoria: string | null;
+  bodegaNombre: string;
+  cantidad: number;
+  asignadoEn?: string;
+};
