@@ -21,6 +21,7 @@ import {
   TIPOS_INVENTARIO_PLANILLA,
 } from '../../models/inventarios.dto';
 import { InventariosService } from '../../services/inventarios.service';
+import { IaService } from '../../services/ia.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
@@ -39,10 +40,15 @@ import { SidPaginationFooterComponent } from '../../shared/sid-pagination-footer
 })
 export class InventariosResumenComponent implements OnInit {
   private readonly api = inject(InventariosService);
+  private readonly iaApi = inject(IaService);
   private readonly usuarios = inject(UsuariosService);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
   private readonly buscar$ = new Subject<void>();
+
+  iaTexto = '';
+  iaCargando = false;
+  iaResultado = '';
 
   loading = true;
   exportandoDescarga: string | null = null;
@@ -727,5 +733,68 @@ export class InventariosResumenComponent implements OnInit {
           this.toast.error(mensajeApiError(err, 'No se pudo registrar el material.'));
         },
       });
+  }
+
+  iaSugerirMovimiento(): void {
+    const t = this.iaTexto.trim();
+    if (t.length < 3) return;
+    this.iaCargando = true;
+    this.iaApi.sugerirMovimiento(t).subscribe({
+      next: (r) => {
+        this.iaCargando = false;
+        this.iaResultado = `Tipo: ${r.tipo} · ${r.motivo || ''} (cant. ${r.cantidadSugerida ?? 1}) [${r.fuente}]`;
+      },
+      error: (err) => {
+        this.iaCargando = false;
+        this.toast.error(mensajeApiError(err, 'IA movimiento falló.'));
+      },
+    });
+  }
+
+  iaClasificarEstado(): void {
+    const t = this.iaTexto.trim();
+    if (t.length < 3) return;
+    this.iaCargando = true;
+    this.iaApi.clasificarEstado(t).subscribe({
+      next: (r) => {
+        this.iaCargando = false;
+        this.iaResultado = `Estado: ${r.estado} · ${r.motivo || ''} (conf. ${r.confianza ?? '—'})`;
+      },
+      error: (err) => {
+        this.iaCargando = false;
+        this.toast.error(mensajeApiError(err, 'IA estado falló.'));
+      },
+    });
+  }
+
+  iaAlertas(): void {
+    this.iaCargando = true;
+    this.iaApi.alertasInventario().subscribe({
+      next: (r) => {
+        this.iaCargando = false;
+        this.iaResultado = `${r.resumen || ''}\n` + (r.alertas || []).slice(0, 5).map((a: any) => `· ${a.titulo}: ${a.consejo}`).join('\n');
+      },
+      error: (err) => {
+        this.iaCargando = false;
+        this.toast.error(mensajeApiError(err, 'IA alertas falló.'));
+      },
+    });
+  }
+
+  iaTalla(): void {
+    const t = this.iaTexto.trim() || 'Chaqueta';
+    const parts = t.split(/\s+/);
+    const talla = parts.find((p) => /^(XS|S|M|L|XL|XXL|\d{2})$/i.test(p));
+    this.iaCargando = true;
+    this.iaApi.matchingTalla(t, talla).subscribe({
+      next: (r) => {
+        this.iaCargando = false;
+        this.iaResultado = `${r.mensaje} ${r.sugerencia || ''} [${r.tipoEpp || 's/tipo'}]`;
+      },
+      error: (err) => {
+        this.iaCargando = false;
+        this.toast.error(mensajeApiError(err, 'IA talla falló.'));
+      },
+    });
   }
 }

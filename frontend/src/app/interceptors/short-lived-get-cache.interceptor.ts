@@ -2,7 +2,7 @@ import { HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { of } from 'rxjs';
 import { tap } from 'rxjs/operators';
 
-const TTL_MS = 20_000;
+const TTL_MS = 45_000;
 
 type Entry = { at: number; body: unknown };
 
@@ -26,41 +26,64 @@ function debeCachearse(urlCompleto: string): boolean {
   return (
     p.endsWith('/api/operaciones/partes/metricas') ||
     p.endsWith('/api/partes/metricas') ||
-    p.includes('/api/dashboard/resumen')
+    p.includes('/api/dashboard/resumen') ||
+    p.includes('/api/analitica/') ||
+    p.endsWith('/api/asistencia-cuarteleros/planilla') ||
+    p.endsWith('/api/asistencia-cuarteleros/resumen') ||
+    /\/api\/carros\/?$/.test(p) ||
+    p.includes('/api/catalogo')
   );
 }
 
-function esMutacionPartes(rutaSinQuery: string): boolean {
-  if (!/^\/api\/(?:operaciones\/)?partes\b/.test(rutaSinQuery)) {
-    return false;
-  }
-  return !rutaSinQuery.endsWith('/metricas') && !rutaSinQuery.endsWith('/pagina');
+function esMutacionInvalidante(rutaSinQuery: string, method: string): boolean {
+  if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return false;
+  return (
+    /^\/api\/(?:operaciones\/)?partes\b/.test(rutaSinQuery) ||
+    /^\/api\/asistencia-cuarteleros\b/.test(rutaSinQuery) ||
+    /^\/api\/carros\b/.test(rutaSinQuery) ||
+    /^\/api\/inventario/.test(rutaSinQuery) ||
+    /^\/api\/checklist/.test(rutaSinQuery)
+  );
 }
 
-function invalidarCachesPartesYDashboard(): void {
+function invalidarCachesRelacionados(rutaSinQuery: string): void {
   const keys = [...cache.keys()];
   for (const k of keys) {
     const p = pathSinQuery(k);
-    if (
-      p.endsWith('/api/operaciones/partes/metricas') ||
-      p.endsWith('/api/partes/metricas') ||
-      p.includes('/api/dashboard/resumen')
-    ) {
+    const afectaPartes =
+      /^\/api\/(?:operaciones\/)?partes\b/.test(rutaSinQuery) &&
+      (p.endsWith('/api/operaciones/partes/metricas') ||
+        p.endsWith('/api/partes/metricas') ||
+        p.includes('/api/dashboard/resumen') ||
+        p.includes('/api/analitica/'));
+    const afectaAsistencia =
+      /^\/api\/asistencia-cuarteleros\b/.test(rutaSinQuery) &&
+      (p.endsWith('/api/asistencia-cuarteleros/planilla') ||
+        p.endsWith('/api/asistencia-cuarteleros/resumen') ||
+        p.includes('/api/dashboard/resumen'));
+    const afectaCarros =
+      (/^\/api\/carros\b/.test(rutaSinQuery) ||
+        /^\/api\/checklist/.test(rutaSinQuery) ||
+        /^\/api\/inventario/.test(rutaSinQuery)) &&
+      (p.includes('/api/dashboard/resumen') ||
+        p.includes('/api/analitica/') ||
+        /\/api\/carros\/?$/.test(p));
+    if (afectaPartes || afectaAsistencia || afectaCarros) {
       cache.delete(k);
     }
   }
 }
 
 /**
- * GET con TTL corto: métricas de partes, resumen dashboard.
- * Invalidación al crear/actualizar un parte.
+ * GET con TTL corto para endpoints de lectura frecuentes.
+ * Invalidación selectiva ante mutaciones relacionadas.
  */
 export const shortLivedGetCacheInterceptor: HttpInterceptorFn = (req, next) => {
   const url = req.url;
   const rutaBase = pathSinQuery(url);
 
-  if (req.method !== 'GET' && esMutacionPartes(rutaBase)) {
-    invalidarCachesPartesYDashboard();
+  if (esMutacionInvalidante(rutaBase, req.method)) {
+    invalidarCachesRelacionados(rutaBase);
   }
 
   if (req.method !== 'GET' || !debeCachearse(url)) {

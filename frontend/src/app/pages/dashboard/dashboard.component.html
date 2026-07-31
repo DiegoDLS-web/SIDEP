@@ -98,6 +98,37 @@
   }
 
   @if (datos) {
+    @if (datos.cuarteleroEnTurno) {
+      <div
+        class="mb-4 flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 text-sm"
+        [class.border-emerald-700/50]="datos.cuarteleroEnTurno.activo"
+        [class.bg-emerald-950/20]="datos.cuarteleroEnTurno.activo"
+        [class.border-amber-700/50]="!datos.cuarteleroEnTurno.activo"
+        [class.bg-amber-950/20]="!datos.cuarteleroEnTurno.activo"
+      >
+        <lucide-icon name="shield" class="h-5 w-5 shrink-0 text-amber-300" [size]="20" color="currentColor"></lucide-icon>
+        <div class="min-w-0 flex-1">
+          @if (datos.cuarteleroEnTurno.activo) {
+            <p class="font-semibold text-emerald-100">
+              Cuartelero de turno: {{ datos.cuarteleroEnTurno.usuario?.nombre || datos.cuarteleroEnTurno.usuarioRut }}
+            </p>
+            <p class="text-xs text-slate-400">
+              {{ datos.cuarteleroEnTurno.tipoTurno }} · {{ datos.cuarteleroEnTurno.fecha }}
+              @if (datos.cuarteleroEnTurno.horaEntrada) {
+                · desde {{ datos.cuarteleroEnTurno.horaEntrada }}
+              }
+            </p>
+          } @else {
+            <p class="font-semibold text-amber-100">Sin cuartelero de turno</p>
+            <p class="text-xs text-slate-400">
+              No hay cobertura marcada para {{ datos.cuarteleroEnTurno.tipoTurno }} ({{ datos.cuarteleroEnTurno.fecha }}).
+            </p>
+          }
+        </div>
+        <a routerLink="/guardias" [queryParams]="{ vista: 'asistencia' }" class="sid-btn sid-btn-neutral shrink-0 px-3 py-1.5 text-xs">Ver asistencia</a>
+      </div>
+    }
+
     <!-- Alertas: hasta 3 en la misma fila en pantallas anchas -->
     @if (datos.alertas.length > 0) {
       <div sidScrollReveal class="mb-6">

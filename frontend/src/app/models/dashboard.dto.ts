@@ -54,4 +54,14 @@ export interface DashboardResumenDto {
     } | null;
   }>;
   generadoEn: string;
+  cuarteleroEnTurno?: {
+    activo: boolean;
+    fuente: 'asistencia' | 'guardia' | null;
+    fecha: string;
+    tipoTurno: string;
+    horaEntrada: string | null;
+    horaSalida: string | null;
+    usuario: { rut: string; nombre: string } | null;
+    usuarioRut: string | null;
+  } | null;
 }

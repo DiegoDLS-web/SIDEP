@@ -6,7 +6,9 @@ import { catchError, finalize, forkJoin, of } from 'rxjs';
 import type { LicenciaEstado, LicenciaMedicaDto, LicenciasResumenDto } from '../../models/licencias.dto';
 import { AuthService } from '../../services/auth.service';
 import { LicenciasService } from '../../services/licencias.service';
+import { IaService } from '../../services/ia.service';
 import { PdfExportService } from '../../services/pdf-export.service';
+import { mensajeApiError } from '../../utils/api-error.util';
 import { exportarExcelSidep } from '../../utils/excel-export.util';
 import { SIDEP_ACTION_ICON } from '../../shared/sidep-action-icons';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
@@ -34,6 +36,7 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
   readonly icon = SIDEP_ACTION_ICON;
   private readonly api = inject(LicenciasService);
   private readonly auth = inject(AuthService);
+  private readonly iaApi = inject(IaService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly cambioEstadoDialog = inject(CambioEstadoDialogService);
@@ -373,6 +376,42 @@ export class LicenciasPageComponent implements OnInit, ComponenteConEdicionPendi
       this.error = 'Revisa fechas y escribe un motivo de al menos 8 caracteres.';
       return;
     }
+    const rut = this.auth.usuarioActual?.rut;
+    if (rut) {
+      this.iaApi.solapeLicencia(rut, this.form.fechaInicio, this.form.fechaTermino).subscribe({
+        next: (r) => {
+          if (r.alerta && !confirm(`${r.mensaje}\n\n¿Continuar de todas formas?`)) return;
+          this.enviarLicenciaCrear();
+        },
+        error: () => this.enviarLicenciaCrear(),
+      });
+      return;
+    }
+    this.enviarLicenciaCrear();
+  }
+
+  asistirMotivoIa(): void {
+    const texto = this.form.motivo?.trim() || '';
+    if (texto.length < 10) {
+      this.error = 'Escribe más texto del certificado/motivo para que la IA lo lea.';
+      return;
+    }
+    this.iaApi.extraerLicencia(texto).subscribe({
+      next: (r) => {
+        if (r.fechaInicio) this.form.fechaInicio = r.fechaInicio;
+        if (r.fechaTermino) this.form.fechaTermino = r.fechaTermino;
+        if (r.diagnosticoGenerico && this.form.motivo.trim().length < 20) {
+          this.form.motivo = r.diagnosticoGenerico;
+        }
+        this.okMsg = 'Campos sugeridos por IA — revisa antes de enviar.';
+      },
+      error: (err) => {
+        this.error = mensajeApiError(err, 'No se pudo extraer datos con IA.');
+      },
+    });
+  }
+
+  private enviarLicenciaCrear(): void {
     this.guardando = true;
     this.progresoCarga = 0;
     this.api

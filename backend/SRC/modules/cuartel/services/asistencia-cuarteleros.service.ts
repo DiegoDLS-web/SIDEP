@@ -7,7 +7,14 @@ const INCLUDE_ASISTENCIA = {
   registradoPor: { include: { rol: true, cargo: true } },
 };
 
-const ESTADOS_ASISTENCIA = ['ASISTE', 'NO_ASISTE', 'DEJA_REEMPLAZO', 'REEMPLAZA', 'LIBERADO'] as const;
+const ESTADOS_ASISTENCIA = [
+  'ASISTE',
+  'NO_ASISTE',
+  'DEJA_REEMPLAZO',
+  'REEMPLAZA',
+  'LIBERADO',
+  'VACACIONES',
+] as const;
 export type EstadoAsistenciaGuardia = (typeof ESTADOS_ASISTENCIA)[number];
 export type TipoTurnoAsistencia = 'NOCTURNA' | 'DIURNA';
 
@@ -26,6 +33,7 @@ function mapAsistencia(a: any) {
     presente: a.presente === 1,
     horaEntrada: a.horaEntrada,
     horaSalida: a.horaSalida,
+    firmaImagenUrl: a.firmaImagenUrl ?? null,
     observaciones: a.observaciones,
     usuario: mapUsuarioBasico(a.usuario),
     registradoPor: mapUsuarioBasico(a.registradoPor),
@@ -153,35 +161,82 @@ export async function obtenerPlanillaAsistencia(filtros: { desde: string; hasta:
   };
   if (filtros.grupo) whereAsistencia.grupoGuardia = filtros.grupo;
 
-  const [voluntarios, registros] = await Promise.all([
+  const [voluntarios, registros, firmasIds] = await Promise.all([
     prisma.usuario.findMany({
       where: { activo: 1 },
-      include: { rol: true, cargo: true },
+      select: {
+        rut: true,
+        nombres: true,
+        apellidoPaterno: true,
+        apellidoMaterno: true,
+      },
       orderBy: [{ apellidoPaterno: 'asc' }, { apellidoMaterno: 'asc' }, { nombres: 'asc' }],
       take: 2000,
     }),
+    // Sin firmaImagenUrl (base64 pesado): se carga solo al abrir detalle.
     prisma.asistenciaCuartelero.findMany({
       where: whereAsistencia,
-      include: INCLUDE_ASISTENCIA,
+      select: {
+        id: true,
+        fecha: true,
+        usuarioRut: true,
+        grupoGuardia: true,
+        tipoTurno: true,
+        estadoAsistencia: true,
+        horaEntrada: true,
+        horaSalida: true,
+        updatedAt: true,
+        registradoPorRut: true,
+        registradoPor: {
+          select: {
+            rut: true,
+            nombres: true,
+            apellidoPaterno: true,
+            apellidoMaterno: true,
+            rol: { select: { codigo: true, nombre: true } },
+          },
+        },
+      },
+    }),
+    prisma.asistenciaCuartelero.findMany({
+      where: {
+        ...whereAsistencia,
+        firmaImagenUrl: { not: null },
+      },
+      select: { id: true },
     }),
   ]);
 
-  const mapaRegistros = new Map<string, ReturnType<typeof mapAsistencia>>();
+  const idsConFirma = new Set(firmasIds.map((f) => f.id));
+
+  type CeldaPlanilla = {
+    id: string | null;
+    estadoAsistencia: EstadoAsistenciaGuardia | null;
+    horaEntrada: string | null;
+    horaSalida: string | null;
+    tieneFirma: boolean;
+    registradoPor: ReturnType<typeof mapUsuarioBasico> | null;
+    updatedAt: string | null;
+  };
+
+  const mapaRegistros = new Map<string, CeldaPlanilla & { grupoGuardia: string | null }>();
   for (const r of registros) {
-    const mapped = mapAsistencia(r);
-    mapaRegistros.set(claveCelda(mapped.fecha, mapped.tipoTurno) + '|' + mapped.usuarioRut, mapped);
+    const fecha = r.fecha.toISOString().slice(0, 10);
+    const key = `${claveCelda(fecha, r.tipoTurno)}|${r.usuarioRut}`;
+    mapaRegistros.set(key, {
+      id: r.id,
+      estadoAsistencia: r.estadoAsistencia as EstadoAsistenciaGuardia,
+      horaEntrada: r.horaEntrada,
+      horaSalida: r.horaSalida,
+      tieneFirma: idsConFirma.has(r.id),
+      registradoPor: mapUsuarioBasico(r.registradoPor),
+      updatedAt: r.updatedAt.toISOString(),
+      grupoGuardia: r.grupoGuardia,
+    });
   }
 
   const filas = voluntarios.map((v, idx) => {
-    const celdas: Record<
-      string,
-      {
-        id: string | null;
-        estadoAsistencia: EstadoAsistenciaGuardia | null;
-        registradoPor: ReturnType<typeof mapUsuarioBasico> | null;
-        updatedAt: string | null;
-      }
-    > = {};
+    const celdas: Record<string, CeldaPlanilla> = {};
     let totalAsistencias = 0;
     let grupoGuardia: string | null = null;
 
@@ -191,6 +246,9 @@ export async function obtenerPlanillaAsistencia(filtros: { desde: string; hasta:
         celdas[col.key] = {
           id: hit.id,
           estadoAsistencia: hit.estadoAsistencia,
+          horaEntrada: hit.horaEntrada,
+          horaSalida: hit.horaSalida,
+          tieneFirma: hit.tieneFirma,
           registradoPor: hit.registradoPor,
           updatedAt: hit.updatedAt,
         };
@@ -200,6 +258,9 @@ export async function obtenerPlanillaAsistencia(filtros: { desde: string; hasta:
         celdas[col.key] = {
           id: null,
           estadoAsistencia: null,
+          horaEntrada: null,
+          horaSalida: null,
+          tieneFirma: false,
           registradoPor: null,
           updatedAt: null,
         };
@@ -226,16 +287,17 @@ export async function obtenerPlanillaAsistencia(filtros: { desde: string; hasta:
     { rut: string; nombre: string; rol: string; ultimaActualizacion: string }
   >();
   for (const r of registros) {
-    const mapped = mapAsistencia(r);
-    const rol = String(mapped.registradoPor?.rolCodigo ?? '').toUpperCase();
+    const mapped = mapUsuarioBasico(r.registradoPor);
+    const rol = String(mapped?.rolCodigo ?? '').toUpperCase();
     if (rol !== 'ADMIN' && rol !== 'CAPITAN' && rol !== 'TENIENTE') continue;
+    const updatedAt = r.updatedAt.toISOString();
     const prev = registradoresMap.get(r.registradoPorRut);
-    if (!prev || mapped.updatedAt > prev.ultimaActualizacion) {
+    if (!prev || updatedAt > prev.ultimaActualizacion) {
       registradoresMap.set(r.registradoPorRut, {
         rut: r.registradoPorRut,
-        nombre: mapped.registradoPor?.nombre ?? r.registradoPorRut,
-        rol: mapped.registradoPor?.rol ?? rol,
-        ultimaActualizacion: mapped.updatedAt,
+        nombre: mapped?.nombre ?? r.registradoPorRut,
+        rol: mapped?.rol ?? rol,
+        ultimaActualizacion: updatedAt,
       });
     }
   }
@@ -250,6 +312,15 @@ export async function obtenerPlanillaAsistencia(filtros: { desde: string; hasta:
   };
 }
 
+export async function obtenerAsistenciaPorId(id: string) {
+  const row = await prisma.asistenciaCuartelero.findUnique({
+    where: { id },
+    include: INCLUDE_ASISTENCIA,
+  });
+  if (!row) throw new Error('Registro de asistencia no encontrado');
+  return mapAsistencia(row);
+}
+
 export async function upsertCeldaAsistencia(
   registradoPorRut: string,
   data: {
@@ -258,6 +329,10 @@ export async function upsertCeldaAsistencia(
     tipoTurno: TipoTurnoAsistencia;
     estadoAsistencia?: EstadoAsistenciaGuardia | null;
     grupoGuardia?: string | null;
+    horaEntrada?: string | null;
+    horaSalida?: string | null;
+    firmaImagenUrl?: string | null;
+    observaciones?: string | null;
   },
 ) {
   const fecha = parseFechaLocal(data.fecha);
@@ -288,12 +363,20 @@ export async function upsertCeldaAsistencia(
       estadoAsistencia: estado,
       presente: presenteDesdeEstado(estado),
       grupoGuardia: data.grupoGuardia || null,
+      horaEntrada: data.horaEntrada || null,
+      horaSalida: data.horaSalida || null,
+      firmaImagenUrl: data.firmaImagenUrl || null,
+      observaciones: data.observaciones?.trim() || null,
       registradoPorRut,
     },
     update: {
       estadoAsistencia: estado,
       presente: presenteDesdeEstado(estado),
       ...(data.grupoGuardia !== undefined ? { grupoGuardia: data.grupoGuardia || null } : {}),
+      ...(data.horaEntrada !== undefined ? { horaEntrada: data.horaEntrada || null } : {}),
+      ...(data.horaSalida !== undefined ? { horaSalida: data.horaSalida || null } : {}),
+      ...(data.firmaImagenUrl !== undefined ? { firmaImagenUrl: data.firmaImagenUrl || null } : {}),
+      ...(data.observaciones !== undefined ? { observaciones: data.observaciones?.trim() || null } : {}),
       registradoPorRut,
     },
     include: INCLUDE_ASISTENCIA,
@@ -312,6 +395,7 @@ export async function registrarAsistencia(
     presente?: boolean;
     horaEntrada?: string | null;
     horaSalida?: string | null;
+    firmaImagenUrl?: string | null;
     observaciones?: string | null;
   },
 ) {
@@ -337,6 +421,7 @@ export async function registrarAsistencia(
       grupoGuardia: data.grupoGuardia || null,
       horaEntrada: data.horaEntrada || null,
       horaSalida: data.horaSalida || null,
+      firmaImagenUrl: data.firmaImagenUrl || null,
       observaciones: data.observaciones?.trim() || null,
       registradoPorRut,
     },
@@ -346,6 +431,7 @@ export async function registrarAsistencia(
       grupoGuardia: data.grupoGuardia || null,
       horaEntrada: data.horaEntrada || null,
       horaSalida: data.horaSalida || null,
+      firmaImagenUrl: data.firmaImagenUrl || null,
       observaciones: data.observaciones?.trim() || null,
       registradoPorRut,
     },
@@ -364,6 +450,7 @@ export async function actualizarAsistencia(
     presente: boolean;
     horaEntrada: string | null;
     horaSalida: string | null;
+    firmaImagenUrl: string | null;
     observaciones: string | null;
   }>,
 ) {
@@ -387,12 +474,100 @@ export async function actualizarAsistencia(
           : {}),
       ...(data.horaEntrada !== undefined ? { horaEntrada: data.horaEntrada || null } : {}),
       ...(data.horaSalida !== undefined ? { horaSalida: data.horaSalida || null } : {}),
+      ...(data.firmaImagenUrl !== undefined ? { firmaImagenUrl: data.firmaImagenUrl || null } : {}),
       ...(data.observaciones !== undefined ? { observaciones: data.observaciones?.trim() || null } : {}),
       registradoPorRut,
     },
     include: INCLUDE_ASISTENCIA,
   });
   return mapAsistencia(row);
+}
+
+/** Estado actual de cuartelero de turno (asistencia ASISTE hoy o GuardiaTurno del día). */
+export async function obtenerCuarteleroEnTurno(ahora = new Date()) {
+  const fechaKey = ahora.toLocaleDateString('en-CA', { timeZone: 'America/Santiago' });
+  const hora = Number(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'America/Santiago',
+      hour: '2-digit',
+      hour12: false,
+    }).format(ahora),
+  );
+  const tipoTurno: TipoTurnoAsistencia = hora >= 20 || hora < 8 ? 'NOCTURNA' : 'DIURNA';
+  const fecha = parseFechaLocal(fechaKey);
+
+  const selectUsuario = {
+    rut: true,
+    nombres: true,
+    apellidoPaterno: true,
+    apellidoMaterno: true,
+    rol: { select: { codigo: true, nombre: true } },
+    cargo: { select: { nombre: true } },
+  } as const;
+
+  const [asistencia, guardia] = await Promise.all([
+    prisma.asistenciaCuartelero.findFirst({
+      where: {
+        fecha,
+        tipoTurno,
+        estadoAsistencia: { in: ['ASISTE', 'REEMPLAZA'] },
+        presente: 1,
+      },
+      select: {
+        usuarioRut: true,
+        horaEntrada: true,
+        horaSalida: true,
+        usuario: { select: selectUsuario },
+      },
+      orderBy: { updatedAt: 'desc' },
+    }),
+    prisma.guardiaTurno.findFirst({
+      where: { fecha },
+      select: {
+        tipoTurno: true,
+        cuarteleroRut: true,
+        cuartelero: { select: selectUsuario },
+      },
+      orderBy: { updatedAt: 'desc' },
+    }),
+  ]);
+
+  if (asistencia) {
+    return {
+      activo: true,
+      fuente: 'asistencia' as const,
+      fecha: fechaKey,
+      tipoTurno,
+      horaEntrada: asistencia.horaEntrada,
+      horaSalida: asistencia.horaSalida,
+      usuario: mapUsuarioBasico(asistencia.usuario),
+      usuarioRut: asistencia.usuarioRut,
+    };
+  }
+
+  if (guardia?.cuarteleroRut && guardia.cuartelero) {
+    return {
+      activo: true,
+      fuente: 'guardia' as const,
+      fecha: fechaKey,
+      tipoTurno: guardia.tipoTurno as TipoTurnoAsistencia,
+      horaEntrada: null as string | null,
+      horaSalida: null as string | null,
+      usuario: mapUsuarioBasico(guardia.cuartelero),
+      usuarioRut: guardia.cuarteleroRut,
+    };
+  }
+
+  return {
+    activo: false,
+    fuente: null as null,
+    fecha: fechaKey,
+    tipoTurno,
+    horaEntrada: null as string | null,
+    horaSalida: null as string | null,
+    usuario: null,
+    usuarioRut: null as string | null,
+  };
 }
 
 export async function eliminarAsistencia(id: string) {

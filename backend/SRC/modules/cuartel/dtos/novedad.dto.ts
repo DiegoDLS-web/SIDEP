@@ -3,13 +3,20 @@ import { gruposGuardia } from './guardia.dto';
 
 export const categoriasNovedad = ['OPERATIVA', 'LOGISTICA', 'ADMINISTRATIVA', 'SEGURIDAD', 'OTRO'] as const;
 
+const imagenNovedadDto = z.object({
+  url: z.string().min(1).max(2000),
+  publicId: z.string().max(255).optional().nullable(),
+});
+
 export const crearNovedadDto = z.object({
   fechaHora: z.union([z.string(), z.date()]),
-  categoria: z.enum(categoriasNovedad),
+  categoria: z.enum(categoriasNovedad).optional(),
   titulo: z.string().min(3).max(200),
   descripcion: z.string().min(3).max(8000),
   grupoGuardia: z.enum(gruposGuardia).optional().nullable(),
   importante: z.boolean().optional(),
+  oficialACargoRut: z.string().min(3).max(20),
+  imagenes: z.array(imagenNovedadDto).max(5).optional(),
 });
 
 export const actualizarNovedadDto = crearNovedadDto.partial();

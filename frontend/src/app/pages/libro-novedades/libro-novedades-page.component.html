@@ -10,7 +10,7 @@
           Libro de novedades
         </h1>
         <p class="sid-page-hero-subtitle mt-1 max-w-3xl text-sm text-slate-300 sm:text-base">
-          Registro cronológico de hechos relevantes en el cuartel.
+          Registro cronológico de hechos del cuartel, con oficial a cargo e imágenes opcionales.
         </p>
       </div>
       <button type="button" class="sid-btn sid-btn-primary shrink-0 rounded-lg px-4 py-2.5 text-sm font-semibold" (click)="abrirFormulario()">
@@ -21,7 +21,7 @@
 
   <section class="rounded-2xl border border-slate-800 bg-[#121212] p-4 sm:p-5">
     <div class="sid-filtros-bar">
-      <div class="sid-filtros-bar__grid xl:grid-cols-6">
+      <div class="sid-filtros-bar__grid xl:grid-cols-4">
         <div>
           <label class="sid-filtros-bar__label">Desde</label>
           <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter w-full" [(ngModel)]="filtroDesde" />
@@ -29,23 +29,6 @@
         <div>
           <label class="sid-filtros-bar__label">Hasta</label>
           <app-sid-date-input preset="filter" [dense]="true" inputClass="sid-history-filter w-full" [(ngModel)]="filtroHasta" />
-        </div>
-        <div>
-          <label class="sid-filtros-bar__label">Categoría</label>
-          <select class="sid-history-filter w-full" [(ngModel)]="filtroCategoria">
-            <option value="">Todas</option>
-            @for (c of categorias; track c.value) {
-              <option [value]="c.value">{{ c.label }}</option>
-            }
-          </select>
-        </div>
-        <div>
-          <label class="sid-filtros-bar__label">Importancia</label>
-          <select class="sid-history-filter w-full" [(ngModel)]="filtroImportante">
-            <option value="TODAS">Todas</option>
-            <option value="SI">Solo importantes</option>
-            <option value="NO">Sin marcar importantes</option>
-          </select>
         </div>
         <div class="xl:col-span-2">
           <label class="sid-filtros-bar__label">Búsqueda</label>
@@ -69,21 +52,27 @@
   } @else {
     <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
       @for (n of items; track n.id) {
-        <article class="rounded-xl border border-slate-800 bg-[#0a0a0a] p-4 sm:p-5" [class.border-amber-700/50]="n.importante">
+        <article class="rounded-xl border border-slate-800 bg-[#0a0a0a] p-4 sm:p-5">
           <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div class="min-w-0">
               <div class="flex flex-wrap items-center gap-2">
-                @if (n.importante) {
-                  <span class="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-200">Importante</span>
-                }
-                <span class="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-300">{{ etiquetaCategoria(n.categoria) }}</span>
                 @if (n.grupoGuardia) {
-                  <span class="text-xs text-slate-500">Grupo {{ n.grupoGuardia }}</span>
+                  <span class="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-300">Grupo {{ n.grupoGuardia }}</span>
                 }
+                <span class="text-xs text-amber-200/90">Oficial: {{ etiquetaOficial(n) }}</span>
               </div>
               <h2 class="mt-2 text-lg font-semibold text-white">{{ n.titulo }}</h2>
               <p class="mt-1 text-xs text-slate-500">{{ fechaHoraEs(n.fechaHora) }} · {{ n.autor?.nombre ?? n.autorRut }}</p>
               <p class="mt-3 whitespace-pre-wrap text-sm text-slate-300">{{ n.descripcion }}</p>
+              @if (n.imagenes?.length) {
+                <div class="mt-3 flex flex-wrap gap-2">
+                  @for (img of n.imagenes; track img.url) {
+                    <a [href]="img.url" target="_blank" rel="noopener" class="block overflow-hidden rounded-lg border border-slate-700">
+                      <img [src]="img.url" alt="Adjunto novedad" class="h-20 w-20 object-cover" />
+                    </a>
+                  }
+                </div>
+              }
             </div>
             @if (puedeGestionar) {
               <button type="button" class="sid-btn sid-btn-neutral shrink-0 px-3 py-1.5 text-xs text-red-300" (click)="eliminar(n)">Eliminar</button>
@@ -106,6 +95,37 @@
       <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-700 bg-[#121212] p-5">
         <h2 class="mb-4 text-lg font-bold text-white">Registrar novedad</h2>
         <div class="space-y-3">
+          <div class="rounded-xl border border-violet-700/40 bg-violet-950/20 p-3">
+            <label class="sid-filtros-bar__label text-violet-200">Asistente IA (texto libre)</label>
+            <textarea
+              class="sid-history-filter mt-1 min-h-[70px] w-full"
+              placeholder="Cuenta lo ocurrido en texto libre…"
+              [(ngModel)]="borradorIa"
+            ></textarea>
+            <button
+              type="button"
+              class="sid-btn sid-btn-neutral mt-2 px-3 py-1.5 text-xs"
+              [disabled]="asistiendoIa"
+              (click)="asistirConIa()"
+            >
+              {{ asistiendoIa ? 'Generando…' : 'Generar título y resumen' }}
+            </button>
+            @if (sugerenciaIa) {
+              <p class="mt-2 text-xs text-violet-200/90">
+                @if (sugerenciaIa.avisarOficialidad) {
+                  Aviso: sugerido notificar a oficialidad
+                  @if (sugerenciaIa.motivoAviso) {
+                    ({{ sugerenciaIa.motivoAviso }})
+                  }
+                } @else {
+                  Sin urgencia detectada para avisar a oficialidad.
+                }
+                @if (sugerenciaIa.oficialACargoNombreSugerido) {
+                  · Oficial sugerido: {{ sugerenciaIa.oficialACargoNombreSugerido }}
+                }
+              </p>
+            }
+          </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="sid-filtros-bar__label">Fecha</label>
@@ -117,10 +137,11 @@
             </div>
           </div>
           <div>
-            <label class="sid-filtros-bar__label">Categoría</label>
-            <select class="sid-history-filter w-full" [(ngModel)]="form.categoria">
-              @for (c of categorias; track c.value) {
-                <option [value]="c.value">{{ c.label }}</option>
+            <label class="sid-filtros-bar__label">Oficial a cargo</label>
+            <select class="sid-history-filter w-full" [(ngModel)]="form.oficialACargoRut">
+              <option value="">Seleccionar…</option>
+              @for (u of oficiales; track u.rut) {
+                <option [value]="u.rut">{{ u.nombre }}</option>
               }
             </select>
           </div>
@@ -141,10 +162,20 @@
             <label class="sid-filtros-bar__label">Descripción</label>
             <textarea class="sid-history-filter min-h-[100px] w-full" [(ngModel)]="form.descripcion"></textarea>
           </div>
-          <label class="flex items-center gap-2 text-sm text-slate-300">
-            <input type="checkbox" [(ngModel)]="form.importante" />
-            Marcar como importante
-          </label>
+          <div>
+            <label class="sid-filtros-bar__label">Imágenes (opcional, máx. 5)</label>
+            <input type="file" accept="image/*" multiple class="sid-history-filter w-full text-sm" (change)="onImagenesSeleccionadas($event)" />
+            @if (form.imagenes.length) {
+              <div class="mt-2 flex flex-wrap gap-2">
+                @for (img of form.imagenes; track img.url; let i = $index) {
+                  <div class="relative">
+                    <img [src]="img.url" alt="" class="h-16 w-16 rounded-lg object-cover border border-slate-700" />
+                    <button type="button" class="absolute -right-1 -top-1 rounded-full bg-red-700 px-1.5 text-[10px] text-white" (click)="quitarImagen(i)">×</button>
+                  </div>
+                }
+              </div>
+            }
+          </div>
         </div>
         <div class="mt-5 flex justify-end gap-2">
           <button type="button" class="sid-btn sid-btn-neutral px-4 py-2" (click)="mostrarFormulario = false">Cancelar</button>

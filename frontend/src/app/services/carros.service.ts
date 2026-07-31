@@ -143,10 +143,15 @@ export class CarrosService {
     if (this.listarCache$ && now - this.listarCacheAt < this.listarTtlMs) {
       return this.listarCache$;
     }
+    // El fallback demo no se cachea: sus ids no coinciden con los reales y romperían
+    // el cruce con checklists/historiales hasta expirar el TTL.
     this.listarCache$ = this.http.get<{ success: boolean; data: CarroDto[] }>(apiUrl('logistica', 'carros')).pipe(
       map((res) => res.data ?? []),
+      catchError(() => {
+        this.invalidarCacheListado();
+        return of(this.demoCarrosActivos());
+      }),
       shareReplay(1),
-      catchError(() => of(this.demoCarrosActivos())),
     );
     this.listarCacheAt = now;
     return this.listarCache$;

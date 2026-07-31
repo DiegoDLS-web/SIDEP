@@ -1,7 +1,6 @@
 import { ApplicationConfig, ErrorHandler, LOCALE_ID, provideZoneChangeDetection } from '@angular/core';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import {
-  PreloadAllModules,
   provideRouter,
   withInMemoryScrolling,
   withPreloading,
@@ -10,13 +9,14 @@ import {
 import { routes } from './app.routes';
 import { authInterceptor } from './interceptors/auth.interceptor';
 import { shortLivedGetCacheInterceptor } from './interceptors/short-lived-get-cache.interceptor';
+import { SidSelectivePreloadStrategy } from './routing/sid-selective-preload.strategy';
 
 import { SidGlobalErrorHandler } from './core/errors/sid-global-error-handler';
 
 /**
- * Configuración global: locale, HTTP, router con precarga de rutas lazy.
- * PreloadAllModules descarga en segundo plano el resto de chunks tras el arranque.
- * Caché en memoria (TTL corto) en GET de métricas de partes y resumen dashboard.
+ * Configuración global: locale, HTTP, router con precarga selectiva.
+ * Solo rutas con data.preload se descargan en segundo plano tras el arranque.
+ * Caché en memoria (TTL corto) en GET frecuentes de dashboard/analítica/planilla.
  */
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -30,7 +30,7 @@ export const appConfig: ApplicationConfig = {
         scrollPositionRestoration: 'top',
         anchorScrolling: 'enabled',
       }),
-      withPreloading(PreloadAllModules),
+      withPreloading(SidSelectivePreloadStrategy),
     ),
   ],
 };

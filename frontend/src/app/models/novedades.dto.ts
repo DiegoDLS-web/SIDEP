@@ -3,6 +3,11 @@ import type { UsuarioCuartelDto } from './guardias.dto';
 
 export type CategoriaNovedad = 'OPERATIVA' | 'LOGISTICA' | 'ADMINISTRATIVA' | 'SEGURIDAD' | 'OTRO';
 
+export type ImagenNovedadDto = {
+  url: string;
+  publicId?: string | null;
+};
+
 export type LibroNovedadDto = {
   id: string;
   fechaHora: string;
@@ -11,6 +16,9 @@ export type LibroNovedadDto = {
   descripcion: string;
   grupoGuardia: GrupoGuardia | null;
   importante: boolean;
+  oficialACargoRut: string;
+  oficialACargo: UsuarioCuartelDto | null;
+  imagenes: ImagenNovedadDto[];
   autorRut: string;
   autor: UsuarioCuartelDto | null;
   createdAt: string;

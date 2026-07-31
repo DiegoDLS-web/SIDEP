@@ -8,6 +8,7 @@ export const estadosAsistenciaGuardia = [
   'DEJA_REEMPLAZO',
   'REEMPLAZA',
   'LIBERADO',
+  'VACACIONES',
 ] as const;
 
 export const registrarAsistenciaDto = z.object({
@@ -19,6 +20,7 @@ export const registrarAsistenciaDto = z.object({
   presente: z.boolean().optional(),
   horaEntrada: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
   horaSalida: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+  firmaImagenUrl: z.string().max(500_000).optional().nullable(),
   observaciones: z.string().max(2000).optional().nullable(),
 });
 
@@ -30,6 +32,10 @@ export const upsertCeldaAsistenciaDto = z.object({
   tipoTurno: z.enum(tiposTurnoAsistencia),
   estadoAsistencia: z.enum(estadosAsistenciaGuardia).nullable().optional(),
   grupoGuardia: z.enum(gruposGuardia).optional().nullable(),
+  horaEntrada: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+  horaSalida: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+  firmaImagenUrl: z.string().max(500_000).optional().nullable(),
+  observaciones: z.string().max(2000).optional().nullable(),
 });
 
 export const planillaAsistenciaQueryDto = z.object({

@@ -4,7 +4,27 @@ import { mapUsuarioBasico } from '../utils/usuario-map.util';
 
 const INCLUDE_NOVEDAD = {
   autor: { include: { rol: true, cargo: true } },
+  oficialACargo: { include: { rol: true, cargo: true } },
 };
+
+type ImagenNovedad = { url: string; publicId?: string | null };
+
+function parseImagenes(raw: string | null | undefined): ImagenNovedad[] {
+  if (!raw?.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((x) => x && typeof x.url === 'string' && x.url.trim())
+      .map((x) => ({
+        url: String(x.url).trim(),
+        publicId: x.publicId ? String(x.publicId) : null,
+      }))
+      .slice(0, 5);
+  } catch {
+    return [];
+  }
+}
 
 function mapNovedad(n: any) {
   return {
@@ -15,6 +35,9 @@ function mapNovedad(n: any) {
     descripcion: n.descripcion,
     grupoGuardia: n.grupoGuardia,
     importante: n.importante === 1,
+    oficialACargoRut: n.oficialACargoRut,
+    oficialACargo: mapUsuarioBasico(n.oficialACargo),
+    imagenes: parseImagenes(n.imagenesJson),
     autorRut: n.autorRut,
     autor: mapUsuarioBasico(n.autor),
     createdAt: n.createdAt.toISOString(),
@@ -81,22 +104,32 @@ export async function crearNovedad(
   autorRut: string,
   data: {
     fechaHora: string | Date;
-    categoria: string;
+    categoria?: string;
     titulo: string;
     descripcion: string;
     grupoGuardia?: string | null;
     importante?: boolean;
+    oficialACargoRut: string;
+    imagenes?: ImagenNovedad[];
   },
 ) {
+  const oficial = await prisma.usuario.findUnique({ where: { rut: data.oficialACargoRut } });
+  if (!oficial || oficial.activo !== 1) {
+    throw new Error('Oficial a cargo no válido o inactivo');
+  }
+
+  const imagenes = (data.imagenes ?? []).slice(0, 5);
   const row = await prisma.libroNovedad.create({
     data: {
       id: crypto.randomUUID(),
       fechaHora: new Date(data.fechaHora),
-      categoria: data.categoria,
+      categoria: data.categoria || 'OTRO',
       titulo: data.titulo.trim(),
       descripcion: data.descripcion.trim(),
       grupoGuardia: data.grupoGuardia || null,
-      importante: data.importante ? 1 : 0,
+      importante: 0,
+      oficialACargoRut: data.oficialACargoRut,
+      imagenesJson: imagenes.length ? JSON.stringify(imagenes) : null,
       autorRut,
     },
     include: INCLUDE_NOVEDAD,
@@ -115,6 +148,8 @@ export async function actualizarNovedad(
     descripcion: string;
     grupoGuardia: string | null;
     importante: boolean;
+    oficialACargoRut: string;
+    imagenes: ImagenNovedad[];
   }>,
 ) {
   const existente = await prisma.libroNovedad.findUnique({ where: { id } });
@@ -122,6 +157,14 @@ export async function actualizarNovedad(
   if (!esOficialidad && existente.autorRut !== autorRut) {
     throw new Error('Solo el autor u oficialidad pueden editar esta novedad');
   }
+
+  if (data.oficialACargoRut) {
+    const oficial = await prisma.usuario.findUnique({ where: { rut: data.oficialACargoRut } });
+    if (!oficial || oficial.activo !== 1) {
+      throw new Error('Oficial a cargo no válido o inactivo');
+    }
+  }
+
   const row = await prisma.libroNovedad.update({
     where: { id },
     data: {
@@ -130,7 +173,10 @@ export async function actualizarNovedad(
       ...(data.titulo ? { titulo: data.titulo.trim() } : {}),
       ...(data.descripcion ? { descripcion: data.descripcion.trim() } : {}),
       ...(data.grupoGuardia !== undefined ? { grupoGuardia: data.grupoGuardia || null } : {}),
-      ...(data.importante !== undefined ? { importante: data.importante ? 1 : 0 } : {}),
+      ...(data.oficialACargoRut ? { oficialACargoRut: data.oficialACargoRut } : {}),
+      ...(data.imagenes !== undefined
+        ? { imagenesJson: data.imagenes.length ? JSON.stringify(data.imagenes.slice(0, 5)) : null }
+        : {}),
     },
     include: INCLUDE_NOVEDAD,
   });

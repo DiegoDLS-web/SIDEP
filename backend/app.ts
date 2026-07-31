@@ -18,6 +18,7 @@ import notificacionesRoutes from './SRC/modules/notificaciones/notificaciones.ro
 import guardiasRoutes from './SRC/modules/cuartel/routes/guardias.routes';
 import novedadesRoutes from './SRC/modules/cuartel/routes/novedades.routes';
 import asistenciaCuartelerosRoutes from './SRC/modules/cuartel/routes/asistencia-cuarteleros.routes';
+import iaRoutes from './SRC/modules/ia/ia.routes';
 import { protect } from './SRC/middlewares/auth.middleware';
 import { requireRoles } from './SRC/middlewares/role.middleware';
 import prisma from './SRC/prisma';
@@ -195,6 +196,7 @@ app.use('/api/notificaciones', notificacionesRoutes);
 app.use('/api/guardias', auditoriaMiddleware, guardiasRoutes);
 app.use('/api/novedades', auditoriaMiddleware, novedadesRoutes);
 app.use('/api/asistencia-cuarteleros', auditoriaMiddleware, asistenciaCuartelerosRoutes);
+app.use('/api/ia', auditoriaMiddleware, iaRoutes);
 
 app.get('/api/roles', protect, async (req, res) => {
   try {

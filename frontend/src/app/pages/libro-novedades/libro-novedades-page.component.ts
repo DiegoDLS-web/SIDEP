@@ -2,11 +2,13 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NovedadesService } from '../../services/novedades.service';
+import { UsuariosService } from '../../services/usuarios.service';
 import { AuthService } from '../../services/auth.service';
+import { IaService } from '../../services/ia.service';
 import { ToastService } from '../../services/toast.service';
 import { mensajeApiError } from '../../utils/api-error.util';
-import type { CategoriaNovedad, LibroNovedadDto } from '../../models/novedades.dto';
-import { CATEGORIAS_NOVEDAD } from '../../models/novedades.dto';
+import type { ImagenNovedadDto, LibroNovedadDto } from '../../models/novedades.dto';
+import type { UsuarioSelectorDto } from '../../models/usuario.dto';
 import { GRUPOS_GUARDIA, type GrupoGuardia } from '../../models/guardias.dto';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
@@ -30,15 +32,26 @@ import { SidHistoryFilterActionsComponent } from '../../shared/sid-history-filte
 })
 export class LibroNovedadesPageComponent implements OnInit {
   private readonly api = inject(NovedadesService);
+  private readonly usuariosApi = inject(UsuariosService);
+  private readonly iaApi = inject(IaService);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
 
-  readonly categorias = CATEGORIAS_NOVEDAD;
   readonly grupos = GRUPOS_GUARDIA;
 
   loading = true;
   guardando = false;
+  asistiendoIa = false;
+  borradorIa = '';
+  sugerenciaIa: {
+    titulo?: string;
+    resumen?: string;
+    avisarOficialidad?: boolean;
+    motivoAviso?: string | null;
+    oficialACargoNombreSugerido?: string | null;
+  } | null = null;
   items: LibroNovedadDto[] = [];
+  oficiales: UsuarioSelectorDto[] = [];
   total = 0;
   page = 1;
   totalPages = 1;
@@ -46,19 +59,17 @@ export class LibroNovedadesPageComponent implements OnInit {
 
   filtroDesde = '';
   filtroHasta = '';
-  filtroCategoria: CategoriaNovedad | '' = '';
-  filtroImportante: 'TODAS' | 'SI' | 'NO' = 'TODAS';
   filtroTexto = '';
 
   mostrarFormulario = false;
   form = {
     fecha: new Date().toISOString().slice(0, 10),
     hora: new Date().toTimeString().slice(0, 5),
-    categoria: 'OPERATIVA' as CategoriaNovedad,
     titulo: '',
     descripcion: '',
     grupoGuardia: '' as GrupoGuardia | '',
-    importante: false,
+    oficialACargoRut: '',
+    imagenes: [] as ImagenNovedadDto[],
   };
 
   get puedeGestionar(): boolean {
@@ -67,6 +78,10 @@ export class LibroNovedadesPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.usuariosApi.voluntariosParaSelect().subscribe({
+      next: (u) => (this.oficiales = u),
+      error: () => (this.oficiales = []),
+    });
     this.cargar();
   }
 
@@ -76,9 +91,6 @@ export class LibroNovedadesPageComponent implements OnInit {
       .listar({
         desde: this.filtroDesde || undefined,
         hasta: this.filtroHasta || undefined,
-        categoria: this.filtroCategoria || undefined,
-        importante:
-          this.filtroImportante === 'SI' ? true : this.filtroImportante === 'NO' ? false : undefined,
         q: this.filtroTexto.trim() || undefined,
         page: this.page,
         pageSize: this.pageSize,
@@ -101,8 +113,6 @@ export class LibroNovedadesPageComponent implements OnInit {
   limpiarFiltros(): void {
     this.filtroDesde = '';
     this.filtroHasta = '';
-    this.filtroCategoria = '';
-    this.filtroImportante = 'TODAS';
     this.filtroTexto = '';
     this.page = 1;
     this.cargar();
@@ -114,16 +124,89 @@ export class LibroNovedadesPageComponent implements OnInit {
   }
 
   abrirFormulario(): void {
+    const hoy = new Date().toISOString().slice(0, 10);
     this.form = {
-      fecha: new Date().toISOString().slice(0, 10),
+      fecha: hoy,
       hora: new Date().toTimeString().slice(0, 5),
-      categoria: 'OPERATIVA',
       titulo: '',
       descripcion: '',
       grupoGuardia: '',
-      importante: false,
+      oficialACargoRut: '',
+      imagenes: [],
     };
+    this.borradorIa = '';
+    this.sugerenciaIa = null;
     this.mostrarFormulario = true;
+  }
+
+  asistirConIa(): void {
+    const texto = (this.borradorIa || this.form.descripcion).trim();
+    if (texto.length < 8) {
+      this.toast.advertencia('Escribe el texto libre de la novedad (mín. 8 caracteres).');
+      return;
+    }
+    this.asistiendoIa = true;
+    this.iaApi.asistirNovedad(texto).subscribe({
+      next: (r) => {
+        this.asistiendoIa = false;
+        this.sugerenciaIa = r;
+        this.form.titulo = r.titulo || this.form.titulo;
+        this.form.descripcion = r.resumen || texto;
+        if (r.grupoGuardia) this.form.grupoGuardia = r.grupoGuardia;
+        if (r.oficialACargoRutSugerido) {
+          this.form.oficialACargoRut = r.oficialACargoRutSugerido;
+        }
+        this.toast.exito('Sugerencia IA lista — confirma oficial y guarda.');
+      },
+      error: (err) => {
+        this.asistiendoIa = false;
+        this.toast.error(mensajeApiError(err, 'No se pudo asistir con IA.'));
+      },
+    });
+  }
+
+  onImagenesSeleccionadas(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    if (!files.length) return;
+    const restantes = 5 - this.form.imagenes.length;
+    if (restantes <= 0) {
+      this.toast.advertencia('Máximo 5 imágenes.');
+      input.value = '';
+      return;
+    }
+    const tomar = files.slice(0, restantes);
+    Promise.all(tomar.map((f) => this.leerComoDataUrl(f)))
+      .then((urls) => {
+        for (const url of urls) {
+          this.form.imagenes.push({ url });
+        }
+      })
+      .catch(() => this.toast.error('No se pudo leer una o más imágenes.'))
+      .finally(() => {
+        input.value = '';
+      });
+  }
+
+  quitarImagen(i: number): void {
+    this.form.imagenes.splice(i, 1);
+  }
+
+  private leerComoDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      if (!file.type.startsWith('image/')) {
+        reject(new Error('tipo'));
+        return;
+      }
+      if (file.size > 900 * 1024) {
+        reject(new Error('tamaño'));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
   }
 
   guardar(): void {
@@ -131,16 +214,20 @@ export class LibroNovedadesPageComponent implements OnInit {
       this.toast.advertencia('Completa título y descripción.');
       return;
     }
+    if (!this.form.oficialACargoRut) {
+      this.toast.advertencia('Selecciona el oficial a cargo.');
+      return;
+    }
     this.guardando = true;
     const fechaHora = new Date(`${this.form.fecha}T${this.form.hora}:00`).toISOString();
     this.api
       .crear({
         fechaHora,
-        categoria: this.form.categoria,
         titulo: this.form.titulo.trim(),
         descripcion: this.form.descripcion.trim(),
+        oficialACargoRut: this.form.oficialACargoRut,
         grupoGuardia: (this.form.grupoGuardia || null) as GrupoGuardia | null,
-        importante: this.form.importante,
+        imagenes: this.form.imagenes,
       })
       .subscribe({
         next: () => {
@@ -173,7 +260,7 @@ export class LibroNovedadesPageComponent implements OnInit {
     return d.toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
   }
 
-  etiquetaCategoria(c: CategoriaNovedad): string {
-    return this.categorias.find((x) => x.value === c)?.label ?? c;
+  etiquetaOficial(n: LibroNovedadDto): string {
+    return n.oficialACargo?.nombre ?? n.oficialACargoRut;
   }
 }

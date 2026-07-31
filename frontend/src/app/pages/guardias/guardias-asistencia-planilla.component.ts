@@ -19,6 +19,7 @@ import { GRUPOS_GUARDIA, type GrupoGuardia } from '../../models/guardias.dto';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidHistoryFilterActionsComponent } from '../../shared/sid-history-filter-actions.component';
+import { SignaturePadComponent } from '../../shared/signature-pad.component';
 
 function isoLocal(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -44,6 +45,7 @@ export function rangoGuardiaDefault(desdeFecha?: string): { desde: string; hasta
     SidDateInputComponent,
     SidEmptyStateComponent,
     SidHistoryFilterActionsComponent,
+    SignaturePadComponent,
   ],
   templateUrl: './guardias-asistencia-planilla.component.html',
 })
@@ -52,7 +54,6 @@ export class GuardiasAsistenciaPlanillaComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
 
-  /** Si se pasa, la planilla arranca en el fin de semana de esa fecha. */
   @Input() fechaReferencia: string | null = null;
 
   readonly grupos = GRUPOS_GUARDIA;
@@ -66,6 +67,17 @@ export class GuardiasAsistenciaPlanillaComponent implements OnInit {
   filtroDesde = rangoGuardiaDefault().desde;
   filtroHasta = rangoGuardiaDefault().hasta;
   filtroGrupo: GrupoGuardia | 'TODAS' = 'TODAS';
+
+  detalleAbierto = false;
+  detalleFila: PlanillaFilaDto | null = null;
+  detalleCol: PlanillaColumnaDto | null = null;
+  detalleForm = {
+    estadoAsistencia: '' as EstadoAsistenciaGuardia | '',
+    horaEntrada: '',
+    horaSalida: '',
+    firmaImagenUrl: '',
+    observaciones: '',
+  };
 
   get puedeGestionar(): boolean {
     const rol = this.auth.usuarioActual?.rol?.toUpperCase();
@@ -137,9 +149,97 @@ export class GuardiasAsistenciaPlanillaComponent implements OnInit {
     this.cargar();
   }
 
+  abrirDetalle(fila: PlanillaFilaDto, col: PlanillaColumnaDto): void {
+    if (!this.puedeGestionar) return;
+    const celda = fila.celdas[col.key];
+    this.detalleFila = fila;
+    this.detalleCol = col;
+    this.detalleForm = {
+      estadoAsistencia: (celda?.estadoAsistencia ?? '') as EstadoAsistenciaGuardia | '',
+      horaEntrada: celda?.horaEntrada ?? '',
+      horaSalida: celda?.horaSalida ?? '',
+      firmaImagenUrl: '',
+      observaciones: '',
+    };
+    this.detalleAbierto = true;
+    if (celda?.id) {
+      this.api.obtener(celda.id).subscribe({
+        next: (det) => {
+          if (this.detalleFila?.usuarioRut !== fila.usuarioRut || this.detalleCol?.key !== col.key) return;
+          this.detalleForm.firmaImagenUrl = det.firmaImagenUrl ?? '';
+          this.detalleForm.observaciones = det.observaciones ?? '';
+          if (!this.detalleForm.horaEntrada) this.detalleForm.horaEntrada = det.horaEntrada ?? '';
+          if (!this.detalleForm.horaSalida) this.detalleForm.horaSalida = det.horaSalida ?? '';
+        },
+        error: () => {
+          /* detalle liviano sin firma si falla */
+        },
+      });
+    }
+  }
+
+  cerrarDetalle(): void {
+    this.detalleAbierto = false;
+    this.detalleFila = null;
+    this.detalleCol = null;
+  }
+
+  guardarDetalle(): void {
+    if (!this.detalleFila || !this.detalleCol || this.guardandoCelda) return;
+    const estado = (this.detalleForm.estadoAsistencia || null) as EstadoAsistenciaGuardia | null;
+    this.guardandoCelda = true;
+    this.api
+      .guardarCelda({
+        fecha: this.detalleCol.fecha,
+        usuarioRut: this.detalleFila.usuarioRut,
+        tipoTurno: this.detalleCol.tipoTurno,
+        estadoAsistencia: estado,
+        grupoGuardia: this.detalleFila.grupoGuardia,
+        horaEntrada: this.detalleForm.horaEntrada || null,
+        horaSalida: this.detalleForm.horaSalida || null,
+        firmaImagenUrl: this.detalleForm.firmaImagenUrl || null,
+        observaciones: this.detalleForm.observaciones || null,
+      })
+      .subscribe({
+        next: () => {
+          this.guardandoCelda = false;
+          this.cerrarDetalle();
+          this.toast.exito('Asistencia actualizada.');
+          this.cargar();
+        },
+        error: (err) => {
+          this.guardandoCelda = false;
+          this.toast.error(mensajeApiError(err, 'No se pudo guardar la celda.'));
+        },
+      });
+  }
+
   cambiarEstado(fila: PlanillaFilaDto, col: PlanillaColumnaDto, raw: string): void {
     if (!this.puedeGestionar || this.guardandoCelda) return;
     const estado = (raw || null) as EstadoAsistenciaGuardia | null;
+    if (estado === 'ASISTE' || estado === 'REEMPLAZA' || estado === 'VACACIONES') {
+      const celda = fila.celdas[col.key];
+      this.detalleFila = fila;
+      this.detalleCol = col;
+      this.detalleForm = {
+        estadoAsistencia: estado,
+        horaEntrada: celda?.horaEntrada ?? (estado === 'VACACIONES' ? '' : new Date().toTimeString().slice(0, 5)),
+        horaSalida: celda?.horaSalida ?? '',
+        firmaImagenUrl: '',
+        observaciones: '',
+      };
+      this.detalleAbierto = true;
+      if (celda?.id) {
+        this.api.obtener(celda.id).subscribe({
+          next: (det) => {
+            if (this.detalleFila?.usuarioRut !== fila.usuarioRut || this.detalleCol?.key !== col.key) return;
+            this.detalleForm.firmaImagenUrl = det.firmaImagenUrl ?? '';
+            this.detalleForm.observaciones = det.observaciones ?? '';
+          },
+        });
+      }
+      return;
+    }
     this.guardandoCelda = true;
     this.api
       .guardarCelda({
@@ -174,6 +274,8 @@ export class GuardiasAsistenciaPlanillaComponent implements OnInit {
           tipoTurno: col.tipoTurno,
           estadoAsistencia: celda.estadoAsistencia,
           grupoGuardia: fila.grupoGuardia,
+          horaEntrada: celda.horaEntrada,
+          horaSalida: celda.horaSalida,
         })
         .subscribe({ error: (err) => this.toast.error(mensajeApiError(err, 'No se pudo actualizar el grupo.')) });
     }
@@ -185,6 +287,7 @@ export class GuardiasAsistenciaPlanillaComponent implements OnInit {
     if (estado === 'NO_ASISTE') return 'sid-asistencia-celda--no';
     if (estado === 'DEJA_REEMPLAZO') return 'sid-asistencia-celda--reemplazo';
     if (estado === 'LIBERADO') return 'sid-asistencia-celda--liberado';
+    if (estado === 'VACACIONES') return 'sid-asistencia-celda--vacaciones';
     return '';
   }
 

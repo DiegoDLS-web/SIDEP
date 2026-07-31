@@ -593,16 +593,51 @@ export class ChecklistsService {
     return forkJoin([this.carrosApi.listar(), this.getHistorial(undefined, 'ERA')]).pipe(
       map(([carros, res]) => {
         const mapCarros = new Map(carros.map((c) => [String(c.id), c]));
+        const mapPorNomenclatura = new Map(carros.map((c) => [c.nomenclatura, c]));
         return (res.data ?? [])
           .map((e) => {
-            const carro = mapCarros.get(String(e.entidadId));
-            if (!carro) return null;
+            const carro =
+              mapCarros.get(String(e.entidadId)) ??
+              this.resolverCarroDesdeEjecucion(e, mapPorNomenclatura);
             return this.mapEjecucionToRegistro(e, carro);
           })
           .filter(Boolean) as ChecklistRegistroDto[];
       }),
       catchError(() => of([])),
     );
+  }
+
+  /**
+   * Resuelve la unidad de una ejecución cuando su `entidadId` no está en el listado
+   * de carros (p. ej. listado en fallback). Evita perder registros del historial.
+   */
+  private resolverCarroDesdeEjecucion(
+    ejecucion: ChecklistEjecucionDTO,
+    porNomenclatura: Map<string, CarroDto>,
+  ): CarroDto {
+    let unidad = '';
+    const raw = ejecucion.respuestasJson;
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw) as Record<string, unknown>;
+        if (typeof parsed?.['unidad'] === 'string') unidad = String(parsed['unidad']).trim();
+      } catch {
+        /* respuestas no parseables */
+      }
+    }
+    if (!unidad && typeof ejecucion.plantilla?.nombre === 'string') {
+      const m = ejecucion.plantilla.nombre.match(/([A-Z]+-\d+)/i);
+      if (m?.[1]) unidad = m[1].toUpperCase();
+    }
+
+    const encontrado = unidad ? porNomenclatura.get(unidad) : undefined;
+    if (encontrado) return encontrado;
+
+    return {
+      id: String(ejecucion.entidadId),
+      nomenclatura: unidad || '—',
+      nombre: unidad ? `Unidad ${unidad}` : 'Unidad',
+    } as CarroDto;
   }
 
   private leerPlantillaLocal(tipo: PlantillaTipo, unidad: string): unknown | null {

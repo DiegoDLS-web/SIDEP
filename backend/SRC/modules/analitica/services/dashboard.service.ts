@@ -19,8 +19,9 @@ import {
   inicioHeatmapDesdeFin,
   sumarDiasCalendarioKey,
 } from '../../../utils/fecha-calendario.util';
+import { obtenerCuarteleroEnTurno } from '../../cuartel/services/asistencia-cuarteleros.service';
 
-const DASHBOARD_CACHE_TTL_MS = 90_000;
+const DASHBOARD_CACHE_TTL_MS = 120_000;
 const dashboardCache = new Map<string, { data: unknown; expires: number }>();
 
 /** Invalida caché del dashboard (p. ej. tras crear o editar un parte). */
@@ -87,24 +88,96 @@ const buildDashboardResumen = async (anioParam?: number, claveFilter?: string, c
     };
   }
 
-  // 1. Total Emergencias
-  const totalEmergencias = await prisma.parteEmergencia.count({ where: whereClause });
+  const anioActual = new Date().getFullYear();
+  const mesReferencia = anio === anioActual ? currentMonth : 12;
+  const inicioMesFiltrado = new Date(Date.UTC(anio, mesReferencia - 1, 1, 0, 0, 0));
+  const finMesFiltrado = new Date(Date.UTC(anio, mesReferencia, 0, 23, 59, 59, 999));
+  const whereClauseMes = { ...whereClause, fechaEmergencia: { gte: inicioMesFiltrado, lte: finMesFiltrado } };
 
-  // 2. Porcentaje resueltas (COMPLETADO; no usar estadoId numérico: PENDIENTE=2, COMPLETADO=3)
-  const totalResueltas = await prisma.parteEmergencia.count({
-    where: { ...whereClause, estado: { codigo: 'COMPLETADO' } },
-  });
-  const porcentajeResueltas = totalEmergencias > 0 ? Math.round((totalResueltas / totalEmergencias) * 100) : 0;
-
-  // 3. Tiempo Promedio Respuesta
   const unidadesWhere: { parte: typeof whereClause; carroId?: string } = { parte: whereClause };
   if (carroIdFilter) {
     unidadesWhere.carroId = carroIdFilter;
   }
-  const unidades = await prisma.unidadEnEmergencia.findMany({
-    where: unidadesWhere,
-    select: { horaSalida: true, horaLlegada: true },
-  });
+
+  const carrosWhere = carroIdFilter ? { id: carroIdFilter } : {};
+
+  // Lecturas independientes en paralelo (mayor impacto en latencia del dashboard)
+  const [
+    totalEmergencias,
+    totalResueltas,
+    unidades,
+    emergenciasEsteMes,
+    partesAnio,
+    aniosRows,
+    recientesPartes,
+    carros,
+    alertasInvResult,
+    cuarteleroResult,
+  ] = await Promise.all([
+    prisma.parteEmergencia.count({ where: whereClause }),
+    prisma.parteEmergencia.count({
+      where: { ...whereClause, estado: { codigo: 'COMPLETADO' } },
+    }),
+    prisma.unidadEnEmergencia.findMany({
+      where: unidadesWhere,
+      select: { horaSalida: true, horaLlegada: true },
+    }),
+    prisma.parteEmergencia.count({ where: whereClauseMes }),
+    prisma.parteEmergencia.findMany({
+      where: whereClause,
+      select: {
+        fechaEmergencia: true,
+        metadata: true,
+        clave: { select: { codigo: true } },
+      },
+    }),
+    prisma.$queryRaw<{ anio: number }[]>`
+      SELECT DISTINCT EXTRACT(YEAR FROM p.fecha_emergencia)::int AS anio
+      FROM parte_emergencia p
+      INNER JOIN catalogo_estado_parte e ON e.id = p.estado_id
+      WHERE e.codigo <> 'ANULADO'
+      ORDER BY anio DESC
+    `,
+    prisma.parteEmergencia.findMany({
+      where: whereClause,
+      orderBy: { fechaEmergencia: 'desc' },
+      take: 5,
+      select: {
+        id: true,
+        correlativo: true,
+        direccion: true,
+        fechaEmergencia: true,
+        metadata: true,
+        clave: { select: { codigo: true, nombre: true } },
+        estado: { select: { nombre: true } },
+        unidades: { select: { carro: { select: { nomenclatura: true } } } },
+      },
+    }),
+    prisma.carro.findMany({
+      where: carrosWhere,
+      include: {
+        mantenimientos: {
+          orderBy: { fechaRegistro: 'desc' },
+          take: 1,
+        },
+      },
+    }),
+    obtenerAlertasInventario()
+      .then((a) => ({ ok: true as const, a }))
+      .catch((err) => {
+        console.error('[SIDEP dashboard] alertas inventario:', err);
+        return { ok: false as const, a: [] as Awaited<ReturnType<typeof obtenerAlertasInventario>> };
+      }),
+    obtenerCuarteleroEnTurno()
+      .then((c) => ({ ok: true as const, c }))
+      .catch((err) => {
+        console.error('[SIDEP dashboard] cuartelero en turno:', err);
+        return { ok: false as const, c: null };
+      }),
+  ]);
+
+  const porcentajeResueltas =
+    totalEmergencias > 0 ? Math.round((totalResueltas / totalEmergencias) * 100) : 0;
 
   let totalRespuestaMs = 0;
   let validRespuestaCount = 0;
@@ -117,25 +190,8 @@ const buildDashboardResumen = async (anioParam?: number, claveFilter?: string, c
       }
     }
   }
-  const tiempoPromedioRespuestaMin = validRespuestaCount > 0 ? Math.round(totalRespuestaMs / (validRespuestaCount * 1000 * 60)) : 0;
-
-  // 4. Emergencias Este Mes
-  const anioActual = new Date().getFullYear();
-  const mesReferencia = anio === anioActual ? currentMonth : 12;
-  const inicioMesFiltrado = new Date(Date.UTC(anio, mesReferencia - 1, 1, 0, 0, 0));
-  const finMesFiltrado = new Date(Date.UTC(anio, mesReferencia, 0, 23, 59, 59, 999));
-  const whereClauseMes = { ...whereClause, fechaEmergencia: { gte: inicioMesFiltrado, lte: finMesFiltrado } };
-  const emergenciasEsteMes = await prisma.parteEmergencia.count({ where: whereClauseMes });
-
-  // 5–6 y heatmap: una sola lectura de fechas/claves del año filtrado
-  const partesAnio = await prisma.parteEmergencia.findMany({
-    where: whereClause,
-    select: {
-      fechaEmergencia: true,
-      metadata: true,
-      clave: { select: { codigo: true } },
-    },
-  });
+  const tiempoPromedioRespuestaMin =
+    validRespuestaCount > 0 ? Math.round(totalRespuestaMs / (validRespuestaCount * 1000 * 60)) : 0;
 
   const monthGroups: Record<string, number> = {};
   const typeGroups: Record<string, number> = {};
@@ -160,29 +216,11 @@ const buildDashboardResumen = async (anioParam?: number, claveFilter?: string, c
     .map(([periodo, cantidad]) => ({ periodo, cantidad }))
     .sort((a, b) => a.periodo.localeCompare(b.periodo));
 
-  const aniosConDatos = [
-    ...new Set(
-      (
-        await prisma.parteEmergencia.findMany({
-          where: parteWhereNoAnulado(),
-          select: { fechaEmergencia: true },
-          take: 5000,
-        })
-      ).map((p) => p.fechaEmergencia.getFullYear()),
-    ),
-  ].sort((a, b) => b - a);
+  const aniosConDatos = aniosRows.map((r) => Number(r.anio)).filter((n) => Number.isFinite(n));
 
   const porTipo = Object.entries(typeGroups)
     .map(([claveEmergencia, cantidad]) => ({ claveEmergencia, cantidad }))
     .sort((a, b) => b.cantidad - a.cantidad || a.claveEmergencia.localeCompare(b.claveEmergencia));
-
-  // 7. Recientes
-  const recientesPartes = await prisma.parteEmergencia.findMany({
-    where: whereClause,
-    orderBy: { fechaEmergencia: 'desc' },
-    take: 5,
-    include: { clave: true, estado: true, unidades: { include: { carro: true } } },
-  });
 
   const recientes = recientesPartes.map((p) => ({
     id: p.id,
@@ -194,7 +232,6 @@ const buildDashboardResumen = async (anioParam?: number, claveFilter?: string, c
     unidades: p.unidades.map((u) => u.carro.nomenclatura),
   }));
 
-  // Heatmap: últimas 4 semanas (calendario America/Santiago)
   const heatmapSemanas: number[][] = [];
   for (let w = 0; w < SEMANAS; w++) {
     const semana: number[] = [];
@@ -206,40 +243,36 @@ const buildDashboardResumen = async (anioParam?: number, claveFilter?: string, c
     heatmapSemanas.push(semana);
   }
 
-  // 9–10. Alertas y semáforo de unidades (checklist + estado en BD)
   const alertas: any[] = [];
-  const carrosTodos = await prisma.carro.findMany({
-    include: {
-      mantenimientos: {
-        orderBy: { fechaRegistro: 'desc' },
-        take: 1,
-      },
-    },
-  });
-  const carros = carroIdFilter ? carrosTodos.filter((c) => c.id === carroIdFilter) : carrosTodos;
+  const carroIds = carros.map((c) => c.id);
 
-  const cambiosEstadoAuditoria = await prisma.auditoriaUsuario.findMany({
-    where: {
-      accion: 'CAMBIAR_ESTADO_CARRO',
-      resultado: 'OK',
-      entidadId: { in: carros.map((c) => c.id) },
-    },
-    orderBy: { createdAt: 'desc' },
-    select: { entidadId: true, detalle: true },
-  });
+  const [cambiosEstadoAuditoria, ejecucionesSemaforo] = await Promise.all([
+    carroIds.length
+      ? prisma.auditoriaUsuario.findMany({
+          where: {
+            accion: 'CAMBIAR_ESTADO_CARRO',
+            resultado: 'OK',
+            entidadId: { in: carroIds },
+          },
+          orderBy: { createdAt: 'desc' },
+          select: { entidadId: true, detalle: true },
+        })
+      : Promise.resolve([] as Array<{ entidadId: string | null; detalle: string | null }>),
+    carroIds.length
+      ? prisma.checklistEjecucion.findMany({
+          where: { entidadId: { in: carroIds } },
+          orderBy: { fechaRevision: 'desc' },
+          take: Math.max(carroIds.length * 6, 120),
+        })
+      : Promise.resolve([] as Awaited<ReturnType<typeof prisma.checklistEjecucion.findMany>>),
+  ]);
+
   const ultimoCambioEstadoPorCarro = new Map<string, { motivo: string; fechaEfectiva: string }>();
   for (const row of cambiosEstadoAuditoria) {
     if (!row.entidadId || ultimoCambioEstadoPorCarro.has(row.entidadId)) continue;
     const parsed = parsearUltimoCambioEstadoCarro(row.detalle);
     if (parsed) ultimoCambioEstadoPorCarro.set(row.entidadId, parsed);
   }
-
-  const carroIds = carros.map((c) => c.id);
-  const ejecucionesSemaforo = await prisma.checklistEjecucion.findMany({
-    where: { entidadId: { in: carroIds } },
-    orderBy: { fechaRevision: 'desc' },
-    take: Math.max(carroIds.length * 6, 120),
-  });
 
   const ultimaEjecucionPorCarroTipo = new Map<string, (typeof ejecucionesSemaforo)[number]>();
   for (const exec of ejecucionesSemaforo) {
@@ -356,20 +389,25 @@ const buildDashboardResumen = async (anioParam?: number, claveFilter?: string, c
     };
   });
 
-  try {
-    const alertasInv = await obtenerAlertasInventario();
-    for (const a of alertasInv.slice(0, 20)) {
-      alertas.push({
-        tipo: a.tipo,
-        severidad: a.severidad,
-        titulo: a.titulo,
-        detalle: a.detalle,
-        inventarioItemId: a.itemId ?? null,
-        bodega: a.bodega ?? null,
-      });
-    }
-  } catch (err) {
-    console.error('[SIDEP dashboard] alertas inventario:', err);
+  for (const a of alertasInvResult.a.slice(0, 20)) {
+    alertas.push({
+      tipo: a.tipo,
+      severidad: a.severidad,
+      titulo: a.titulo,
+      detalle: a.detalle,
+      inventarioItemId: a.itemId ?? null,
+      bodega: a.bodega ?? null,
+    });
+  }
+
+  const cuarteleroEnTurno = cuarteleroResult.c;
+  if (cuarteleroEnTurno && !cuarteleroEnTurno.activo) {
+    alertas.unshift({
+      tipo: 'cuartelero_sin_turno',
+      severidad: 'advertencia',
+      titulo: 'Sin cuartelero de turno',
+      detalle: `No hay cuartelero marcado de turno (${cuarteleroEnTurno.tipoTurno}) para hoy ${cuarteleroEnTurno.fecha}.`,
+    });
   }
 
   const payload = {
@@ -389,6 +427,7 @@ const buildDashboardResumen = async (anioParam?: number, claveFilter?: string, c
     aniosConDatos,
     alertas,
     unidadesSemaforo,
+    cuarteleroEnTurno,
     generadoEn: new Date().toISOString(),
   };
   return payload;

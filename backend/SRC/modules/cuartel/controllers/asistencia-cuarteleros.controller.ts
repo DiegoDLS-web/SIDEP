@@ -42,6 +42,11 @@ export const getResumenAsistencia = asyncHandler(async (req: Request, res: Respo
   res.json(data);
 });
 
+export const getAsistencia = asyncHandler(async (req: Request, res: Response) => {
+  const data = await asistenciaService.obtenerAsistenciaPorId(String(req.params.id));
+  res.json(data);
+});
+
 export const postAsistencia = asyncHandler(async (req: Request, res: Response) => {
   const data = await asistenciaService.registrarAsistencia(rutUsuario(req), req.body);
   res.status(201).json(data);

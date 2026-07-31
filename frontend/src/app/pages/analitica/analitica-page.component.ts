@@ -5,6 +5,7 @@ import type jsPDF from 'jspdf';
 import { catchError, of } from 'rxjs';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { ReportesService } from '../../services/reportes.service';
+import { IaService } from '../../services/ia.service';
 import type { AnaliticaOperacionalDto } from '../../models/reportes.dto';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-emergencia.service';
@@ -17,6 +18,7 @@ import { CatalogoTiposEmergenciaService } from '../../services/catalogo-tipos-em
 })
 export class AnaliticaPageComponent implements OnInit {
   private readonly reportesApi = inject(ReportesService);
+  private readonly iaApi = inject(IaService);
   private readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
   private readonly pdfExport = inject(PdfExportService);
   private readonly nf = new Intl.NumberFormat('es-CL');
@@ -27,6 +29,14 @@ export class AnaliticaPageComponent implements OnInit {
   exportandoPng: string | null = null;
   error: string | null = null;
   datos: AnaliticaOperacionalDto | null = null;
+  chatPregunta = '';
+  chatCargando = false;
+  chatRespuesta: {
+    respuesta?: string;
+    recomendaciones?: string[];
+    explicacionHeatmap?: string;
+    fuente?: string;
+  } | null = null;
   anio = new Date().getFullYear();
   mes = new Date().getMonth() + 1;
   mesAsistenciaSeleccionado = new Date().getMonth() + 1;
@@ -72,6 +82,22 @@ export class AnaliticaPageComponent implements OnInit {
       error: (e) => {
         this.error = e?.error?.error ?? 'No se pudo cargar la analítica operacional.';
         this.loading = false;
+      },
+    });
+  }
+
+  preguntarChatIa(): void {
+    const p = this.chatPregunta.trim();
+    if (p.length < 3) return;
+    this.chatCargando = true;
+    this.iaApi.chatAnalitica(p, this.anio, this.mes).subscribe({
+      next: (r) => {
+        this.chatCargando = false;
+        this.chatRespuesta = r;
+      },
+      error: () => {
+        this.chatCargando = false;
+        this.chatRespuesta = { respuesta: 'No se pudo consultar al asistente.' };
       },
     });
   }

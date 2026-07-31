@@ -3,6 +3,7 @@ import { Component, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { GuardiasService } from '../../services/guardias.service';
+import { IaService } from '../../services/ia.service';
 import { UsuariosService } from '../../services/usuarios.service';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
@@ -47,6 +48,7 @@ type CeldaCalendario = {
 })
 export class GuardiasPageComponent implements OnInit {
   private readonly api = inject(GuardiasService);
+  private readonly iaApi = inject(IaService);
   private readonly usuariosApi = inject(UsuariosService);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
@@ -63,6 +65,9 @@ export class GuardiasPageComponent implements OnInit {
   vista: 'calendario' | 'listado' | 'asistencia' = 'calendario';
   loading = true;
   guardando = false;
+  iaPregunta = '';
+  iaCargando = false;
+  iaRespuesta = '';
   turnos: GuardiaTurnoDto[] = [];
   calendario: GuardiaCalendarioDto | null = null;
   semanas: CeldaCalendario[][] = [];
@@ -355,5 +360,60 @@ export class GuardiasPageComponent implements OnInit {
       semanas.push(celdas.slice(i, i + 7));
     }
     return semanas;
+  }
+
+  preguntarIaAsistencia(): void {
+    const p = this.iaPregunta.trim();
+    if (p.length < 3) return;
+    this.iaCargando = true;
+    this.iaApi.preguntaAsistencia(p).subscribe({
+      next: (r) => {
+        this.iaCargando = false;
+        this.iaRespuesta = r.respuesta || JSON.stringify(r);
+      },
+      error: (err) => {
+        this.iaCargando = false;
+        this.toast.error(mensajeApiError(err, 'No se pudo consultar IA.'));
+      },
+    });
+  }
+
+  cargarHuecosIa(): void {
+    this.iaCargando = true;
+    this.iaApi.huecosCobertura().subscribe({
+      next: (r) => {
+        this.iaCargando = false;
+        if (!r.huecos?.length) {
+          this.iaRespuesta = 'Sin huecos de cobertura detectados en el rango.';
+          return;
+        }
+        this.iaRespuesta = r.huecos
+          .slice(0, 12)
+          .map((h: { fecha: string; tipoTurno: string; motivo: string }) => `· ${h.fecha} ${h.tipoTurno}: ${h.motivo}`)
+          .join('\n');
+      },
+      error: (err) => {
+        this.iaCargando = false;
+        this.toast.error(mensajeApiError(err, 'No se pudieron calcular huecos.'));
+      },
+    });
+  }
+
+  cargarFaltasIa(): void {
+    this.iaCargando = true;
+    this.iaApi.faltasSemanal().subscribe({
+      next: (r) => {
+        this.iaCargando = false;
+        const top = (r.topPersonas || [])
+          .slice(0, 5)
+          .map((x: { nombre: string; faltas: number }) => `${x.nombre} (${x.faltas})`)
+          .join(', ');
+        this.iaRespuesta = `${r.resumen || ''}${top ? `\nTop: ${top}` : ''}`;
+      },
+      error: (err) => {
+        this.iaCargando = false;
+        this.toast.error(mensajeApiError(err, 'No se pudo obtener faltas.'));
+      },
+    });
   }
 }

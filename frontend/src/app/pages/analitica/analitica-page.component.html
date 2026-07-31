@@ -28,6 +28,40 @@
   }
 
   @if (datos) {
+  <section class="rounded-2xl border border-violet-800/40 bg-violet-950/20 p-4 sm:p-5">
+    <h2 class="mb-2 flex items-center gap-2 text-sm font-semibold text-violet-100">
+      <lucide-icon name="chart-column" class="h-4 w-4" [size]="16" color="currentColor"></lucide-icon>
+      Chat IA · analítica del mes
+    </h2>
+    <div class="flex flex-col gap-2 sm:flex-row">
+      <input
+        type="search"
+        class="sid-history-filter flex-1"
+        placeholder="¿Bajó el tiempo de respuesta vs el mes anterior?"
+        [(ngModel)]="chatPregunta"
+        (keydown.enter)="preguntarChatIa()"
+      />
+      <button type="button" class="sid-btn sid-btn-neutral px-4 py-2 text-sm" [disabled]="chatCargando" (click)="preguntarChatIa()">
+        {{ chatCargando ? 'Pensando…' : 'Preguntar' }}
+      </button>
+    </div>
+    @if (chatRespuesta) {
+      <div class="mt-3 space-y-2 text-sm text-slate-200">
+        <p class="whitespace-pre-wrap">{{ chatRespuesta.respuesta }}</p>
+        @if (chatRespuesta.explicacionHeatmap) {
+          <p class="text-xs text-slate-400">Heatmap: {{ chatRespuesta.explicacionHeatmap }}</p>
+        }
+        @if (chatRespuesta.recomendaciones?.length) {
+          <ul class="list-disc pl-5 text-xs text-emerald-200/90">
+            @for (r of chatRespuesta.recomendaciones; track r) {
+              <li>{{ r }}</li>
+            }
+          </ul>
+        }
+      </div>
+    }
+  </section>
+
   <section class="sid-hero-panel sid-hero-panel--emerald">
     <div class="sid-hero-panel__row sid-hero-panel__row--split">
       <div class="min-w-0 lg:max-w-[min(100%,52rem)]">

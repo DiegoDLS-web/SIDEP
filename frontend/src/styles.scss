@@ -3000,6 +3000,12 @@ app-welcome-overlay {
   border-color: rgb(56 189 248 / 0.35) !important;
 }
 
+.sid-asistencia-celda--vacaciones {
+  background: rgb(168 85 247 / 0.12);
+  color: #e9d5ff;
+  border-color: rgb(168 85 247 / 0.35) !important;
+}
+
 .sid-asistencia-leyenda-dot {
   display: inline-block;
   width: 0.65rem;
@@ -3012,6 +3018,7 @@ app-welcome-overlay {
 .sid-asistencia-leyenda-dot.sid-asistencia-celda--no { background: rgb(239 68 68 / 0.5); }
 .sid-asistencia-leyenda-dot.sid-asistencia-celda--reemplazo { background: rgb(245 158 11 / 0.5); }
 .sid-asistencia-leyenda-dot.sid-asistencia-celda--liberado { background: rgb(56 189 248 / 0.5); }
+.sid-asistencia-leyenda-dot.sid-asistencia-celda--vacaciones { background: rgb(168 85 247 / 0.5); }
 
 /* Calendario mensual guardias (estilo SISPAR) */
 .sid-guardia-calendario {

@@ -450,6 +450,9 @@
             <label class="text-sm sm:col-span-2">
               <span class="mb-1 block text-gray-400">Motivo</span>
               <textarea [(ngModel)]="form.motivo" rows="3" class="sid-input min-h-[88px] w-full text-sm"></textarea>
+              <button type="button" class="mt-2 text-xs text-violet-300 underline" (click)="asistirMotivoIa()">
+                IA: extraer fechas / diagnóstico del texto
+              </button>
             </label>
             <label class="text-sm sm:col-span-2">
               <span class="mb-1 block text-gray-400">Adjunto (opcional)</span>

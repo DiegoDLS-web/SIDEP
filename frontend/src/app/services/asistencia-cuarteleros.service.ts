@@ -21,12 +21,20 @@ export class AsistenciaCuartelerosService {
     return this.http.get<PlanillaAsistenciaDto>('/api/asistencia-cuarteleros/planilla', { params });
   }
 
+  obtener(id: string): Observable<AsistenciaCuarteleroDto> {
+    return this.http.get<AsistenciaCuarteleroDto>(`/api/asistencia-cuarteleros/${id}`);
+  }
+
   guardarCelda(payload: {
     fecha: string;
     usuarioRut: string;
     tipoTurno: TipoTurnoAsistencia;
     estadoAsistencia: EstadoAsistenciaGuardia | null;
     grupoGuardia?: GrupoGuardia | null;
+    horaEntrada?: string | null;
+    horaSalida?: string | null;
+    firmaImagenUrl?: string | null;
+    observaciones?: string | null;
   }): Observable<AsistenciaCuarteleroDto | { ok: boolean; eliminado: boolean }> {
     return this.http.post<AsistenciaCuarteleroDto | { ok: boolean; eliminado: boolean }>(
       '/api/asistencia-cuarteleros/celda',

@@ -66,7 +66,7 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: loadMainLayoutComponent,
     children: [
-      { path: '', title: 'Estadísticas · SIDEP', loadComponent: loadDashboardComponent },
+      { path: '', title: 'Estadísticas · SIDEP', loadComponent: loadDashboardComponent, data: { preload: true } },
       {
         path: 'partes/nuevo',
         title: 'Nuevo parte · SIDEP',
@@ -83,6 +83,7 @@ export const routes: Routes = [
         path: 'partes',
         title: 'Partes de emergencia · SIDEP',
         loadComponent: loadPartesListaComponent,
+        data: { preload: true },
       },
       {
         path: 'catalogo-emergencias',
@@ -101,6 +102,7 @@ export const routes: Routes = [
         path: 'carros',
         title: 'Carros · SIDEP',
         loadComponent: loadCarrosPageComponent,
+        data: { preload: true },
       },
       {
         path: 'inventarios',

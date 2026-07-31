@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import type { CategoriaNovedad, LibroNovedadDto, NovedadesPaginaDto } from '../models/novedades.dto';
+import type { ImagenNovedadDto, LibroNovedadDto, NovedadesPaginaDto } from '../models/novedades.dto';
 import type { GrupoGuardia } from '../models/guardias.dto';
 
 @Injectable({ providedIn: 'root' })
@@ -11,8 +11,6 @@ export class NovedadesService {
   listar(filtros?: {
     desde?: string;
     hasta?: string;
-    categoria?: CategoriaNovedad;
-    importante?: boolean;
     q?: string;
     page?: number;
     pageSize?: number;
@@ -20,8 +18,6 @@ export class NovedadesService {
     let params = new HttpParams();
     if (filtros?.desde) params = params.set('desde', filtros.desde);
     if (filtros?.hasta) params = params.set('hasta', filtros.hasta);
-    if (filtros?.categoria) params = params.set('categoria', filtros.categoria);
-    if (filtros?.importante !== undefined) params = params.set('importante', filtros.importante ? '1' : '0');
     if (filtros?.q) params = params.set('q', filtros.q);
     if (filtros?.page) params = params.set('page', String(filtros.page));
     if (filtros?.pageSize) params = params.set('pageSize', String(filtros.pageSize));
@@ -30,11 +26,11 @@ export class NovedadesService {
 
   crear(payload: {
     fechaHora: string;
-    categoria: CategoriaNovedad;
     titulo: string;
     descripcion: string;
+    oficialACargoRut: string;
     grupoGuardia?: GrupoGuardia | null;
-    importante?: boolean;
+    imagenes?: ImagenNovedadDto[];
   }): Observable<LibroNovedadDto> {
     return this.http.post<LibroNovedadDto>('/api/novedades', payload);
   }
@@ -43,11 +39,11 @@ export class NovedadesService {
     id: string,
     payload: Partial<{
       fechaHora: string;
-      categoria: CategoriaNovedad;
       titulo: string;
       descripcion: string;
       grupoGuardia: GrupoGuardia | null;
-      importante: boolean;
+      oficialACargoRut: string;
+      imagenes: ImagenNovedadDto[];
     }>,
   ): Observable<LibroNovedadDto> {
     return this.http.patch<LibroNovedadDto>(`/api/novedades/${id}`, payload);

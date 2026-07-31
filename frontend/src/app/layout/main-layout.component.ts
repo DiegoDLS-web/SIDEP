@@ -1,6 +1,7 @@
 import { Component, DestroyRef, HostListener, OnDestroy, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { take } from 'rxjs';
 import { AuthService } from '../services/auth.service';

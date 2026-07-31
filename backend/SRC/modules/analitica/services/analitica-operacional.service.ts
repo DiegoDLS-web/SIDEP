@@ -21,27 +21,38 @@ export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesPara
   const inicioMesAnt = new Date(Date.UTC(anioAnterior, mesAnterior - 1, 1, 0, 0, 0));
   const finMesAnt = new Date(Date.UTC(anioAnterior, mesAnterior, 0, 23, 59, 59, 999));
 
-  // 1. Fetch units in emergencies for current month
-  const unidadesMes = await prisma.unidadEnEmergencia.findMany({
-    where: {
-      parte: parteWhereNoAnulado({
-        fechaEmergencia: { gte: inicioMes, lte: finMes },
-      }),
-    },
-    include: {
-      carro: true,
-      parte: true,
-    },
-  });
-
-  // 2. Fetch units in emergencies for previous month (for comparative)
-  const unidadesMesAnt = await prisma.unidadEnEmergencia.findMany({
-    where: {
-      parte: parteWhereNoAnulado({
-        fechaEmergencia: { gte: inicioMesAnt, lte: finMesAnt },
-      }),
-    },
-  });
+  // 1–2. Unidades mes actual y anterior en paralelo
+  const [unidadesMes, unidadesMesAnt] = await Promise.all([
+    prisma.unidadEnEmergencia.findMany({
+      where: {
+        parte: parteWhereNoAnulado({
+          fechaEmergencia: { gte: inicioMes, lte: finMes },
+        }),
+      },
+      select: {
+        carroId: true,
+        horaSalida: true,
+        horaLlegada: true,
+        kmSalida: true,
+        kmLlegada: true,
+        carro: { select: { id: true, nomenclatura: true, nombre: true } },
+        parte: { select: { id: true, fechaEmergencia: true, direccion: true, metadata: true } },
+      },
+    }),
+    prisma.unidadEnEmergencia.findMany({
+      where: {
+        parte: parteWhereNoAnulado({
+          fechaEmergencia: { gte: inicioMesAnt, lte: finMesAnt },
+        }),
+      },
+      select: {
+        horaSalida: true,
+        horaLlegada: true,
+        kmSalida: true,
+        kmLlegada: true,
+      },
+    }),
+  ]);
 
   // Calculate KPIs
   let totalDespachoMs = 0;
@@ -127,8 +138,61 @@ export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesPara
     casos: data.count,
   })).sort((a, b) => b.promedioRespuestaMin - a.promedioRespuestaMin).slice(0, 5);
 
-  // Uso de Unidades
-  const carros = await prisma.carro.findMany();
+  // Uso de unidades / checklist / asistencia anual / partes mes / dashboard en paralelo
+  const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const inicioAnio = new Date(Date.UTC(anio, 0, 1, 0, 0, 0));
+  const finAnio = new Date(Date.UTC(anio, 11, 31, 23, 59, 59, 999));
+
+  const [carros, checklistEjecuciones, asistenciasAnio, partesConMetaAsistencia, partesMes, resumenDashboard] =
+    await Promise.all([
+      prisma.carro.findMany({ select: { id: true, nomenclatura: true } }),
+      prisma.checklistEjecucion.findMany({
+        where: {
+          fechaRevision: { gte: inicioMes, lte: finMes },
+          estado: 'COMPLETADO',
+        },
+        select: { entidadId: true, fechaRevision: true },
+      }),
+      prisma.asistenciaPersonal.findMany({
+        where: {
+          parte: parteWhereNoAnulado({
+            fechaEmergencia: { gte: inicioAnio, lte: finAnio },
+          }),
+        },
+        select: {
+          parteId: true,
+          usuarioRut: true,
+          parte: { select: { fechaEmergencia: true } },
+          usuario: {
+            select: {
+              nombres: true,
+              apellidoPaterno: true,
+              apellidoMaterno: true,
+              rol: { select: { nombre: true } },
+              cargo: { select: { nombre: true } },
+            },
+          },
+        },
+      }),
+      prisma.parteEmergencia.findMany({
+        where: parteWhereNoAnulado({
+          fechaEmergencia: { gte: inicioAnio, lte: finAnio },
+          metadata: { not: null },
+        }),
+        select: { id: true, fechaEmergencia: true, metadata: true },
+      }),
+      prisma.parteEmergencia.findMany({
+        where: parteWhereNoAnulado({
+          fechaEmergencia: { gte: inicioMes, lte: finMes },
+        }),
+        select: {
+          metadata: true,
+          clave: { select: { codigo: true } },
+        },
+      }),
+      getDashboardResumen(anio, 'todos', undefined),
+    ]);
+
   const usoUnidades = carros.map((c) => {
     const salidasUnidad = unidadesMes.filter((u) => u.carroId === c.id);
     const salidas = salidasUnidad.length;
@@ -150,14 +214,6 @@ export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesPara
       km,
       kilometrosPromedioPorSalida: salidas > 0 ? Math.round(km / salidas) : 0,
     };
-  });
-
-  // Cumplimiento Checklist
-  const checklistEjecuciones = await prisma.checklistEjecucion.findMany({
-    where: {
-      fechaRevision: { gte: inicioMes, lte: finMes },
-      estado: 'COMPLETADO',
-    },
   });
 
   const cumplimientoChecklist = carros.map((c) => {
@@ -197,33 +253,6 @@ export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesPara
   });
 
   // Asistencia Voluntarios Por Mes (yearly list)
-  const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  const inicioAnio = new Date(Date.UTC(anio, 0, 1, 0, 0, 0));
-  const finAnio = new Date(Date.UTC(anio, 11, 31, 23, 59, 59, 999));
-
-  const asistenciasAnio = await prisma.asistenciaPersonal.findMany({
-    where: {
-      parte: parteWhereNoAnulado({
-        fechaEmergencia: { gte: inicioAnio, lte: finAnio },
-      }),
-    },
-    include: {
-      parte: true,
-      usuario: {
-        include: { rol: true, cargo: true },
-      },
-    },
-  });
-
-  // Complemento: partes con asistencia solo en metadata (registros anteriores al sync relacional)
-  const partesConMetaAsistencia = await prisma.parteEmergencia.findMany({
-    where: parteWhereNoAnulado({
-      fechaEmergencia: { gte: inicioAnio, lte: finAnio },
-      metadata: { not: null },
-    }),
-    select: { id: true, fechaEmergencia: true, metadata: true },
-  });
-
   type AsistenciaVirtual = {
     parteId: string;
     usuarioRut: string;
@@ -231,7 +260,7 @@ export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesPara
     usuario: { nombres: string; apellidoPaterno: string | null; apellidoMaterno: string | null; rol: { nombre: string } | null; cargo: { nombre: string } | null } | null;
   };
 
-  const virtuales: AsistenciaVirtual[] = [];
+  const virtualesPendientes: Array<{ parteId: string; usuarioRut: string; fechaEmergencia: Date }> = [];
   const rutsConFila = new Set(asistenciasAnio.map((a) => `${a.parteId}:${a.usuarioRut}`));
 
   for (const parte of partesConMetaAsistencia) {
@@ -252,27 +281,48 @@ export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesPara
         const rut = id.slice(4).trim();
         if (!rut || rutsConFila.has(`${parte.id}:${rut}`)) continue;
         rutsConFila.add(`${parte.id}:${rut}`);
-        const usuario = await prisma.usuario.findUnique({
-          where: { rut },
-          include: { rol: true, cargo: true },
-        });
-        virtuales.push({
+        virtualesPendientes.push({
           parteId: parte.id,
           usuarioRut: rut,
-          parte: { fechaEmergencia: parte.fechaEmergencia },
-          usuario: usuario
-            ? {
-                nombres: usuario.nombres,
-                apellidoPaterno: usuario.apellidoPaterno,
-                apellidoMaterno: usuario.apellidoMaterno,
-                rol: usuario.rol,
-                cargo: usuario.cargo,
-              }
-            : null,
+          fechaEmergencia: parte.fechaEmergencia,
         });
       }
     }
   }
+
+  const rutsVirtuales = [...new Set(virtualesPendientes.map((v) => v.usuarioRut))];
+  const usuariosVirtuales = rutsVirtuales.length
+    ? await prisma.usuario.findMany({
+        where: { rut: { in: rutsVirtuales } },
+        select: {
+          rut: true,
+          nombres: true,
+          apellidoPaterno: true,
+          apellidoMaterno: true,
+          rol: { select: { nombre: true } },
+          cargo: { select: { nombre: true } },
+        },
+      })
+    : [];
+  const usuariosPorRut = new Map(usuariosVirtuales.map((u) => [u.rut, u]));
+
+  const virtuales: AsistenciaVirtual[] = virtualesPendientes.map((v) => {
+    const usuario = usuariosPorRut.get(v.usuarioRut);
+    return {
+      parteId: v.parteId,
+      usuarioRut: v.usuarioRut,
+      parte: { fechaEmergencia: v.fechaEmergencia },
+      usuario: usuario
+        ? {
+            nombres: usuario.nombres,
+            apellidoPaterno: usuario.apellidoPaterno,
+            apellidoMaterno: usuario.apellidoMaterno,
+            rol: usuario.rol,
+            cargo: usuario.cargo,
+          }
+        : null,
+    };
+  });
 
   const asistenciasCombinadas = [
     ...asistenciasAnio,
@@ -298,14 +348,6 @@ export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesPara
   });
 
   const asistenciaVoluntariosTotalAnual = asistenciasCombinadas.length;
-
-  // Partes del mes por clave (10-0, 10-1, etc.)
-  const partesMes = await prisma.parteEmergencia.findMany({
-    where: parteWhereNoAnulado({
-      fechaEmergencia: { gte: inicioMes, lte: finMes },
-    }),
-    include: { clave: true },
-  });
 
   const claveGroups: Record<string, number> = {};
   for (const p of partesMes) {
@@ -376,8 +418,6 @@ export const getAnaliticaOperacionalReporte = async (anioParam?: number, mesPara
       voluntarios,
     };
   });
-
-  const resumenDashboard = await getDashboardResumen(anio, 'todos', undefined);
 
   return {
     anio,

@@ -6,6 +6,7 @@ export const ESTADOS_ASISTENCIA_GUARDIA = [
   'DEJA_REEMPLAZO',
   'REEMPLAZA',
   'LIBERADO',
+  'VACACIONES',
 ] as const;
 
 export type EstadoAsistenciaGuardia = (typeof ESTADOS_ASISTENCIA_GUARDIA)[number];
@@ -17,6 +18,7 @@ export const ETIQUETAS_ESTADO_ASISTENCIA: Record<EstadoAsistenciaGuardia, string
   DEJA_REEMPLAZO: 'Deja reemplazo',
   REEMPLAZA: 'Reemplaza',
   LIBERADO: 'Liberado',
+  VACACIONES: 'Vacaciones',
 };
 
 export type AsistenciaCuarteleroDto = {
@@ -29,6 +31,7 @@ export type AsistenciaCuarteleroDto = {
   presente: boolean;
   horaEntrada: string | null;
   horaSalida: string | null;
+  firmaImagenUrl: string | null;
   observaciones: string | null;
   usuario: UsuarioCuartelDto | null;
   registradoPor: UsuarioCuartelDto | null;
@@ -63,6 +66,10 @@ export type PlanillaColumnaDto = {
 export type PlanillaCeldaDto = {
   id: string | null;
   estadoAsistencia: EstadoAsistenciaGuardia | null;
+  horaEntrada: string | null;
+  horaSalida: string | null;
+  /** Indicador liviano: la firma base64 se carga solo al abrir el detalle. */
+  tieneFirma: boolean;
   registradoPor: UsuarioCuartelDto | null;
   updatedAt: string | null;
 };
