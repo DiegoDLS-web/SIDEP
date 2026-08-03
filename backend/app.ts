@@ -18,10 +18,12 @@ import notificacionesRoutes from './SRC/modules/notificaciones/notificaciones.ro
 import guardiasRoutes from './SRC/modules/cuartel/routes/guardias.routes';
 import novedadesRoutes from './SRC/modules/cuartel/routes/novedades.routes';
 import asistenciaCuartelerosRoutes from './SRC/modules/cuartel/routes/asistencia-cuarteleros.routes';
+import cuarteleroRoutes from './SRC/modules/cuartel/routes/cuartelero.routes';
 import iaRoutes from './SRC/modules/ia/ia.routes';
 import { protect } from './SRC/middlewares/auth.middleware';
 import { requireRoles } from './SRC/middlewares/role.middleware';
 import prisma from './SRC/prisma';
+import type { Prisma, RolUsuario } from '@prisma/client';
 import { auditoriaMiddleware } from './SRC/modules/auditoria/middlewares/auditoria.middleware';
 import { verificarConexionSmtp } from './SRC/utils/email/email.service';
 
@@ -144,6 +146,7 @@ app.get('/api/auth/mi-navegacion', protect, async (req, res) => {
       '/bolso-trauma',
       '/licencias-medicas',
       '/guardias',
+      '/asistencia-cuartelero',
       '/libro-novedades',
       '/analitica-operacional',
       '/usuarios',
@@ -196,12 +199,13 @@ app.use('/api/notificaciones', notificacionesRoutes);
 app.use('/api/guardias', auditoriaMiddleware, guardiasRoutes);
 app.use('/api/novedades', auditoriaMiddleware, novedadesRoutes);
 app.use('/api/asistencia-cuarteleros', auditoriaMiddleware, asistenciaCuartelerosRoutes);
+app.use('/api/cuartelero', auditoriaMiddleware, cuarteleroRoutes);
 app.use('/api/ia', auditoriaMiddleware, iaRoutes);
 
 app.get('/api/roles', protect, async (req, res) => {
   try {
     const activos = req.query.activos === '1';
-    const where: any = {};
+    const where: Prisma.RolUsuarioWhereInput = {};
     if (activos) {
       where.activo = 1;
     }
@@ -210,7 +214,7 @@ app.get('/api/roles', protect, async (req, res) => {
       orderBy: { id: 'asc' }
     });
     return res.status(200).json(
-      roles.map((r) => ({
+      roles.map((r: RolUsuario) => ({
         id: r.id,
         nombre: r.nombre,
         codigo: r.codigo,

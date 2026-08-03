@@ -95,7 +95,7 @@ export const patchUsuario = asyncHandler(async (req: Request, res: Response) => 
     validarAsignacionRolAdmin(req, req.body.rol);
   }
 
-  const actualizado = await usuariosService.actualizarUsuario(rut, req.body);
+  const actualizado = await usuariosService.actualizarUsuario(rut, req.body, (req as any).user?.rut);
   res.status(200).json(actualizado);
 });
 
@@ -105,7 +105,7 @@ export const deleteUsuario = asyncHandler(async (req: Request, res: Response) =>
     throw new ValidationError(['RUT requerido']);
   }
 
-  const result = await usuariosService.eliminarUsuario(rut);
+  const result = await usuariosService.eliminarUsuario(rut, (req as any).user?.rut);
   res.status(200).json({
     ok: true,
     softDeleted: result.softDeleted,

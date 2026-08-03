@@ -98,4 +98,17 @@ export class AsistenciaCuartelerosService {
   eliminar(id: string): Observable<{ ok: boolean }> {
     return this.http.delete<{ ok: boolean }>(`/api/asistencia-cuarteleros/${id}`);
   }
+
+  guardarMiCelda(payload: {
+    fecha: string;
+    tipoTurno: TipoTurnoAsistencia;
+    estadoAsistencia?: EstadoAsistenciaGuardia;
+    horaEntrada?: string | null;
+    horaSalida?: string | null;
+    firmaImagenUrl?: string | null;
+    observaciones?: string | null;
+    grupoGuardia?: GrupoGuardia | null;
+  }): Observable<AsistenciaCuarteleroDto> {
+    return this.http.post<AsistenciaCuarteleroDto>('/api/asistencia-cuarteleros/mi-celda', payload);
+  }
 }

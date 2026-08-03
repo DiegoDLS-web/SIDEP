@@ -15,6 +15,7 @@ import { ConfirmDialogComponent } from '../shared/confirm-dialog.component';
 import { CambioEstadoDialogComponent } from '../shared/cambio-estado-dialog.component';
 import { ConfiguracionesService } from '../services/configuraciones.service';
 import { BorradorSyncService } from '../services/borrador-sync.service';
+import { ConexionOfflineService } from '../services/conexion-offline.service';
 import { SidepBrandLockupComponent } from '../shared/sidep-brand-lockup.component';
 import type { SesionUsuarioDto } from '../models/auth.dto';
 import { WelcomeOverlayComponent } from '../shared/welcome-overlay.component';
@@ -61,6 +62,7 @@ export class MainLayoutComponent implements OnDestroy {
   private readonly uiDensity = inject(UiDensityService);
   private readonly configApi = inject(ConfiguracionesService);
   private readonly borradorSync = inject(BorradorSyncService);
+  private readonly conexionOffline = inject(ConexionOfflineService);
   /** Subtítulo del lockup desde configuración del sistema. */
   readonly nombreCompaniaTag = signal<string | null>(null);
   sidebarAbierto = false;
@@ -102,6 +104,7 @@ export class MainLayoutComponent implements OnDestroy {
         },
         { routerLink: '/licencias-medicas', label: 'Licencias', icon: 'heart-pulse' },
         { routerLink: '/guardias', label: 'Sistema de guardias', icon: 'calendar-days' },
+        { routerLink: '/asistencia-cuartelero', label: 'Asistencia cuartelero', icon: 'user-check' },
         { routerLink: '/libro-novedades', label: 'Libro de novedades', icon: 'book-open' },
         { routerLink: '/analitica-operacional', label: 'Analítica operacional', icon: 'chart-column' },
       ],
@@ -133,6 +136,7 @@ export class MainLayoutComponent implements OnDestroy {
       if (u) {
         this.navUi.refrescar();
         this.borradorSync.iniciarEscuchaAutomatica();
+        this.conexionOffline.iniciarEscucha();
       } else {
         this.navUi.limpiar();
       }

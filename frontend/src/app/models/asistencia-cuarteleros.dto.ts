@@ -70,6 +70,7 @@ export type PlanillaCeldaDto = {
   horaSalida: string | null;
   /** Indicador liviano: la firma base64 se carga solo al abrir el detalle. */
   tieneFirma: boolean;
+  programadoGuardia?: boolean;
   registradoPor: UsuarioCuartelDto | null;
   updatedAt: string | null;
 };
@@ -95,4 +96,27 @@ export type PlanillaAsistenciaDto = {
     ultimaActualizacion: string;
   }>;
   estados: EstadoAsistenciaGuardia[];
+  resumenCobertura?: {
+    programados: number;
+    faltasProgramadas: number;
+    cubiertos: number;
+  };
+};
+
+export type PanelCuarteleroDto = {
+  usuario: UsuarioCuartelDto;
+  anio: number;
+  mes: number;
+  mesLabel: string;
+  calendario: Array<{
+    fecha: string;
+    dia: number;
+    diaSemana: number;
+    esFinDeSemana: boolean;
+    tieneGuardia: boolean;
+    turnos: Array<{ id: string; fecha: string; grupo: string; tipoTurno: string; rolEnTurno: string }>;
+  }>;
+  historialAsistencias: AsistenciaCuarteleroDto[];
+  proximasGuardias: Array<{ id: string; fecha: string; grupo: string; tipoTurno: string; rolEnTurno: string }>;
+  resumenMes: { diasConGuardia: number; asistenciasRegistradas: number };
 };

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, catchError, of } from 'rxjs';
@@ -10,6 +10,7 @@ import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { PdfExportService } from '../../services/pdf-export.service';
 import { ToastService } from '../../services/toast.service';
 import { BorradorLocalService } from '../../services/borrador-local.service';
+import { AutosaveLocal } from '../../utils/autosave-local.helper';
 import { UsuariosService } from '../../services/usuarios.service';
 import { AuthService } from '../../services/auth.service';
 import { SignaturePadComponent } from '../../shared/signature-pad.component';
@@ -150,7 +151,7 @@ function fusionarBolsosConPlantillaCanon(bolsos: Bolso[], unidad: string): Bolso
   imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidDateInputComponent, SidEdicionPendienteBannerComponent, SidPlantillaEdicionBannerComponent],
   templateUrl: './bolso-trauma-registro.component.html',
 })
-export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicionPendiente {
+export class BolsoTraumaRegistroComponent implements OnInit, OnDestroy, ComponenteConEdicionPendiente {
   readonly nombreListaSoloPersona = nombreListaSoloPersona;
   readonly etiquetaEstadoChecklist = etiquetaEstadoChecklist;
 
@@ -166,6 +167,7 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
   private readonly cambioEstadoDialog = inject(CambioEstadoDialogService);
   estadoChecklistUi: EstadoChecklist = 'PENDIENTE';
   private readonly auth = inject(AuthService);
+  private autosaveLocal?: AutosaveLocal;
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -241,6 +243,14 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
   }
 
   ngOnInit(): void {
+    this.autosaveLocal = new AutosaveLocal(
+      this.borradorLocal,
+      'bolso-trauma',
+      () => this.unidad,
+      () => this.payloadBorradorLocal(),
+      { habilitado: () => !this.loading && !this.saving && this.esRegistroNuevo },
+    );
+
     this.unidad = this.route.snapshot.paramMap.get('unidad') ?? 'R-1';
     const q = Number(this.route.snapshot.queryParamMap.get('bolso') ?? '1');
     this.bolsoNumero = Number.isFinite(q) && q > 0 ? q : 1;
@@ -743,6 +753,14 @@ export class BolsoTraumaRegistroComponent implements OnInit, ComponenteConEdicio
       firmaInspector: this.firmaResueltaInspector() || null,
       estadoChecklistSeleccionado: this.estadoChecklistSeleccionado,
     };
+  }
+
+  ngOnDestroy(): void {
+    this.autosaveLocal?.destruir();
+  }
+
+  programarAutosaveLocal(): void {
+    this.autosaveLocal?.programar();
   }
 
   private async ofrecerRestaurarBorradorLocal(): Promise<void> {

@@ -105,3 +105,8 @@ export const loadAsistenciaCuartelerosPageComponent = () =>
   import('../pages/asistencia-cuarteleros/asistencia-cuarteleros-page.component').then(
     (m) => m.AsistenciaCuartelerosPageComponent,
   );
+
+export const loadAsistenciaCuarteleroPageComponent = () =>
+  import('../pages/asistencia-cuartelero/asistencia-cuartelero-page.component').then(
+    (m) => m.AsistenciaCuarteleroPageComponent,
+  );

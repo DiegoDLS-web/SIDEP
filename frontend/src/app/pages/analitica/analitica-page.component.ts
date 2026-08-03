@@ -270,12 +270,18 @@ export class AnaliticaPageComponent implements OnInit {
   }
 
   heatClassDashboard(val: number): string {
-    if (val === 0) return 'bg-gray-800';
-    const ratio = val / this.maxHeatDashboard();
-    if (ratio < 0.25) return 'bg-red-900';
-    if (ratio < 0.5) return 'bg-red-700';
-    if (ratio < 0.75) return 'bg-red-600';
-    return 'bg-red-500';
+    return `sid-heat-${this.heatLevelDashboard(val)}`;
+  }
+
+  heatLevelDashboard(val: number): number {
+    const n = Number(val) || 0;
+    if (n <= 0) return 0;
+    const max = this.maxHeatDashboard();
+    const ratio = n / max;
+    if (ratio <= 0.25) return 1;
+    if (ratio <= 0.5) return 2;
+    if (ratio <= 0.75) return 3;
+    return 4;
   }
 
   parte10_0Mes(): number {

@@ -27,6 +27,7 @@ import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
 import { mensajeApiError } from '../../utils/api-error.util';
 import { descargarDesdeApi, queryString } from '../../utils/server-download.util';
+import { filtrarUsuariosOperativos } from '../../utils/usuario-operativo.util';
 import type { UsuarioSelectorDto } from '../../models/usuario.dto';
 import { SidepIconsModule } from '../../shared/sidep-icons.module';
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
@@ -224,7 +225,7 @@ export class InventariosResumenComponent implements OnInit {
     if (this.puedeGestionar) {
       this.cargarEstadoImport();
     }
-    this.usuarios.voluntariosParaSelect().subscribe((v) => (this.voluntarios = v));
+    this.usuarios.voluntariosParaSelect().subscribe((v) => (this.voluntarios = filtrarUsuariosOperativos(v)));
     this.api.listarBodegas().subscribe({
       next: (bodegas) => {
         this.bodegasCatalogo = bodegas;

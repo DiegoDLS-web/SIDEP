@@ -37,6 +37,7 @@ import {
   loadGuardiasPageComponent,
   loadLibroNovedadesPageComponent,
   loadAsistenciaCuartelerosPageComponent,
+  loadAsistenciaCuarteleroPageComponent,
 } from './routing/lazy-routes';
 
 /**
@@ -203,9 +204,19 @@ export const routes: Routes = [
         loadComponent: loadGuardiasPageComponent,
       },
       {
-        path: 'asistencia-cuarteleros',
-        redirectTo: 'guardias',
+        path: 'asistencia-cuartelero',
+        title: 'Asistencia cuartelero · SIDEP',
+        loadComponent: loadAsistenciaCuarteleroPageComponent,
+      },
+      {
+        path: 'mi-cuartel',
+        redirectTo: 'asistencia-cuartelero',
         pathMatch: 'full',
+      },
+      {
+        path: 'asistencia-cuarteleros',
+        title: 'Asistencia cuarteleros · SIDEP',
+        loadComponent: loadAsistenciaCuartelerosPageComponent,
       },
       {
         path: 'libro-novedades',

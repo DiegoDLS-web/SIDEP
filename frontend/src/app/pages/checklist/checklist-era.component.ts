@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
+import { Component, DestroyRef, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
@@ -13,6 +13,7 @@ import { PdfExportService } from '../../services/pdf-export.service';
 import { ToastService } from '../../services/toast.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { BorradorLocalService } from '../../services/borrador-local.service';
+import { AutosaveLocal } from '../../utils/autosave-local.helper';
 import { UsuariosService } from '../../services/usuarios.service';
 import { SidEmptyStateComponent } from '../../shared/sid-empty-state.component';
 import { SidDateInputComponent } from '../../shared/sid-date-input.component';
@@ -186,7 +187,7 @@ const ERA_PRESETS_UNIDAD: Record<string, EraPreset> = {
   imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SidEmptyStateComponent, SidDateInputComponent, SidEdicionPendienteBannerComponent, SidPlantillaEdicionBannerComponent, SidPaginationFooterComponent, SidHistoryFilterActionsComponent],
   templateUrl: './checklist-era.component.html',
 })
-export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendiente {
+export class ChecklistEraComponent implements OnInit, OnDestroy, ComponenteConEdicionPendiente {
   readonly nombreListaSoloPersona = nombreListaSoloPersona;
   readonly icon = SIDEP_ACTION_ICON;
   readonly etiquetaEstadoChecklist = etiquetaEstadoChecklist;
@@ -204,6 +205,7 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
   private readonly cambioEstadoDialog = inject(CambioEstadoDialogService);
   estadoChecklistUi: EstadoChecklist = 'PENDIENTE';
   private readonly confirmDialog = inject(ConfirmDialogService);
+  private autosaveLocal?: AutosaveLocal;
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -318,6 +320,14 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
   }
 
   ngOnInit(): void {
+    this.autosaveLocal = new AutosaveLocal(
+      this.borradorLocal,
+      'checklist-era',
+      () => this.unidad,
+      () => this.payloadBorradorLocal(),
+      { habilitado: () => !this.loading && !this.saving && !this.savingBorrador && this.mostrarRegistro },
+    );
+
     forkJoin({
       carros: this.carrosApi.listar().pipe(catchError(() => of([] as CarroDto[]))),
       usuarios: this.usuariosApi.voluntariosParaSelect(),
@@ -581,6 +591,14 @@ export class ChecklistEraComponent implements OnInit, ComponenteConEdicionPendie
     }, 0);
     this.refrescarHistorialEra();
     void this.ofrecerRestaurarBorradorLocal();
+  }
+
+  ngOnDestroy(): void {
+    this.autosaveLocal?.destruir();
+  }
+
+  programarAutosaveLocal(): void {
+    this.autosaveLocal?.programar();
   }
 
   private payloadBorradorLocal() {

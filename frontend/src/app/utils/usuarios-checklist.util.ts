@@ -1,16 +1,10 @@
-import type { UsuarioListaDto, UsuarioSelectorDto } from '../models/usuario.dto';
+import { esUsuarioOperativo, type UsuarioOperativoInput } from './usuario-operativo.util';
 
-/** Voluntarios elegibles como inspector u OBAC en checklists (sin administradores). */
-export function esVoluntarioElegibleChecklist(u: Pick<UsuarioListaDto, 'rol' | 'nombre' | 'activo'>): boolean {
-  const rol = (u.rol ?? '').trim().toUpperCase();
-  if (rol === 'ADMIN') return false;
-  const nom = (u.nombre ?? '').trim().toLowerCase();
-  if (nom.includes('admin de pruebas') || nom.includes('admin pruebas')) return false;
-  return u.activo !== false;
+/** Voluntarios elegibles como inspector u OBAC en checklists (activos, sin ADMIN ni inactivos). */
+export function esVoluntarioElegibleChecklist(u: UsuarioOperativoInput): boolean {
+  return esUsuarioOperativo(u);
 }
 
-export function filtrarUsuariosChecklist<T extends Pick<UsuarioListaDto, 'rol' | 'nombre' | 'activo'>>(
-  usuarios: T[],
-): T[] {
+export function filtrarUsuariosChecklist<T extends UsuarioOperativoInput>(usuarios: T[]): T[] {
   return (usuarios ?? []).filter(esVoluntarioElegibleChecklist);
 }

@@ -21,43 +21,19 @@
     </div>
   </section>
 
-  <div class="flex flex-wrap gap-2">
-    <button type="button" class="sid-btn rounded-lg px-4 py-2 text-sm" [class.sid-btn-primary]="vista === 'calendario'" [class.sid-btn-neutral]="vista !== 'calendario'" (click)="cambiarVista('calendario')">
+  <div class="sid-tab-scroll" role="tablist" aria-label="Secciones de guardias">
+    <button type="button" role="tab" class="sid-btn rounded-lg px-4 py-2 text-sm" [attr.aria-selected]="vista === 'calendario'" [class.sid-btn-primary]="vista === 'calendario'" [class.sid-btn-neutral]="vista !== 'calendario'" (click)="cambiarVista('calendario')">
       Calendario mensual
     </button>
-    <button type="button" class="sid-btn rounded-lg px-4 py-2 text-sm" [class.sid-btn-primary]="vista === 'asistencia'" [class.sid-btn-neutral]="vista !== 'asistencia'" (click)="cambiarVista('asistencia')">
+    <button type="button" role="tab" class="sid-btn rounded-lg px-4 py-2 text-sm" [attr.aria-selected]="vista === 'asistencia'" [class.sid-btn-primary]="vista === 'asistencia'" [class.sid-btn-neutral]="vista !== 'asistencia'" (click)="cambiarVista('asistencia')">
       Asistencia
     </button>
-    <button type="button" class="sid-btn rounded-lg px-4 py-2 text-sm" [class.sid-btn-primary]="vista === 'listado'" [class.sid-btn-neutral]="vista !== 'listado'" (click)="cambiarVista('listado')">
+    <button type="button" role="tab" class="sid-btn rounded-lg px-4 py-2 text-sm" [attr.aria-selected]="vista === 'listado'" [class.sid-btn-primary]="vista === 'listado'" [class.sid-btn-neutral]="vista !== 'listado'" (click)="cambiarVista('listado')">
       Listado de turnos
     </button>
   </div>
 
   @if (vista === 'asistencia') {
-    <section class="rounded-2xl border border-violet-800/40 bg-violet-950/15 p-4 sm:p-5">
-      <h2 class="mb-2 text-sm font-semibold text-violet-100">Asistente IA · cuartelero / faltas</h2>
-      <div class="flex flex-col gap-2 sm:flex-row">
-        <input
-          type="search"
-          class="sid-history-filter flex-1"
-          placeholder="Ej: ¿Quién estuvo de cuartel el sábado noche?"
-          [(ngModel)]="iaPregunta"
-          (keydown.enter)="preguntarIaAsistencia()"
-        />
-        <button type="button" class="sid-btn sid-btn-neutral px-3 py-2 text-xs" [disabled]="iaCargando" (click)="preguntarIaAsistencia()">
-          Preguntar
-        </button>
-        <button type="button" class="sid-btn sid-btn-neutral px-3 py-2 text-xs" [disabled]="iaCargando" (click)="cargarHuecosIa()">
-          Huecos cobertura
-        </button>
-        <button type="button" class="sid-btn sid-btn-neutral px-3 py-2 text-xs" [disabled]="iaCargando" (click)="cargarFaltasIa()">
-          Faltas 7 días
-        </button>
-      </div>
-      @if (iaRespuesta) {
-        <p class="mt-3 whitespace-pre-wrap text-sm text-slate-200">{{ iaRespuesta }}</p>
-      }
-    </section>
     <app-guardias-asistencia-planilla [fechaReferencia]="fechaSeleccionada" />
   } @else if (vista === 'calendario') {
     <section class="rounded-2xl border border-slate-800 bg-[#121212] p-4 sm:p-5">
@@ -92,7 +68,14 @@
       </div>
 
       @if (loading) {
-        <p class="py-12 text-center text-sm sid-muted">Cargando calendario…</p>
+        <div class="space-y-2 p-4" aria-label="Cargando calendario">
+          <div class="h-10 rounded-lg border border-slate-800 sid-skeleton"></div>
+          <div class="grid grid-cols-7 gap-1">
+            @for (i of [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35]; track i) {
+              <div class="aspect-square rounded border border-slate-800/50 sid-skeleton"></div>
+            }
+          </div>
+        </div>
       } @else {
         <div class="sid-guardia-calendario w-full">
           <div class="sid-guardia-calendario__head">

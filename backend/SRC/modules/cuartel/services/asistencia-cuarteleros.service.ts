@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import prisma from '../../../prisma';
+import { whereUsuarioOperativo } from '../../../utils/usuario-operativo.util';
 import { mapUsuarioBasico } from '../utils/usuario-map.util';
 
 const INCLUDE_ASISTENCIA = {
@@ -161,9 +162,9 @@ export async function obtenerPlanillaAsistencia(filtros: { desde: string; hasta:
   };
   if (filtros.grupo) whereAsistencia.grupoGuardia = filtros.grupo;
 
-  const [voluntarios, registros, firmasIds] = await Promise.all([
+  const [voluntarios, registros, firmasIds, programadosMap] = await Promise.all([
     prisma.usuario.findMany({
-      where: { activo: 1 },
+      where: whereUsuarioOperativo(),
       select: {
         rut: true,
         nombres: true,
@@ -205,6 +206,7 @@ export async function obtenerPlanillaAsistencia(filtros: { desde: string; hasta:
       },
       select: { id: true },
     }),
+    mapaProgramadosGuardia(filtros.desde, filtros.hasta),
   ]);
 
   const idsConFirma = new Set(firmasIds.map((f) => f.id));
@@ -215,6 +217,7 @@ export async function obtenerPlanillaAsistencia(filtros: { desde: string; hasta:
     horaEntrada: string | null;
     horaSalida: string | null;
     tieneFirma: boolean;
+    programadoGuardia: boolean;
     registradoPor: ReturnType<typeof mapUsuarioBasico> | null;
     updatedAt: string | null;
   };
@@ -229,6 +232,7 @@ export async function obtenerPlanillaAsistencia(filtros: { desde: string; hasta:
       horaEntrada: r.horaEntrada,
       horaSalida: r.horaSalida,
       tieneFirma: idsConFirma.has(r.id),
+      programadoGuardia: false,
       registradoPor: mapUsuarioBasico(r.registradoPor),
       updatedAt: r.updatedAt.toISOString(),
       grupoGuardia: r.grupoGuardia,
@@ -241,6 +245,7 @@ export async function obtenerPlanillaAsistencia(filtros: { desde: string; hasta:
     let grupoGuardia: string | null = null;
 
     for (const col of columnas) {
+      const programadoGuardia = programadosMap.has(`${col.fecha}|${v.rut}|${col.tipoTurno}`);
       const hit = mapaRegistros.get(`${col.key}|${v.rut}`);
       if (hit) {
         celdas[col.key] = {
@@ -249,6 +254,7 @@ export async function obtenerPlanillaAsistencia(filtros: { desde: string; hasta:
           horaEntrada: hit.horaEntrada,
           horaSalida: hit.horaSalida,
           tieneFirma: hit.tieneFirma,
+          programadoGuardia,
           registradoPor: hit.registradoPor,
           updatedAt: hit.updatedAt,
         };
@@ -261,6 +267,7 @@ export async function obtenerPlanillaAsistencia(filtros: { desde: string; hasta:
           horaEntrada: null,
           horaSalida: null,
           tieneFirma: false,
+          programadoGuardia,
           registradoPor: null,
           updatedAt: null,
         };
@@ -281,6 +288,17 @@ export async function obtenerPlanillaAsistencia(filtros: { desde: string; hasta:
   const filasFiltradas = filtros.grupo
     ? filas.filter((f) => f.grupoGuardia === filtros.grupo || Object.values(f.celdas).some((c) => c.estadoAsistencia))
     : filas;
+
+  let programados = 0;
+  let faltasProgramadas = 0;
+  for (const f of filasFiltradas) {
+    for (const c of Object.values(f.celdas)) {
+      if (!c.programadoGuardia) continue;
+      programados += 1;
+      const ok = c.estadoAsistencia === 'ASISTE' || c.estadoAsistencia === 'REEMPLAZA';
+      if (!ok) faltasProgramadas += 1;
+    }
+  }
 
   const registradoresMap = new Map<
     string,
@@ -309,6 +327,11 @@ export async function obtenerPlanillaAsistencia(filtros: { desde: string; hasta:
     filas: filasFiltradas,
     registradores: [...registradoresMap.values()].sort((a, b) => b.ultimaActualizacion.localeCompare(a.ultimaActualizacion)),
     estados: ESTADOS_ASISTENCIA,
+    resumenCobertura: {
+      programados,
+      faltasProgramadas,
+      cubiertos: programados - faltasProgramadas,
+    },
   };
 }
 
@@ -574,3 +597,84 @@ export async function eliminarAsistencia(id: string) {
   await prisma.asistenciaCuartelero.delete({ where: { id } });
   return true;
 }
+
+function tiposAsistenciaDesdeGuardia(tipoTurno: string): TipoTurnoAsistencia[] {
+  const out: TipoTurnoAsistencia[] = [];
+  if (tipoTurno === 'NOCHE' || tipoTurno === '24H') out.push('NOCTURNA');
+  if (tipoTurno === 'DIA' || tipoTurno === '24H') out.push('DIURNA');
+  if (!out.length) out.push('NOCTURNA');
+  return out;
+}
+
+async function mapaProgramadosGuardia(desde: string, hasta: string): Promise<Map<string, boolean>> {
+  const turnos = await prisma.guardiaTurno.findMany({
+    where: {
+      fecha: { gte: parseFechaLocal(desde), lte: parseFechaLocal(hasta) },
+    },
+    include: { miembros: true },
+  });
+  const map = new Map<string, boolean>();
+  for (const t of turnos) {
+    const fecha = t.fecha.toISOString().slice(0, 10);
+    const ruts = new Set<string>();
+    if (t.cuarteleroRut) ruts.add(t.cuarteleroRut);
+    if (t.obacRut) ruts.add(t.obacRut);
+    for (const m of t.miembros) ruts.add(m.usuarioRut);
+    for (const rut of ruts) {
+      for (const tipo of tiposAsistenciaDesdeGuardia(t.tipoTurno)) {
+        map.set(`${fecha}|${rut}|${tipo}`, true);
+      }
+    }
+  }
+  return map;
+}
+
+export async function marcarAsistenciaPorBajaUsuario(usuarioRut: string, registradoPorRut: string) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const turnos = await prisma.guardiaTurno.findMany({
+    where: {
+      fecha: { gte: parseFechaLocal(hoy) },
+      OR: [
+        { cuarteleroRut: usuarioRut },
+        { obacRut: usuarioRut },
+        { miembros: { some: { usuarioRut } } },
+      ],
+    },
+  });
+  for (const t of turnos) {
+    const fecha = t.fecha.toISOString().slice(0, 10);
+    for (const tipoTurno of tiposAsistenciaDesdeGuardia(t.tipoTurno)) {
+      await upsertCeldaAsistencia(registradoPorRut, {
+        fecha,
+        usuarioRut,
+        tipoTurno,
+        estadoAsistencia: 'LIBERADO',
+        grupoGuardia: t.grupo,
+        observaciones: 'Marcado automáticamente por baja del voluntario.',
+      });
+    }
+  }
+}
+
+export async function registrarMiAsistencia(
+  usuarioRut: string,
+  data: {
+    fecha: string;
+    tipoTurno: TipoTurnoAsistencia;
+    estadoAsistencia?: EstadoAsistenciaGuardia;
+    horaEntrada?: string | null;
+    horaSalida?: string | null;
+    firmaImagenUrl?: string | null;
+    observaciones?: string | null;
+    grupoGuardia?: string | null;
+  },
+) {
+  const estado = data.estadoAsistencia ?? 'ASISTE';
+  return upsertCeldaAsistencia(usuarioRut, {
+    ...data,
+    usuarioRut,
+    estadoAsistencia: estado,
+  });
+}
+
+export { mapAsistencia as mapAsistenciaFromRow };

@@ -1,0 +1,164 @@
+<div class="sid-page sid-page-shell w-full min-w-0 space-y-5" [attr.aria-busy]="loading || guardando">
+  <section class="sid-hero-panel sid-hero-panel--red">
+    <div class="sid-hero-panel__row">
+      <div class="min-w-0">
+        <p class="sid-page-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-xs text-red-200">
+          Cuartel · Registro personal
+        </p>
+        <h1 class="sid-page-hero-title flex items-center gap-2 text-2xl font-bold sm:text-3xl">
+          <lucide-icon name="user-check" class="h-7 w-7 text-red-500" [size]="28" color="currentColor"></lucide-icon>
+          Asistencia cuartelero
+        </h1>
+        <p class="sid-page-hero-subtitle mt-1 max-w-2xl text-sm text-slate-300">
+          Registra tu asistencia de turno con fecha, horario y firma. La planilla oficial y el calendario de guardias están en
+          <a routerLink="/guardias" class="text-red-300 underline hover:text-red-200">Sistema de guardias</a>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid gap-5 xl:grid-cols-5">
+    <section class="rounded-2xl border border-slate-800 bg-[#121212] p-4 sm:p-5 xl:col-span-3" aria-labelledby="registro-asistencia-titulo">
+      <h2 id="registro-asistencia-titulo" class="mb-4 text-lg font-semibold text-white">Registrar asistencia</h2>
+      <div class="space-y-3">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label class="sid-filtros-bar__label">Fecha</label>
+            <app-sid-date-input preset="sid" inputClass="sid-history-filter w-full" [(ngModel)]="registroForm.fecha" />
+          </div>
+          <div>
+            <label class="sid-filtros-bar__label">Turno</label>
+            <select class="sid-history-filter w-full" [(ngModel)]="registroForm.tipoTurno" aria-label="Tipo de turno">
+              <option value="NOCTURNA">Nocturna</option>
+              <option value="DIURNA">Diurna</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label class="sid-filtros-bar__label">Hora inicio</label>
+            <input type="time" class="sid-history-filter w-full" [(ngModel)]="registroForm.horaEntrada" aria-label="Hora de inicio" />
+          </div>
+          <div>
+            <label class="sid-filtros-bar__label">Hora término</label>
+            <input type="time" class="sid-history-filter w-full" [(ngModel)]="registroForm.horaSalida" aria-label="Hora de término" />
+          </div>
+        </div>
+        <div>
+          <label class="sid-filtros-bar__label">Observaciones</label>
+          <textarea
+            class="sid-history-filter min-h-[70px] w-full"
+            [(ngModel)]="registroForm.observaciones"
+            placeholder="Novedades del turno, reemplazos, etc."
+            aria-label="Observaciones del turno"
+          ></textarea>
+        </div>
+        <div class="sid-signature-wrap">
+          <label class="sid-filtros-bar__label">Firma (obligatoria)</label>
+          <app-signature-pad [(value)]="registroForm.firmaImagenUrl" [responsive]="true" [canvasWidth]="420" [canvasHeight]="120" />
+        </div>
+        <button type="button" class="sid-btn sid-btn-primary px-4 py-2.5" [disabled]="guardando" (click)="registrarAsistencia()" [attr.aria-busy]="guardando">
+          {{ guardando ? 'Guardando…' : 'Registrar mi asistencia' }}
+        </button>
+      </div>
+    </section>
+
+    <section class="rounded-2xl border border-slate-800 bg-[#121212] p-4 sm:p-5 xl:col-span-2" aria-labelledby="proximas-guardias-titulo">
+      <h2 id="proximas-guardias-titulo" class="mb-3 text-lg font-semibold text-white">Próximas guardias</h2>
+      @if (loading) {
+        <div class="space-y-2" aria-label="Cargando próximas guardias">
+          @for (i of [1, 2, 3]; track i) {
+            <div class="h-14 rounded-lg border border-slate-800 sid-skeleton"></div>
+          }
+        </div>
+      } @else if (proximasGuardias.length === 0) {
+        <app-sid-empty-state title="Sin turnos próximos" description="No tienes guardias programadas." icon="calendar-days" />
+      } @else {
+        <ul class="space-y-2">
+          @for (g of proximasGuardias; track g.id) {
+            <li class="rounded-lg border border-slate-800 bg-[#0a0a0a] px-3 py-2.5 text-sm">
+              <div class="sid-guardia-prox-item">
+                <span class="font-medium text-white shrink-0">{{ g.fecha }}</span>
+                <span class="text-slate-400 break-words">
+                  Grupo {{ g.grupo }} · {{ etiquetaTurno(g.tipoTurno) }} · {{ etiquetaRol(g.rolEnTurno) }}
+                </span>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </div>
+
+  <section class="rounded-2xl border border-slate-800 bg-[#121212] p-4 sm:p-5" aria-labelledby="historial-asistencia-titulo">
+    <h2 id="historial-asistencia-titulo" class="mb-3 text-lg font-semibold text-white">Mi historial de asistencia</h2>
+    @if (loading) {
+      <div class="space-y-3 py-2" aria-label="Cargando historial">
+        @for (i of [1, 2, 3, 4]; track i) {
+          <div class="h-16 rounded-xl border border-slate-800 sid-skeleton"></div>
+        }
+      </div>
+    } @else if (historial.length === 0) {
+      <app-sid-empty-state title="Sin registros" description="Aún no has registrado asistencias en el cuartel." icon="history" />
+    } @else {
+      <!-- Móvil: tarjetas -->
+      <div class="sid-historial-cards md:hidden">
+        @for (a of historial; track a.id) {
+          <article class="sid-historial-card">
+            <div class="sid-historial-card__row mb-1">
+              <span class="font-medium text-white tabular-nums">{{ a.fecha }}</span>
+              <span class="text-slate-400">{{ a.tipoTurno }}</span>
+            </div>
+            <div class="sid-historial-card__row">
+              <span class="text-white">{{ etiquetasEstado[a.estadoAsistencia] }}</span>
+              <span class="text-slate-400 tabular-nums">
+                {{ a.horaEntrada || '—' }}@if (a.horaSalida) { — {{ a.horaSalida }} }
+              </span>
+            </div>
+            @if (a.observaciones) {
+              <p class="mt-1 text-xs text-slate-500 break-words">{{ a.observaciones }}</p>
+            }
+          </article>
+        }
+      </div>
+      <!-- Escritorio: tabla -->
+      <div class="hidden overflow-x-auto rounded-xl border border-slate-800 md:block">
+        <table class="w-full min-w-[560px] text-left text-sm">
+          <thead class="border-b border-slate-800 bg-[#0a0a0a] text-xs uppercase text-slate-500">
+            <tr>
+              <th class="px-3 py-2">Fecha</th>
+              <th class="px-3 py-2">Turno</th>
+              <th class="px-3 py-2">Estado</th>
+              <th class="px-3 py-2">Horario</th>
+              <th class="px-3 py-2">Observaciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (a of historial; track a.id) {
+              <tr class="border-b border-slate-800/60 hover:bg-white/[0.02]">
+                <td class="px-3 py-2 tabular-nums text-slate-300">{{ a.fecha }}</td>
+                <td class="px-3 py-2 text-slate-400">{{ a.tipoTurno }}</td>
+                <td class="px-3 py-2 text-white">{{ etiquetasEstado[a.estadoAsistencia] }}</td>
+                <td class="px-3 py-2 text-slate-400 tabular-nums">
+                  {{ a.horaEntrada || '—' }}@if (a.horaSalida) { — {{ a.horaSalida }} }
+                </td>
+                <td class="px-3 py-2 text-slate-500">{{ a.observaciones || '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (historialTotalPages > 1) {
+        <div class="mt-4 flex flex-wrap justify-end gap-2">
+          <button type="button" class="sid-btn sid-btn-neutral px-3 py-1.5 text-xs" [disabled]="historialPage <= 1" (click)="cargarHistorial(historialPage - 1)" aria-label="Página anterior">
+            Anterior
+          </button>
+          <span class="px-2 py-1 text-sm text-slate-400 tabular-nums">{{ historialPage }} / {{ historialTotalPages }}</span>
+          <button type="button" class="sid-btn sid-btn-neutral px-3 py-1.5 text-xs" [disabled]="historialPage >= historialTotalPages" (click)="cargarHistorial(historialPage + 1)" aria-label="Página siguiente">
+            Siguiente
+          </button>
+        </div>
+      }
+    }
+  </section>
+</div>

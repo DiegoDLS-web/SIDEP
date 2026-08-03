@@ -6,6 +6,7 @@ import {
   EventEmitter,
   Input,
   OnChanges,
+  OnDestroy,
   Output,
   SimpleChanges,
   ViewChild,
@@ -18,19 +19,24 @@ import {
   imports: [CommonModule],
   template: `
     <div class="space-y-2">
-      <canvas
-        #cv
-        [attr.width]="canvasWidth"
-        [attr.height]="canvasHeight"
-        class="block w-full max-w-3xl touch-none rounded-lg border border-neutral-700 bg-black"
-        (pointerdown)="onDown($event)"
-        (pointermove)="onMove($event)"
-        (pointerup)="onUp($event)"
-        (pointercancel)="onUp($event)"
-      ></canvas>
+      <div #wrap class="w-full max-w-full" [class.sid-signature-wrap]="responsive">
+        <canvas
+          #cv
+          [attr.width]="effectiveWidth"
+          [attr.height]="effectiveHeight"
+          class="block w-full max-w-full touch-none rounded-lg border border-neutral-700 bg-black"
+          [attr.aria-label]="ariaLabel"
+          role="img"
+          (pointerdown)="onDown($event)"
+          (pointermove)="onMove($event)"
+          (pointerup)="onUp($event)"
+          (pointercancel)="onUp($event)"
+        ></canvas>
+      </div>
       <button
         type="button"
         class="text-sm text-amber-400/90 hover:text-amber-300"
+        aria-label="Limpiar firma"
         (click)="limpiar()"
       >
         Limpiar firma
@@ -38,27 +44,34 @@ import {
     </div>
   `,
 })
-export class SignaturePadComponent implements AfterViewInit, OnChanges {
+export class SignaturePadComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() value = '';
-
-  /** Ancho interno del canvas (px). */
   @Input() canvasWidth = 400;
-
-  /** Alto interno del canvas (px). */
   @Input() canvasHeight = 120;
-
-  /** Conservado por compatibilidad; el estilo es siempre fondo negro. */
   @Input() dark = false;
+  /** Ajusta resolución interna al ancho del contenedor (móvil). */
+  @Input() responsive = false;
+  @Input() ariaLabel = 'Área de firma manuscrita';
 
   @Output() valueChange = new EventEmitter<string>();
 
   @ViewChild('cv') canvasRef?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('wrap') wrapRef?: ElementRef<HTMLDivElement>;
+
+  effectiveWidth = 400;
+  effectiveHeight = 120;
 
   private dibujando = false;
   private lastX = 0;
   private lastY = 0;
+  private ro?: ResizeObserver;
 
   ngAfterViewInit(): void {
+    this.syncDimensions();
+    if (this.responsive && this.wrapRef?.nativeElement) {
+      this.ro = new ResizeObserver(() => this.syncDimensions());
+      this.ro.observe(this.wrapRef.nativeElement);
+    }
     this.pintarFondoNegro();
     if (this.value.startsWith('data:image')) {
       queueMicrotask(() => this.pintarDesdeDataUrl(this.value));
@@ -66,6 +79,9 @@ export class SignaturePadComponent implements AfterViewInit, OnChanges {
   }
 
   ngOnChanges(ch: SimpleChanges): void {
+    if (ch['canvasWidth'] || ch['canvasHeight']) {
+      this.syncDimensions();
+    }
     if (!ch['value'] || !this.canvasRef) return;
     queueMicrotask(() => {
       if (this.value.startsWith('data:image')) {
@@ -74,6 +90,22 @@ export class SignaturePadComponent implements AfterViewInit, OnChanges {
         this.pintarFondoNegro();
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.ro?.disconnect();
+  }
+
+  private syncDimensions(): void {
+    if (this.responsive && this.wrapRef?.nativeElement) {
+      const w = Math.floor(this.wrapRef.nativeElement.clientWidth) || this.canvasWidth;
+      this.effectiveWidth = Math.max(260, Math.min(w, 720));
+      const ratio = this.canvasHeight / this.canvasWidth;
+      this.effectiveHeight = Math.max(90, Math.round(this.effectiveWidth * ratio));
+    } else {
+      this.effectiveWidth = this.canvasWidth;
+      this.effectiveHeight = this.canvasHeight;
+    }
   }
 
   private ctx(): CanvasRenderingContext2D | null {
@@ -91,9 +123,7 @@ export class SignaturePadComponent implements AfterViewInit, OnChanges {
   private pintarDesdeDataUrl(url: string): void {
     const canvas = this.canvasRef?.nativeElement;
     const ctx = this.ctx();
-    if (!canvas || !ctx) {
-      return;
-    }
+    if (!canvas || !ctx) return;
     const img = new Image();
     img.onload = () => {
       this.pintarFondoNegro();
@@ -105,14 +135,10 @@ export class SignaturePadComponent implements AfterViewInit, OnChanges {
   onDown(ev: PointerEvent): void {
     ev.preventDefault();
     const canvas = this.canvasRef?.nativeElement;
-    if (!canvas) {
-      return;
-    }
+    if (!canvas) return;
     canvas.setPointerCapture(ev.pointerId);
     const ctx = this.ctx();
-    if (!ctx) {
-      return;
-    }
+    if (!ctx) return;
     ctx.strokeStyle = '#f5f5f5';
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
@@ -126,15 +152,11 @@ export class SignaturePadComponent implements AfterViewInit, OnChanges {
   }
 
   onMove(ev: PointerEvent): void {
-    if (!this.dibujando) {
-      return;
-    }
+    if (!this.dibujando) return;
     ev.preventDefault();
     const canvas = this.canvasRef?.nativeElement;
     const ctx = this.ctx();
-    if (!canvas || !ctx) {
-      return;
-    }
+    if (!canvas || !ctx) return;
     const r = canvas.getBoundingClientRect();
     const scaleX = canvas.width / r.width;
     const scaleY = canvas.height / r.height;
@@ -149,9 +171,7 @@ export class SignaturePadComponent implements AfterViewInit, OnChanges {
   }
 
   onUp(ev: PointerEvent): void {
-    if (!this.dibujando) {
-      return;
-    }
+    if (!this.dibujando) return;
     ev.preventDefault();
     this.dibujando = false;
     const canvas = this.canvasRef?.nativeElement;

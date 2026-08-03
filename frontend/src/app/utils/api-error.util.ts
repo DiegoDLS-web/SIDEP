@@ -36,7 +36,15 @@ export function mensajeApiError(err: unknown, fallback: string): string {
   const body = he.error;
 
   if (typeof body === 'string' && body.trim()) {
-    return normalizarMensajeIntegridad(body.trim());
+    const texto = body.trim();
+    const preMatch = texto.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
+    if (preMatch?.[1]) {
+      return normalizarMensajeIntegridad(preMatch[1].trim());
+    }
+    if (texto.startsWith('<!DOCTYPE') || texto.startsWith('<html')) {
+      return fallback;
+    }
+    return normalizarMensajeIntegridad(texto);
   }
 
   if (typeof body === 'object' && body !== null) {

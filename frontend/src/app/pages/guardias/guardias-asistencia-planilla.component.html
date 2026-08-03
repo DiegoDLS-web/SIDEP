@@ -1,28 +1,64 @@
-<div class="space-y-4">
-  <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
-    <article class="rounded-xl border border-slate-800 bg-[#121212] p-4">
+<div class="space-y-4" [attr.aria-busy]="loading || historialLoading">
+  <div class="sid-tab-scroll" role="tablist" aria-label="Vista de asistencia">
+    <button
+      type="button"
+      role="tab"
+      class="sid-btn rounded-lg px-4 py-2 text-sm"
+      [attr.aria-selected]="subVista === 'planilla'"
+      [class.sid-btn-primary]="subVista === 'planilla'"
+      [class.sid-btn-neutral]="subVista !== 'planilla'"
+      (click)="cambiarSubVista('planilla')"
+    >
+      Planilla matricial
+    </button>
+    <button
+      type="button"
+      role="tab"
+      class="sid-btn rounded-lg px-4 py-2 text-sm"
+      [attr.aria-selected]="subVista === 'historial'"
+      [class.sid-btn-primary]="subVista === 'historial'"
+      [class.sid-btn-neutral]="subVista !== 'historial'"
+      (click)="cambiarSubVista('historial')"
+    >
+      Historial
+    </button>
+  </div>
+
+  <div class="sid-kpi-grid">
+    <article class="sid-kpi-grid__item rounded-xl border border-slate-800 bg-[#121212] p-4">
       <p class="text-[10px] uppercase tracking-wide text-slate-500">Voluntarios</p>
       <p class="mt-1 text-2xl font-bold text-white tabular-nums">{{ totalVoluntarios }}</p>
     </article>
-    <article class="rounded-xl border border-slate-800 bg-[#121212] p-4">
-      <p class="text-[10px] uppercase tracking-wide text-slate-500">Asistencias marcadas</p>
+    <article class="sid-kpi-grid__item rounded-xl border border-slate-800 bg-[#121212] p-4">
+      <p class="text-[10px] uppercase tracking-wide text-slate-500">Asistencias</p>
       <p class="mt-1 text-2xl font-bold text-emerald-400 tabular-nums">{{ totalMarcados }}</p>
     </article>
-    <article class="rounded-xl border border-slate-800 bg-[#121212] p-4 xl:col-span-2">
-      <p class="text-[10px] uppercase tracking-wide text-slate-500">Registrado por oficialidad</p>
-      @if (planilla?.registradores?.length) {
-        <div class="mt-2 flex flex-wrap gap-2">
-          @for (r of planilla!.registradores; track r.rut) {
-            <span class="rounded-full border border-slate-700 bg-slate-900/60 px-2.5 py-1 text-xs text-slate-300" [title]="tituloRegistrador(r)">
-              {{ r.nombre }} · {{ r.rol }}
-            </span>
-          }
-        </div>
-      } @else {
-        <p class="mt-2 text-sm text-slate-500">Sin registros en el período seleccionado.</p>
-      }
+    <article class="sid-kpi-grid__item rounded-xl border border-slate-800 bg-[#121212] p-4">
+      <p class="text-[10px] uppercase tracking-wide text-slate-500">Programados</p>
+      <p class="mt-1 text-2xl font-bold text-sky-300 tabular-nums">{{ resumenCobertura.programados }}</p>
+    </article>
+    <article class="sid-kpi-grid__item rounded-xl border border-slate-800 bg-[#121212] p-4">
+      <p class="text-[10px] uppercase tracking-wide text-slate-500">Cubiertos</p>
+      <p class="mt-1 text-2xl font-bold text-emerald-300 tabular-nums">{{ resumenCobertura.cubiertos }}</p>
+    </article>
+    <article class="sid-kpi-grid__item rounded-xl border border-slate-800 bg-[#121212] p-4 sm:col-span-2 lg:col-span-1">
+      <p class="text-[10px] uppercase tracking-wide text-slate-500">Faltas prog.</p>
+      <p class="mt-1 text-2xl font-bold text-red-400 tabular-nums">{{ resumenCobertura.faltasProgramadas }}</p>
     </article>
   </div>
+
+  @if (subVista === 'planilla' && planilla?.registradores?.length) {
+    <article class="rounded-xl border border-slate-800 bg-[#121212] p-4">
+      <p class="text-[10px] uppercase tracking-wide text-slate-500">Registrado por oficialidad</p>
+      <div class="mt-2 flex flex-wrap gap-2">
+        @for (r of planilla!.registradores; track r.rut) {
+          <span class="rounded-full border border-slate-700 bg-slate-900/60 px-2.5 py-1 text-xs text-slate-300" [title]="tituloRegistrador(r)">
+            {{ r.nombre }} · {{ r.rol }}
+          </span>
+        }
+      </div>
+    </article>
+  }
 
   <section class="rounded-2xl border border-slate-800 bg-[#121212] p-4 sm:p-5">
     <div class="sid-filtros-bar">
@@ -37,7 +73,7 @@
         </div>
         <div>
           <label class="sid-filtros-bar__label">Grupo</label>
-          <select class="sid-history-filter w-full" [(ngModel)]="filtroGrupo">
+          <select class="sid-history-filter w-full" [(ngModel)]="filtroGrupo" aria-label="Filtrar por grupo">
             <option value="TODAS">Todos</option>
             @for (g of grupos; track g) {
               <option [value]="g">Grupo {{ g }}</option>
@@ -45,120 +81,291 @@
           </select>
         </div>
         <div class="flex items-end">
-          <p class="text-xs text-slate-500">Marca la asistencia de cada voluntario por turno nocturno/diurno.</p>
+          <p class="text-xs text-slate-500">
+            @if (subVista === 'planilla') {
+              En móvil usa la vista por voluntario. Borde azul = programado en guardia.
+            } @else {
+              Registros individuales de asistencia en el período.
+            }
+          </p>
         </div>
       </div>
       <app-sid-history-filter-actions
         [showPdf]="false"
-        [showExcel]="false"
-        (apply)="cargar()"
+        [showExcel]="subVista === 'planilla'"
+        [exportExcelDisabled]="!(planilla?.filas?.length)"
+        (apply)="aplicarFiltros()"
         (clear)="limpiarFiltros()"
-        (refresh)="cargar()"
+        (refresh)="aplicarFiltros()"
+        (exportExcel)="exportarExcel()"
       />
     </div>
   </section>
 
-  <section class="rounded-2xl border border-slate-800 bg-[#0a0a0a] p-3 sm:p-4">
-    <div class="mb-3 flex flex-wrap items-center gap-3 text-xs text-slate-400">
-      <span class="font-semibold uppercase tracking-wide text-slate-500">Leyenda</span>
-      @for (e of estados; track e) {
+  @if (subVista === 'planilla') {
+    <section class="rounded-2xl border border-slate-800 bg-[#0a0a0a] p-3 sm:p-4">
+      <div class="mb-3 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+        <span class="font-semibold uppercase tracking-wide text-slate-500">Leyenda</span>
+        @for (e of estados; track e) {
+          <span class="inline-flex items-center gap-1.5">
+            <span class="sid-asistencia-leyenda-dot" [class]="claseEstado(e)"></span>
+            {{ etiquetasEstado[e] }}
+          </span>
+        }
         <span class="inline-flex items-center gap-1.5">
-          <span class="sid-asistencia-leyenda-dot" [class]="claseEstado(e)"></span>
-          {{ etiquetasEstado[e] }}
+          <span class="inline-block h-3 w-3 rounded ring-2 ring-sky-500/70"></span>
+          Programado
         </span>
-      }
-    </div>
+      </div>
 
-    @if (loading) {
-      <p class="py-8 text-center text-sm sid-muted">Cargando planilla…</p>
-    } @else if (!planilla || planilla.filas.length === 0) {
-      <app-sid-empty-state title="Sin voluntarios" description="No hay personal activo para mostrar en la planilla." icon="user-check" />
-    } @else {
-      <div class="sid-planilla-scroll overflow-auto rounded-xl border border-slate-800">
-        <table class="sid-planilla-table w-full min-w-max text-left text-xs sm:text-sm">
-          <thead>
-            <tr class="border-b border-slate-800 bg-[#121212] text-[10px] uppercase tracking-wide text-slate-500">
-              <th class="sid-planilla-sticky sid-planilla-sticky--1 px-3 py-2" rowspan="2">N°</th>
-              <th class="sid-planilla-sticky sid-planilla-sticky--2 px-3 py-2 min-w-[12rem]" rowspan="2">Voluntario</th>
-              <th class="sid-planilla-sticky sid-planilla-sticky--3 px-3 py-2" rowspan="2">Grupo</th>
-              <th class="sid-planilla-sticky sid-planilla-sticky--4 px-3 py-2 text-center" rowspan="2">Total</th>
-              @for (g of columnasAgrupadas; track g.fecha) {
-                <th class="px-2 py-2 text-center" [attr.colspan]="g.cols.length">{{ g.label }}</th>
-              }
-            </tr>
-            <tr class="border-b border-slate-800 bg-[#121212] text-[10px] uppercase text-slate-500">
-              @for (g of columnasAgrupadas; track g.fecha) {
-                @for (col of g.cols; track col.key) {
-                  <th class="px-1 py-2 text-center font-normal">{{ col.sublabel }}</th>
+      @if (loading) {
+        <div class="space-y-3 py-2" aria-label="Cargando planilla">
+          @for (i of [1, 2, 3]; track i) {
+            <div class="h-28 rounded-xl border border-slate-800 sid-skeleton"></div>
+          }
+        </div>
+      } @else if (!planilla || planilla.filas.length === 0) {
+        <app-sid-empty-state title="Sin voluntarios" description="No hay personal activo para mostrar en la planilla." icon="user-check" />
+      } @else {
+        <!-- Vista móvil: tarjeta por voluntario -->
+        <div class="sid-planilla-mobile-list lg:hidden">
+          @for (fila of planilla.filas; track fila.usuarioRut) {
+            <article class="sid-planilla-mobile-card">
+              <div class="sid-planilla-mobile-card__head">
+                <div class="min-w-0 flex-1">
+                  <p class="font-semibold text-white">{{ fila.nombre }}</p>
+                  <p class="text-xs text-slate-500">N° {{ fila.numero }} · Total asistencias: {{ fila.totalAsistencias }}</p>
+                </div>
+                @if (puedeGestionar) {
+                  <select
+                    class="sid-planilla-grupo-select rounded border border-slate-700 bg-[#0a0a0a] px-2 py-1.5 text-sm"
+                    [ngModel]="fila.grupoGuardia ?? ''"
+                    (ngModelChange)="cambiarGrupo(fila, $event)"
+                    aria-label="Grupo de {{ fila.nombre }}"
+                  >
+                    <option value="">Grupo —</option>
+                    @for (g of grupos; track g) {
+                      <option [value]="g">{{ g }}</option>
+                    }
+                  </select>
+                } @else {
+                  <span class="text-sm text-slate-400">G{{ fila.grupoGuardia ?? '—' }}</span>
                 }
-              }
-            </tr>
-          </thead>
-          <tbody>
-            @for (fila of planilla.filas; track fila.usuarioRut) {
-              <tr class="border-b border-slate-800/70 hover:bg-white/[0.02]">
-                <td class="sid-planilla-sticky sid-planilla-sticky--1 px-3 py-2 tabular-nums text-slate-500">{{ fila.numero }}</td>
-                <td class="sid-planilla-sticky sid-planilla-sticky--2 px-3 py-2 font-medium text-white">{{ fila.nombre }}</td>
-                <td class="sid-planilla-sticky sid-planilla-sticky--3 px-2 py-2">
+              </div>
+              @for (item of celdasDeFila(fila); track item.col.key) {
+                <div
+                  class="sid-planilla-mobile-celda"
+                  [class.ring-1]="item.celda?.programadoGuardia"
+                  [class.ring-sky-500/40]="item.celda?.programadoGuardia"
+                  [class.rounded-lg]="item.celda?.programadoGuardia"
+                  [class.px-2]="item.celda?.programadoGuardia"
+                >
+                  <span class="sid-planilla-mobile-celda__label">
+                    {{ item.col.label }} · {{ item.col.sublabel }}
+                    @if (item.celda?.programadoGuardia) {
+                      <span class="text-sky-400"> · Prog.</span>
+                    }
+                  </span>
                   @if (puedeGestionar) {
-                    <select
-                      class="sid-planilla-grupo-select w-14 rounded border border-slate-700 bg-[#121212] px-1 py-1 text-xs"
-                      [ngModel]="fila.grupoGuardia ?? ''"
-                      (ngModelChange)="cambiarGrupo(fila, $event)"
-                    >
-                      <option value="">—</option>
-                      @for (g of grupos; track g) {
-                        <option [value]="g">{{ g }}</option>
-                      }
-                    </select>
+                    <div class="flex flex-col gap-1.5 sm:flex-row sm:items-center">
+                      <select
+                        class="sid-planilla-mobile-celda__select flex-1 rounded border border-slate-700 bg-[#121212]"
+                        [class]="claseEstado(item.celda?.estadoAsistencia ?? null)"
+                        [ngModel]="item.celda?.estadoAsistencia ?? ''"
+                        [disabled]="guardandoCelda"
+                        (ngModelChange)="cambiarEstado(fila, item.col, $event)"
+                        [attr.aria-label]="'Asistencia ' + fila.nombre + ' ' + item.col.label"
+                      >
+                        <option value="">— Sin marcar</option>
+                        @for (e of estados; track e) {
+                          <option [value]="e">{{ etiquetasEstado[e] }}</option>
+                        }
+                      </select>
+                      <button
+                        type="button"
+                        class="sid-btn sid-btn-neutral shrink-0 px-2 py-1.5 text-xs"
+                        (click)="abrirDetalle(fila, item.col)"
+                        [attr.aria-label]="'Detalle de asistencia ' + fila.nombre + ' ' + item.col.label"
+                      >
+                        Detalle
+                      </button>
+                    </div>
                   } @else {
-                    <span class="text-slate-400">{{ fila.grupoGuardia ?? '—' }}</span>
+                    <span class="text-sm" [class]="claseEstado(item.celda?.estadoAsistencia ?? null)">
+                      {{ item.celda?.estadoAsistencia ? etiquetasEstado[item.celda!.estadoAsistencia!] : '—' }}
+                    </span>
                   }
-                </td>
-                <td class="sid-planilla-sticky sid-planilla-sticky--4 px-3 py-2 text-center font-semibold tabular-nums text-emerald-300">
-                  {{ fila.totalAsistencias }}
-                </td>
+                </div>
+              }
+            </article>
+          }
+        </div>
+
+        <!-- Vista escritorio: tabla matricial -->
+        <div class="sid-planilla-scroll hidden overflow-auto rounded-xl border border-slate-800 lg:block">
+          <table class="sid-planilla-table w-full min-w-max text-left text-xs sm:text-sm">
+            <thead>
+              <tr class="border-b border-slate-800 bg-[#121212] text-[10px] uppercase tracking-wide text-slate-500">
+                <th class="sid-planilla-sticky sid-planilla-sticky--1 px-3 py-2" rowspan="2">N°</th>
+                <th class="sid-planilla-sticky sid-planilla-sticky--2 px-3 py-2 min-w-[12rem]" rowspan="2">Voluntario</th>
+                <th class="sid-planilla-sticky sid-planilla-sticky--3 px-3 py-2" rowspan="2">Grupo</th>
+                <th class="sid-planilla-sticky sid-planilla-sticky--4 px-3 py-2 text-center" rowspan="2">Total</th>
+                @for (g of columnasAgrupadas; track g.fecha) {
+                  <th class="px-2 py-2 text-center" [attr.colspan]="g.cols.length">{{ g.label }}</th>
+                }
+              </tr>
+              <tr class="border-b border-slate-800 bg-[#121212] text-[10px] uppercase text-slate-500">
                 @for (g of columnasAgrupadas; track g.fecha) {
                   @for (col of g.cols; track col.key) {
-                    <td class="px-1 py-1">
-                      @if (puedeGestionar) {
-                        <select
-                          class="sid-planilla-celda-select w-full min-w-[7.5rem] rounded border border-slate-700/80 bg-[#121212] px-1 py-1.5 text-xs"
-                          [class]="claseEstado(fila.celdas[col.key]?.estadoAsistencia ?? null)"
-                          [ngModel]="fila.celdas[col.key]?.estadoAsistencia ?? ''"
-                          [disabled]="guardandoCelda"
-                          (ngModelChange)="cambiarEstado(fila, col, $event)"
-                          (dblclick)="abrirDetalle(fila, col)"
-                          [title]="(fila.celdas[col.key]?.horaEntrada ? 'In: ' + fila.celdas[col.key]?.horaEntrada : '') + (fila.celdas[col.key]?.horaSalida ? ' Out: ' + fila.celdas[col.key]?.horaSalida : '') || (fila.celdas[col.key]?.registradoPor?.nombre ? 'Por ' + fila.celdas[col.key]?.registradoPor?.nombre : 'Doble clic para detalle')"
-                        >
-                          <option value="">—</option>
-                          @for (e of estados; track e) {
-                            <option [value]="e">{{ etiquetasEstado[e] }}</option>
-                          }
-                        </select>
-                        @if (fila.celdas[col.key]?.tieneFirma) {
-                          <button type="button" class="mt-0.5 block w-full text-[9px] text-amber-400/80 underline" (click)="abrirDetalle(fila, col)">Firma</button>
-                        }
-                      } @else {
-                        <span class="block rounded px-1 py-1.5 text-center text-xs" [class]="claseEstado(fila.celdas[col.key]?.estadoAsistencia ?? null)">
-                          {{ fila.celdas[col.key]?.estadoAsistencia ? etiquetasEstado[fila.celdas[col.key]!.estadoAsistencia!] : '—' }}
-                        </span>
-                      }
-                    </td>
+                    <th class="px-1 py-2 text-center font-normal">{{ col.sublabel }}</th>
                   }
                 }
               </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    }
-  </section>
+            </thead>
+            <tbody>
+              @for (fila of planilla.filas; track fila.usuarioRut) {
+                <tr class="border-b border-slate-800/70 hover:bg-white/[0.02]">
+                  <td class="sid-planilla-sticky sid-planilla-sticky--1 px-3 py-2 tabular-nums text-slate-500">{{ fila.numero }}</td>
+                  <td class="sid-planilla-sticky sid-planilla-sticky--2 px-3 py-2 font-medium text-white">{{ fila.nombre }}</td>
+                  <td class="sid-planilla-sticky sid-planilla-sticky--3 px-2 py-2">
+                    @if (puedeGestionar) {
+                      <select
+                        class="sid-planilla-grupo-select w-14 rounded border border-slate-700 bg-[#121212] px-1 py-1 text-xs"
+                        [ngModel]="fila.grupoGuardia ?? ''"
+                        (ngModelChange)="cambiarGrupo(fila, $event)"
+                      >
+                        <option value="">—</option>
+                        @for (g of grupos; track g) {
+                          <option [value]="g">{{ g }}</option>
+                        }
+                      </select>
+                    } @else {
+                      <span class="text-slate-400">{{ fila.grupoGuardia ?? '—' }}</span>
+                    }
+                  </td>
+                  <td class="sid-planilla-sticky sid-planilla-sticky--4 px-3 py-2 text-center font-semibold tabular-nums text-emerald-300">
+                    {{ fila.totalAsistencias }}
+                  </td>
+                  @for (g of columnasAgrupadas; track g.fecha) {
+                    @for (col of g.cols; track col.key) {
+                      <td class="px-1 py-1">
+                        @if (puedeGestionar) {
+                          <select
+                            class="sid-planilla-celda-select w-full min-w-[7.5rem] rounded border border-slate-700/80 bg-[#121212] px-1 py-1.5 text-xs"
+                            [class]="claseEstado(fila.celdas[col.key]?.estadoAsistencia ?? null)"
+                            [class.ring-2]="fila.celdas[col.key]?.programadoGuardia"
+                            [class.ring-sky-500/60]="fila.celdas[col.key]?.programadoGuardia"
+                            [ngModel]="fila.celdas[col.key]?.estadoAsistencia ?? ''"
+                            [disabled]="guardandoCelda"
+                            (ngModelChange)="cambiarEstado(fila, col, $event)"
+                            (dblclick)="abrirDetalle(fila, col)"
+                          >
+                            <option value="">—</option>
+                            @for (e of estados; track e) {
+                              <option [value]="e">{{ etiquetasEstado[e] }}</option>
+                            }
+                          </select>
+                        } @else {
+                          <span
+                            class="block rounded px-1 py-1.5 text-center text-xs"
+                            [class]="claseEstado(fila.celdas[col.key]?.estadoAsistencia ?? null)"
+                          >
+                            {{ fila.celdas[col.key]?.estadoAsistencia ? etiquetasEstado[fila.celdas[col.key]!.estadoAsistencia!] : '—' }}
+                          </span>
+                        }
+                      </td>
+                    }
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  } @else {
+    <section class="rounded-2xl border border-slate-800 bg-[#0a0a0a] p-3 sm:p-4">
+      @if (historialLoading) {
+        <div class="space-y-3 py-2" aria-label="Cargando historial">
+          @for (i of [1, 2, 3, 4]; track i) {
+            <div class="h-16 rounded-xl border border-slate-800 sid-skeleton"></div>
+          }
+        </div>
+      } @else if (historialItems.length === 0) {
+        <app-sid-empty-state title="Sin registros" description="No hay asistencias en el período seleccionado." icon="history" />
+      } @else {
+        <!-- Móvil: tarjetas -->
+        <div class="sid-historial-cards md:hidden">
+          @for (a of historialItems; track a.id) {
+            <article class="sid-historial-card">
+              <div class="sid-historial-card__row mb-1">
+                <span class="font-medium text-white">{{ a.usuario?.nombre ?? a.usuarioRut }}</span>
+                <span class="tabular-nums text-slate-400">{{ a.fecha }}</span>
+              </div>
+              <div class="sid-historial-card__row">
+                <span class="rounded px-2 py-0.5 text-xs" [class]="claseEstado(a.estadoAsistencia)">{{ etiquetaHistorial(a) }}</span>
+                <span class="text-slate-400">{{ a.tipoTurno }}</span>
+              </div>
+              <div class="mt-1 text-xs text-slate-500">
+                {{ a.horaEntrada || '—' }}@if (a.horaSalida) { — {{ a.horaSalida }} }
+                · Por {{ a.registradoPor?.nombre ?? '—' }}
+              </div>
+            </article>
+          }
+        </div>
+        <!-- Escritorio: tabla -->
+        <div class="hidden overflow-x-auto rounded-xl border border-slate-800 md:block">
+          <table class="w-full min-w-[640px] text-left text-sm">
+            <thead class="border-b border-slate-800 bg-[#121212] text-xs uppercase text-slate-500">
+              <tr>
+                <th class="px-3 py-2">Fecha</th>
+                <th class="px-3 py-2">Voluntario</th>
+                <th class="px-3 py-2">Turno</th>
+                <th class="px-3 py-2">Estado</th>
+                <th class="px-3 py-2">Horario</th>
+                <th class="px-3 py-2">Registrado por</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (a of historialItems; track a.id) {
+                <tr class="border-b border-slate-800/60 hover:bg-white/[0.02]">
+                  <td class="px-3 py-2 tabular-nums text-slate-300">{{ a.fecha }}</td>
+                  <td class="px-3 py-2 text-white">{{ a.usuario?.nombre ?? a.usuarioRut }}</td>
+                  <td class="px-3 py-2 text-slate-400">{{ a.tipoTurno }}</td>
+                  <td class="px-3 py-2">
+                    <span class="rounded px-2 py-0.5 text-xs" [class]="claseEstado(a.estadoAsistencia)">{{ etiquetaHistorial(a) }}</span>
+                  </td>
+                  <td class="px-3 py-2 text-slate-400 tabular-nums">
+                    {{ a.horaEntrada || '—' }}@if (a.horaSalida) { — {{ a.horaSalida }} }
+                  </td>
+                  <td class="px-3 py-2 text-slate-400">{{ a.registradoPor?.nombre ?? '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (historialTotalPages > 1) {
+          <div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-400">
+            <span>{{ historialTotal }} registro(s)</span>
+            <div class="flex gap-2">
+              <button type="button" class="sid-btn sid-btn-neutral px-3 py-1.5 text-xs" [disabled]="historialPage <= 1" (click)="cargarHistorial(historialPage - 1)" aria-label="Página anterior">
+                Anterior
+              </button>
+              <span class="px-2 py-1 tabular-nums">{{ historialPage }} / {{ historialTotalPages }}</span>
+              <button type="button" class="sid-btn sid-btn-neutral px-3 py-1.5 text-xs" [disabled]="historialPage >= historialTotalPages" (click)="cargarHistorial(historialPage + 1)" aria-label="Página siguiente">
+                Siguiente
+              </button>
+            </div>
+          </div>
+        }
+      }
+    </section>
+  }
 
   @if (detalleAbierto && detalleFila && detalleCol) {
-    <div class="fixed inset-0 z-[100] flex items-end justify-center bg-black/75 p-4 sm:items-center" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 z-[100] flex items-end justify-center bg-black/75 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="detalle-asistencia-titulo">
       <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-700 bg-[#121212] p-5">
-        <h2 class="mb-1 text-lg font-bold text-white">Detalle de asistencia</h2>
+        <h2 id="detalle-asistencia-titulo" class="mb-1 text-lg font-bold text-white">Detalle de asistencia</h2>
         <p class="mb-4 text-sm text-slate-400">
           {{ detalleFila.nombre }} · {{ detalleCol.fecha }} · {{ detalleCol.sublabel }}
         </p>
@@ -172,7 +379,7 @@
               }
             </select>
           </div>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label class="sid-filtros-bar__label">Hora inicio</label>
               <input type="time" class="sid-history-filter w-full" [(ngModel)]="detalleForm.horaEntrada" />
@@ -188,10 +395,10 @@
           </div>
           <div>
             <label class="sid-filtros-bar__label">Firma</label>
-            <app-signature-pad [(value)]="detalleForm.firmaImagenUrl" [canvasWidth]="360" [canvasHeight]="110" />
+            <app-signature-pad [(value)]="detalleForm.firmaImagenUrl" [responsive]="true" [canvasWidth]="360" [canvasHeight]="110" />
           </div>
         </div>
-        <div class="mt-5 flex justify-end gap-2">
+        <div class="mt-5 flex flex-wrap justify-end gap-2">
           <button type="button" class="sid-btn sid-btn-neutral px-4 py-2" (click)="cerrarDetalle()">Cancelar</button>
           <button type="button" class="sid-btn sid-btn-primary px-4 py-2" [disabled]="guardandoCelda" (click)="guardarDetalle()">Guardar</button>
         </div>

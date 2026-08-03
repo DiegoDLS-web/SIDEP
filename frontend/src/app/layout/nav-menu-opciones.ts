@@ -10,6 +10,7 @@ export const OPCIONES_MENU_SIDEP: ReadonlyArray<{ path: string; label: string }>
   { path: '/bolso-trauma', label: 'Bolso de trauma' },
   { path: '/licencias-medicas', label: 'Licencias' },
   { path: '/guardias', label: 'Sistema de guardias' },
+  { path: '/asistencia-cuartelero', label: 'Asistencia cuartelero' },
   { path: '/libro-novedades', label: 'Libro de novedades' },
   { path: '/analitica-operacional', label: 'Analítica operacional' },
   { path: '/usuarios', label: 'Usuarios' },

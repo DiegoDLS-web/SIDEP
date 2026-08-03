@@ -1,6 +1,8 @@
 import prisma from '../../../prisma';
 import { StorageService, cloudinary } from '../../../shared/storage';
 import { mapUsuarioToDto, mapUsuarioSelectorDto } from './rrhh.service';
+import { esUsuarioOperativo, whereUsuarioOperativo } from '../../../utils/usuario-operativo.util';
+import { marcarAsistenciaPorBajaUsuario } from '../../cuartel/services/asistencia-cuarteleros.service';
 import { hashPassword } from '../../../utils/security/hash';
 import { generarPasswordProvisional } from '../../../utils/security/password-policy.util';
 import { validarRut, normalizarRut } from '../../../utils/rut.util';
@@ -46,15 +48,21 @@ export const listarUsuarios = async () => {
 /** Lista mínima de usuarios activos para selects (sin email/teléfono/firma). */
 export const listarUsuariosSelector = async () => {
   const usuarios = await prisma.usuario.findMany({
-    where: { activo: 1 },
+    where: whereUsuarioOperativo(),
     include: {
       cargo: true,
       rol: true,
+      estadoVoluntario: true,
     },
     orderBy: [{ nombres: 'asc' }, { apellidoPaterno: 'asc' }],
     take: 2000,
   });
-  return usuarios.map(mapUsuarioSelectorDto);
+  return usuarios.filter((u) => esUsuarioOperativo({
+    activo: u.activo,
+    rolCodigo: u.rol?.codigo,
+    nombre: `${u.nombres} ${u.apellidoPaterno} ${u.apellidoMaterno}`.trim(),
+    estadoVoluntario: u.estadoVoluntario?.codigo ?? null,
+  })).map(mapUsuarioSelectorDto);
 };
 
 export const obtenerMetricasUsuarios = async () => {
@@ -327,7 +335,7 @@ export const crearUsuario = async (datos: any) => {
   };
 };
 
-export const actualizarUsuario = async (rut: string, datos: any) => {
+export const actualizarUsuario = async (rut: string, datos: any, registradoPorRut?: string) => {
   const usuarioExistente = await buscarUsuarioPorRut(rut);
   if (!usuarioExistente) {
     throw new NotFoundError('Usuario', rut);
@@ -493,6 +501,14 @@ export const actualizarUsuario = async (rut: string, datos: any) => {
     },
   });
 
+  if (pasaInactivo && registradoPorRut) {
+    try {
+      await marcarAsistenciaPorBajaUsuario(usuarioExistente.rut, registradoPorRut);
+    } catch (err) {
+      console.error('[SIDEP] marcar asistencia por baja:', err);
+    }
+  }
+
   return mapUsuarioToDto(usuarioActualizado);
 };
 
@@ -526,7 +542,7 @@ async function referenciasUsuarioParaEliminar(rut: string): Promise<string[]> {
   return refs;
 }
 
-export const eliminarUsuario = async (rut: string) => {
+export const eliminarUsuario = async (rut: string, registradoPorRut?: string) => {
   const usuario = await buscarUsuarioPorRut(rut);
   if (!usuario) {
     throw new NotFoundError('Usuario', rut);
@@ -562,6 +578,13 @@ export const eliminarUsuario = async (rut: string) => {
         tokenVersion: { increment: 1 },
       },
     });
+    if (registradoPorRut) {
+      try {
+        await marcarAsistenciaPorBajaUsuario(usuario.rut, registradoPorRut);
+      } catch (err) {
+        console.error('[SIDEP] marcar asistencia por baja (soft delete):', err);
+      }
+    }
     const detalle =
       referencias.length > 0
         ? ` Registros vinculados: ${referencias.join('; ')}.`

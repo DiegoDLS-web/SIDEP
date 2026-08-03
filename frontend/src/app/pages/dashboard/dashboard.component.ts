@@ -306,12 +306,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   heatClass(val: number): string {
-    if (val <= 0) return 'bg-gray-800';
-    if (val === 1) return 'bg-red-950';
-    if (val === 2) return 'bg-red-900';
-    if (val <= 4) return 'bg-red-700';
-    if (val <= 6) return 'bg-red-600';
-    return 'bg-red-500';
+    return `sid-heat-${this.heatLevel(val)}`;
+  }
+
+  /** Nivel 0–4 para escala visible (relativo al máximo del período). */
+  heatLevel(val: number): number {
+    const n = Number(val) || 0;
+    if (n <= 0) return 0;
+    const max = this.maxHeat();
+    const ratio = n / max;
+    if (ratio <= 0.25) return 1;
+    if (ratio <= 0.5) return 2;
+    if (ratio <= 0.75) return 3;
+    return 4;
   }
 
   fechaCorta(iso: string): string {

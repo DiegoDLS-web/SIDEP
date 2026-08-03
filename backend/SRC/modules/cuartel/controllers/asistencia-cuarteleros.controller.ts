@@ -1,10 +1,12 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '../../../middlewares/async-handler';
 import * as asistenciaService from '../services/asistencia-cuarteleros.service';
+import * as panelService from '../services/cuartelero-panel.service';
+import { ForbiddenError } from '../../../utils/errors/AppError';
 
 function rutUsuario(req: Request): string {
   const rut = (req as any).user?.rut;
-  if (!rut) throw new Error('No autorizado');
+  if (!rut) throw new ForbiddenError('No autorizado');
   return rut;
 }
 
@@ -20,6 +22,25 @@ export const getPlanillaAsistencia = asyncHandler(async (req: Request, res: Resp
 export const postCeldaAsistencia = asyncHandler(async (req: Request, res: Response) => {
   const data = await asistenciaService.upsertCeldaAsistencia(rutUsuario(req), req.body);
   res.status(200).json(data);
+});
+
+export const postMiAsistencia = asyncHandler(async (req: Request, res: Response) => {
+  const data = await asistenciaService.registrarMiAsistencia(rutUsuario(req), req.body);
+  res.status(201).json(data);
+});
+
+export const getMiPanel = asyncHandler(async (req: Request, res: Response) => {
+  const anio = req.query.anio ? Number(req.query.anio) : undefined;
+  const mes = req.query.mes ? Number(req.query.mes) : undefined;
+  const data = await panelService.obtenerPanelCuartelero(rutUsuario(req), anio, mes);
+  res.json(data);
+});
+
+export const getMiHistorial = asyncHandler(async (req: Request, res: Response) => {
+  const page = req.query.page ? Number(req.query.page) : 1;
+  const pageSize = req.query.pageSize ? Number(req.query.pageSize) : 20;
+  const data = await panelService.listarHistorialPropio(rutUsuario(req), page, pageSize);
+  res.json(data);
 });
 
 export const getAsistencias = asyncHandler(async (req: Request, res: Response) => {

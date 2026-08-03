@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, catchError, of } from 'rxjs';
@@ -11,6 +11,7 @@ import { PdfExportService } from '../../services/pdf-export.service';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { ToastService } from '../../services/toast.service';
 import { BorradorLocalService } from '../../services/borrador-local.service';
+import { AutosaveLocal } from '../../utils/autosave-local.helper';
 import { CambioEstadoDialogService } from '../../services/cambio-estado-dialog.service';
 import { solicitarMotivoCambioEstado } from '../../utils/cambio-estado.util';
 import { UsuariosService } from '../../services/usuarios.service';
@@ -57,7 +58,7 @@ type Ubicacion = { nombre: string; materiales: Material[] };
   imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidEdicionPendienteBannerComponent, SidPlantillaEdicionBannerComponent],
   templateUrl: './checklist-unidad.component.html',
 })
-export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPendiente {
+export class ChecklistUnidadComponent implements OnInit, OnDestroy, ComponenteConEdicionPendiente {
   readonly nombreListaSoloPersona = nombreListaSoloPersona;
   readonly etiquetaEstadoChecklist = etiquetaEstadoChecklist;
 
@@ -72,6 +73,7 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
   private readonly borradorLocal = inject(BorradorLocalService);
   private readonly cambioEstadoDialog = inject(CambioEstadoDialogService);
   private readonly inventariosApi = inject(InventariosService);
+  private autosaveLocal?: AutosaveLocal;
 
   stockBodega: Record<string, { disponible: number; bodega: string }> = {};
 
@@ -151,6 +153,14 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
   }
 
   ngOnInit(): void {
+    this.autosaveLocal = new AutosaveLocal(
+      this.borradorLocal,
+      'checklist-unidad',
+      () => this.unidad,
+      () => this.payloadBorradorLocal(),
+      { habilitado: () => !this.loading && !this.saving && this.esRegistroNuevo },
+    );
+
     this.unidad = this.route.snapshot.paramMap.get('unidad') ?? 'R-1';
     this.registroHistorialId = this.route.snapshot.queryParamMap.get('registro');
     this.esRegistroNuevo = !this.registroHistorialId;
@@ -454,6 +464,14 @@ export class ChecklistUnidadComponent implements OnInit, ComponenteConEdicionPen
       firmaInspectorValor: this.firmaInspectorValor,
       estadoChecklistSeleccionado: this.estadoChecklistSeleccionado,
     };
+  }
+
+  ngOnDestroy(): void {
+    this.autosaveLocal?.destruir();
+  }
+
+  programarAutosaveLocal(): void {
+    this.autosaveLocal?.programar();
   }
 
   private async ofrecerRestaurarBorradorLocal(): Promise<void> {

@@ -5,9 +5,12 @@ import { AsistenciaCuartelerosService } from '../../services/asistencia-cuartele
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
 import { mensajeApiError } from '../../utils/api-error.util';
+import { exportarExcelSidep } from '../../utils/excel-export.util';
 import type {
+  AsistenciaCuarteleroDto,
   EstadoAsistenciaGuardia,
   PlanillaAsistenciaDto,
+  PlanillaCeldaDto,
   PlanillaColumnaDto,
   PlanillaFilaDto,
 } from '../../models/asistencia-cuarteleros.dto';
@@ -60,6 +63,7 @@ export class GuardiasAsistenciaPlanillaComponent implements OnInit {
   readonly estados = ESTADOS_ASISTENCIA_GUARDIA;
   readonly etiquetasEstado = ETIQUETAS_ESTADO_ASISTENCIA;
 
+  subVista: 'planilla' | 'historial' = 'planilla';
   loading = true;
   guardandoCelda = false;
   planilla: PlanillaAsistenciaDto | null = null;
@@ -67,6 +71,12 @@ export class GuardiasAsistenciaPlanillaComponent implements OnInit {
   filtroDesde = rangoGuardiaDefault().desde;
   filtroHasta = rangoGuardiaDefault().hasta;
   filtroGrupo: GrupoGuardia | 'TODAS' = 'TODAS';
+
+  historialLoading = false;
+  historialItems: AsistenciaCuarteleroDto[] = [];
+  historialPage = 1;
+  historialTotalPages = 1;
+  historialTotal = 0;
 
   detalleAbierto = false;
   detalleFila: PlanillaFilaDto | null = null;
@@ -106,9 +116,18 @@ export class GuardiasAsistenciaPlanillaComponent implements OnInit {
     return this.planilla?.filas.reduce((acc, f) => acc + f.totalAsistencias, 0) ?? 0;
   }
 
+  get resumenCobertura() {
+    return this.planilla?.resumenCobertura ?? { programados: 0, faltasProgramadas: 0, cubiertos: 0 };
+  }
+
   ngOnInit(): void {
     this.aplicarRangoReferencia();
     this.cargar();
+  }
+
+  cambiarSubVista(v: 'planilla' | 'historial'): void {
+    this.subVista = v;
+    if (v === 'historial') this.cargarHistorial();
   }
 
   aplicarRangoReferencia(): void {
@@ -120,7 +139,7 @@ export class GuardiasAsistenciaPlanillaComponent implements OnInit {
   recargarConFecha(fecha: string | null): void {
     this.fechaReferencia = fecha;
     this.aplicarRangoReferencia();
-    this.cargar();
+    if (this.subVista === 'planilla') this.cargar();
   }
 
   cargar(): void {
@@ -143,10 +162,72 @@ export class GuardiasAsistenciaPlanillaComponent implements OnInit {
       });
   }
 
+  cargarHistorial(page = this.historialPage): void {
+    this.historialLoading = true;
+    this.historialPage = page;
+    this.api
+      .listar({
+        desde: this.filtroDesde,
+        hasta: this.filtroHasta,
+        grupo: this.filtroGrupo !== 'TODAS' ? this.filtroGrupo : undefined,
+        page,
+        pageSize: 25,
+      })
+      .subscribe({
+        next: (r) => {
+          this.historialItems = r.items;
+          this.historialTotal = r.total;
+          this.historialTotalPages = r.totalPages;
+          this.historialLoading = false;
+        },
+        error: (err) => {
+          this.historialLoading = false;
+          this.toast.error(mensajeApiError(err, 'No se pudo cargar el historial.'));
+        },
+      });
+  }
+
   limpiarFiltros(): void {
     this.aplicarRangoReferencia();
     this.filtroGrupo = 'TODAS';
-    this.cargar();
+    if (this.subVista === 'planilla') this.cargar();
+    else this.cargarHistorial(1);
+  }
+
+  aplicarFiltros(): void {
+    if (this.subVista === 'planilla') this.cargar();
+    else this.cargarHistorial(1);
+  }
+
+  exportarExcel(): void {
+    if (!this.planilla?.filas.length) {
+      this.toast.error('No hay datos para exportar.');
+      return;
+    }
+    const columnas = ['N°', 'Voluntario', 'Grupo', 'Total'];
+    for (const g of this.columnasAgrupadas) {
+      for (const col of g.cols) {
+        columnas.push(`${g.label} ${col.sublabel}`);
+      }
+    }
+    const filas = this.planilla.filas.map((f) => {
+      const row: unknown[] = [f.numero, f.nombre, f.grupoGuardia ?? '—', f.totalAsistencias];
+      for (const g of this.columnasAgrupadas) {
+        for (const col of g.cols) {
+          const celda = f.celdas[col.key];
+          const estado = celda?.estadoAsistencia;
+          row.push(estado ? this.etiquetasEstado[estado] : '—');
+        }
+      }
+      return row;
+    });
+    exportarExcelSidep({
+      titulo: 'Planilla de asistencia · Guardias',
+      meta: [`Período: ${this.filtroDesde} — ${this.filtroHasta}`],
+      columnas,
+      filas,
+      nombreArchivo: `asistencia-guardias_${this.filtroDesde}_${this.filtroHasta}`,
+    });
   }
 
   abrirDetalle(fila: PlanillaFilaDto, col: PlanillaColumnaDto): void {
@@ -187,11 +268,13 @@ export class GuardiasAsistenciaPlanillaComponent implements OnInit {
   guardarDetalle(): void {
     if (!this.detalleFila || !this.detalleCol || this.guardandoCelda) return;
     const estado = (this.detalleForm.estadoAsistencia || null) as EstadoAsistenciaGuardia | null;
+    const filaRut = this.detalleFila.usuarioRut;
+    const colKey = this.detalleCol.key;
     this.guardandoCelda = true;
     this.api
       .guardarCelda({
         fecha: this.detalleCol.fecha,
-        usuarioRut: this.detalleFila.usuarioRut,
+        usuarioRut: filaRut,
         tipoTurno: this.detalleCol.tipoTurno,
         estadoAsistencia: estado,
         grupoGuardia: this.detalleFila.grupoGuardia,
@@ -201,11 +284,11 @@ export class GuardiasAsistenciaPlanillaComponent implements OnInit {
         observaciones: this.detalleForm.observaciones || null,
       })
       .subscribe({
-        next: () => {
+        next: (resp) => {
           this.guardandoCelda = false;
           this.cerrarDetalle();
           this.toast.exito('Asistencia actualizada.');
-          this.cargar();
+          this.aplicarRespuestaCelda(filaRut, colKey, estado, resp);
         },
         error: (err) => {
           this.guardandoCelda = false;
@@ -241,18 +324,20 @@ export class GuardiasAsistenciaPlanillaComponent implements OnInit {
       return;
     }
     this.guardandoCelda = true;
+    const filaRut = fila.usuarioRut;
+    const colKey = col.key;
     this.api
       .guardarCelda({
         fecha: col.fecha,
-        usuarioRut: fila.usuarioRut,
+        usuarioRut: filaRut,
         tipoTurno: col.tipoTurno,
         estadoAsistencia: estado,
         grupoGuardia: fila.grupoGuardia,
       })
       .subscribe({
-        next: () => {
+        next: (resp) => {
           this.guardandoCelda = false;
-          this.cargar();
+          this.aplicarRespuestaCelda(filaRut, colKey, estado, resp);
         },
         error: (err) => {
           this.guardandoCelda = false;
@@ -297,5 +382,67 @@ export class GuardiasAsistenciaPlanillaComponent implements OnInit {
       timeStyle: 'short',
     });
     return `${r.nombre} (${r.rol}) · ${when}`;
+  }
+
+  etiquetaHistorial(a: AsistenciaCuarteleroDto): string {
+    return a.estadoAsistencia ? this.etiquetasEstado[a.estadoAsistencia] : '—';
+  }
+
+  /** Celdas de una fila en orden de columnas (vista móvil). */
+  celdasDeFila(fila: PlanillaFilaDto): Array<{ col: PlanillaColumnaDto; celda: PlanillaCeldaDto | undefined }> {
+    if (!this.planilla) return [];
+    return this.planilla.columnas.map((col) => ({ col, celda: fila.celdas[col.key] }));
+  }
+
+  private aplicarRespuestaCelda(
+    filaRut: string,
+    colKey: string,
+    estado: EstadoAsistenciaGuardia | null,
+    resp: AsistenciaCuarteleroDto | { ok: boolean; eliminado: boolean },
+  ): void {
+    if (!this.planilla || 'eliminado' in resp) {
+      this.cargar();
+      return;
+    }
+    const fila = this.planilla.filas.find((f) => f.usuarioRut === filaRut);
+    if (!fila) {
+      this.cargar();
+      return;
+    }
+    const prev = fila.celdas[colKey];
+    const patch: PlanillaCeldaDto = {
+      id: resp.id ?? prev?.id ?? null,
+      estadoAsistencia: estado,
+      horaEntrada: resp.horaEntrada ?? prev?.horaEntrada ?? null,
+      horaSalida: resp.horaSalida ?? prev?.horaSalida ?? null,
+      tieneFirma: Boolean(resp.firmaImagenUrl) || Boolean(prev?.tieneFirma),
+      programadoGuardia: prev?.programadoGuardia ?? false,
+      registradoPor: resp.registradoPor ?? prev?.registradoPor ?? null,
+      updatedAt: resp.updatedAt ?? new Date().toISOString(),
+    };
+    fila.celdas[colKey] = patch;
+    fila.totalAsistencias = Object.values(fila.celdas).filter(
+      (c) => c.estadoAsistencia === 'ASISTE' || c.estadoAsistencia === 'REEMPLAZA',
+    ).length;
+    this.recalcularResumenCobertura();
+  }
+
+  private recalcularResumenCobertura(): void {
+    if (!this.planilla) return;
+    let programados = 0;
+    let faltasProgramadas = 0;
+    for (const f of this.planilla.filas) {
+      for (const c of Object.values(f.celdas)) {
+        if (!c.programadoGuardia) continue;
+        programados += 1;
+        const ok = c.estadoAsistencia === 'ASISTE' || c.estadoAsistencia === 'REEMPLAZA';
+        if (!ok) faltasProgramadas += 1;
+      }
+    }
+    this.planilla.resumenCobertura = {
+      programados,
+      faltasProgramadas,
+      cubiertos: programados - faltasProgramadas,
+    };
   }
 }

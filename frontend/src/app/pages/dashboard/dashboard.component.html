@@ -578,7 +578,7 @@
             <div class="grid grid-cols-7 gap-1 sm:gap-1.5">
               @for (dia of semana; track $index; let id = $index) {
                 <div
-                  class="sid-chart-heat-cell relative aspect-square min-h-[28px] w-full max-h-[36px] rounded sm:min-h-[32px]"
+                  class="sid-chart-heat-cell sid-heat-0 relative aspect-square min-h-[28px] w-full max-h-[36px] rounded sm:min-h-[32px]"
                   [ngClass]="heatClass(dia)"
                   [attr.title]="heatmapEtiqueta(iw, id, dia)"
                   [attr.aria-label]="heatmapEtiqueta(iw, id, dia)"
@@ -591,11 +591,11 @@
         <div class="mt-3 flex items-center justify-between text-[10px] text-gray-500 sm:text-xs">
           <span>Menos</span>
           <div class="flex gap-0.5">
-            <div class="h-3 w-3 rounded bg-gray-800 sm:h-4 sm:w-4"></div>
-            <div class="h-3 w-3 rounded bg-red-900 sm:h-4 sm:w-4"></div>
-            <div class="h-3 w-3 rounded bg-red-700 sm:h-4 sm:w-4"></div>
-            <div class="h-3 w-3 rounded bg-red-600 sm:h-4 sm:w-4"></div>
-            <div class="h-3 w-3 rounded bg-red-500 sm:h-4 sm:w-4"></div>
+            <div class="sid-heat-0 h-3 w-3 rounded sm:h-4 sm:w-4"></div>
+            <div class="sid-heat-1 h-3 w-3 rounded sm:h-4 sm:w-4"></div>
+            <div class="sid-heat-2 h-3 w-3 rounded sm:h-4 sm:w-4"></div>
+            <div class="sid-heat-3 h-3 w-3 rounded sm:h-4 sm:w-4"></div>
+            <div class="sid-heat-4 h-3 w-3 rounded sm:h-4 sm:w-4"></div>
           </div>
           <span>Más</span>
         </div>

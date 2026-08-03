@@ -53,3 +53,29 @@ export const listarAsistenciaQueryDto = z.object({
   page: z.coerce.number().int().min(1).optional(),
   pageSize: z.coerce.number().int().min(1).max(200).optional(),
 });
+
+export const miAsistenciaDto = z.object({
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  tipoTurno: z.enum(tiposTurnoAsistencia),
+  estadoAsistencia: z.enum(estadosAsistenciaGuardia).optional(),
+  horaEntrada: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+  horaSalida: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+  firmaImagenUrl: z
+    .string()
+    .min(22)
+    .refine((v) => v.trim().startsWith('data:image'), 'Firma inválida')
+    .optional()
+    .nullable(),
+  observaciones: z.string().max(2000).optional().nullable(),
+  grupoGuardia: z.enum(gruposGuardia).optional().nullable(),
+});
+
+export const panelCuarteleroQueryDto = z.object({
+  anio: z.coerce.number().int().min(2020).max(2100).optional(),
+  mes: z.coerce.number().int().min(1).max(12).optional(),
+});
+
+export const historialPropioQueryDto = z.object({
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(200).optional(),
+});

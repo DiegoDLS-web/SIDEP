@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, finalize, forkJoin, of, timeout, throwError, type Observable } from 'rxjs';
@@ -23,8 +23,10 @@ import {
 } from './asistencia-roster.constants';
 import { etiquetaDirectorioVoluntario, etiquetaPadronAsistenciaParte, nombreListaSoloPersona, ordenPorClaveNomina, CARGOS_INSPECTORES_COMANDANCIA, CARGOS_OFICIALES_COMPANIA, CARGOS_OFICIALES_GENERALES } from '../usuarios/usuario-registro.constants';
 import { mensajeApiError } from '../../utils/api-error.util';
+import { esUsuarioOperativo } from '../../utils/usuario-operativo.util';
 import { formatearFechaBorradorLocal, manejarErrorGuardadoConBorradorLocal } from '../../utils/borrador-local.util';
 import { BorradorLocalService } from '../../services/borrador-local.service';
+import { AutosaveLocal } from '../../utils/autosave-local.helper';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { AuthService } from '../../services/auth.service';
 import { puedeEditarParteCompletado } from '../../utils/parte-edicion-roles.util';
@@ -65,7 +67,7 @@ type PasoId = 'basicos' | 'emergencia' | 'trabajo' | 'asistencia' | 'apoyo' | 'o
   imports: [CommonModule, FormsModule, RouterLink, SidepIconsModule, SignaturePadComponent, SidDateInputComponent],
   templateUrl: './parte-nuevo.component.html',
 })
-export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendiente {
+export class ParteNuevoComponent implements OnInit, OnDestroy, ComponenteConEdicionPendiente {
   readonly nombreListaSoloPersona = nombreListaSoloPersona;
 
   get exigeUnidadesDespacho(): boolean {
@@ -84,6 +86,7 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
   private readonly auth = inject(AuthService);
   private readonly cdr = inject(ChangeDetectorRef);
   readonly catalogoEmergencias = inject(CatalogoTiposEmergenciaService);
+  private autosaveLocal?: AutosaveLocal;
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -233,6 +236,14 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
   ];
 
   ngOnInit(): void {
+    this.autosaveLocal = new AutosaveLocal(
+      this.borradorLocal,
+      'parte',
+      () => this.claveParteLocal(),
+      () => this.payloadAutosaveLocal(),
+      { habilitado: () => !this.loading && !this.submitting },
+    );
+
     const parteIdRaw = this.route.snapshot.queryParamMap.get('editar');
     this.editandoParteId = parteIdRaw?.trim() ? parteIdRaw.trim() : null;
 
@@ -259,7 +270,7 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
           return;
         }
         this.carros = carros?.data ? carros.data : (carros ?? []);
-        this.usuarios = (usuarios ?? []).filter((u: UsuarioListaDto) => !this.esUsuarioExcluidoAsistencia(u));
+        this.usuarios = (usuarios ?? []).filter((u: UsuarioListaDto) => esUsuarioOperativo(u));
         this.aplicarLicenciasActivas(licencias);
         this.reconstruirAsistenciaLayout();
         for (const r of this.radiosParteOpciones) {
@@ -295,6 +306,14 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
         this.loading = false;
       },
     });
+  }
+
+  ngOnDestroy(): void {
+    this.autosaveLocal?.destruir();
+  }
+
+  programarAutosaveLocal(): void {
+    this.autosaveLocal?.programar();
   }
 
   get esEdicion(): boolean {
@@ -673,7 +692,7 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
     }
 
     const pool = this.usuarios
-      .filter((u) => u.activo && !this.esAspirante(u) && !this.esUsuarioExcluidoAsistencia(u));
+      .filter((u) => esUsuarioOperativo(u) && !this.esAspirante(u));
 
     const usados = new Set<string>();
     const sortClave = (a: UsuarioListaDto, b: UsuarioListaDto) => ordenPorClaveNomina(a, b);
@@ -778,14 +797,6 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
       'xl:grid-cols-2': colsXl === 2,
       'xl:grid-cols-3': colsXl >= 3,
     };
-  }
-
-  /** Excluye cuentas admin de prueba del padrón de asistencia. */
-  private esUsuarioExcluidoAsistencia(u: UsuarioListaDto): boolean {
-    const rol = (u.rol ?? '').trim().toUpperCase();
-    if (rol === 'ADMIN') return true;
-    const nom = (u.nombre ?? '').trim().toLowerCase();
-    return nom.includes('admin de pruebas') || nom.includes('admin pruebas');
   }
 
   onObacSeleccionado(): void {
@@ -964,7 +975,7 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
 
   get usuariosElegiblesObac(): UsuarioListaDto[] {
     return this.usuarios
-      .filter((u) => u.activo && !this.esAspirante(u) && !this.esUsuarioExcluidoAsistencia(u) && this.voluntarioDisponibleParaParte(u))
+      .filter((u) => esUsuarioOperativo(u) && !this.esAspirante(u) && this.voluntarioDisponibleParaParte(u))
       .sort((a, b) => {
       const da = this.debePriorizarAlFinalParaObac(a) ? 1 : 0;
       const db = this.debePriorizarAlFinalParaObac(b) ? 1 : 0;
@@ -1345,6 +1356,36 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
     return String(this.editandoParteId ?? 'nuevo');
   }
 
+  /** Snapshot local del formulario (autosave / sin conexión). */
+  private payloadAutosaveLocal(): unknown | null {
+    if (this.loading) return null;
+    try {
+      this.prepararCierreAntesDeGuardar();
+      const parObac = this.resolverParObac(true);
+      return {
+        claveEmergencia: this.claveEmergencia.trim() || CLAVE_BORRADOR_DEFAULT,
+        direccion: this.direccion.trim() || '',
+        obacId: parObac?.obac ?? null,
+        obacRut: parObac?.obacRut ?? null,
+        fecha: this.buildFechaIso() ?? new Date().toISOString(),
+        estado: 'BORRADOR',
+        unidades: this.parseUnidadesPayload(),
+        pacientes: this.parsePacientesPayload(),
+        asistencias: this.parseAsistenciasPayload(),
+        descripcionEmergencia: this.descripcionEmergencia.trim() || null,
+        trabajoRealizado: this.trabajoRealizado.trim() || null,
+        materialUtilizado: this.materialUtilizado.trim() || null,
+        observaciones: this.observaciones.trim() || null,
+        vehiculosAfectados: this.filtrarVehiculosPayload(),
+        apoyosExternos: this.filtrarApoyosPayload(),
+        otrasCompanias: this.filtrarOtrasCompaniasPayload(),
+        metadata: { ...this.construirMetadata(), _pasoIdx: this.pasoIdx },
+      };
+    } catch {
+      return null;
+    }
+  }
+
   private async ofrecerRestaurarBorradorLocal(): Promise<void> {
     const saved = this.borradorLocal.obtener('parte', this.claveParteLocal());
     if (!saved?.payload) return;
@@ -1359,6 +1400,10 @@ export class ParteNuevoComponent implements OnInit, ComponenteConEdicionPendient
       return;
     }
     this.cargarParteEnFormulario(saved.payload);
+    const meta = (saved.payload as { metadata?: { _pasoIdx?: number } })?.metadata;
+    if (typeof meta?._pasoIdx === 'number' && meta._pasoIdx >= 0 && meta._pasoIdx < this.pasosVisibles.length) {
+      this.pasoIdx = meta._pasoIdx;
+    }
     this.toast.exito('Borrador local restaurado. Recuerda sincronizarlo con el servidor.');
   }
 
